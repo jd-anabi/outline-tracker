@@ -95,7 +95,7 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `gui/panels/objects_panel.py` | panel 6: the table of objects, Add, Remove, mode, fine window, the point tools |
 | `gui/panels/track_panel.py` | panel 7: model, device, the estimate, Track, progress, Cancel |
 
-Panel 8 (`gui/panels/review_panel.py`, with its table in `gui/panels/review_table.py`) and panel 9 (`gui/panels/export_panel.py`) are tasks of their own. Panel 5 has no module (`probes_panel` in `PANEL_MODULES`): it shows its hint line alone, and the `probe` command does its work.
+Panel 8 (`gui/panels/review_panel.py`, with its table in `gui/review_table.py`) and panel 9 (`gui/panels/export_panel.py`) are tasks of their own. Panel 5 has no module (`probes_panel` in `PANEL_MODULES`): it shows its hint line alone, and the `probe` command does its work.
 
 ## Tests
 
