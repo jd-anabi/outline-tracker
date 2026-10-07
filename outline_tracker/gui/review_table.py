@@ -4,19 +4,27 @@ frame"): its rows, how they are shown, and how they are computed.
 The rows are `tracking.flags_table(run_folder)`: one row per flag on a frame, by track and then by
 frame, from session.json and results.npz as they are on disk. That function derives every track
 again, which takes seconds for 10 tracks of 1,200 frames: far longer than a window may stand
-still. So `Listing` has it called in the worker thread (`Worker.run`), not in the GUI thread, and
-the window stays usable meanwhile. The rows are asked for again only when what they are made of
-has changed: results.npz (its size, time and file number), or the parts of the session that the
-flags are derived from (fps_true, the scale and the axes, the dish circle, the settings, and the
-id, head click and start frame of each track that has results). A click on an animal changes none
-of these, so it never makes the worker list the flags while it should outline the click.
+still. So `Listing` never has it called in the GUI thread, and the window stays usable meanwhile.
+It is called in the worker thread (`Worker.run`). The worker takes a task only while its model is
+ready: when the model could not be loaded, the flags are listed in a thread of the listing's own,
+which is started for the first such listing and ended when the window closes. The rows are asked
+for again only when what they are made of has changed: results.npz (its size, time and file
+number), whether session.json is there, or the parts of the session that the flags are derived
+from (fps_true, the scale and the axes, the dish circle, the settings, and the id, head click and
+start frame of each track that has results). A click on an animal changes none of these, so it
+never makes the worker list the flags while it should outline the click.
 
-Who reads and writes what. The task in the worker thread reads the two files and nothing else: it
+Who reads and writes what. The task, in either thread, reads the two files and nothing else: it
 is given the run folder as a path, never the session object, and it writes nothing. session.json
 is written by the controller in the GUI thread, results.npz by a tracking job or a correction;
 both are replaced in one step, so a read never meets half a file. `sync()` is therefore called
 when the controller has saved, when a run has ended and when the worker's state changes; while a
 run is going nothing is listed (the worker is busy with the run).
+
+When the flags cannot be listed, `Listing.problem` says so in one plain sentence and there are no
+rows: that is never "no flags". A refusal of the function (no scale, no fps_true) is its own
+sentence. For any other error the sentence names run.log, and the error's trace goes there with
+the worker's traces (`Worker.keep_trace`, SPEC 10.2): it is never shown.
 
 Units: frames are video frame numbers; t is frame / fps_true in s, shown with 3 decimals. Row
 heights are Qt's device-independent px. Nothing here imports torch.
@@ -26,13 +34,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, Qt, Signal
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QAbstractItemView, QApplication, QHeaderView, QTableView
 
 from outline_tracker import schema, tracking
 from outline_tracker.gui import theme
-from outline_tracker.gui.worker import plain, worker_of
+from outline_tracker.gui.worker import STACK_BYTES, plain, traced, worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 
 COLUMNS = ("Track", "Frame", "t", "Flag")
@@ -44,6 +52,12 @@ ROWS_SHOWN, ROW_HEIGHT = 6, 24
 WIDEST = ("Track", "000000", "000.000 s")  # what the first three columns have room for; the flag takes the rest
 CELL_MARGIN = 8  # at each side of a cell's text
 TABLE_TIP = "The flags of the tracked frames. Click a row to go to its frame (up and down: the row before, the next)."
+# Why there are no rows, for the panel's hint line; and the line above an error's trace in run.log.
+NOT_LISTED = "The flags could not be listed: {reason}. The details are in run.log in the run folder."
+NOT_READ = "{name} could not be read"
+NO_SESSION_FILE = (f"{schema.SESSION_JSON} is not in the run folder, so the flags cannot be listed. Save the session "
+                   "(File > Save session).")
+TRACE_HEAD = "The flags of the run folder {folder} could not be listed."
 
 Row = tuple[str, int, float, str]  # track id, video frame number, t in s, flag code
 
@@ -184,24 +198,46 @@ def listed(rows: list[Row], track_ids, only: str | None, shape_flags: bool) -> l
     return [row for row in rows if row[3] in codes and row[0] in track_ids and only in (None, row[0])]
 
 
+def reason_of(error: Exception) -> str:
+    """Why the flags could not be listed, as the part of a sentence (`NOT_LISTED`) for the user,
+    without a full stop: for a file that could not be read, its name without its folder; for any
+    other error, `worker.plain`."""
+    name = getattr(error, "filename", None) if isinstance(error, OSError) else None
+    return NOT_READ.format(name=Path(name).name) if isinstance(name, str) and name else plain(error).rstrip(". ")
+
+
 class _Task:
-    """One listing as the worker thread runs it: `tracking.flags_table` of a run folder."""
+    """One listing as a thread runs it (the worker's, or the listing's own):
+    `tracking.flags_table` of a run folder."""
 
     def __init__(self, listing: Listing, serial: int, folder: Path):
         self._listing, self._serial, self._folder = listing, serial, folder
 
     def __call__(self, segmenter) -> None:
-        """List the flags and report them. Nothing is raised; the model (`segmenter`) is not used."""
-        rows, problem = [], ""
+        """List the flags and report the rows, or one plain sentence that says why there are none
+        (results.npz was there when the listing was asked for), with the trace of an error that
+        the sentence does not explain. Nothing is raised; the model (`segmenter`) is not used."""
+        rows, problem, trace = [], "", ""
         try:
             rows = tracking.flags_table(self._folder)
-        except FileNotFoundError:  # no session.json: nothing was saved there yet, so nothing is tracked
-            pass
         except ValueError as refused:  # no scale or no fps_true yet: the function's own sentence
             problem = str(refused)
-        except Exception as error:  # a file that cannot be read: one plain line, never an error in the worker
-            problem = plain(error)
-        self._listing._done.emit(self._serial, rows, problem)
+        except Exception as error:  # whatever else is raised: said in one line, never raised in the thread
+            if isinstance(error, FileNotFoundError) and not (self._folder / schema.SESSION_JSON).is_file():
+                problem = NO_SESSION_FILE  # which says all there is to it: no trace
+            else:
+                problem = NOT_LISTED.format(reason=reason_of(error))
+                trace = traced(TRACE_HEAD.format(folder=self._folder.name))
+        self._listing._done.emit(self._serial, rows, problem, trace)
+
+
+class _Aside(QObject):
+    """The object in a listing's own thread: `run` is its slot and runs there."""
+
+    @Slot(object)
+    def run(self, task) -> None:
+        """Call `task(None)`: no model is there. The task reports by itself and raises nothing."""
+        task(None)
 
 
 class Listing(QObject):
@@ -209,17 +245,20 @@ class Listing(QObject):
     text).
 
     `rows`: what `tracking.flags_table` gave last, as (track id, video frame number, t in s, flag
-    code); `problem`: that function's sentence when it refused (no scale, no fps_true), "" else.
-    `version` counts the listings that were taken. `pending`: the files on disk are no longer what
-    `rows` was made of, and the new rows have not arrived (they are being listed, or wait for the
-    model to be ready or for a run to end). `held`: while true `sync` does nothing; whoever saves
-    a correction and starts its run at once sets it, so that the flags are listed after that run
-    and not before it. `changed` is emitted in the GUI thread whenever `rows`, `problem` or
-    `pending` has changed.
+    code); `problem`: one plain sentence that says why the flags could not be listed (that
+    function's own when it refused: no scale, no fps_true), "" when they were. `version` counts
+    the listings that were taken. `pending`: the files on disk are no longer what `rows` was made
+    of, and the new rows have not arrived (they are being listed, or wait for the model to be
+    ready or for a run to end). `held`: while true `sync` does nothing; whoever saves a correction
+    and starts its run at once sets it, so that the flags are listed after that run and not
+    before it. `changed` is emitted in the GUI thread whenever `rows`, `problem` or `pending` has
+    changed.
     """
 
     changed = Signal()
-    _done = Signal(int, object, str)  # serial, rows, problem: emitted by the task, in the worker thread
+    # serial, rows, problem, the trace of an error (`worker.traced`): emitted by the task, in the thread that runs it
+    _done = Signal(int, object, str, str)
+    _aside = Signal(object)  # a task for this listing's own thread
 
     def __init__(self, window):
         super().__init__(window)
@@ -232,16 +271,25 @@ class Listing(QObject):
         self._wanted = None    # what is on disk now, as far as `sync` has seen
         self._asked: tuple[int, object] | None = None  # the listing on its way: its number, what it is made of
         self._serial = 0
+        self._thread: QThread | None = None  # this listing's own: made for the first listing without a model
+        self._runner: _Aside | None = None   # the object in it
+        self._stopped = False                # the window has closed: nothing is listed any more
         self._done.connect(self._arrived)
         self._controller.video_opened.connect(self.sync)
         self._controller.saved.connect(self.sync)
         self._jobs.finished.connect(self.sync)
         self._worker.state_changed.connect(self.sync)
+        window.closing.connect(self.stop)
 
     @property
     def pending(self) -> bool:
         """Whether `rows` is out of date (see the class)."""
         return self._wanted != self._made_of
+
+    def is_running(self) -> bool:
+        """Whether this listing's own thread runs: from the first listing without a model until
+        the window closes. With a model the flags are listed in the worker thread, and it never does."""
+        return self._thread is not None and self._thread.isRunning()
 
     def _inputs(self):
         """What the flags on disk are made of, for telling whether they changed; None while no
@@ -261,15 +309,16 @@ class Listing(QObject):
                        for track in session.tracks if track.id in tracked)
         if not tracks:
             return None
-        return (str(folder), found.st_size, found.st_mtime_ns, found.st_ino, session.time.fps_true,
+        saved = (Path(folder) / schema.SESSION_JSON).is_file()  # without it nothing can be listed: see `_Task`
+        return (str(folder), found.st_size, found.st_mtime_ns, found.st_ino, saved, session.time.fps_true,
                 repr(session.calibration), repr(session.axes), repr(session.circle), repr(session.processing), tracks)
 
     def sync(self, *_) -> None:
         """List the flags again if what they are made of changed since `rows` was listed. Call it
-        when session.json is up to date on disk. Nothing is asked for during a run or while `held`.
-        Without a model that could be loaded there is no worker thread to ask: the flags are then
-        listed here, in the calling thread."""
-        if self.held or self._jobs.running or self._worker.state == "stopped":
+        when session.json is up to date on disk; it returns at once, and `changed` says when the
+        rows are there. Nothing is asked for during a run, while `held`, or after `stop`. The
+        worker thread lists; when the model could not be loaded, this listing's own thread does."""
+        if self.held or self._stopped or self._jobs.running or self._worker.state == "stopped":
             return
         before = (self.version, self.pending)
         self._wanted = self._inputs()
@@ -285,14 +334,40 @@ class Listing(QObject):
             self._asked = (self._serial, self._wanted)
             if not self._worker.run(task):
                 if self._worker.state == "failed":
-                    task(None)
+                    self._list_aside(task)
                 else:
                     self._asked = None  # the model is loading: `state_changed` calls this again
         if before != (self.version, self.pending):
             self.changed.emit()
 
-    def _arrived(self, serial: int, rows: list[Row], problem: str) -> None:
-        """Take the rows a task listed: in the GUI thread. The rows of an older request are dropped."""
+    def _list_aside(self, task) -> None:
+        """Have `task(None)` called in this listing's own thread, after the listing that thread may
+        be in. The thread is made and started at the first call, with the stack of the worker
+        thread, where the same task runs when there is a model."""
+        if self._thread is None:
+            self._thread, self._runner = QThread(self), _Aside()
+            self._thread.setStackSize(STACK_BYTES)
+            self._runner.moveToThread(self._thread)
+            self._aside.connect(self._runner.run)
+            self._thread.start()
+        self._aside.emit(task)
+
+    def stop(self) -> None:
+        """The window closes: list nothing from now on, and end this listing's own thread if it
+        runs. It waits until the listing the thread is in has returned, as `Worker.stop` waits for
+        the worker's; a listing that waits behind that one is dropped. Calling it again does nothing."""
+        self._stopped = True
+        if self.is_running():
+            self._thread.quit()
+            self._thread.wait()
+
+    def _arrived(self, serial: int, rows: list[Row], problem: str, trace: str) -> None:
+        """Take what a task listed: in the GUI thread. The trace of an error is kept with the
+        worker's and written to run.log with them, whichever request it is of; the rows of an
+        older request are dropped."""
+        if trace:
+            self._worker.keep_trace(trace)
+            self._jobs.write_traces()
         if self._asked is None or serial != self._asked[0]:
             return
         made_of, self._asked = self._asked[1], None

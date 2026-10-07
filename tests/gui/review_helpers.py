@@ -2,8 +2,9 @@
 before a correction, and the frames on which the dish scene's B and C touch.
 
 Imported by name from tests/gui/test_review.py and test_review_fix.py. Nothing here imports torch,
-and no helper waits with a delay: the flags are listed in the worker thread, and `listed` waits
-for the panel to say that its table is up to date.
+and no helper waits with a delay: the flags are listed outside the GUI thread (in the worker
+thread; without a model in a thread of the listing's own), and `listed` waits for the panel to say
+that its table is up to date.
 
 Two ways to a tracked run:
 - `opened_run` opens a copy of a run folder that the core made once (`dish_run`: A, B and C of the
@@ -17,6 +18,7 @@ Coordinates: (u, v) in px of the video frame (SPEC 3.1: u to the right, v downwa
 
 from __future__ import annotations
 
+import os
 import shutil
 
 import pytest
@@ -26,6 +28,7 @@ from export_helpers import ellipse_gap
 from gui_helpers import show
 from outline_tracker import schema
 from outline_tracker.segmenter.fake import ExactFake
+from prompt_helpers import gui_thread, this_thread
 from results_helpers import read_npz
 from track_helpers import Tracked, ready_to_track, run_to_end
 from tracking_helpers import abc_session, run
@@ -78,10 +81,11 @@ def dish_run(dish_clip, tmp_path_factory):
     return folder
 
 
-def opened_run(window, qtbot, run_folder, own_folder, model: bool = True):
+def opened_run(window, qtbot, run_folder, own_folder, model: bool = True, wait: bool = True):
     """Open a copy of `run_folder`, made as `own_folder`, in the window; show the window with
     panel 8 open; wait until the model is ready and the flags are listed. With `model` false the
-    window has no model, as when it could not be loaded. Returns the `ReviewPanel`."""
+    window has no model, as when it could not be loaded. With `wait` false the flags are not
+    waited for: the listing may still be on its way. Returns the `ReviewPanel`."""
     if not model:
         window.segmenter_factory = None
     shutil.copytree(run_folder, own_folder)
@@ -90,8 +94,43 @@ def opened_run(window, qtbot, run_folder, own_folder, model: bool = True):
     show(window, qtbot)
     review = review_panel(window)
     qtbot.waitUntil(lambda: review.worker.state == ("ready" if model else "failed"))
-    listed(qtbot, review)
+    if wait:
+        listed(qtbot, review)
     return review
+
+
+class Listed:
+    """In place of `tracking.flags_table` (`listed_by`): `threads` holds the thread of every call
+    (`prompt_helpers.this_thread`), `real` is the function it stands for. A call outside the GUI
+    thread waits at `gate` first, if there is one (the GUI thread is never parked: the test itself
+    would stand still). Then `error` is raised if one is given; else the real function answers."""
+
+    def __init__(self, real, gate=None, error: Exception | None = None):
+        self.real, self.threads, self._gate, self._error = real, [], gate, error
+
+    def __call__(self, folder):
+        self.threads.append(this_thread())
+        if self._gate is not None and this_thread() != gui_thread():
+            self._gate.park()
+        if self._error is not None:
+            raise self._error
+        return self.real(folder)
+
+
+def listed_by(monkeypatch, gate=None, error: Exception | None = None) -> Listed:
+    """Replace `tracking.flags_table` by a `Listed` with `gate` and `error`, and return it."""
+    from outline_tracker import tracking
+
+    stand_in = Listed(tracking.flags_table, gate, error)
+    monkeypatch.setattr(tracking, "flags_table", stand_in)
+    return stand_in
+
+
+def written_since(path) -> None:
+    """Give the file `path` a time of change 2 s later than it has, as a file that was written
+    again has: whoever compares a file's time with an earlier one sees another."""
+    found = os.stat(path)
+    os.utime(path, ns=(found.st_atime_ns, found.st_mtime_ns + 2_000_000_000))
 
 
 def tracked_window(window, qtbot, clip, segmenter=None, ids="ABC", end=80, scale: bool = True):

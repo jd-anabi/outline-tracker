@@ -24,16 +24,18 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QCheckBox, QPushButton, QTableView
 
 from gui_helpers import picture
-from outline_tracker import tracking
-from prompt_helpers import gui_thread, this_thread
+from outline_tracker import schema, tracking
+from prompt_helpers import Gate, gui_thread, this_thread
 from review_helpers import (FPS, GRID, contact_frames, current_row, dish_run, frames_with, give_scale,  # noqa: F401
-                            hint, listed, opened_run, review_panel, shown_rows, tracked_window)
-from track_helpers import NAME, Tracked, own_copy
+                            hint, listed, listed_by, opened_run, review_panel, shown_rows, tracked_window,
+                            written_since)
+from track_helpers import NAME, Tracked, own_copy, run_log
 
 LISTED = ("LOST", "JUMP", "SIZE", "CONTACT", "EDGE", "MULTI")  # what the table lists by default (task C7)
 MORE = ("LOWRES", "ORIENT", "HEADGUESS")                       # what "Show shape flags too" adds
 NOT_STARTED = "Track first. The flags appear here."
 NO_FLAGS = "No flags on positions. Play the video once and look at the outlines."
+LISTING = "The flags are being listed."
 LEFT = Qt.MouseButton.LeftButton
 
 
@@ -196,6 +198,124 @@ def test_without_a_model_the_flags_are_listed_all_the_same(window, qtbot, dish_r
     folder = tmp_path / "run"
     review = opened_run(window, qtbot, dish_run, folder, model=False)
     assert review.rows == of_the_function(folder) and 60 in frames_with(review.rows, "B", "CONTACT")
+
+
+def test_without_a_model_the_flags_are_listed_outside_the_gui_thread_too(window, qtbot, dish_run, tmp_path,
+                                                                         monkeypatch):
+    # The worker takes a task only while its model is ready. The seconds a large run takes are no
+    # work for the GUI thread all the same (task C7, ruling 2).
+    calls = listed_by(monkeypatch)
+    review = opened_run(window, qtbot, dish_run, tmp_path / "run", model=False)
+    assert review.rows and calls.threads and gui_thread() not in calls.threads
+
+
+def test_without_a_model_the_window_goes_on_while_the_flags_are_listed(window, qtbot, dish_run, tmp_path,
+                                                                       monkeypatch):
+    folder = tmp_path / "run"
+    with Gate() as gate:
+        calls = listed_by(monkeypatch, gate)
+        review = opened_run(window, qtbot, dish_run, folder, model=False, wait=False)
+        qtbot.waitUntil(lambda: bool(calls.threads))
+        assert gui_thread() not in calls.threads
+        qtbot.waitUntil(gate.parked.is_set)  # the listing has begun, and stands still
+        assert review.listing.pending and review.rows == []
+        assert hint(window).startswith(LISTING)
+        window.show_frame(60)  # the window does not wait for it
+        assert window.view.frame == window.navigation.frame == 60
+        gate.open()
+        listed(qtbot, review)
+    assert review.rows == [row for row in calls.real(folder) if row[3] in LISTED]
+    assert 60 in frames_with(review.rows, "B", "CONTACT") and not hint(window).startswith(LISTING)
+
+
+def test_closing_the_window_ends_the_thread_that_lists_without_a_model(window, qtbot, dish_run, tmp_path,
+                                                                       monkeypatch):
+    with Gate() as gate:
+        calls = listed_by(monkeypatch, gate)
+        review = opened_run(window, qtbot, dish_run, tmp_path / "run", model=False, wait=False)
+        assert not review.worker.is_running()  # no model: the worker has no thread to list in
+        qtbot.waitUntil(lambda: bool(calls.threads))
+        assert gui_thread() not in calls.threads
+        qtbot.waitUntil(gate.parked.is_set)
+        assert review.listing.is_running()
+        gate.open()  # closing waits for the listing the thread is in, as it waits for the worker's
+        window.close()
+    assert not review.listing.is_running()
+    review.listing.sync()  # and nothing starts it again
+    assert not review.listing.is_running() and len(calls.threads) == 1
+
+
+def test_with_a_model_the_listing_has_no_thread_of_its_own(window, qtbot, dish_run, tmp_path):
+    review = opened_run(window, qtbot, dish_run, tmp_path / "run")
+    assert review.rows and review.worker.is_running() and not review.listing.is_running()
+
+
+# ---------------------------------------------------------------------------------------------
+# A listing that goes wrong
+
+
+@pytest.mark.parametrize("model", [True, False])  # in the worker thread; in the listing's own thread
+def test_an_error_while_listing_is_one_plain_line_and_its_trace_goes_to_run_log(window, qtbot, dish_run, tmp_path,
+                                                                                monkeypatch, model):
+    folder = tmp_path / "run"
+    calls = listed_by(monkeypatch, error=ZeroDivisionError("division by zero"))
+    review = opened_run(window, qtbot, dish_run, folder, model=model)
+    assert calls.threads and gui_thread() not in calls.threads
+    # nothing was listed, which is not "no flags": the run is complete, and the panel is not done
+    assert window.controller.session.complete and review.rows == []
+    assert window.panels[7].state == "attention"
+    said = hint(window)
+    assert said == "The flags could not be listed: division by zero. The details are in run.log in the run folder."
+    # the trace: kept by the worker and written to run.log, never shown (SPEC 10.2)
+    (trace,) = review.worker.traces
+    lines = trace.splitlines()
+    assert lines[0] == "The flags of the run folder run could not be listed."
+    assert lines[1] == "Traceback (most recent call last):" and lines[-1] == "ZeroDivisionError: division by zero"
+    assert trace in run_log(folder)
+    for visible in (said, review.message.text(), window.statusBar().currentMessage()):
+        assert "Traceback" not in visible and "ZeroDivisionError" not in visible
+
+
+def test_a_file_that_is_gone_while_the_flags_are_listed_is_a_problem_not_no_flags(window, qtbot, dish_run, tmp_path,
+                                                                                  monkeypatch):
+    # as when results.npz is taken away between the look at the folder and the reading of the file
+    folder = tmp_path / "run"
+    gone = FileNotFoundError(2, "No such file or directory", str(folder / schema.RESULTS_NPZ))
+    listed_by(monkeypatch, error=gone)
+    review = opened_run(window, qtbot, dish_run, folder)
+    assert (folder / schema.SESSION_JSON).is_file() and window.controller.session.complete
+    assert review.rows == [] and window.panels[7].state == "attention"
+    said = hint(window)
+    assert said == ("The flags could not be listed: results.npz could not be read. The details are in run.log in "
+                    "the run folder.")
+    assert str(folder) not in said  # a file's name, never its folder
+    (trace,) = review.worker.traces
+    assert trace.splitlines()[-1].startswith("FileNotFoundError: [Errno 2] No such file or directory")
+    assert trace in run_log(folder)
+
+
+def test_results_without_session_json_are_a_problem_until_the_session_is_saved_again(window, qtbot, dish_run,
+                                                                                    tmp_path):
+    folder = tmp_path / "run"
+    review = opened_run(window, qtbot, dish_run, folder)
+    rows, panel = list(review.rows), window.panels[7]
+    assert rows and window.controller.session.complete
+    (folder / schema.SESSION_JSON).unlink()
+    with pytest.raises(FileNotFoundError):
+        tracking.flags_table(folder)
+    written_since(folder / schema.RESULTS_NPZ)  # the results are other ones: the flags are listed again
+    review.listing.sync()
+    listed(qtbot, review)
+    assert review.rows == [] and panel.state == "attention"  # not done: the flags could not be listed
+    assert hint(window) == ("session.json is not in the run folder, so the flags cannot be listed. Save the session "
+                            "(File > Save session).")
+    assert review.worker.traces == []  # the sentence says all there is to it
+    # with the file back the flags are listed again, without anyone asking
+    window.controller.touch()
+    window.controller.save_now()
+    assert (folder / schema.SESSION_JSON).is_file()
+    listed(qtbot, review)
+    assert review.rows == rows and hint(window).startswith(f"{len(rows)} flags on ")
 
 
 # ---------------------------------------------------------------------------------------------
