@@ -8,6 +8,7 @@ Imported by name from the test files beside it. Nothing here imports torch.
 - `named` opens a clip and types the student's name: the session then has its run folder.
 - `hover` puts the mouse on the middle of a marked pixel. Where the pixel is on the screen is read
   from the drawn view (`gui_helpers.drawn`), never from the view's own numbers.
+- `tick` is a tick of the play timer, emitted by the test: no test waits for time to pass.
 
 Coordinates: (u, v) in px of the video frame (SPEC 3.1: u to the right, v downward, pixel centers
 at +0.5); positions in a widget are Qt's device-independent px; mm are in the session's axes, y up.
@@ -122,3 +123,19 @@ def row_parts(bar) -> list:
     """The parts of the bottom bar's row, from left to right."""
     return [bar.first_button, bar.back_ten_button, bar.back_button, bar.play_button, bar.forward_button,
             bar.forward_ten_button, bar.last_button, bar.frame_box, bar.time_label]
+
+
+def tick(bar, times: int = 1) -> None:
+    """Let the bottom bar's play timer fire `times` times, without waiting for it."""
+    for _ in range(times):
+        bar.play_timer.timeout.emit()
+
+
+def is_paused(bar) -> bool:
+    """Whether every sign of the bottom bar says that nothing plays."""
+    return not bar.playing and not bar.play_timer.isActive() and bar.play_button.text() == "Play"
+
+
+def is_playing(bar) -> bool:
+    """Whether every sign of the bottom bar says that the clip is being played."""
+    return bar.playing and bar.play_timer.isActive() and bar.play_button.text() == "Pause"

@@ -6,12 +6,18 @@ numbers and the two stopwatch readings in s; equal readings are an error. By han
 - frames 100 and 40, readings 2.25 s and 2.0 s (the later moment first): -60 / -0.25 = 240;
 - frames 0 and 90, readings 10.0 s and 13.0 s: 30 frames per second, under the 100 of SPEC 3.3.
 The message for numbers that give no frame rate is `geometry.fps_from_stopwatch`'s own.
+
+The dialog and playing (SPEC 10.1, the brief): playing stops when a field is used, and "Use frame
+shown" fills a box from the view. The window cannot be used while the dialog is open, so playing
+stops as the dialog opens. Frames while playing follow from the grid: a new session's clip has
+step 2, so n ticks from frame f show frame f + 2 n. A tick is the timer's signal, emitted by the test.
 """
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QLineEdit
 
-from finish_helpers import named, never_blocking  # noqa: F401 (fixture)
+from finish_helpers import is_paused, is_playing, named, never_blocking, tick  # noqa: F401 (fixture)
 from gui_helpers import show
 from outline_tracker import geometry
 from outline_tracker.gui.stopwatch_dialog import StopwatchDialog
@@ -183,3 +189,88 @@ def test_a_frame_rate_typed_afterwards_takes_the_stopwatchs_numbers_out_of_the_s
     type_into(qtbot, body(window, 2).fps_edit, "239.6")
     time = window.controller.session.time
     assert (time.fps_true, time.source, time.stopwatch) == (239.6, "typed", None)
+
+
+# ---------------------------------------------------------------------------------------------
+# The dialog and playing
+
+
+def test_opening_the_dialog_stops_playing(with_video, qtbot):
+    # the window cannot be used while the dialog is open: nobody could pause there
+    window = with_video
+    bar = window.navigation
+    window.view.setFocus()
+    qtbot.keyClick(window, Qt.Key.Key_Space)
+    tick(bar)
+    assert is_playing(bar) and window.view.frame == 2
+    # pressed without a turn of the event loop, so that no tick of the running timer itself comes in between
+    body(window, 2).stopwatch_button.click()
+    (dialog,) = window.findChildren(StopwatchDialog)
+    assert is_paused(bar)  # at once, wherever the keyboard goes
+    QApplication.processEvents()
+    tick(bar, 5)  # a tick that was on its way moves nothing
+    assert is_paused(bar) and (bar.frame, window.view.frame) == (2, 2)
+    qtbot.mouseClick(dialog.use_a_button, LEFT)
+    assert dialog.frame_a_box.value() == window.view.frame == 2
+    qtbot.mouseClick(dialog.cancel_button, LEFT)
+    assert is_paused(bar) and window.view.frame == 2  # closing the dialog starts nothing
+
+
+def test_use_frame_shown_takes_the_frame_the_view_shows_at_the_click(with_video, qtbot):
+    # not the frame it showed when the dialog opened: whatever moved the picture since then, the
+    # number entered is the frame that is seen (it goes into fps_true)
+    window = with_video
+    bar = window.navigation
+    dialog = opened(window, qtbot)
+    assert window.view.frame == 0
+    bar.slider.setValue(6)  # grid position 6: frame 12
+    assert window.view.frame == 12
+    qtbot.mouseClick(dialog.use_a_button, LEFT)
+    assert (dialog.frame_a_box.value(), dialog.frame_b_box.value()) == (12, 0)
+    bar.play()  # the user cannot, behind the dialog; whatever does must not leave a stale number
+    tick(bar, 5)
+    bar.pause()
+    assert window.view.frame == 22
+    qtbot.mouseClick(dialog.use_b_button, LEFT)
+    assert (dialog.frame_a_box.value(), dialog.frame_b_box.value()) == (12, 22)
+    qtbot.mouseClick(dialog.cancel_button, LEFT)
+
+
+def test_use_frame_shown_changes_nothing_while_the_view_shows_no_frame(with_video, qtbot):
+    window = with_video
+    dialog = opened(window, qtbot)
+    dialog.frame_a_box.setValue(40)
+    window.view.set_source(None)  # no picture any more, behind the open dialog
+    assert window.view.frame is None
+    qtbot.mouseClick(dialog.use_a_button, LEFT)
+    assert dialog.frame_a_box.value() == 40
+    qtbot.mouseClick(dialog.cancel_button, LEFT)
+
+
+def test_a_number_box_of_the_dialog_stops_playing_as_a_field_of_the_window_does(with_video, qtbot):
+    window = with_video
+    bar = window.navigation
+    dialog = opened(window, qtbot)
+    dialog.activateWindow()  # the keyboard goes to the active window
+    qtbot.waitUntil(lambda: QApplication.activeWindow() is dialog)
+    for box in (dialog.frame_a_box, dialog.time_a_box, dialog.frame_b_box, dialog.time_b_box):
+        dialog.cancel_button.setFocus()
+        QApplication.processEvents()
+        bar.play()
+        QApplication.processEvents()
+        assert is_playing(bar), box  # a button of the dialog is no text field: playing goes on
+        box.setFocus()
+        QApplication.processEvents()
+        assert is_paused(bar), box
+    qtbot.mouseClick(dialog.cancel_button, LEFT)
+
+
+def test_a_text_field_that_is_not_over_the_window_does_not_stop_playing(with_video, qtbot):
+    window = with_video
+    bar = window.navigation
+    elsewhere = QLineEdit()  # never shown, and no part of the window or of a dialog over it
+    qtbot.addWidget(elsewhere)
+    window.view.setFocus()
+    bar.play()
+    QApplication.instance().focusChanged.emit(window.view, elsewhere)  # the keyboard went there
+    assert is_playing(bar)

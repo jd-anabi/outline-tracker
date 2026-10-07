@@ -7,14 +7,17 @@ the later frame showing the earlier time) are refused in the dialog, in that fun
 
 The dialog is window-modal and is shown with `open()`: the call returns at once, and the window
 cannot be used until the dialog is closed. So a frame is looked for before the dialog is opened;
-"Use frame shown" then takes its number from the view. The dialog changes nothing itself: on OK it
-is accepted, and whoever opened it reads `fps` and `values()`.
+"Use frame shown" then asks, at each click, which frame the view shows at that moment: the number
+it enters is an input of fps_true, and must be the frame that is seen. The dialog changes nothing
+itself: on OK it is accepted, and whoever opened it reads `fps` and `values()`.
 
 Frames are video frame numbers counted from 0; readings are in s; fps_true is in frames per second.
 Lengths of the layout are Qt's device-independent px.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton,
@@ -37,20 +40,22 @@ USE_SHOWN_TIP = "Take the number of the frame that the video view shows"
 
 
 class StopwatchDialog(QDialog):
-    """The dialog. `frame_shown` is the number of the frame the view shows (None when it shows
-    none); `start` holds the numbers the boxes open with (`values()` of an earlier time, or the
-    session's stopwatch block), None for zeros.
+    """The dialog. `frame_shown()` gives the number of the frame the view shows now (None while it
+    shows none): it is asked at each click of "Use frame shown", and no answer is kept. `start`
+    holds the numbers the boxes open with (`values()` of an earlier time, or the session's
+    stopwatch block), None for zeros.
 
     Parts: `frame_a_box`, `time_a_box`, `use_a_button` for the first moment and `frame_b_box`,
     `time_b_box`, `use_b_button` for the second; `result_label`; `message` (why the numbers give no
     frame rate, shown once OK was asked for); `ok_button`, `cancel_button`. `fps` is fps_true in
     frames per second from what the boxes hold, None when they give none."""
 
-    def __init__(self, parent: QWidget, frame_shown: int | None, start: dict | None = None):
+    def __init__(self, parent: QWidget, frame_shown: Callable[[], int | None], start: dict | None = None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setWindowTitle("Stopwatch")
         self.setWindowModality(Qt.WindowModality.WindowModal)
+        self._frame_shown = frame_shown
         self._asked = False  # OK was asked for: from then on the dialog says why the numbers give no frame rate
         self.fps: float | None = None
 
@@ -69,8 +74,8 @@ class StopwatchDialog(QDialog):
             time_box.setSuffix(" s")
             time_box.setToolTip(f"{moment} moment: the time the stopwatch shows on that frame, in s")
             use_button.setToolTip(USE_SHOWN_TIP)
-            use_button.setEnabled(frame_shown is not None)
-            use_button.clicked.connect(lambda _=False, box=frame_box: box.setValue(frame_shown))
+            use_button.setEnabled(frame_shown() is not None)
+            use_button.clicked.connect(lambda _=False, box=frame_box: self._use_shown(box))
             for column, part in enumerate((QLabel(f"{moment} frame"), frame_box, use_button,
                                            QLabel("Stopwatch shows"), time_box)):
                 grid.addWidget(part, row, column)
@@ -116,6 +121,13 @@ class StopwatchDialog(QDialog):
         numbers and the two stopwatch readings in s."""
         return {"frame_a": self.frame_a_box.value(), "time_a_s": self.time_a_box.value(),
                 "frame_b": self.frame_b_box.value(), "time_b_s": self.time_b_box.value()}
+
+    def _use_shown(self, box: QSpinBox) -> None:
+        """Put the number of the frame the view shows at this moment into `box`; the box keeps its
+        number while the view shows no frame."""
+        frame = self._frame_shown()
+        if frame is not None:
+            box.setValue(frame)
 
     def accept(self) -> None:
         """OK: close with the frame rate, or stay open and say why the numbers give none."""

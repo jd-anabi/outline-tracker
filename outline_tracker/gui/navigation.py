@@ -9,8 +9,8 @@ shows no picture: it emits `frame_requested`, and whoever shows the frame answer
 Playing (Space, or the Play button) goes one grid step forward at each tick of a timer, 30 ticks a
 second, from the frame the bar is on. It stops at the last grid frame, on Space or the button,
 when a frame is asked for in any other way, when the grid is set again (the session changed), when
-a text field gets the keyboard, and when `pause` is called (the window does so when a tool is
-chosen).
+a text field of the bar's window or of a dialog over it gets the keyboard, and when `pause` is
+called (the window does so when a tool is chosen, panel 2 when it opens the Stopwatch dialog).
 
 Frames are video frame numbers, counted from 0. t = frame / fps_true in s (SPEC 3.3); fps_true is
 in frames per second. Lengths are Qt's device-independent px.
@@ -250,8 +250,18 @@ class NavigationBar(QFrame):
         self.play_button.setText(PLAY_TEXTS[playing])
 
     def _focus_changed(self, _before, now) -> None:
-        if self._playing and isinstance(now, TEXT_FIELDS) and now.window() is self.window():
+        if self._playing and isinstance(now, TEXT_FIELDS) and self._is_over_my_window(now):
             self.pause()  # what is typed there must not be followed by a moving picture
+
+    def _is_over_my_window(self, widget: QWidget) -> bool:
+        """Whether `widget` is in the bar's window, or in a dialog over it: a window whose parent is
+        in the bar's window, or in such a dialog. A field of any other window is not this bar's."""
+        mine = self.window()
+        while widget is not None:
+            if widget.window() is mine:
+                return True
+            widget = widget.window().parentWidget()
+        return False
 
     # ------------------------------------------------------------------ the grid and the frame
 

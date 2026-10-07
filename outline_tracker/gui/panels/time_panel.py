@@ -15,8 +15,9 @@ when a video is opened and written only when the user chooses a manifest that li
 
 Stopwatch… opens the dialog of gui/stopwatch_dialog.py; on OK its frame rate goes into the session
 with the two frames and the two readings it came from. The window cannot be used while the dialog
-is open, so what was entered is kept for the next time it opens, also after Cancel: the two frames
-can be looked for one after the other. No px or mm here.
+is open. So playing stops when it opens (nobody could pause behind it), and what was entered is
+kept for the next time it opens, also after Cancel: the two frames can be looked for one after the
+other. No px or mm here.
 """
 
 from __future__ import annotations
@@ -126,13 +127,16 @@ class TimePanel(QWidget):
         self._take(fps, "manifest", manifest)
 
     def open_stopwatch(self) -> None:
-        """Open the Stopwatch dialog over the window, and return at once. It opens with what it
-        held last time for this video, else with the numbers of the session's stopwatch. On OK its
-        frame rate becomes fps_true, from the stopwatch. Without a video there is nothing to time."""
+        """Open the Stopwatch dialog over the window, and return at once. Playing stops first: the
+        picture stands still under the dialog, whose "Use frame shown" asks the view for its frame
+        at each click. The dialog opens with what it held last time for this video, else with the
+        numbers of the session's stopwatch. On OK its frame rate becomes fps_true, from the
+        stopwatch. Without a video there is nothing to time."""
+        self._window.navigation.pause()
         if self._controller.session is None:
             return
         start = self._stopwatch_draft or self._controller.session.time.stopwatch
-        dialog = StopwatchDialog(self._window, self._window.view.frame, start)
+        dialog = StopwatchDialog(self._window, lambda: self._window.view.frame, start)
         dialog.accepted.connect(lambda: self._take(dialog.fps, "stopwatch", stopwatch=dialog.values()))
         dialog.finished.connect(lambda: setattr(self, "_stopwatch_draft", dialog.values()))
         dialog.open()
