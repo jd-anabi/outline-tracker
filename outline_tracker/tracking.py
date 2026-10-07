@@ -275,7 +275,7 @@ class _Runner:
         self.total, self.done = total, 0  # frames to track and frames tracked, over all runs of the job
         self.began = time.perf_counter()
         self.new_hashes = tuple(new_hashes)  # frame hashes made anew (X8), until they are handed over
-        self.reached = -1  # the video frame on which a completed run of this job ended; -1 before one did
+        self.video_end: int | None = None  # the last frame a run got from a video that ended before the run did
 
     def track(self, plan: RunPlan, view, prompts: list[ObjectPrompt], number: int, count: int,
               fine: FineStart | None = None) -> str:
@@ -351,11 +351,13 @@ class _Runner:
         did not complete; else it is about the results, not about this job: True only if no track
         of the session is partial (`partial_tracks`). So it stays False while the job has runs to
         come, whose tracks still wait. `frames`: the run's video frames, of which the first
-        `tracked` were tracked."""
+        `tracked` were tracked; fewer than all means the video ended there, before the clip does.
+        A run that ends early because its track was ended says nothing about the other tracks."""
         if status != COMPLETE:
             return False
-        self.reached = max(self.reached, frames[tracked - 1])  # the clip's last frame, or the video's
-        return not partial_tracks(self.session, self.store, self.reached)
+        if tracked < len(frames):
+            self.video_end = frames[tracked - 1]
+        return not partial_tracks(self.session, self.store, self.video_end)
 
     def _progress(self) -> None:
         s_per_frame = (time.perf_counter() - self.began) / self.done
