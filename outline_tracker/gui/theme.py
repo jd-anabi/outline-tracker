@@ -89,6 +89,19 @@ QLabel[role="badge"][state="attention"] { background: @warningBg; border-color: 
 QLabel[role="state"], QLabel[role="hint"] { border: none; background: transparent; color: @muted; }
 QLabel[role="state"][state="done"] { color: @success; }
 QLabel[role="state"][state="attention"] { color: @warning; font-weight: 600; }
+QFrame#VideoArea { background: @canvas; }
+QFrame#VideoArea QLabel { background: transparent; color: @onCanvas; }
+QPushButton { min-height: 26px; padding: 0 12px; border: 1px solid @borderStrong; border-radius: 4px; background: @panel; color: @text; }
+QPushButton:hover { background: @hover; }
+QPushButton:pressed { background: @pressed; }
+QPushButton:focus { border: 2px solid @accent; padding: 0 11px; }
+QPushButton[kind="primary"] { min-height: 30px; background: @accent; border-color: @accent; color: @onAccent; font-weight: 600; }
+QPushButton[kind="primary"]:hover { background: @accentHover; border-color: @accentHover; }
+QPushButton[kind="primary"]:pressed { background: @accentPressed; border-color: @accentPressed; }
+QPushButton[kind="primary"]:focus { border: 2px solid @text; }
+QPushButton:disabled, QPushButton[kind]:disabled { background: @window; border-color: @border; color: @disabled; }
+QFrame#BottomBar QPushButton { padding: 0 6px; }
+QFrame#BottomBar QPushButton:focus { padding: 0 5px; }
 """
 
 

@@ -150,6 +150,9 @@ def test_the_video_area_is_above_the_bottom_bar_and_left_of_the_dock(window, qtb
     assert status.currentMessage() == ""
 
 
+@pytest.mark.xfail(strict=True, reason="Task C1: the video area is no longer one label. The two lines are now two "
+                   "labels around the Open video button; the test that follows this one is "
+                   "test_the_empty_video_area_says_how_to_start_and_offers_open_video in tests/gui/test_controller.py.")
 def test_the_video_area_says_how_to_start(window):
     assert window.video_area.text().splitlines() == [
         "Open a video to start.",

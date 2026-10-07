@@ -1,10 +1,12 @@
 """The main window (SPEC 10.1): the video in the middle, frame navigation under it, and at the
 right a dock with the nine numbered panels in the order of the work.
 
-For now it is the empty frame of the window. The video area and the bottom bar are placeholders,
-and each panel is its header and its hint line; later tasks put the video view, the navigation and
-the panels' controls in. Lengths are Qt's device-independent px (Qt scales them on a 150% or 200%
-screen); nothing here is in video px or mm.
+The window owns the parts and connects them: the `SessionController` (the open video and its
+session), the `VideoView`, the `NavigationBar`, and the nine `Panel`s. The controls of a panel are
+put in by its own module (outline_tracker/gui/panels). Until a video is open the video area says
+how to start; then it shows the view under a bar with the tool's line, Fit, 1:1 and the zoom.
+Lengths are Qt's device-independent px (Qt scales them on a 150% or 200% screen); frames are video
+frame numbers counted from 0; nothing here is in video px or mm.
 """
 
 from __future__ import annotations
@@ -12,9 +14,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QRect, Qt
-from PySide6.QtWidgets import QDockWidget, QFrame, QLabel, QMainWindow, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
+                               QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
 
+from outline_tracker.geometry import grid_frames
+from outline_tracker.gui import dialogs, panels
+from outline_tracker.gui.navigation import NavigationBar
 from outline_tracker.gui.panel import Panel
+from outline_tracker.gui.session_controller import SessionController
+from outline_tracker.gui.video_view import VideoView
 
 TITLE = "Outline Tracker"
 MINIMUM_SIZE = (960, 600)        # width, height of the window
@@ -22,9 +31,14 @@ START_SIZE = (1440, 900)         # of the window's content, on a screen with roo
 FRAME_ALLOWANCE = (16, 40)       # room for the system's frame around that: its edges, its title bar
 DOCK_WIDTHS = (340, 400, 520)    # smallest, at start, largest
 DOCK_MARGIN = 8                  # around the panels, and between two of them
-BOTTOM_BAR_HEIGHT = 76           # slider, flag strip and button row of the frame navigation
+VIEW_BAR_HEIGHT = 32             # above the picture: the tool's line, Fit, 1:1, the zoom
+CONTROL_HEIGHT, PRIMARY_HEIGHT = 28, 32  # a button; the button of the next step
 
-NO_VIDEO = "Open a video to start.\nThen follow panels 1 to 9 at the right."
+START_TITLE = "Open a video to start."
+START_HINT = "Then follow panels 1 to 9 at the right."
+PAN_TEXT = "Pan: drag to move the picture. Scroll to zoom."
+NOT_OPENED = "The video could not be opened"  # the heading of the message; what to do follows it
+VIDEO_FILTERS = ["Videos (*.mp4 *.m4v *.mov *.avi *.mkv)", "All files (*)"]
 
 # Number, title, and the hint while nothing is done. The estimate of panel 7 needs a clip and
 # objects; without them its hint is the first reason why tracking cannot start.
@@ -62,8 +76,14 @@ def start_geometry(available: QRect) -> QRect | None:
 class MainWindow(QMainWindow):
     """The window. `segmenter_factory(model, device)` makes the segmenter that tracking will use
     (the real model in the application, a stand-in in tests); it is kept as `segmenter_factory` for
-    the worker. Parts: `video_area`, `bottom_bar`, `dock`, `scroll` (the scroll area in the dock) and
-    `panels`, the nine `Panel`s in order."""
+    the worker.
+
+    What a panel's module works with: `controller` (the open video and its session), `view` (the
+    video view), `navigation` (the bottom bar) and `panels` (the nine `Panel`s in order). Other
+    parts: `video_area` (the start page, or the view under its bar), `bottom_bar` (the navigation),
+    `dock`, `scroll` (the scroll area in the dock); on the start page `start_title`, `open_button`
+    and `start_hint`; in the bar above the picture `tool_text`, `fit_button`, `one_to_one_button`
+    and `zoom_label`; in the File menu `open_action` and `quit_action`."""
 
     def __init__(self, segmenter_factory=None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -71,12 +91,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(TITLE)
         self.setMinimumSize(*MINIMUM_SIZE)
 
-        self.video_area = QLabel(NO_VIDEO)
+        self.controller = SessionController(self)
+        self.view = VideoView()
+        self.navigation = self.bottom_bar = NavigationBar()
+        self.video_area = QStackedWidget()
         self.video_area.setObjectName("VideoArea")
-        self.video_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.bottom_bar = QFrame()
-        self.bottom_bar.setObjectName("BottomBar")
-        self.bottom_bar.setFixedHeight(BOTTOM_BAR_HEIGHT)
+        self.video_area.addWidget(self._start_page())
+        self._picture_page = self._picture_page_with_bar()
+        self.video_area.addWidget(self._picture_page)
         central = QWidget()
         rows = QVBoxLayout(central)
         rows.setContentsMargins(0, 0, 0, 0)
@@ -118,10 +140,128 @@ class MainWindow(QMainWindow):
 
         self.statusBar()  # made here, so that it shows from the start; empty until there is a message
 
+        file_menu = self.menuBar().addMenu("File")
+        self.open_action = QAction("Open video", self)
+        self.open_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Open))
+        self.open_action.triggered.connect(self.choose_video)
+        self.quit_action = QAction("Quit", self)
+        self.quit_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Quit))
+        self.quit_action.setMenuRole(QAction.MenuRole.QuitRole)
+        self.quit_action.triggered.connect(self.close)
+        file_menu.addAction(self.open_action)
+        file_menu.addSeparator()
+        file_menu.addAction(self.quit_action)
+
+        self.controller.video_opened.connect(self._video_opened)
+        self.controller.session_changed.connect(self._session_changed)
+        self.navigation.frame_requested.connect(self.show_frame)
+        self.view.zoom_changed.connect(lambda zoom: self.zoom_label.setText(f"{round(100 * zoom)}%"))
+        self.view.tool_changed.connect(self._tool_changed)
+        panels.build_bodies(self)  # last: a panel's module finds every part above
+
+    def _start_page(self) -> QWidget:
+        """What the video area shows until a video is open: how to start, around the button."""
+        self.start_title, self.start_hint = QLabel(START_TITLE), QLabel(START_HINT)
+        self.open_button = QPushButton("Open video")
+        self.open_button.setProperty("kind", "primary")
+        self.open_button.setFixedHeight(PRIMARY_HEIGHT)
+        self.open_button.setToolTip("Choose the video to track")
+        self.open_button.clicked.connect(self.choose_video)
+        page = QWidget()
+        column = QVBoxLayout(page)
+        column.setSpacing(12)
+        column.addStretch(1)
+        for part in (self.start_title, self.open_button, self.start_hint):
+            column.addWidget(part, 0, Qt.AlignmentFlag.AlignHCenter)
+        column.addStretch(1)
+        return page
+
+    def _picture_page_with_bar(self) -> QWidget:
+        """The view under its bar: the tool's line at the left; Fit, 1:1 and the zoom at the right."""
+        self.tool_text = QLabel(PAN_TEXT)
+        self.fit_button, self.one_to_one_button = QPushButton("Fit"), QPushButton("1:1")
+        self.fit_button.setToolTip("Show the whole frame")
+        self.one_to_one_button.setToolTip("One video pixel per screen pixel")
+        self.fit_button.clicked.connect(self.view.fit)
+        self.one_to_one_button.clicked.connect(self.view.one_to_one)
+        self.zoom_label = QLabel()
+        self.zoom_label.setToolTip("How large the picture is drawn: 100% is one video pixel per screen pixel")
+        self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.zoom_label.setFixedWidth(self.zoom_label.fontMetrics().horizontalAdvance("00000%"))  # nothing jumps
+        bar = QWidget()
+        bar.setFixedHeight(VIEW_BAR_HEIGHT)
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(DOCK_MARGIN, 0, DOCK_MARGIN, 0)
+        row.setSpacing(DOCK_MARGIN)
+        row.addWidget(self.tool_text, 1)
+        for part in (self.fit_button, self.one_to_one_button):
+            part.setFixedHeight(CONTROL_HEIGHT)
+            row.addWidget(part)
+        row.addWidget(self.zoom_label)
+        page = QWidget()
+        rows = QVBoxLayout(page)
+        rows.setContentsMargins(0, 0, 0, 0)
+        rows.setSpacing(0)
+        rows.addWidget(bar)
+        rows.addWidget(self.view, 1)
+        return page
+
+    def choose_video(self) -> None:
+        """Ask which video to open; the chosen file goes to `open_path`."""
+        dialogs.open_file(self, "Open video", VIDEO_FILTERS, self.open_path)
+
     def open_path(self, path: Path) -> None:
-        """Take the video or session file the window was started with. For now its file name (never
-        its folder) is shown in the status bar."""
-        self.statusBar().showMessage(Path(path).name)
+        """Open the video at `path`: it replaces the video that was open, and its first frame shows.
+        A file that is no video the tracker can read gives a message that says what to do, and what
+        was open stays. The status bar names the file (never its folder). A session file
+        (`.json`) is only named there for now: a later task opens sessions."""
+        path = Path(path)
+        if path.suffix.lower() == ".json":
+            self.statusBar().showMessage(path.name)
+            return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)  # a long video takes a moment to open
+        try:
+            self.controller.open_video(path)
+        except ValueError as refused:
+            self.statusBar().showMessage(f"{path.name} could not be read.")
+            dialogs.message(self, "problem", f"{NOT_OPENED}\n{refused}")
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+        self.statusBar().showMessage(f"{path.name} is open.")
+
+    def show_frame(self, frame: int) -> None:
+        """Show video frame `frame` (counted from 0) in the view, and put the bottom bar on it. A
+        frame the video does not have is reported in the status bar; the frame shown then stays."""
+        try:
+            self.view.show_frame(frame)
+        except IndexError:
+            self.statusBar().showMessage(f"Frame {frame} cannot be read. The video ends before this frame.")
+        if self.view.frame is not None:
+            self.navigation.set_frame(self.view.frame)
+
+    def _video_opened(self) -> None:
+        self.view.set_source(self.controller.source)
+        self.video_area.setCurrentWidget(self._picture_page)
+        self.view.setFocus()  # not a button: Space or Enter must not press one by accident
+        self._session_changed()
+
+    def _session_changed(self) -> None:
+        """Put the bottom bar on the session's clip and fps_true, and show the frame it is on."""
+        session = self.controller.session
+        self.navigation.set_grid(grid_frames(session.clip.start, session.clip.end, session.clip.step))
+        self.navigation.set_fps(session.time.fps_true)
+        if self.navigation.frame != self.view.frame:
+            self.show_frame(self.navigation.frame)
+
+    def _tool_changed(self) -> None:
+        tool = self.view.tool
+        self.tool_text.setText(PAN_TEXT if tool is None else getattr(tool, "text", ""))
+
+    def closeEvent(self, event) -> None:
+        """Closing the window releases the video file."""
+        self.controller.close()
+        super().closeEvent(event)
 
     def show_at_start(self) -> None:
         """Show the window as it opens for the user: its content 1440 x 900 px, in the middle of its
