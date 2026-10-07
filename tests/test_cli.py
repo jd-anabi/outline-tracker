@@ -5,6 +5,7 @@ the template's `main` functions, whose messages the subcommands keep. Errors bec
 `ERROR: ...` line on stderr and exit code 1, never a traceback.
 """
 
+import io
 import subprocess
 import sys
 from pathlib import Path
@@ -179,6 +180,17 @@ def test_exit_code_reaches_the_shell(tmp_path):
     )
     assert done.returncode == 1
     assert done.stderr == f"ERROR: No such file: {missing}\n"
+
+
+def test_a_console_that_cannot_show_a_character_gets_a_question_mark_not_a_crash(monkeypatch):
+    # A redirected Windows console takes only its own code page (cp1252), and Python's stdout is strict
+    # about it: printing a folder or student name in another alphabet would end a run with a traceback.
+    console = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", console)
+    monkeypatch.setattr(cli, "run_check", lambda args: print(f"checked {args.videos[0]}") or 0)
+    assert cli.main(["check", "клип é.MOV"]) == 0  # Cyrillic is not in cp1252; é is
+    console.flush()
+    assert console.buffer.getvalue().decode("cp1252").splitlines() == ["checked ???? é.MOV"]
 
 
 # ---------------------------------------------------------------------------------------------

@@ -3,8 +3,9 @@
 Nothing heavy is imported here: torch, transformers and Qt are loaded only by the commands that
 need them, so `--version`, `export` and `probe` start at once. The commands that read or write
 videos (`convert`, `check`, `probe`, `synth`) import OpenCV only when they run. `probe` itself is in
-outline_tracker/cli_probe.py; its parser is here with the others. `export` is in outline_tracker/cli_export.py,
-which also builds its parser.
+outline_tracker/cli_probe.py; its parser is here with the others. `export` is in
+outline_tracker/cli_export.py and `from-tracker` in outline_tracker/cli_from_tracker.py, each with
+its parser.
 
 `synth` is a hidden command (not listed in `--help`): it writes one of the synthetic test clips of
 outline_tracker/synthetic.py, for checking an installation by hand. `compare-tracks` is the other
@@ -24,7 +25,7 @@ import math
 import sys
 from pathlib import Path
 
-from outline_tracker import cli_export, cli_probe
+from outline_tracker import cli_export, cli_from_tracker, cli_probe
 
 CONVERT_EXAMPLE = """\
 Usage (from the repository folder):
@@ -115,6 +116,8 @@ def build_parser() -> argparse.ArgumentParser:
                        help="your name: probes.csv goes to <video folder>/<video stem>_outline_NAME/")
     probe.add_argument("--out", metavar="DIR", help="the folder for probes.csv, instead of the one --student gives")
     probe.set_defaults(run=run_probe)
+
+    cli_from_tracker.add_parser(commands)
 
     # Hidden: a subcommand added without `help=` is not listed in `outline-tracker --help`.
     synth = commands.add_parser(
@@ -379,6 +382,9 @@ def main(argv: list[str] | None = None) -> int:
 
     `argv` is the argument list without the program name; None means `sys.argv[1:]`.
     """
+    for stream in (sys.stdout, sys.stderr):  # a redirected Windows console cannot show every character: "?" then
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:
