@@ -117,6 +117,9 @@ QPushButton:checked:disabled, QPushButton[kind="destructive"]:disabled { backgro
 QLabel[role="msg"] { border-radius: 4px; border: 1px solid @border; background: @window; color: @text; padding: 6px 8px; }
 QLabel[role="msg"][kind="warning"] { background: @warningBg; border-color: @warning; }
 QLabel[role="msg"][kind="problem"] { background: @problemBg; border-color: @problem; }
+/* Task C2 (panels 1 and 2): a field whose value cannot be used or should be checked; its message label is styled above */
+QAbstractSpinBox[check="error"], QLineEdit[check="error"] { background-color: @problemBg; }
+QAbstractSpinBox[check="warn"], QLineEdit[check="warn"] { background-color: @warningBg; }
 """
 
 
