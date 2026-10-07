@@ -228,3 +228,54 @@ H.264 with B-frames): one evenly timed, one with three gaps in its timestamps (b
 - Not covered: real phone files. `outline-tracker check VIDEO --seek` compares 20 random frames
   on a real file and prints the number of timestamp gaps.
 
+## 4. The real model through the whole pipeline (task B5, 2026-10-07)
+
+Sections 1 and 2 tested the backend alone. Here the real EdgeTAM runs through everything a user
+runs: a session, `tracking.run_job`, `export.export_all`. Same laptop, library versions and weights
+as section 1; `cpu` with 8 torch threads unless a row says `mps`. Only short synthetic clips were
+used. Another job may have been running the model on the same laptop at the same time, so every
+time given in this section is an upper bound.
+
+### 4.1 Regression through the pipeline (SPEC 13.3): the files of `from-tracker` against last week's
+
+**What was compared.** `from_tracker.from_tracker` (coarse, the whole frame, no overlay) and last
+week's `shrimp.segment.track_video` with last week's `TransformersSegmenter` (the unmodified copies
+in `tests/reference`). One loaded EdgeTAM served both, on `cpu`, in one process and with the same
+thread count; both got the same video, Tracker export, `fps_true` = 240 and options. The files
+compared are the Tracker-format files, `<run folder>/edgetam/<id>.csv`, against the files last
+week's script wrote. Both sides write `pixelx` and `pixely` with three decimals.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_regression_pipeline.py -q -rP
+```
+
+**Result.** 2 passed, twice: in 74 s and in 59 s. The numbers of the two runs are the same except the
+times.
+
+| clip | export | objects | frames | max difference in (`pixelx`, `pixely`) | lost rows (last week / new) | s per frame (last week / pipeline) |
+|---|---|---|---|---|---|---|
+| selftest clip (`synthetic.selftest_clip`) | one track, frames 0, 2, …, 38 | 1 | 20 | 0.0000 px over 20 rows (limit 0.01) | 0 / 0 | 0.38 to 0.40 / 0.38 |
+| three-ellipse clip of section 1.1 | `#multi` start file: A, B, C marked on frame 0; `seconds` = 40/240, `step` = 2 | 3 | 20 each | 0.0000 px over 60 rows (limit 0.01) | 0 / 0 | 0.77 / 0.76 |
+
+- File names and frame numbers are the same on both sides: `selftest.csv`; `A.csv`, `B.csv`,
+  `C.csv`; frames 0, 2, …, 38.
+- Reported by the test, not asserted: all four files equal last week's byte for byte, so the mm
+  columns `x`, `y` and the time column `t` are the same too.
+- The selftest-clip run folder holds the full set of SPEC 8.1 without the overlay (not asked for)
+  and without `probes.csv` (no probes): `session.json`, `positions.csv`, `edgetam/selftest.csv`,
+  `shapes.csv`, `radial.csv`, `outlines.npz`, `results.npz`, `run.log`, `README.txt`. Nothing else
+  is in it, and no file is empty.
+- The pipeline's s per frame includes measuring each mask and saving; it is not slower than last
+  week's loop here.
+
+**Can this test fail?** With the new backend's mask threshold moved from `logits > 0` to
+`logits > 0.5` (patched in memory for one run, no file changed), both tests failed: 0.1178 px on
+the selftest clip and 0.2611 px on the three-ellipse clip. These are the values section 1.4 found
+at the level of the segmenter.
+
+**Not covered.** The test asserts the pixel columns only; the bytes of whole files are asserted by
+the fast tests with a stand-in model (`tests/test_from_tracker_port.py`). A real video was not run:
+that is the owner's go/no-go check.
+
