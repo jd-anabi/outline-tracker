@@ -204,6 +204,17 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 12:00, C2: two superseded tests marked `xfail(strict=True)`, for J to confirm their
+  removal, and one choice to confirm.** (1) `tests/gui/test_controller.py::test_a_session_file_is_only_named_until_sessions_can_be_opened`
+  pinned C1's stand-in behavior for a `.json` (only its name in the status bar); sessions open
+  now. Successor: `tests/gui/test_session_saving.py::test_a_session_file_that_is_not_there_gives_a_message_and_names_only_the_file`.
+  (2) `tests/gui/test_panel.py::test_rows_added_to_the_body_follow_the_hint_with_the_notes_spacing`
+  added a row to panel 1 and expected it directly under the hint line; panel 1 has controls
+  there now. Successor: `tests/gui/test_session_panels.py::test_a_row_added_to_a_body_follows_what_is_there_with_the_notes_spacing`.
+  Default: J says "delete them" and they go. The choice: when a student opens a video for
+  which a run folder with their name already holds a session, the window does not write over
+  it and does not open it by itself; it says so and points to Open session. Default: keep that;
+  the alternative is to offer "Open that session" in the same message.
 - **Wed 11:45, C3: one superseded test marked `xfail(strict=True)`, for J to confirm its
   removal.** `tests/gui/test_video_view.py::test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_and_fit_goes_back`
   (from C1) paints a block of pixels at the frame's center and looks for it on the screen. The
@@ -1365,7 +1376,8 @@ Conventions for every GUI task:
   - Check: `uv run outline-tracker gui ~/closeup_tracker.mp4` shows the clip; arrows step, the
     wheel zooms.
 
-- [ ] **C2 · Student, video, clip, time, session saving** (§2 steps 1–4, §4.1, §8.10, panels 1–2)
+- [x] **C2 · Student, video, clip, time, session saving** (§2 steps 1–4, §4.1, §8.10, panels 1–2)
+  - Done Wed 12:00 (commits 1a2a5b4, 36f540e). Verified offscreen on macOS, 71 tests: a change in a panel reaches the session; session.json is written 0.75 s after the last change, on Save, and before the window closes; closing and reopening (`outline-tracker gui "<run folder>/session.json"` or Open session) restores every field; a clip or an fps_true that cannot be used is refused where it is typed; fps_true comes from the manifest or is typed, with its source shown and a warning below 100; last week's check of the video runs off the GUI thread (0.6 s on a 10 s 1080p clip) and its warnings show in panel 1. The run folder is `<video folder>/<video stem>_outline_<name>/` from the moment a name is typed. Decisions made here: nothing is saved while the name is empty; a session.json that this window neither opened nor wrote is never written over (the user is pointed to Open session or another name), so opening the same video again with the same name does not continue the earlier session by itself; a new name after a save starts a new folder and leaves the old one as it is; a video whose size or hash differs from the session's is refused. Uncertain: not yet tried by hand on a real screen; a new name after tracking would separate session.json from results.npz (the tracking task decides); only the check's warnings are shown, not its notes.
   - Files: `gui/panels/video_panel.py`, `gui/panels/time_panel.py`, `gui/session_controller.py`,
     `tests/gui/test_session_panels.py`.
   - Content: student name (required before Track and Export); file info and the `check_video`

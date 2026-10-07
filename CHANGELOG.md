@@ -47,3 +47,6 @@ repository (`vX.Y.Z`).
 - Objects in the window (panel 6): add an object, click on the animal, and the model's outline
   appears within a second or two, before any tracking. Right click (or Alt-click) marks what
   does not belong; Head marks the front end.
+- Panels 1 and 2 of the window: your name, the video's facts and warnings, the clip's start,
+  end and step, and fps_true from the manifest or typed. Everything you set is saved in the
+  run folder and is back after a restart (Open session, or `outline-tracker gui SESSION.json`).

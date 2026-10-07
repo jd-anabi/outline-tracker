@@ -126,6 +126,16 @@ def assert_empty_result(result):
 # The main window (tests/gui/)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def settings_out_of_the_users_own(tmp_path_factory):
+    """What the window remembers between sittings (QSettings, an INI file in the user's scope) goes
+    to a temporary folder for the whole test run, so that no test reads or writes the settings of
+    the person who runs the tests. A test that needs a folder of its own sets one after this."""
+    from PySide6.QtCore import QSettings
+
+    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path_factory.mktemp("settings")))
+
+
 def stand_in_segmenter(model, device):
     """What a GUI test gives the window in place of the real model's factory: a `ThresholdFake`, whatever
     the model key and the device are (images and prompts in px of the image given, segmenter/base.py).
