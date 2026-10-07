@@ -1,17 +1,21 @@
-"""The worker thread (SPEC 5, 6.4, 10.2; decision X7): the model is loaded in it, and it makes
-the outlines that are shown after a click, so that no long operation runs in the GUI thread.
+"""The worker thread (SPEC 5, 6.4, 10.2; decision X7): it owns the loaded model and makes the
+outlines that are shown after a click, so that no long operation runs in the GUI thread.
 
 Two objects. The engine (`_Engine`, in gui/worker_engine.py) is the one object that lives in the
-one worker thread: it makes the segmenter and calls it. The `Worker` is its handle and lives in the
-GUI thread: a panel calls its methods, which return at once, and listens to its signals. The engine's own signals are
-connected only to bound methods of the `Worker`, so everything the engine reports is taken over by
-the GUI thread's event loop, and every signal of the `Worker` is emitted in the GUI thread: a slot
-connected to them runs there, however it was connected.
+one worker thread: it has the segmenter made and is the only one that calls it. The `Worker` is
+its handle and lives in the GUI thread: a panel calls its methods, which return at once, and
+listens to its signals. The engine's own signals are connected only to bound methods of the
+`Worker`, so everything the engine reports is taken over by the GUI thread's event loop, and every
+signal of the `Worker` is emitted in the GUI thread: a slot connected to them runs there, however
+it was connected.
 
 - Loading: `start(factory, model, device)` starts the thread (64 MiB of stack: a default Qt
-  thread has 0.5 MiB on macOS, where the model has never run) and makes the segmenter in it with
-  `factory(model, device)`. `state` goes from "idle" to "loading" and then to "ready", or to
-  "failed" with one plain line in `message`. `start_when_shown(window)` does this for a window
+  thread has 0.5 MiB on macOS, where the model has never run) and has the segmenter made with
+  `factory(model, device)`. The factory is called in a thread that does nothing else, has the same
+  stack, and ends when the factory has returned; the worker thread takes the segmenter over and
+  is free until then for a task that needs no model. `state` goes from "idle" to "loading" and
+  then to "ready", or to "failed" with one plain line in `message`.
+  `start_when_shown(window)` does this for a window
   once it is shown, and stops the thread when the window closes. `load(model, device)` loads
   another model for that window in place of the one that is loaded (panel 7's two boxes, an
   opened session); `wanted` is what was asked for last, `device` what the loaded model runs on.
@@ -25,10 +29,11 @@ connected to them runs there, however it was connected.
 - Jobs: `run(task)` has `task(segmenter)` called in the thread, after what the thread is doing; an
   outline asked for meanwhile waits for it. gui/worker_jobs.py tracks with this, and such a task is
   taken only while the model is ready. A task that needs no model (`needs_model=False`: Export all,
-  the flags table) is taken whatever the model's state: it runs in this same thread (X7), after a
-  load that is going on, and the thread is started for it in a window without a model.
-- `stop()` ends the thread and closes the segmenter. It waits for the call the engine is in; a
-  task that runs asks `stopping` and ends early.
+  the flags table) is taken whatever the model's state: it runs in this same thread (X7), also
+  while a model is still being made, and the thread is started for it in a window without a model.
+  A model that is made while a task runs is taken over when the task has returned.
+- `stop()` ends the thread and closes the segmenter. It waits for the call the engine is in and
+  for a model that is still being made; a task that runs asks `stopping` and ends early.
 - A failure (loading, or a frame) is shown as one plain line. Its trace is not shown: it is written
   to this module's log when it happens (`traced`) and kept in `Worker.traces` for run.log (SPEC 10.2).
 - What comes back is put into the coordinates of the full frame by `found_in`: each mask
@@ -54,14 +59,13 @@ import numpy as np
 from PySide6.QtCore import QEvent, QObject, QThread, QTimer, Signal, Slot
 
 # The engine's names are passed on: what this module offered before the engine had its own file.
-from outline_tracker.gui.worker_engine import (REASON_LENGTH, Preview, _Engine, _Request, log,  # noqa: F401
-                                               plain, traced)
+from outline_tracker.gui.worker_engine import (REASON_LENGTH, STACK_BYTES, Preview, _Engine,  # noqa: F401
+                                               _Request, log, plain, traced)
 from outline_tracker.measure import MODES, measure_mask
 from outline_tracker.segmenter.base import ObjectPrompt
 from outline_tracker.session import Processing
 from outline_tracker.tracking_fine import fine_window
 
-STACK_BYTES = 64 * 1024 * 1024  # of the worker thread (X7)
 NO_FACTORY = "This window was made without a model."
 TRACES_KEPT = 20  # `Worker.traces` holds this many, the newest; the log has every one
 
@@ -210,9 +214,10 @@ class Worker(QObject):
 
     def run(self, task, needs_model: bool = True) -> bool:
         """Have `task(segmenter)` called once in the worker thread, after what the thread is doing
-        now (loading a model too); outlines asked for meanwhile wait until it has returned.
-        `segmenter` is the loaded model, None while there is none. The task must raise nothing and
-        report through signals of an object of the GUI thread. Returns whether it was handed over:
+        now (it does not wait for a model that is being made); outlines asked for meanwhile wait
+        until it has returned. `segmenter` is the loaded model, None while there is none. The task
+        must raise nothing and report through signals of an object of the GUI thread. Returns
+        whether it was handed over:
         a task that needs the model only while the model is ready; one that does not
         (`needs_model` false) in every state but "stopped", and the thread is started for it if it
         does not run yet."""
@@ -226,10 +231,11 @@ class Worker(QObject):
     # ------------------------------------------------------------------ loading
 
     def start(self, factory, model: str, device: str, before_load=None) -> None:
-        """Start the thread and load the model in it: `factory(model, device)` makes the segmenter
-        (model: "edgetam", "sam2", ...; device: "auto", "cpu", "mps" or "cuda"), after
-        `before_load()` if one is given (it is called once, at the first load). Returns at once;
-        `state_changed` says how it went. A model that is loaded is closed first, and of two loads
+        """Start the thread and load the model: `factory(model, device)` makes the segmenter
+        (model: "edgetam", "sam2", ...; device: "auto", "cpu", "mps" or "cuda") in a thread of its
+        own, after `before_load()` in the worker thread if one is given (it is called once, at the
+        first load). Returns at once; `state_changed` says how it went.
+        A model that is loaded is closed first, and of two loads
         asked for in a row only the second one's answer counts. An outline that is awaited is made
         by this model, when it is ready. Without a factory the state is "failed" and no thread
         starts. After `stop` nothing starts."""
@@ -344,8 +350,8 @@ class Worker(QObject):
 
     def stop(self) -> None:
         """End the worker thread and close the segmenter; the state is "stopped" from then on.
-        It waits until the call the thread is in has returned (loading the model, or one frame).
-        Calling it again does nothing."""
+        It waits until the call the thread is in has returned (one frame, or a task), and until a
+        model that is being made is there, which is closed too. Calling it again does nothing."""
         if self.state == "stopped":
             return
         self.stopping.set()
@@ -354,6 +360,7 @@ class Worker(QObject):
         if self._thread.isRunning():
             self._thread.quit()
             self._thread.wait()
+        self._keep(self._engine.end_making())  # the trace of a load that failed meanwhile, for run.log
         segmenter, self._engine.segmenter = self._engine.segmenter, None
         if segmenter is not None:
             segmenter.close()

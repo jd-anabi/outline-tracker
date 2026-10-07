@@ -1,12 +1,16 @@
 """The engine of the worker thread (SPEC 5, 6.4, 10.2; decision X7): the one object that lives in
-the thread, makes the segmenter there and calls it. Its handle for the GUI thread is the `Worker`
-of gui/worker.py, whose module text says how the two work together; every name here is also
-importable from there.
+the thread, has the segmenter made, and is the only one that calls it. Its handle for the GUI
+thread is the `Worker` of gui/worker.py, whose module text says how the two work together; every
+name here is also importable from there.
 
-- `load` makes the segmenter with the factory it is given. A model that was loaded before is
-  closed first, so that there is one copy of the weights at any time. The step before loading
-  (`before_load`, for the real model `segmenter.hf.reserve_ui_thread`) is taken once, however many
-  models are loaded after one another.
+- `load` has the segmenter made with the factory it is given, in a thread that does nothing else
+  (`_Making`, with the worker thread's stack) and ends when the factory has returned. The worker
+  thread is free meanwhile for what needs no model (Export all, the flags table); it takes the
+  segmenter over when it is made, and nothing else ever calls it. A model that was loaded before
+  is closed first, and a second load waits until what the first one made is closed, so that there
+  is one copy of the weights at any time. The step before loading (`before_load`, for the real
+  model `segmenter.hf.reserve_ui_thread`) is taken once, here in the worker thread, which is the
+  one that will use the model, however many models are loaded after one another.
 - `work` makes the outlines of the request that waits; `run` calls one task with the segmenter.
 - A failure is said in one plain line (`plain`); its trace goes to the log when it happens
   (`traced`) and is handed on for run.log, never shown (SPEC 10.2).
@@ -25,11 +29,13 @@ import traceback
 from dataclasses import dataclass
 
 import numpy as np
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from outline_tracker.segmenter.base import MaskResult, ObjectPrompt
 
 REASON_LENGTH = 200  # a reason is one line, cut to this many characters
+# Of the worker thread and of a thread that makes a model (X7): a default Qt thread has 0.5 MiB on macOS.
+STACK_BYTES = 64 * 1024 * 1024
 # The worker's log, under the name it has always had: written to stderr, unless the program gives it another place.
 log = logging.getLogger("outline_tracker.gui.worker")
 
@@ -71,10 +77,30 @@ def traced(what: str) -> str:
     return f"{what}\n{traceback.format_exc().rstrip()}"
 
 
+class _Making(QThread):
+    """A thread that makes one segmenter and ends: `factory(model, device)` is all it calls. What
+    the factory returned is `made`; if it raised, `reason` is the plain line and `trace` the text
+    for run.log (`traced`). The engine reads them when the thread has ended."""
+
+    def __init__(self, factory, model: str, device: str, number: int):
+        super().__init__()
+        self.setStackSize(STACK_BYTES)
+        self.job, self.number = (factory, model, device), number
+        self.made, self.reason, self.trace = None, "", ""
+
+    def run(self) -> None:
+        factory, model, device = self.job
+        try:
+            self.made = factory(model, device)
+        except Exception as error:  # whatever a model's loading raises: said in one line, never raised here
+            self.reason = plain(error)
+            self.trace = traced(f"The model {model} could not be loaded (device {device}).")
+
+
 class _Engine(QObject):
     """The object in the worker thread. `load`, `work` and `run` are its slots and run there; `ask`
-    may be called from any thread. `segmenter` is None until `load` has made it, and while another
-    one is being made."""
+    may be called from any thread. `segmenter` is None until the one `load` asked for is made and
+    taken over here, and while another one is being made."""
 
     # the number of the load; "ready" or "failed"; the plain reason of a failure; its trace (`traced`)
     state = Signal(int, str, str, str)
@@ -87,6 +113,8 @@ class _Engine(QObject):
         self._lock = threading.Lock()
         self._waiting: _Request | None = None
         self._prepared = False  # `before_load` was called: it is called once in a thread's life
+        self._making: _Making | None = None  # the thread that makes a segmenter now
+        self._next: tuple | None = None      # the load asked for meanwhile: it begins when that thread has ended
 
     def ask(self, request: _Request | None) -> None:
         """Make `request` the one that waits, in place of any other; None: nothing waits."""
@@ -100,9 +128,11 @@ class _Engine(QObject):
 
     @Slot(object, str, str, object, int)
     def load(self, factory, model: str, device: str, before_load, number: int) -> None:
-        """Make the segmenter: `factory(model, device)`, after `before_load()` the first time one
-        is given. The segmenter of a load before is closed first. `number` comes back with the
-        answer, so that the `Worker` knows which load it is the answer of."""
+        """Have the segmenter made: `factory(model, device)` in a thread of its own (`_Making`),
+        after `before_load()` here the first time one is given. This returns at once, so the worker
+        thread goes on with its tasks. The segmenter of a load before is closed first; while one
+        is still being made, this load begins when that one has ended and is closed. `number`
+        comes back with the answer, so that the `Worker` knows which load it is the answer of."""
         before, self.segmenter = self.segmenter, None
         try:
             if before is not None:
@@ -110,13 +140,56 @@ class _Engine(QObject):
             if before_load is not None and not self._prepared:
                 self._prepared = True
                 before_load()
-            self.segmenter = factory(model, device)
-        except Exception as error:  # whatever a model's loading raises: said in one line, never raised here
+        except Exception as error:  # said in one line, never raised here
             self.state.emit(number, "failed", plain(error),
                             traced(f"The model {model} could not be loaded (device {device})."))
             return
-        self.state.emit(number, "ready", "", "")
-        self.work()
+        if self._making is not None:
+            self._next = (factory, model, device, number)  # in place of a load that waited: the newest counts
+        else:
+            self._make(factory, model, device, number)
+
+    def _make(self, factory, model: str, device: str, number: int) -> None:
+        self._making = _Making(factory, model, device, number)
+        self._making.finished.connect(self._made)  # emitted in that thread, so taken over by this one's loop
+        self._making.start()
+
+    @Slot()
+    def _made(self) -> None:
+        """The thread that made a segmenter has ended: take the segmenter over, here in the worker
+        thread, and say how the load went. If another load was asked for meanwhile, what was made
+        is closed and that load begins."""
+        making, self._making = self._making, None
+        if making is None:
+            return
+        making.wait()
+        waiting, self._next = self._next, None
+        if making.trace:
+            self.state.emit(making.number, "failed", making.reason, making.trace)
+        elif waiting is None:
+            self.segmenter = making.made
+            self.state.emit(making.number, "ready", "", "")
+            self.work()
+        elif making.made is not None:  # nobody will use it: one copy of the weights
+            try:
+                making.made.close()
+            except Exception as error:  # kept for run.log; the load that waits begins all the same
+                self.state.emit(making.number, "failed", plain(error),
+                                traced(f"The model {making.job[1]} could not be closed."))
+        if waiting is not None:
+            self._make(*waiting)
+
+    def end_making(self) -> str:
+        """For `Worker.stop`, in the GUI thread, once the worker thread has ended: wait for the
+        segmenter that is still being made, and close it. No load begins after this. Returns the
+        trace of that load if it failed (`traced`), else ""."""
+        making, self._making, self._next = self._making, None, None
+        if making is None:
+            return ""
+        making.wait()
+        if making.made is not None:
+            making.made.close()
+        return making.trace
 
     @Slot()
     def work(self) -> None:

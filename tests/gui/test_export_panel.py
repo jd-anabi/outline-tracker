@@ -134,7 +134,7 @@ def test_export_all_is_off_while_tracking_runs(window, qtbot, clip_in_odd_folder
     "Written with task C6, when Export all waited for the model. Task C9 (item 1): Export all needs no model, and the "
     "sentence that sent the student to the command line is gone. Its successors are in tests/gui/test_joins.py: "
     "test_after_a_model_that_could_not_be_loaded_export_all_and_the_flags_run_in_the_workers_thread and "
-    "test_while_the_model_loads_export_all_starts_at_once_and_is_written_when_the_thread_is_free. For J or the "
+    "test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thread. For J or the "
     "controller: delete this test."))
 def test_export_all_waits_for_the_worker_that_runs_it(window, second_window, qtbot, clip_in_odd_folder,
                                                       monkeypatch):

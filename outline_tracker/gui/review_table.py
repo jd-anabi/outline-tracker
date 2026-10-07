@@ -6,7 +6,7 @@ frame, from session.json and results.npz as they are on disk. That function deri
 again, which takes seconds for 10 tracks of 1,200 frames: far longer than a window may stand
 still. So `Listing` never has it called in the GUI thread, and the window stays usable meanwhile.
 It is called in the worker thread (`Worker.run`), the one thread of the window (decision X7), as a
-task that needs no model: the flags are listed the same way while a model loads (after the load)
+task that needs no model: the flags are listed the same way while a model is still loading
 and when none could be loaded. The rows are asked
 for again only when what they are made of has changed: results.npz (its size, time and file
 number), whether session.json is there, or the parts of the session that the flags are derived

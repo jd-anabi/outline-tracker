@@ -86,7 +86,7 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `gui/estimate.py` | how long tracking will take, and how the time is worded |
 | `gui/stopwatch_dialog.py` | the Stopwatch dialog of panel 2 |
 | `gui/worker.py` | the `Worker`: the GUI thread's handle of the worker thread |
-| `gui/worker_engine.py` | the engine: the object that lives in the worker thread and calls the model |
+| `gui/worker_engine.py` | the engine: the object that lives in the worker thread, has the model made in a thread of its own, and calls the model |
 | `gui/worker_jobs.py` | `Jobs`: tracking in the worker thread, what a job reports back, and the one lock, `Jobs.writing()` |
 | `gui/review_table.py` | the flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread |
 | `gui/panel_parts.py` | the small parts the panels share: `Message`, `ElidedLabel`, `guard_wheel`, `field_rows` |
@@ -158,9 +158,11 @@ These are the rules of `CLAUDE.md` that every change has to keep, and at the end
 
 ## The worker thread and the GUI thread
 
-There is one worker thread per window (decision X7 in docs/PLAN.md). The model is loaded in it and only it calls the model: an outline after a click, or one tracking job, one at a time. The same thread runs the two tasks that need no model, Export all and the listing of the flags table: `Worker.run(task, needs_model=False)` takes them whatever the model's state, so they also work when no model could be loaded. While a model loads, such a task waits for the load to end, because one thread does one thing at a time.
+There is one worker thread per window (decision X7 in docs/PLAN.md). It owns the loaded model and only it calls the model: an outline after a click, or one tracking job, one at a time. The same thread runs the two tasks that need no model, Export all and the listing of the flags table: `Worker.run(task, needs_model=False)` takes them whatever the model's state, so they also work while a model is still loading and when no model could be loaded.
 
-- `gui/worker_engine.py`, `_Engine`: the object that lives in the worker thread.
+A model is made in a thread of its own, which calls the factory, does nothing else, and ends when the factory has returned (`_Making` in `gui/worker_engine.py`; the same 64 MiB of stack as the worker thread). The worker thread takes the model over and is free until then. What keeps X7's reasons: the model before is closed before the next one is made, a second load waits until what the first one made is closed (one copy of the weights), and no thread but the worker thread ever calls a model (no concurrent use). The step before loading, which sets torch's thread limit, runs in the worker thread. A model that is made while a task runs is taken over when that task has returned, and the state stays "loading" until then.
+
+- `gui/worker_engine.py`, `_Engine`: the object that lives in the worker thread. `_Making`: the thread that makes one model and ends.
 - `gui/worker.py`, `Worker`: its handle in the GUI thread. Its methods return at once (`start`, `load`, `request_preview`, `run`, `stop`). Its signals are always emitted in the GUI thread.
 - `gui/worker_jobs.py`, `Jobs`: starts `tracking.run_job` in the worker thread with a copy of the session, and takes over what the job reports. `Jobs.writing()` is the one lock: it says whether, and why, the worker is busy with a task that writes files (a tracking run, or the export that panel 9 reports with `set_exporting`).
 

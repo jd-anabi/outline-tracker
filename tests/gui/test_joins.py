@@ -4,7 +4,8 @@ Panels 5 to 9 were built side by side. These tests hold the places where two of 
 
 1. Export all and the flags table need no model: both run in the worker's one thread while no
    model is loaded, and the listing has no thread of its own any more. Tracking and outlines
-   still wait for the model.
+   still wait for the model. A model is made in a thread that does nothing else and ends when the
+   model is there; the worker's thread takes the model over and is the only one that uses it.
 2. One lock: what a tracking run switches off is also off during an export, with the reason
    "An export is running."; Track is off during an export and Export all during a run. One
    function, `Jobs.writing()`, says whether and why.
@@ -21,11 +22,13 @@ video frame numbers; (u, v) is in px of the video frame (SPEC 3.1).
 """
 
 import re
+import threading
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QCoreApplication, Qt, QThread
 from PySide6.QtWidgets import QAbstractButton
 
 from export_helpers import calibrate
@@ -35,6 +38,7 @@ from export_panel_helpers import hint as export_hint
 from export_panel_helpers import listed as files_listed
 from finish_helpers import record_every_dialog
 from gui_helpers import show
+from helpers import click
 from joins_helpers import (DAY, EXPORTING, RUNNING, WAIT_FOR_EXPORT, corrections, earlier_run, lockable, not_saying,
                            off, written_at)
 from last_controls_helpers import (REPO, choose, control_texts, let_run_end, marked_names, parked, press_track,
@@ -42,8 +46,8 @@ from last_controls_helpers import (REPO, choose, control_texts, let_run_end, mar
 from outline_tracker import schema
 from outline_tracker.gui.worker import Worker, worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
-from outline_tracker.segmenter.fake import ExactFake
-from prompt_helpers import LEFT, NO_KEY, Gate, gui_thread, objects_panel, this_thread
+from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
+from prompt_helpers import LEFT, NO_KEY, SAFETY_S, Gate, Watched, gui_thread, objects_panel, this_thread
 from review_helpers import dish_run, listed, listed_by, opened_run, review_panel  # noqa: F401 (fixture)
 from session_helpers import body, read_json
 from track_helpers import Tracked, ready_to_track, results_of, run_to_end, track_panel, window_hint
@@ -58,6 +62,7 @@ DEVICE_TIP = "What the model runs on. auto takes the graphics processor if it wo
 MODEL_FIXED = "The results were made with EdgeTAM. For another model, remove the objects or start a new session."
 RESULTS_NEWER = "The results changed after the last export. Click Export all again."
 SESSION_NEWER = "The session changed after the last export. Click Export all again."
+STACK_BYTES = 64 * 1024 * 1024  # of a thread the model is made or used in (decision X7: 64 MiB)
 DEVELOPER = REPO / "docs" / "DEVELOPER.md"
 PACKAGE = REPO / "outline_tracker"
 # What the two modules offered before they were split (as of the commit before task C9), private names too.
@@ -92,6 +97,15 @@ def exported_all(folder: Path, panel) -> bool:
 
 def ids(window) -> list[str]:
     return [track.id for track in window.controller.session.tracks]
+
+
+def workers_thread(qtbot, worker) -> int:
+    """The worker's one thread (X7), as `this_thread` numbers it: the thread in which the next
+    task that is handed to the worker is called."""
+    ran = []
+    assert worker.run(lambda segmenter: ran.append(this_thread()), needs_model=False)
+    qtbot.waitUntil(lambda: bool(ran))
+    return ran[0]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -139,9 +153,10 @@ def test_after_a_model_that_could_not_be_loaded_export_all_and_the_flags_run_in_
     export_to_end(qtbot, panel)
     assert exported_all(folder, panel) and state(window) == "done"
     assert export_hint(window).startswith("Exported at ")
-    # one worker thread (X7): the one the model was to be loaded in exported and listed
+    # one worker thread (X7): the one that takes the next task exported and listed
     assert len(loaded_in) == 1 and gui_thread() not in loaded_in
-    assert {thread for _, _, thread, _ in exports.calls} | set(listings.threads) == set(loaded_in)
+    in_worker = workers_thread(qtbot, worker)
+    assert {thread for _, _, thread, _ in exports.calls} | set(listings.threads) == {in_worker} != {gui_thread()}
     # tracking and outlines still wait for the model
     objects = objects_panel(window)
     objects.add_object()
@@ -170,6 +185,13 @@ def test_the_sentence_that_sent_the_student_to_the_command_line_is_gone(window, 
     assert [name for name, value in texts.items() if "outline-tracker export" in value or "model" in value] == []
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Superseded in fix round 1 of task C9. This test held that one thread makes the model and runs every task, so "
+    "that an export asked for while the model loads is written only when the load has ended. The brief asks that "
+    "Export all runs and ends while the model is still loading: the model is now made in a thread that does nothing "
+    "else, and the worker's one thread exports meanwhile, so nothing here waits for the factory and the export's "
+    "thread is not the factory's. Successor: "
+    "test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thread. For J: delete this test."))
 def test_while_the_model_loads_export_all_starts_at_once_and_is_written_when_the_thread_is_free(
         window, qtbot, clip_in_odd_folder, monkeypatch):
     """One thread loads the model and runs every task (X7): an export asked for while the model
@@ -209,29 +231,52 @@ def test_while_the_model_loads_export_all_starts_at_once_and_is_written_when_the
     qtbot.waitUntil(lambda: worker.ready and not objects.prompts.busy)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "The brief of task C9 asks for this: with a factory that never finishes loading, Export all writes every file "
-    "in the worker's one thread. One thread cannot do both: the model is made in the worker thread (decision X7, "
-    "SPEC 10.2), and while the factory has not returned that thread runs nothing else. Export all is taken at once "
-    "and written when the load has ended (the test above). Writing during a load needs a second thread, which the "
-    "same brief removes with X7. For J or the controller: allow a thread that only loads the model, or delete "
-    "this test."))
 def test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thread(window, qtbot,
                                                                                     clip_in_odd_folder, monkeypatch):
+    """The brief's test for a model that is still loading, and the successor of the test above. The
+    factory stands at a gate: everything before `gate.open()` happens while the model is not there."""
     record_every_dialog(monkeypatch)
-    clip = clip_in_odd_folder
+    clip, making = clip_in_odd_folder, []
+    exports, listings = watch_export(monkeypatch), listed_by(monkeypatch)
     with Gate() as gate:
-        def never(model, device):
+        model = Watched(ExactFake(clip))
+
+        def never(key, device):
+            making.append(this_thread())
             gate.park()
-            return ExactFake(clip)
+            return model
 
         folder = earlier_run(window, qtbot, clip, never)
-        panel = export_panel(window)
+        worker, panel, review, track = (worker_of(window), export_panel(window), review_panel(window),
+                                        track_panel(window))
         qtbot.waitUntil(gate.parked.is_set)
-        panel.export_button.click()
-        assert panel.exporting
-        qtbot.waitUntil(lambda: not panel.exporting, timeout=1_000)  # while the gate is still closed
-        assert exported_all(folder, panel)
+        assert worker.state == "loading"
+        # the flags of the earlier run are listed
+        listed(qtbot, review)
+        assert review.listing.problem == "" and review.listing.rows and review.listing.rows == listings.real(folder)
+        # tracking and outlines wait for the model
+        objects = objects_panel(window)
+        objects.add_object()
+        assert objects.prompts.add_point(*center(clip, "B", 0), 1)
+        assert objects.prompts.busy and objects.prompts.outlines == {}
+        assert not track.track_button.isEnabled() and track.track_button.toolTip() == TRACK_LOADING
+        assert track.jobs.start() == TRACK_LOADING and not track.jobs.running
+        # Export all does not: it is on, runs, and ends
+        assert is_on(window)
+        export_to_end(qtbot, panel)
+        assert exported_all(folder, panel) and state(window) == "done"
+        assert export_hint(window).startswith("Exported at ")
+        # one worker thread (X7) did both; the model is being made in another, which does nothing else
+        in_worker = workers_thread(qtbot, worker)
+        assert {thread for _, _, thread, _ in exports.calls} | set(listings.threads) == {in_worker}
+        assert len(making) == 1 and not {in_worker, gui_thread()} & set(making) and in_worker != gui_thread()
+        # and the model is still not there: Track stays off with its reason, the outline is still awaited
+        assert worker.state == "loading" and model.previews == [] and objects.prompts.busy
+        assert not track.track_button.isEnabled() and track.track_button.toolTip() == TRACK_LOADING
+        gate.open()
+        qtbot.waitUntil(lambda: worker.ready and not objects.prompts.busy)
+    assert "B" in objects.prompts.outlines and track.track_button.isEnabled()
+    assert set(model.threads) == {in_worker}  # the model is used in the worker's one thread, never where it was made
 
 
 def test_without_a_model_the_flags_are_listed_in_the_worker_thread_and_closing_ends_it(window, qtbot, dish_run,
@@ -260,6 +305,108 @@ def test_without_a_model_the_flags_are_listed_in_the_worker_thread_and_closing_e
     review.listing.sync()  # and nothing starts a thread again
     assert not review.worker.is_running() and len(calls.threads) == 1
     assert not hasattr(review.listing, "is_running") and not hasattr(review_table, "QThread")
+
+
+def test_a_model_is_made_in_a_thread_of_its_own_and_used_only_in_the_workers_thread(worker, qtbot):
+    """X7 as it holds with a thread that only makes the model: the same stack where the model is
+    made, the step before loading (torch's thread limit) in the thread that will use the model, and
+    every call of the model in the worker's one thread."""
+    order, makers, got, model = [], [], [], Watched()
+    image = np.full((40, 60, 3), 255, np.uint8)  # an RGB image [row, column, 3]: light, with one dark block
+    image[10:20, 10:20] = 0                      # whose center is (15, 15) px (SPEC 3.1)
+
+    def factory(key, device):
+        makers.append(QThread.currentThread())
+        order.append(("factory", this_thread(), makers[0].stackSize()))
+        return model
+
+    worker.start(factory, "edgetam", "cpu", before_load=lambda: order.append(("before", this_thread(), None)))
+    qtbot.waitUntil(lambda: worker.ready)
+    in_worker = workers_thread(qtbot, worker)
+    (_, before_in, _), (name, made_in, stack) = order  # the step before loading, then the factory, each once
+    assert name == "factory" and before_in == in_worker != gui_thread()
+    assert made_in not in (in_worker, gui_thread()) and stack == STACK_BYTES
+    assert makers[0].isFinished() and worker.is_running()  # with the model ready, the worker's thread is the one left
+    worker.request_preview(0, image, (0, 0), [click("A", 15.0, 15.0)])
+    qtbot.waitUntil(lambda: not worker.busy)
+    assert worker.run(lambda segmenter: got.append((segmenter, this_thread())))
+    qtbot.waitUntil(lambda: bool(got))
+    assert got == [(model, in_worker)] and model.threads == [in_worker]
+    worker.stop()
+    assert makers[0].isFinished() and not worker.is_running() and model.closed == 1
+
+
+@pytest.mark.parametrize("first_fails", [False, True], ids=["the first is made", "the first fails"])
+def test_a_model_asked_for_while_another_is_being_made_is_made_after_that_one_was_closed(worker, qtbot, first_fails):
+    """One copy of the weights (X7), also with a thread that only makes the model: the second
+    factory call begins when the first has returned and what it made is closed, by the worker's
+    thread, which is where a model is taken over. Only the second one's answer counts; the trace
+    of a first one that failed is kept for run.log."""
+    events, states = [], []
+    worker.state_changed.connect(lambda state, message: states.append(state))
+
+    class Noting(ThresholdFake):
+        def __init__(self, key):
+            super().__init__()
+            self.key = key
+
+        def close(self):
+            events.append(("closed", self.key))
+            closed_in.append(this_thread())
+            super().close()
+
+    closed_in = []
+    with Gate() as gate:
+        def factory(key, device):
+            events.append(("making", key))
+            if key == "edgetam":
+                gate.park()
+                if first_fails:
+                    raise OSError(NO_INTERNET)
+            events.append(("made", key))
+            return Noting(key)
+
+        worker.start(factory, "edgetam", "cpu")
+        qtbot.waitUntil(gate.parked.is_set)
+        worker.start(factory, "sam2", "cpu")
+        in_worker = workers_thread(qtbot, worker)  # the worker's thread has been told of the second load by now
+        assert events == [("making", "edgetam")] and worker.state == "loading"  # not beside the first
+        gate.open()
+        qtbot.waitUntil(lambda: worker.ready)
+    first = [] if first_fails else [("made", "edgetam"), ("closed", "edgetam")]
+    assert events == [("making", "edgetam"), *first, ("making", "sam2"), ("made", "sam2")]
+    assert closed_in == ([] if first_fails else [in_worker])
+    assert states == ["loading", "loading", "ready"] and worker.wanted == ("sam2", "cpu")
+    assert [trace.splitlines()[-1] for trace in worker.traces] == ([f"OSError: {NO_INTERNET}"] if first_fails else [])
+
+
+@pytest.mark.parametrize("fails", [False, True], ids=["it is made", "it fails"])
+def test_closing_while_a_model_is_being_made_waits_for_it_and_closes_what_was_made(worker, qtbot, fails):
+    made, makers, inside = Watched(), [], threading.Event()
+    with Gate() as gate:
+        def factory(key, device):
+            makers.append(QThread.currentThread())
+            gate.park()
+            if fails:
+                raise OSError(NO_INTERNET)
+            return made
+
+        def hold(segmenter):  # keeps the worker's thread until `stop` asks it to end
+            inside.set()
+            worker.stopping.wait(SAFETY_S)
+
+        worker.start(factory, "edgetam", "cpu")
+        qtbot.waitUntil(gate.parked.is_set)
+        assert worker.run(hold, needs_model=False)
+        qtbot.waitUntil(inside.is_set)
+        gate.open()
+        worker.stop()  # the model may arrive before the worker's thread has ended, or after
+    assert made.closed == (0 if fails else 1) and made.previews == []
+    assert worker.state == "stopped" and not worker.ready and worker.device is None
+    assert not worker.is_running() and makers[0].isFinished()  # no thread is left
+    QCoreApplication.sendPostedEvents()  # what the worker's thread still reported before it ended
+    # the trace of a load that failed is kept for run.log, once, whenever it arrived
+    assert [trace.splitlines()[-1] for trace in worker.traces] == ([f"OSError: {NO_INTERNET}"] if fails else [])
 
 
 # ---------------------------------------------------------------------------------------------

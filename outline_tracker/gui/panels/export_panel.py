@@ -3,8 +3,8 @@
 Export all is `export.export_all(run_folder, overlay=True)`: every output file of SPEC 8 from
 session.json and results.npz, with overlay.mp4. It runs as one task in the window's worker thread
 (`Worker.run`), after what that thread is doing, so the window stays usable. It needs no model: it
-starts the same while a model loads (and is written when the load has ended) and after a model
-could not be loaded. While it runs, `Jobs.writing()` says so to every panel: what a tracking run
+starts, runs and ends the same while a model is still loading (which another thread does) and
+after a model could not be loaded. While it runs, `Jobs.writing()` says so to every panel: what a tracking run
 switches off is off during an export too. This module is the panel's controls, and what they say:
 
 - The run folder's name (the whole path is its tooltip) and Change folder, which is the File
