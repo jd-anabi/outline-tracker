@@ -148,13 +148,12 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
     Then each run is tracked, frame by frame: a coarse run on the part of the frame that
     `plan.input_box` names, a fine run on a window that follows its object (SPEC 6.3). A fine
     window the job chose goes to the session when the object's run starts (`SessionChanges`).
-    Records are in px in the full frame, frames are video
-    frame numbers. results.npz and, through `save_session`, the session are saved when a run
-    starts (the session only), after every 200 tracked frames, and when a run ends. Returns
-    "complete"; "cancelled" when `should_cancel` said so or the user pressed Ctrl+C; "failed" when
-    the model or the video raised an error during a run, which is logged. In all three cases what
-    was tracked is saved. A video that ends before the clip does is tracked to its last frame,
-    which is logged, and is "complete".
+    Records are in px in the full frame, frames are video frame numbers. results.npz and, through
+    `save_session`, the session are saved when a run starts (the session only), after every 200
+    tracked frames, and when a run ends. Returns "complete"; "cancelled" when `should_cancel` said
+    so or the user pressed Ctrl+C; "failed" when the model or the video raised an error during a
+    run, which is logged. In all three cases what was tracked is saved. A video that ends before
+    the clip does is tracked to its last frame, which is logged, and is "complete".
 
     The session's `complete` describes the results, not this job: it is True only after "complete",
     and then only if no track of the session is left partial (`partial_tracks`): one that an
@@ -295,7 +294,7 @@ class _Runner:
                 log(f"  The model found nothing at the clicks of {plan.track_ids[0]} on frame {plan.start_frame}: "
                     "the window starts around the first click.")
             if fine.chosen:  # so that a later run of the track shows the object at the same scale
-                windows = ((plan.track_ids[0], view.window),)
+                windows = ((plan.track_ids[0], fine.crop.window),)
 
         record = RunRecord(tracks=list(plan.track_ids), start_frame=plan.start_frame, mode=plan.mode, started=_now())
         index = len(session.runs)
