@@ -894,6 +894,7 @@ otherwise, the expected result is: all tests pass, none skipped unexpectedly.
 The agent posts the final commands in chat when Phase B is done. Draft (Terminal, zsh):
 
 ```zsh
+setopt interactivecomments          # lets Terminal accept the # comments below
 # 0. edit these five lines
 OT=~/Developer/outline-tracker                      # the repo folder
 VIDEO="/path/to/groupX_2026-09-29_HHMM_main_tracker.mp4"
@@ -1090,6 +1091,7 @@ The agent posts the final commands and a filled-in checklist in chat when Phase 
 **On the Mac (Terminal, zsh), about 1 h:**
 
 ```zsh
+setopt interactivecomments
 cd ~/Developer/outline-tracker && git pull && uv sync
 uv run outline-tracker selftest                 # default device: the Apple GPU
 uv run outline-tracker selftest --device cpu
