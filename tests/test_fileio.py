@@ -96,8 +96,7 @@ def test_temporary_file_is_in_the_same_folder_and_keeps_the_suffix(tmp_path, nam
     assert tmp.parent == target.parent  # same folder, so the rename never crosses a drive
     assert tmp.name != target.name
     assert tmp.name != f"{target.stem}.new{target.suffix}"  # not the name kept for a locked target
-    if target.suffix:  # ffmpeg and numpy choose the format from the name's ending
-        assert tmp.suffix == target.suffix
+    assert tmp.suffix == target.suffix  # ffmpeg and numpy choose the format from the name
     assert seen["target_during_write"] == b"old"  # the old file is whole until the rename
     assert target.read_bytes() == b"new"
     assert _names(tmp_path) == [name]

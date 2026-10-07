@@ -37,9 +37,10 @@ def atomic_write(path, write_fn: Callable[[Path], object]) -> Path:
     """Write a file so that `path` always holds a complete file: the old one or the new one.
 
     path: the file to write (its folder is created if needed). write_fn: called once with the path
-    of a temporary file in the same folder, whose name ends with `path`'s suffix (so a writer that
-    picks its format from the name, such as ffmpeg for ".mp4" or numpy for ".npz", behaves as it
-    would on `path`). It must create that file, write everything, and close it before it returns.
+    of a temporary file in the same folder, `<stem>-<8 hex digits>-tmp<suffix>`: it has the same
+    suffix as `path`, or none when `path` has none (so a writer that picks its format from the name,
+    such as ffmpeg for ".mp4" or numpy for ".npz", behaves as it would on `path`). It must create
+    that file, write everything, and close it before it returns.
 
     Then the temporary file is renamed onto `path` (`os.replace`). If that raises PermissionError
     (on Windows: another program holds `path` open), it is tried again for about 5 s. If `path`
@@ -52,7 +53,8 @@ def atomic_write(path, write_fn: Callable[[Path], object]) -> Path:
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f"{path.stem}.{secrets.token_hex(4)}.tmp{path.suffix}")
+    # no dot is added, so the temporary name keeps `path`'s suffix and has none when `path` has none
+    tmp = path.with_name(f"{path.stem}-{secrets.token_hex(4)}-tmp{path.suffix}")
     try:
         write_fn(tmp)
         for delay in (*RETRY_DELAYS_S, None):
