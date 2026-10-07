@@ -12,6 +12,10 @@ What the module does:
 - `make_plan` decides, from an export, which frames to track and where each object starts.
 - `write_tracker_file` writes one track in the same layout as an export.
 
+New this week and not ported, at the end of the file: `compare_tracks` reads two folders of such track
+files and gives, per pair of tracks, the difference in px on the frames both have (the hidden
+`compare-tracks` command).
+
 Coordinates: pixelx and pixely are Tracker's image coordinates in px: the origin is the top-left
 corner of the frame, pixelx grows to the right, pixely downward, and the pixel in column c and row r
 has its center at (c + 0.5, r + 0.5). x and y are in mm. `frame` is the video's own frame number
@@ -242,3 +246,117 @@ def make_plan(export, seconds=None, step=None, fps=None, video=None, manifest="d
     else:
         n = int(round((10.0 if seconds is None else seconds) * fps / step))
     return Plan(names, points, start, step, max(n, 1), float(fps), cal)
+
+
+# --------------------------------------------------------------------------- comparing two folders of tracks
+# New this week, not ported: what the hidden `compare-tracks` command computes (decision X10).
+
+PAIR_MAX_PX = 15.0  # `by_position` pairs two tracks only when they are at most this far apart, in px
+COMPARE_COLUMNS = ["track", "old_track", "n_common", "first", "last", "rms_px", "max_px", "at_frame",
+                   "new_first", "new_last", "old_first", "old_last"]
+
+
+def _read_track_folder(folder) -> dict[str, pd.DataFrame]:
+    """Every track of a folder of Tracker-format files: {name: table indexed by frame}, sorted by name.
+
+    Hidden files (macOS leaves `._A.csv` next to `A.csv` on some drives) are not tracks.
+    """
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise FileNotFoundError(f"No such folder: {folder}")
+    tracks = {}
+    for path in sorted(p for p in folder.iterdir()
+                       if p.suffix.lower() == ".csv" and not p.name.startswith(".") and p.is_file()):
+        for name, table in read_tracker_export(path).items():
+            if name in tracks:
+                raise ValueError(f"{folder} holds two tracks named {name} (one of them in {path.name}). "
+                                 "Each track of a folder needs its own name.")
+            twice = table["frame"][table["frame"].duplicated()]
+            if len(twice):
+                raise ValueError(f"{path}: frame {int(twice.iloc[0])} is in the file more than once, so the "
+                                 "tracks cannot be matched frame by frame.")
+            tracks[name] = table.set_index("frame")
+    return dict(sorted(tracks.items()))
+
+
+def _apart_px(track: pd.DataFrame, other: pd.DataFrame, frames: np.ndarray) -> np.ndarray:
+    """The distance in px between two tracks on each of `frames`, which both must have."""
+    return np.hypot(track.loc[frames, "pixelx"].to_numpy() - other.loc[frames, "pixelx"].to_numpy(),
+                    track.loc[frames, "pixely"].to_numpy() - other.loc[frames, "pixely"].to_numpy())
+
+
+def _nearest_track(track: pd.DataFrame, others: dict[str, pd.DataFrame]) -> str | None:
+    """The name of the track of `others` nearest to `track` on the first frame the two share, or None
+    when none is within PAIR_MAX_PX px there (a track that shares no frame with it is never chosen)."""
+    best = None
+    for name, other in others.items():
+        common = np.intersect1d(track.index, other.index)
+        if len(common):
+            apart = float(_apart_px(track, other, common[:1])[0])
+            if apart <= PAIR_MAX_PX and (best is None or apart < best[0]):
+                best = (apart, name)
+    return None if best is None else best[1]
+
+
+def _frame_range(prefix: str, track: pd.DataFrame) -> dict[str, int]:
+    """The first and last frame of a track as `<prefix>_first` and `<prefix>_last`; nothing for an empty one."""
+    if track.empty:
+        return {}
+    return {f"{prefix}_first": int(track.index.min()), f"{prefix}_last": int(track.index.max())}
+
+
+def compare_tracks(new_dir, old_dir, by_position=False) -> pd.DataFrame:
+    """Compare the tracks of two folders of Tracker-format files, frame by frame, in pixels.
+
+    Both folders hold one `<id>.csv` per track, as `write_tracker_file` writes them; they are read with
+    `read_tracker_export`, which drops the rows of lost frames. A new track is paired with the old track
+    of the same name (the file name without `.csv`). With `by_position`, it is paired instead with the old
+    track nearest to it on the first frame the two share, if that is at most PAIR_MAX_PX = 15 px away;
+    two new tracks may then be paired with the same old track (the pieces A and A2 of one animal).
+
+    Units and coordinates: every difference is the distance in px between the two positions on one
+    frame, hypot(pixelx_new - pixelx_old, pixely_new - pixely_old), in Tracker's image coordinates
+    (origin at the top-left corner, pixelx to the right, pixely down, pixel centers at +0.5; SPEC 3.1).
+    Frames are the video's own frame numbers. The mm columns x and y and the time t are not compared.
+
+    Returns one row per new track, sorted by name, then one row per old track that no new track was
+    paired with (`track` missing), with the columns COMPARE_COLUMNS:
+      track, old_track       the two names; `old_track` is missing when the new track has no partner
+      n_common               the number of frames both tracks have (0 without a partner)
+      first, last            the first and the last of those frames
+      rms_px, max_px         the RMS and the largest of the differences on those frames, px
+      at_frame               the frame of the largest difference (the first one, if several are equal)
+      new_first, new_last    the first and last frame of the new track
+      old_first, old_last    the first and last frame of the old track
+    Frame columns are nullable integers and rms_px and max_px are NaN where there is nothing to give.
+
+    Raises FileNotFoundError for a folder that is not there and ValueError for a file that is not in
+    Tracker's format, a frame that is twice in one file, or two tracks of one name in a folder.
+    """
+    new, old = _read_track_folder(new_dir), _read_track_folder(old_dir)
+    rows = []
+    for name, track in new.items():
+        if by_position:
+            partner = _nearest_track(track, old)
+        else:
+            partner = name if name in old else None
+        row = {"track": name, "old_track": partner, "n_common": 0, **_frame_range("new", track)}
+        if partner is not None:
+            other = old[partner]
+            row.update(_frame_range("old", other))
+            common = np.intersect1d(track.index, other.index)  # sorted
+            if len(common):
+                apart = _apart_px(track, other, common)
+                row.update(n_common=len(common), first=common[0], last=common[-1],
+                           rms_px=float(np.sqrt(np.mean(apart ** 2))), max_px=float(apart.max()),
+                           at_frame=common[int(np.argmax(apart))])
+        rows.append(row)
+    paired = {row["old_track"] for row in rows}
+    rows += [{"old_track": name, "n_common": 0, **_frame_range("old", track)}
+             for name, track in old.items() if name not in paired]
+    table = pd.DataFrame(rows, columns=COMPARE_COLUMNS)
+    frame_columns = ["first", "last", "at_frame", "new_first", "new_last", "old_first", "old_last"]
+    table[frame_columns] = table[frame_columns].astype("Int64")
+    table["n_common"] = table["n_common"].astype(int)
+    table[["rms_px", "max_px"]] = table[["rms_px", "max_px"]].astype(float)
+    return table
