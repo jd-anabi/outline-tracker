@@ -12,6 +12,7 @@ from outline_tracker import __version__
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Return the argument parser of `outline-tracker` (no quantities here, so no units or frame)."""
     parser = argparse.ArgumentParser(
         prog="outline-tracker",
         description="Track objects in videos with EdgeTAM; export positions and outline shapes.",
@@ -21,6 +22,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the command line and return the process exit code (0 = success).
+
+    `argv` is the argument list without the program name; None means `sys.argv[1:]`.
+    """
     build_parser().parse_args(argv)
     return 0
 

@@ -1,0 +1,70 @@
+name: tests
+
+# SPEC 13.7. The slow tests (real model) never run here.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"] # documentation-only pushes start no run
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true # a newer push to the same branch cancels the older run
+
+env:
+  QT_QPA_PLATFORM: offscreen
+  UV_MANAGED_PYTHON: "1" # the python-build-standalone CPython that uv gives students
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: System libraries Qt needs (offscreen)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libx11-6
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install (CPU-only torch from the PyTorch index)
+        run: uv sync --locked
+      - name: Fast tests
+        run: uv run pytest -m "not slow"
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install (pinned torch and PySide6-Essentials from PyPI)
+        run: uv sync --locked
+      - name: torch, then Qt (SPEC 10.2; must pass)
+        run: uv run python -c "import torch; import PySide6.QtWidgets; import PySide6; print(torch.__version__, PySide6.__version__)"
+      - name: Qt, then torch (information only)
+        continue-on-error: true
+        run: uv run python -c "import PySide6.QtWidgets; import torch; print('Qt-first import also works with torch', torch.__version__)"
+      - name: Entry point
+        run: uv run outline-tracker --version
+      - name: The students' install path (uv tool install, SPEC 15)
+        # Resolves from pyproject.toml alone: uv tool install ignores uv.lock and .python-version.
+        run: |
+          uv tool install --python 3.12 .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:PATH = "$(uv tool dir --bin);$env:PATH"
+          (Get-Command outline-tracker).Source
+          outline-tracker --version
+      - name: Fast tests
+        run: uv run pytest -m "not slow"
