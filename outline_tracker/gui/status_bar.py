@@ -50,14 +50,6 @@ def gray_at(image: np.ndarray, u: float, v: float) -> float:
     return float(np.dot(image[int(v), int(u), :3].astype(float), GRAY_WEIGHTS))
 
 
-def device_of(worker) -> str | None:
-    """The device the loaded model runs on ("cpu", "mps" or "cuda"), as its segmenter says it; None
-    while no model is loaded, and for a segmenter that names none (a stand-in)."""
-    segmenter = getattr(getattr(worker, "_engine", None), "segmenter", None)  # the worker offers no other way yet
-    device = getattr(segmenter, "device", None)
-    return None if device is None else str(device)
-
-
 class Readouts(QObject):
     """The four read-outs of `window` (a `MainWindow`), added to its status bar as permanent
     widgets: `pixel_label`, `position_label`, `gray_label` and `device_label`. They follow the
@@ -115,5 +107,7 @@ class Readouts(QObject):
             self.position_label.setText(f"Position {signed(float(x), 2)}, {signed(float(y), 2)} mm")
 
     def show_device(self, *_) -> None:
-        """Bring the device in line with the model that is loaded."""
-        self.device_label.setText(f"Device {device_of(self._worker) or NO_DEVICE}")
+        """Bring the device in line with the model that is loaded (`Worker.device`): "cpu", "mps" or
+        "cuda", or a dash while no model is loaded and for a model that names no device."""
+        device = None if self._worker is None else self._worker.device
+        self.device_label.setText(f"Device {device or NO_DEVICE}")

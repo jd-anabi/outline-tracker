@@ -1,9 +1,9 @@
 """The worker thread (SPEC 5, 6.4, 10.2; decision X7): the model is loaded in it, and it makes
 the outlines that are shown after a click, so that no long operation runs in the GUI thread.
 
-Two objects. The engine (`_Engine`) is the one object that lives in the one worker thread: it
-makes the segmenter and calls it. The `Worker` is its handle and lives in the GUI thread: a panel
-calls its methods, which return at once, and listens to its signals. The engine's own signals are
+Two objects. The engine (`_Engine`, in gui/worker_engine.py) is the one object that lives in the
+one worker thread: it makes the segmenter and calls it. The `Worker` is its handle and lives in the
+GUI thread: a panel calls its methods, which return at once, and listens to its signals. The engine's own signals are
 connected only to bound methods of the `Worker`, so everything the engine reports is taken over by
 the GUI thread's event loop, and every signal of the `Worker` is emitted in the GUI thread: a slot
 connected to them runs there, however it was connected.
@@ -12,7 +12,9 @@ connected to them runs there, however it was connected.
   thread has 0.5 MiB on macOS, where the model has never run) and makes the segmenter in it with
   `factory(model, device)`. `state` goes from "idle" to "loading" and then to "ready", or to
   "failed" with one plain line in `message`. `start_when_shown(window)` does this for a window
-  once it is shown, and stops the thread when the window closes.
+  once it is shown, and stops the thread when the window closes. `load(model, device)` loads
+  another model for that window in place of the one that is loaded (panel 7's two boxes, an
+  opened session); `wanted` is what was asked for last, `device` what the loaded model runs on.
 - Outlines: `request_preview` hands the engine a frame and the clicks on it. The newest request
   wins: a request that waits is replaced by a newer one, and the result of an older one is
   dropped. `busy` is true from a request until its result or its failure has arrived.
@@ -37,48 +39,24 @@ Frames are video frame numbers.
 
 from __future__ import annotations
 
-import logging
 import threading
-import traceback
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 import numpy as np
 from PySide6.QtCore import QEvent, QObject, QThread, QTimer, Signal, Slot
 
+# The engine's names are passed on: what this module offered before the engine had its own file.
+from outline_tracker.gui.worker_engine import (REASON_LENGTH, Preview, _Engine, _Request, log,  # noqa: F401
+                                               plain, traced)
 from outline_tracker.measure import MODES, measure_mask
-from outline_tracker.segmenter.base import MaskResult, ObjectPrompt
+from outline_tracker.segmenter.base import ObjectPrompt
 from outline_tracker.session import Processing
 from outline_tracker.tracking_fine import fine_window
 
 STACK_BYTES = 64 * 1024 * 1024  # of the worker thread (X7)
 NO_FACTORY = "This window was made without a model."
-REASON_LENGTH = 200  # a reason is one line, cut to this many characters
 TRACES_KEPT = 20  # `Worker.traces` holds this many, the newest; the log has every one
-log = logging.getLogger(__name__)  # written to stderr, unless the program gives it another place
-
-
-@dataclass(frozen=True)
-class Preview:
-    """What the model outlined on one frame. serial: the number `request_preview` returned.
-    frame: the video frame number. offset: (column, row) of the top-left pixel of the image the
-    model was shown, in px of the full frame; size: that image's (width, height) in px. results:
-    one `MaskResult` per prompt, in the order of the prompts, with offsets in px of that image."""
-
-    serial: int
-    frame: int
-    offset: tuple[int, int]
-    size: tuple[int, int]
-    results: list[MaskResult]
-
-
-@dataclass(frozen=True)
-class _Request:
-    serial: int
-    frame: int
-    image: np.ndarray
-    offset: tuple[int, int]
-    prompts: list[ObjectPrompt]
 
 
 @dataclass(frozen=True)
@@ -119,20 +97,6 @@ def found_in(preview: Preview, session) -> tuple[dict[str, Found], list[str]]:
     return found, missing
 
 
-def plain(error: BaseException) -> str:
-    """An error as one line for the user: the first line of its text, without a trace, cut to
-    `REASON_LENGTH` characters; the error's kind when it has no text."""
-    lines = str(error).strip().splitlines()
-    return lines[0].strip()[:REASON_LENGTH] if lines else type(error).__name__
-
-
-def traced(what: str) -> str:
-    """For the handler of an error, in any thread: write `what` (one line that says what was being
-    done) and the error's trace to the log now, and return the same text, for `Worker.traces`."""
-    log.exception(what)
-    return f"{what}\n{traceback.format_exc().rstrip()}"
-
-
 def before_load_for(factory) -> Callable[[], object] | None:
     """The step to take in the worker thread just before `factory` makes its segmenter: for the
     real model's factory (`from_tracker.load_segmenter`), `segmenter.hf.reserve_ui_thread`; for
@@ -146,102 +110,36 @@ def before_load_for(factory) -> Callable[[], object] | None:
     return reserve_ui_thread
 
 
-class _Engine(QObject):
-    """The object in the worker thread. `load` and `work` are its slots and run there; `ask` may be
-    called from any thread. `segmenter` is None until `load` has made it."""
-
-    state = Signal(str, str, str)  # "ready" or "failed"; the plain reason of a failure; its trace (`traced`)
-    previewed = Signal(object)     # a Preview
-    failed = Signal(int, str, str)  # the serial of a request; the plain reason; the trace (`traced`)
-
-    def __init__(self):
-        super().__init__()
-        self.segmenter = None
-        self._lock = threading.Lock()
-        self._waiting: _Request | None = None
-
-    def ask(self, request: _Request | None) -> None:
-        """Make `request` the one that waits, in place of any other; None: nothing waits."""
-        with self._lock:
-            self._waiting = request
-
-    def _take(self) -> _Request | None:
-        with self._lock:
-            request, self._waiting = self._waiting, None
-        return request
-
-    @Slot(object, str, str, object)
-    def load(self, factory, model: str, device: str, before_load) -> None:
-        try:
-            if before_load is not None:
-                before_load()
-            self.segmenter = factory(model, device)
-        except Exception as error:  # whatever a model's loading raises: said in one line, never raised here
-            self.state.emit("failed", plain(error), traced(f"The model {model} could not be loaded (device {device})."))
-            return
-        self.state.emit("ready", "", "")
-        self.work()
-
-    @Slot()
-    def work(self) -> None:
-        """Make the outlines of the request that waits, and of those that arrive meanwhile. Without
-        a segmenter the request goes on waiting (`load` calls this when the model is there)."""
-        while self.segmenter is not None:
-            request = self._take()
-            if request is None:
-                return
-            height, width = request.image.shape[:2]
-            # a frame of the view's cache is read-only, and the model may write to what it is given
-            image = request.image if request.image.flags.writeable else request.image.copy()
-            try:
-                set_view = getattr(self.segmenter, "set_view", None)  # ExactFake is told what each image shows
-                if set_view is not None:
-                    set_view(request.frame, request.offset, (width, height))
-                results = self.segmenter.preview(image, request.prompts)
-            except Exception as error:  # whatever a model raises on a frame
-                ids = [prompt.obj_id for prompt in request.prompts]
-                what = (f"The outline of {'object' if len(ids) == 1 else 'objects'} {', '.join(ids)} on frame "
-                        f"{request.frame} could not be made ({width} x {height} px shown, from {request.offset}).")
-                self.failed.emit(request.serial, plain(error), traced(what))
-                continue
-            with self._lock:
-                newer = self._waiting is not None
-            if not newer:  # else this result is out of date already
-                self.previewed.emit(Preview(request.serial, request.frame, request.offset, (width, height), results))
-
-    @Slot(object)
-    def run(self, task) -> None:
-        """Call `task(segmenter)` here, in the worker thread: one job, between two outlines. The
-        task reports by itself and raises nothing; `segmenter` is None when no model was loaded."""
-        task(self.segmenter)
-
-
 class Worker(QObject):
     """The handle of the worker thread, for the GUI thread (see the module's text).
 
     `state`: "idle" (not started), "loading", "ready", "failed" or "stopped"; `message`: the plain
-    reason while it is "failed". `ready`: the model can be used. `busy`: an outline was asked for
-    and has not arrived. Signals, all emitted in the GUI thread: `state_changed(state, message)`,
-    `preview_done(preview)` with a `Preview` (only for the newest request), `preview_failed(serial,
-    reason)` and `busy_changed(busy)`. `traces`: for each failure of the model (loading it, or a
-    frame, reported or not), what was being done and the error's full trace as one text; newest
-    last, at most `TRACES_KEPT`. They are for run.log, never for the window (SPEC 10.2).
+    reason while it is "failed". `ready`: the model can be used. `wanted`: (model, device) as the
+    last load was asked for them, None before the first; `device`: what the loaded model runs on.
+    `busy`: an outline was asked for and has not arrived. Signals, all emitted in the GUI thread:
+    `state_changed(state, message)`, `preview_done(preview)` with a `Preview` (only for the newest
+    request), `preview_failed(serial, reason)` and `busy_changed(busy)`. `traces`: for each failure
+    of the model (loading it, or a frame, reported or not), what was being done and the error's
+    full trace as one text; newest last, at most `TRACES_KEPT`. They are for run.log, never for
+    the window (SPEC 10.2).
     """
 
     state_changed = Signal(str, str)
     preview_done = Signal(object)
     preview_failed = Signal(int, str)
     busy_changed = Signal(bool)
-    _load = Signal(object, str, str, object)
+    _load = Signal(object, str, str, object, int)
     _wake = Signal()
     _run = Signal(object)
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self.state, self.message = "idle", ""
+        self.wanted: tuple[str, str] | None = None
         self.traces: list[str] = []
         self.stopping = threading.Event()  # set by `stop()`: a task that runs ends after its current frame
         self._serial = 0
+        self._loads = 0                   # the number of the newest load: an older one's answer is not taken
         self._awaited: int | None = None  # the request whose result is waited for
         self._window = None
         self._engine = _Engine()
@@ -265,6 +163,14 @@ class Worker(QObject):
     def ready(self) -> bool:
         """Whether the model is loaded and can be used: what a Track button waits for."""
         return self.state == "ready"
+
+    @property
+    def device(self) -> str | None:
+        """The device the loaded model runs on ("cpu", "mps" or "cuda"), as its segmenter says it
+        now (a model may leave the Apple GPU while it works); None while no model is loaded, and
+        for a segmenter that names none (a stand-in)."""
+        device = getattr(self._engine.segmenter, "device", None)
+        return None if device is None else str(device)
 
     @property
     def busy(self) -> bool:
@@ -308,8 +214,10 @@ class Worker(QObject):
     def start(self, factory, model: str, device: str, before_load=None) -> None:
         """Start the thread and load the model in it: `factory(model, device)` makes the segmenter
         (model: "edgetam", "sam2", ...; device: "auto", "cpu", "mps" or "cuda"), after
-        `before_load()` if one is given. Returns at once; `state_changed` says how it went.
-        Without a factory the state is "failed" and no thread starts. After `stop` nothing starts."""
+        `before_load()` if one is given (it is called once, at the first load). Returns at once;
+        `state_changed` says how it went. A model that is loaded is closed first, and of two loads
+        asked for in a row only the second one's answer counts. Without a factory the state is
+        "failed" and no thread starts. After `stop` nothing starts."""
         if self.state == "stopped":
             return
         if factory is None:
@@ -317,8 +225,20 @@ class Worker(QObject):
             return
         if not self._thread.isRunning():
             self._thread.start()
+        self.wanted, self._loads = (model, device), self._loads + 1
         self._set_state("loading", "")
-        self._load.emit(factory, model, device, before_load)
+        self._load.emit(factory, model, device, before_load, self._loads)
+
+    def load(self, model: str, device: str) -> None:
+        """Load `model` on `device` (as for `start`) with the factory of the window given to
+        `start_when_shown`, in place of the model that is loaded. Nothing happens when that is
+        what was asked for last and it did not fail, before the window's own start (which takes
+        the session's model and device), and after `stop`."""
+        same = (model, device) == self.wanted and self.state != "failed"  # what failed may be tried again
+        if self._window is None or self.state in ("idle", "stopped") or same:
+            return
+        factory = self._window.segmenter_factory
+        self.start(factory, model, device, before_load_for(factory))
 
     def start_when_shown(self, window) -> None:
         """Load the model of `window` once the window is shown: with its `segmenter_factory`, and
@@ -341,10 +261,10 @@ class Worker(QObject):
         factory = self._window.segmenter_factory
         self.start(factory, processing.model, processing.device, before_load_for(factory))
 
-    @Slot(str, str, str)
-    def _engine_state(self, state: str, message: str, trace: str) -> None:
+    @Slot(int, str, str, str)
+    def _engine_state(self, number: int, state: str, message: str, trace: str) -> None:
         self._keep(trace)
-        if self.state == "stopped":
+        if self.state == "stopped" or number != self._loads:  # the answer of a load that a newer one replaced
             return
         self._set_state(state, message)
         if state == "failed" and self._awaited is not None:  # no model: no outline will come

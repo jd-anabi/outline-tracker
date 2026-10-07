@@ -153,6 +153,9 @@ def test_quit_closes_the_window(window, qtbot):
     assert not window.isVisible()
 
 
+@pytest.mark.xfail(strict=True, reason="Task C8b: the README has the section Quickstart, and Help > Quickstart "
+                   "opens that section (#quickstart), no longer the top of the page (#readme). Successor: "
+                   "tests/gui/test_finish.py::test_help_quickstart_opens_the_quickstart_section_of_the_readme")
 def test_quickstart_opens_the_repositorys_readme_in_the_browser(window, monkeypatch):
     opened = []
 

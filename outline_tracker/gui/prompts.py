@@ -15,6 +15,8 @@ gui/panels/objects_panel.py.
 - After every change of the clicks on the frame shown, the worker is asked for the outlines of all
   objects clicked on that frame, on the part of the frame tracking would show the model
   (`tracking_plan.view_box`: the dish square, or the whole frame). The newest request wins.
+- While a tracking job runs (`worker_jobs.Jobs.running`) no point is placed, moved or taken back:
+  the job works on the points as they were when it started. The tool's line says to wait.
 
 Coordinates: (u, v) in px of the full video frame, Tracker's convention (u to the right, v
 downward, the pixel in column c and row r with its center at (c + 0.5, r + 0.5)): clicks arrive
@@ -38,6 +40,7 @@ from outline_tracker import tracking
 from outline_tracker.gui.click_rules import (DoubleClickWatch, Mark, PointTool, ResultsOnDisk, frame_shown, marks_on,
                                             point_kind, preview_input)
 from outline_tracker.gui.worker import Found, found_in
+from outline_tracker.gui.worker_jobs import jobs_of
 from outline_tracker.tracking_fine import crop_box
 from outline_tracker.video import decoder_tag, frame_hash
 
@@ -45,6 +48,7 @@ KINDS = ("positive", "negative", "head")
 TOOL_TEXTS = {"positive": "Positive: click on animal {id}.", "negative": "Negative: click on what is not animal {id}.",
               "head": "Head: click on the head of {id}."}
 BUSY_TEXT = "The outline is being updated."
+WAIT_TEXT = "Wait until tracking has stopped."  # a point tool's line while a job runs
 LOADING_TEXT = "The model is loading. The outline appears when it is ready."
 NO_OBJECT = "Click Add first. A point belongs to an object."
 NOTHING_FOUND = "The model found nothing at the points of {objects}. Click on the animal itself."
@@ -104,6 +108,7 @@ class Prompts(QObject):
     def __init__(self, window, worker):
         super().__init__(window)
         self._window, self._controller, self._view, self.worker = window, window.controller, window.view, worker
+        self._jobs = jobs_of(window)
         self.results = ResultsOnDisk(window.controller)
         self.selected: str | None = None
         self.message, self._message_from = ("", ""), ""
@@ -132,6 +137,8 @@ class Prompts(QObject):
         worker.preview_failed.connect(self._preview_failed)
         worker.busy_changed.connect(self._busy_changed)
         worker.state_changed.connect(self._model_state)
+        self._jobs.started.connect(self._model_state)
+        self._jobs.finished.connect(self._model_state)
 
     # ------------------------------------------------------------------ what is read
 
@@ -190,7 +197,8 @@ class Prompts(QObject):
         outside the frame is not. A frame off the clip's grid is moved forward to the grid: the
         message says so, and the view goes to that frame."""
         session = self._controller.session
-        if session is None or not (0 <= u < session.video.width and 0 <= v < session.video.height):
+        inside = session is not None and 0 <= u < session.video.width and 0 <= v < session.video.height
+        if not inside or self._jobs.running:
             return False
         if self.selected is None:
             return self._refuse("warning", NO_OBJECT)
@@ -211,7 +219,7 @@ class Prompts(QObject):
         shown. It is no point of the object and is never given to the model. Returns whether it
         was placed (the head belongs to the object's start frame)."""
         session = self._controller.session
-        if session is None or self._view.frame is None:
+        if session is None or self._view.frame is None or self._jobs.running:
             return False
         if self.selected is None:
             return self._refuse("warning", NO_OBJECT)
@@ -226,7 +234,7 @@ class Prompts(QObject):
     def undo(self) -> bool:
         """Remove the newest point of the selected object. Returns whether there was one."""
         session = self._controller.session
-        if session is None or self.selected is None:
+        if session is None or self.selected is None or self._jobs.running:
             return False
         try:
             removed = tracking.undo_prompt(session, self.results.now(), self.selected)
@@ -318,6 +326,8 @@ class Prompts(QObject):
         for kind, tool in self.tools.items():
             text = (LOADING_TEXT if loading else BUSY_TEXT) if self.busy else TOOL_TEXTS[kind].format(id=self.selected)
             cursor = Qt.CursorShape.BusyCursor if self.busy else Qt.CursorShape.CrossCursor
+            if self._jobs.running:  # before anything else: a click does nothing now
+                text, cursor = WAIT_TEXT, Qt.CursorShape.ForbiddenCursor
             if (tool.text, tool.cursor) != (text, cursor):
                 tool.text, tool.cursor = text, cursor
                 if tool is self._view.tool:
@@ -387,7 +397,8 @@ class Prompts(QObject):
         self._update_tools()
         self.changed.emit()
 
-    def _model_state(self, state: str, message: str) -> None:
+    def _model_state(self, *_) -> None:
+        """The model's state changed, or a tracking job started or ended."""
         self._update_tools()
         self.changed.emit()
 

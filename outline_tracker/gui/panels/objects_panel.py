@@ -9,6 +9,11 @@ the results, so it reads results.npz as it is now and saves it without the objec
 an edit the controller's `touch()` tells the rest of the window. A refusal is shown in the panel
 in the function's own words, and nothing changes.
 
+Remove deletes an object's tracked frames, which cannot be undone: the button asks first
+(`dialogs.confirm`) and says how many frames go; an object without results is removed at once.
+While a tracking job runs (`worker_jobs.Jobs.running`) the objects stay as the job got them: Add,
+Remove, the tools, the mode and the window are off, each with the reason as its tooltip.
+
 The panel is done when at least one object has a click; its hint line says the next step.
 
 Units: frames are video frame numbers; the fine window is the side of a square in px of the video
@@ -26,9 +31,11 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QFormLayout, QHBoxL
                                QWidget)
 
 from outline_tracker import tracking
-from outline_tracker.gui import theme
+from outline_tracker.gui import dialogs, theme
+from outline_tracker.gui.estimate import counted
 from outline_tracker.gui.prompts import BUSY_TEXT, LOADING_TEXT, Prompts, colour_of
 from outline_tracker.gui.worker import worker_of
+from outline_tracker.gui.worker_jobs import RUNNING, jobs_of
 from outline_tracker.measure import MODES
 from outline_tracker.results import ResultsStore
 from outline_tracker.tracking_plan import pending_from
@@ -51,6 +58,10 @@ MODEL_TEXTS = {"idle": "Model loading", "loading": "Model loading", "ready": "Mo
 TOOL_TIPS = {"positive": "Click on the animal: a positive point",
              "negative": "Click on what is not the animal: a negative point (also a right click)",
              "head": "Click on the head of the animal, on the frame its track starts on"}
+ADD_TIP, NO_VIDEO_TIP = "Add an object. Then click on the animal in the video.", "Open a video in panel 1 first."
+# The question before Remove: the first line is the heading, the rest says what is lost.
+REMOVE_QUESTION = ("Remove object {id}?\nIts points and its results on {frames} are removed. This cannot be "
+                   "undone. Other objects do not change.")
 
 
 def status_of(track, store: ResultsStore) -> str:
@@ -77,7 +88,7 @@ class ObjectsPanel(QWidget):
     def __init__(self, window):
         super().__init__()
         self._window, self._controller, self._panel = window, window.controller, window.panels[5]
-        self.worker = worker_of(window)
+        self.worker, self._jobs = worker_of(window), jobs_of(window)
         self.prompts = Prompts(window, self.worker)
 
         self.table = QTableWidget(0, len(COLUMNS))
@@ -145,12 +156,11 @@ class ObjectsPanel(QWidget):
 
         self.add_button = QPushButton("Add")
         self.add_button.setProperty("kind", "primary")
-        self.add_button.setToolTip("Add an object. Then click on the animal in the video.")
         self.add_button.clicked.connect(self.add_object)
         self.remove_button = QPushButton("Remove")
         self.remove_button.setProperty("kind", "destructive")
         self.remove_button.setToolTip("Remove the selected object, with its points and its results")
-        self.remove_button.clicked.connect(self.remove_selected)
+        self.remove_button.clicked.connect(self.ask_remove)
         buttons = QHBoxLayout()
         buttons.setSpacing(SPACING)
         buttons.addWidget(self.add_button)
@@ -173,7 +183,10 @@ class ObjectsPanel(QWidget):
         self.model_label = QLabel()
         window.statusBar().addPermanentWidget(self.model_label)
 
-        self.prompts.changed.connect(self.refresh)
+        # each part's own tooltip, to put back when a job that had it off has ended
+        self._tips = {part: part.toolTip() for part in (self.mode_box, self.window_box, self.auto_button,
+                                                        self.remove_button, *self._tool_buttons.values())}
+        self.prompts.changed.connect(self.refresh)  # also when a job starts or ends
         self.worker.state_changed.connect(self.refresh)
         self.refresh()
 
@@ -188,18 +201,34 @@ class ObjectsPanel(QWidget):
         """Add an object to the session (the next id, with its colour; coarse, automatic window),
         select it and choose the Positive tool: the next click on the video is its first point."""
         session = self._controller.session
-        if session is None:
+        if session is None or self._jobs.running:
             return
         self.prompts.selected = tracking.add_object(session).id
         self.prompts.choose_tool("positive")
         self.prompts.say("", "")
         self._controller.touch()
 
+    def ask_remove(self) -> None:
+        """The Remove button: remove the selected object, after a question when it has tracked
+        frames (how many is said; only the answer Remove removes). Without results nothing is asked."""
+        track_id, store = self.prompts.selected, self._results()
+        frames = len(store.arrays(track_id).frames) if track_id in store.track_ids else 0
+        if frames and not self._jobs.running:
+            dialogs.confirm(self._window, REMOVE_QUESTION.format(id=track_id, frames=counted(frames, "tracked frame")),
+                            "Remove", lambda: self.remove(track_id))
+        else:
+            self.remove_selected()
+
     def remove_selected(self) -> None:
-        """Remove the selected object: its track from the session, and its records from
-        results.npz of the run folder. The object that takes its row is selected then."""
-        session, track_id = self._controller.session, self.prompts.selected
-        if session is None or track_id is None:
+        """Remove the selected object, without a question (`remove`)."""
+        self.remove(self.prompts.selected)
+
+    def remove(self, track_id: str | None) -> None:
+        """Remove the object `track_id`: its track from the session, and its records from
+        results.npz of the run folder. The object that takes its row is selected then. Nothing
+        happens for an id the session does not have, and while a tracking job runs."""
+        session = self._controller.session
+        if session is None or self._jobs.running or track_id not in [track.id for track in session.tracks]:
             return
         index = [track.id for track in session.tracks].index(track_id)
         try:
@@ -221,7 +250,7 @@ class ObjectsPanel(QWidget):
         """Set the selected object's mode: "coarse" or "fine". An object that has results keeps its
         mode (its records were measured in it), and the panel says what to do instead."""
         track = self._selected_track()
-        if self._filling or track is None or mode == track.mode or mode not in MODES:
+        if self._filling or self._jobs.running or track is None or mode == track.mode or mode not in MODES:
             return
         if track.id in self._results().track_ids:
             self.prompts.say("problem", TRACKED_MODE.format(id=track.id, mode=track.mode, other=mode))
@@ -235,7 +264,7 @@ class ObjectsPanel(QWidget):
         or None (or 0) for automatic, which is the way back from a typed value (SPEC 6.3)."""
         track = self._selected_track()
         side = int(side_px) if side_px else None
-        if self._filling or track is None or side == track.fine_window_px:
+        if self._filling or self._jobs.running or track is None or side == track.fine_window_px:
             return
         track.fine_window_px = side
         self._controller.touch()
@@ -272,16 +301,18 @@ class ObjectsPanel(QWidget):
             self.window_box.setValue(selected.fine_window_px or 0 if fine else 0)
         finally:
             self._filling = False
-        self.mode_box.setEnabled(selected is not None)
-        self.window_box.setEnabled(fine)
-        self.auto_button.setEnabled(fine and selected.fine_window_px is not None)
-        self.add_button.setEnabled(session is not None)
-        self.add_button.setToolTip("Add an object. Then click on the animal in the video." if session is not None
-                                   else "Open a video in panel 1 first.")
-        self.remove_button.setEnabled(selected is not None)
+        running = self._jobs.running  # the job works on the objects as they are: nothing of them changes now
+        self.mode_box.setEnabled(selected is not None and not running)
+        self.window_box.setEnabled(fine and not running)
+        self.auto_button.setEnabled(fine and selected.fine_window_px is not None and not running)
+        self.add_button.setEnabled(session is not None and not running)
+        self.add_button.setToolTip(RUNNING if running else ADD_TIP if session is not None else NO_VIDEO_TIP)
+        self.remove_button.setEnabled(selected is not None and not running)
         for kind, button in self._tool_buttons.items():
-            button.setEnabled(selected is not None)
+            button.setEnabled(selected is not None and not running)
             button.setChecked(self.prompts.tool_kind == kind)
+        for part, tip in self._tips.items():
+            part.setToolTip(RUNNING if running else tip)
 
         kind, text = self.prompts.message
         self.message_label.setText(text)

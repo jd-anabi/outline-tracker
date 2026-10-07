@@ -1,10 +1,16 @@
-"""Panel 7, Track (SPEC 6.1, 6.4, 10.1, 10.2): the estimated time before a run, Track, the progress
-bar with s per frame and the time left, Cancel, and one line that says how the run ended.
+"""Panel 7, Track (SPEC 6.1, 6.4, 10.1, 10.2): the model and the device, the estimated time before a
+run, Track, the progress bar with s per frame and the time left, Cancel, and one line that says how
+the run ended.
 
 The job itself is `tracking.run_job` in the worker thread (gui/worker_jobs.py, `Jobs`); what it
 stored is drawn on the picture by gui/overlays.py, which this panel makes. This module is the
 panel's controls:
 
+- Model and device: the model (EdgeTAM, the default, or SAM 2.1 tiny) and the device (auto, cpu,
+  and the one this system can have besides, `devices_for`). A choice goes into
+  `session.processing`, and the worker loads that model in place of the one it has (`Worker.load`);
+  a session that is opened is loaded the same way, so the loaded model is always the session's.
+  Both boxes are off without a video, while a model loads and during a run, and say why.
 - Before a run the hint line gives the estimate (gui/estimate.py) and how many frames and objects
   it is for. Track is off, with the reason as the hint line and as its tooltip, while something is
   missing (`Jobs.refusal`), and while a run is going.
@@ -32,23 +38,33 @@ names a frame. Lengths of widgets are Qt's device-independent px.
 
 from __future__ import annotations
 
+import platform
+import sys
 import time
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QWidget
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QProgressBar, QWidget
 
 from outline_tracker.gui import dialogs, estimate
 from outline_tracker.gui.overlays import Overlays
 from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, SPACING, Message, button, column
+from outline_tracker.gui.panels.video_panel import field_rows, guard_wheel
+from outline_tracker.gui.session_controller import VIDEO_FIRST
 from outline_tracker.gui.worker import NO_FACTORY, worker_of
 from outline_tracker.gui.worker_jobs import NOTHING_LEFT, RUNNING, STOPPED, jobs_of
 from outline_tracker.results import ResultsStore
+from outline_tracker.session import Processing
 from outline_tracker.tracking import CANCELLED, COMPLETE, partial_tracks
 
 PRIMARY_HEIGHT = 32
 LINE_EVERY_MS = 250  # the progress line is written at most 4 times a second
 
+# What the two boxes show for a key of `session.processing`; a key that is not here shows as it is.
+MODEL_NAMES = {"edgetam": "EdgeTAM", "sam2": "SAM 2.1 tiny"}
+DEVICE_NAMES = {"auto": "auto", "cpu": "cpu", "mps": "mps (Apple GPU)", "cuda": "cuda (NVIDIA GPU)"}
+MODEL_TIP = "The model that finds the outlines. EdgeTAM is the default."
+DEVICE_TIP = "What the model runs on. auto takes the graphics processor if it works, else the processor (cpu)."
 TRACK_TIP = "Track the objects that have points (panel 6)"
 CANCEL_TIP = "Stop after the current frame. The tracked frames are kept."
 ESTIMATE = "Estimated time: {time} for {frames} and {objects}."
@@ -70,8 +86,18 @@ OUTLINE_DIALOG = ("The outline could not be made\n{reason}\nClick on the animal 
                   "details are in run.log in the run folder.")
 
 
+def devices_for(system: str, machine: str) -> list[str]:
+    """The devices a computer can have, as keys of `session.processing.device`: "auto", "cpu", and
+    "mps" on a Mac with an Apple chip, "cuda" on any other. `system` is `sys.platform` ("darwin",
+    "win32", "linux"), `machine` is `platform.machine()` ("arm64", "AMD64", "x86_64"). Nothing is
+    asked of torch: whether that device works shows when the model is loaded on it."""
+    apple_chip = system == "darwin" and machine.lower() in ("arm64", "aarch64")
+    return ["auto", "cpu", "mps" if apple_chip else "cuda"]
+
+
 class TrackPanel(QWidget):
-    """The controls of panel 7. Parts: `progress_bar`, `progress_label` (the line under it),
+    """The controls of panel 7. Parts: `model_box` and `device_box` (each entry's data is the key
+    of `session.processing`), `progress_bar`, `progress_label` (the line under it),
     `message` (how the last run ended), `track_button`, `cancel_button`. `jobs` is the window's
     `Jobs`, `worker` its `Worker`, `overlays` the `Overlays` that draw the results on the picture.
     `seconds_per_frame`: s per tracked frame of one object on this computer, None while nothing
@@ -88,6 +114,15 @@ class TrackPanel(QWidget):
         self._outcome: tuple[str, str] | None = None  # kind and text of the line about the last run
         self._frames_of: tuple = (None, {})        # a results store and the frames of its tracks (`_frames`)
 
+        self.model_box, self.device_box = QComboBox(), QComboBox()
+        for box, keys, names in ((self.model_box, MODEL_NAMES, MODEL_NAMES),
+                                 (self.device_box, devices_for(sys.platform, platform.machine()), DEVICE_NAMES)):
+            for key in keys:
+                box.addItem(names[key], key)
+            box.setMinimumHeight(CONTROL_HEIGHT)
+            guard_wheel(box)
+        self.model_box.activated.connect(lambda index: self.set_model(self.model_box.itemData(index)))
+        self.device_box.activated.connect(lambda index: self.set_device(self.device_box.itemData(index)))
         self.progress_bar = QProgressBar()
         self.progress_bar.setTextVisible(False)
         self.progress_label = QLabel()
@@ -108,7 +143,8 @@ class TrackPanel(QWidget):
         buttons.addWidget(self.track_button)
         buttons.addWidget(self.cancel_button)
         buttons.addStretch(1)
-        column(self, self.progress_bar, self.progress_label, self.message, buttons)
+        column(self, field_rows((("Model", self.model_box), ("Device", self.device_box))), self.progress_bar,
+               self.progress_label, self.message, buttons)
 
         self._line_timer = QTimer(self)
         self._line_timer.setInterval(LINE_EVERY_MS)
@@ -143,6 +179,27 @@ class TrackPanel(QWidget):
         self.jobs.cancel()
         self.refresh()
 
+    def set_model(self, model: str) -> None:
+        """Take `model` (a key of the segmenter's models: "edgetam", "sam2") for this session: it
+        is stored in `session.processing` and the worker loads it. Nothing changes without a
+        video, while a model loads and during a run."""
+        self._choose(model=model)
+
+    def set_device(self, device: str) -> None:
+        """Take `device` ("auto", "cpu", "mps" or "cuda") for this session, as `set_model` takes a model."""
+        self._choose(device=device)
+
+    def _choose(self, **choice) -> None:
+        session = self._controller.session
+        if session is not None and not self.jobs.running and self.worker.state != "loading":
+            processing = session.processing
+            if any(getattr(processing, name) != value for name, value in choice.items()):
+                for name, value in choice.items():
+                    setattr(processing, name, value)
+                self._controller.touch()
+            self.worker.load(processing.model, processing.device)
+        self.refresh()
+
     # ------------------------------------------------------------------ what the worker and the job report
 
     def _video_opened(self) -> None:
@@ -151,6 +208,8 @@ class TrackPanel(QWidget):
         measured = None if session is None else estimate.last_run_seconds(session.runs)
         if measured is not None:
             self.seconds_per_frame = measured
+        if session is not None:  # the session's own model and device, if another is loaded
+            self.worker.load(session.processing.model, session.processing.device)
         self.refresh()
 
     def _model_state(self, state: str, message: str) -> None:
@@ -287,6 +346,15 @@ class TrackPanel(QWidget):
                 self.progress_label.setText(MODEL_LOADING)
         self.progress_bar.setVisible(jobs.running or loading)
         self.progress_label.setVisible(jobs.running or loading)
+        session = self._controller.session
+        chosen = Processing() if session is None else session.processing
+        off = RUNNING if jobs.running else MODEL_LOADING if loading else VIDEO_FIRST if session is None else None
+        for box, key, tip in ((self.model_box, chosen.model, MODEL_TIP), (self.device_box, chosen.device, DEVICE_TIP)):
+            if box.findData(key) < 0:
+                box.addItem(key, key)  # a session from elsewhere: shown as it is, never changed
+            box.setCurrentIndex(box.findData(key))
+            box.setEnabled(off is None)
+            box.setToolTip(tip if off is None else off)
         self.track_button.setEnabled(reason is None)
         self.track_button.setToolTip(TRACK_TIP if reason is None else reason)
         self.cancel_button.setEnabled(jobs.running and not jobs.cancelling)
