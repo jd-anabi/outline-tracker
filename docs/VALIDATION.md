@@ -228,6 +228,249 @@ H.264 with B-frames): one evenly timed, one with three gaps in its timestamps (b
 - Not covered: real phone files. `outline-tracker check VIDEO --seek` compares 20 random frames
   on a real file and prints the number of timestamp gaps.
 
+## 4. The real model through the whole pipeline (task B5, 2026-10-07)
+
+Sections 1 and 2 tested the backend alone. Here the real EdgeTAM runs through everything a user
+runs: a session, `tracking.run_job`, `export.export_all`. Same laptop, library versions and weights
+as section 1; `cpu` with 8 torch threads unless a row says `mps`. Only short synthetic clips were
+used. Another job may have been running the model on the same laptop at the same time, so every
+time given in this section is an upper bound.
+
+| what | device | s per frame |
+|---|---|---|
+| coarse, 1 object, whole 1080p frame (4.1) | cpu | 0.38 |
+| coarse, 3 objects, whole 1080p frame (4.1) | cpu | 0.76 |
+| coarse, 3 objects, dish square (4.3) | cpu | 0.76 to 0.81 |
+| coarse, 10 objects, whole 1080p frame (4.4) | cpu | 2.2 to 2.3 |
+| fine, 1 object, 189 px window (4.2) | cpu | 0.38 to 0.40 |
+| fine, 1 object, 189 px window (4.2) | mps | 0.11 to 0.12 |
+
+Each value includes decoding, measuring the masks and saving.
+
+### 4.1 Regression through the pipeline (SPEC 13.3): the files of `from-tracker` against last week's
+
+**What was compared.** `from_tracker.from_tracker` (coarse, the whole frame, no overlay) and last
+week's `shrimp.segment.track_video` with last week's `TransformersSegmenter` (the unmodified copies
+in `tests/reference`). One loaded EdgeTAM served both, on `cpu`, in one process and with the same
+thread count; both got the same video, Tracker export, `fps_true` = 240 and options. The files
+compared are the Tracker-format files, `<run folder>/edgetam/<id>.csv`, against the files last
+week's script wrote. Both sides write `pixelx` and `pixely` with three decimals.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_regression_pipeline.py -q -rP
+```
+
+**Result.** 2 passed, twice: in 74 s and in 59 s. The numbers of the two runs are the same except the
+times.
+
+| clip | export | objects | frames | max difference in (`pixelx`, `pixely`) | lost rows (last week / new) | s per frame (last week / pipeline) |
+|---|---|---|---|---|---|---|
+| selftest clip (`synthetic.selftest_clip`) | one track, frames 0, 2, …, 38 | 1 | 20 | 0.0000 px over 20 rows (limit 0.01) | 0 / 0 | 0.38 to 0.40 / 0.38 |
+| three-ellipse clip of section 1.1 | `#multi` start file: A, B, C marked on frame 0; `seconds` = 40/240, `step` = 2 | 3 | 20 each | 0.0000 px over 60 rows (limit 0.01) | 0 / 0 | 0.77 / 0.76 |
+
+- File names and frame numbers are the same on both sides: `selftest.csv`; `A.csv`, `B.csv`,
+  `C.csv`; frames 0, 2, …, 38.
+- Reported by the test, not asserted: all four files equal last week's byte for byte, so the mm
+  columns `x`, `y` and the time column `t` are the same too.
+- The selftest-clip run folder holds the full set of SPEC 8.1 without the overlay (not asked for)
+  and without `probes.csv` (no probes): `session.json`, `positions.csv`, `edgetam/selftest.csv`,
+  `shapes.csv`, `radial.csv`, `outlines.npz`, `results.npz`, `run.log`, `README.txt`. Nothing else
+  is in it, and no file is empty.
+- The pipeline's s per frame includes measuring each mask and saving; it is not slower than last
+  week's loop here.
+
+**Can this test fail?** With the new backend's mask threshold moved from `logits > 0` to
+`logits > 0.5` (patched in memory for one run, no file changed), both tests failed: 0.1178 px on
+the selftest clip and 0.2611 px on the three-ellipse clip. These are the values section 1.4 found
+at the level of the segmenter.
+
+**Not covered.** The test asserts the pixel columns only; the bytes of whole files are asserted by
+the fast tests with a stand-in model (`tests/test_from_tracker_port.py`). A real video was not run:
+that is the owner's go/no-go check.
+
+### 4.2 Fine mode on the close-up shrimp (SPEC 13.4): two of three criteria FAIL
+
+**What was run.** `synthetic.closeup_scene()` as it stands: 1080p, 480 frames at 240 fps (2 s),
+0.010 mm per px; object A is a 47 × 20 px body with two antennae 30 px long and 3 px wide that beat
+at 9 Hz. A was tracked in fine mode on every frame (step 1) from **one positive click on the
+center of its body**, through `tracking.run_job` (which chose the window from the preview mask) and
+`export.export_all`. The true solidity is the ground-truth table's: area of the analytic outline
+over the area of its convex hull (the definition of SPEC 7.7), per frame.
+
+**Command.** One run per device, three tests on each (`-k cpu` or `-k mps` runs one device):
+
+```
+uv run pytest -m slow tests/slow/test_fine_mode.py -q -rP
+```
+
+**Result.** On each device 1 passed and 2 failed; the two are marked `xfail(strict=True)` with these
+numbers. cpu: 200 s; mps: 73 s. Nothing was tuned.
+
+| | cpu | mps | SPEC 13.4 |
+|---|---|---|---|
+| `shape_ok` = 1 | 480 of 480 frames | 480 of 480 frames | **passes** |
+| peak of the solidity spectrum (mean removed) | 0.56 Hz | 0.56 Hz | **fails** (9 ± 0.5 Hz) |
+| RMS difference from the true solidity | 0.4293 | 0.4293 | **fails** (< 0.02) |
+| measured solidity | 0.990 to 0.999, mean 0.996 | the same | true: 0.507 to 0.711, mean 0.572, peak at 9.00 Hz |
+| mask area | 740 to 926 px, median 814 | 743 to 922 px | body alone 738 px; true mask 863 to 888 px |
+| window chosen | 189 px | 189 px | |
+| `px_along_major` / `cells_along_major` | 46.2 to 49.8 / 62.6 to 67.4 | 46.2 to 49.8 / 62.6 to 67.5 | both ≥ 20 |
+| lost frames; flags | 0; `HEADGUESS` on all (no head click) | the same | |
+| s per frame | 0.38 to 0.40 | 0.11 to 0.12 | |
+| device at the end | cpu | mps (no fall back) | |
+
+**What the model does.** From one click on the body it outlines the body and leaves the antennae
+out, on every frame. Pictures of frames 0, 20 and 60 (saved outside the repository): the model's
+outline is the body's ellipse, a convex shape that lies on the true outline around the body and
+cuts straight across the base of both antennae; on frame 0 it has a small bump there. The antennae
+are clearly in the picture (3 px wide, as dark as the body), and the window gives them 4 grid
+cells of width, so this is the model's choice of object, not a lack of resolution. The pipeline
+measured that mask correctly: its solidity is that of an ellipse, and it does not beat. The RMS
+difference from the solidity of the true pixel mask as scikit-image defines it is 0.4384, so the
+choice of the truth does not matter here.
+
+**One more measurement, not a test and not asserted.** The same run with two more positive clicks
+on frame 0, one on the middle of each antenna (clicks at (1393.7, 465.9), (1375.3, 446.4) and
+(1395.2, 439.2) px), once, 480 frames on mps:
+
+| | three positive clicks |
+|---|---|
+| peak of the solidity spectrum | 9.00 Hz (would pass) |
+| RMS difference from the true solidity | 0.0526 (would fail the limit of 0.02) |
+| of that, a constant offset | +0.0522 (measured mean 0.625, true mean 0.572) |
+| RMS after removing the offset; correlation with the truth | 0.0068; 0.995 |
+| measured solidity | 0.542 to 0.776 |
+| mean mask area | 1004 px (true mask 863 to 888 px) |
+| `shape_ok`; lost frames; window | 1 on all 480; 0; 190 px |
+
+In the pictures of this run the outline follows the body and both antennae on frames 0, 20 and 60,
+a little outside the true outline along the antennae: the mask draws them about 1 px wider on each
+side (it has 1004 px on average), which is the offset. The first 40 frames on cpu gave similar
+numbers (RMS 0.044, window 191 px).
+
+**For J.**
+- With the real model, fine mode measures antennae only if the clicks say that the antennae belong
+  to the object. Students who want the stroke need a positive click on each antenna and must judge
+  the preview; one click on the body gives a clean body outline (good for position and heading,
+  useless for solidity). This belongs in the how-to.
+- The absolute solidity is then about 0.05 too high, while its variation is right (9.00 Hz,
+  correlation 0.995). The limit of 0.02 on the absolute value is not met by this one try either.
+  Whether the criterion should be the variation, or whether the clicks should be different, is J's
+  decision; the tests still ask what SPEC 13.4 asks.
+- Not tried: other click positions, a negative click, SAM 2.1, a real close-up clip.
+
+### 4.3 Coarse mode at dish scale flags `LOWRES` (SPEC 13.4): A and C pass, B FAILS on one frame
+
+**What was run.** `synthetic.dish_scene()` as it stands (1080p, 0.0324 mm per px, bodies 14.5 px
+long), its three objects tracked coarse from one click each on frames 0, 2, …, 58 with the scene's
+dish circle, so the model saw the dish square, 1002 × 1002 px (a grid cell of 3.9 px, a body of
+3.7 cells). `cpu`. Asserted per object: found at its click, and every frame with a mask has
+`shape_ok` = 0 and `LOWRES`.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_coarse_lowres.py -q -rP
+```
+
+**Result.** 2 passed, 1 failed (marked `xfail(strict=True)` with these numbers) in 36 s, the same
+numbers on both runs.
+
+| object | frames with a mask | `px_along_major` | `cells_along_major` | `LOWRES` | max error against the true centers |
+|---|---|---|---|---|---|
+| A (shrimp, at the wall) | 30 of 30 | 16.5 to 24.4 px | 4.2 to 6.2 | 30 of 30: **passes** | 2.25 px |
+| B (plain body) | 15 of 30 | 15.0 to 16.0 px on 14 frames; 134.8 px on frame 36 | 3.8 to 4.1; 34.4 on frame 36 | 14 of 15: **fails** | 0.71 px on the 14 frames; 5.0 px on frame 36 |
+| C (plain body) | 30 of 30 | 14.9 to 16.7 px | 3.8 to 4.3 | 30 of 30: **passes** | 0.48 px |
+
+- The model lost B on frames 6 to 34 (flag `LOST`), although nothing is near it: B and C are more
+  than 200 px apart on these frames.
+- On frame 36 B came back with a mask of 99 px in two pieces: the body, and 2 px far from it
+  (about 240 px, from the second moments). `px_along_major` comes from the second moments of the
+  whole mask (SPEC 7.8), so two stray pixels make it 134.8 px, `shape_ok` becomes 1 and the frame
+  is not `LOWRES`. It is flagged `ORIENT`; `MULTI` needs a second piece of at least 10%. From
+  frame 38 on the mask is the body again and `LOWRES`.
+- So the flag works wherever the mask is the object, and the rule was applied as the spec states
+  it. **For J:** should `px_along_major` and `cells_along_major` be taken from the largest piece of
+  the mask, so that a few stray pixels cannot switch `shape_ok` on? That is a change of SPEC 7.8,
+  not made here.
+- 0.76 to 0.81 s per frame for three objects on the dish square.
+
+### 4.4 Memory (SPEC 6.5): 10 coarse objects at 1080p
+
+**What was run.** A 1080p clip of 100 frames with ten dark ellipses (semi-axes 8 and 3 px, more
+than 250 px apart), all ten tracked in one coarse run on the whole frame, every frame, on `cpu`,
+through `tracking.run_job`. The run is in a child process of its own, which reads its resident
+memory with `ps` after every tracked frame and its peak with `resource.getrusage` at the end.
+GB = 10⁹ bytes, MB = 10⁶ bytes. macOS and Linux only; skipped on Windows.
+
+**What is asserted.** The peak is under 3 GB, and memory grows by less than 50 MB from frame 40 to
+frame 100. Since the review of this task, the memory at a frame is the median of the ten readings
+that end with the one after that frame (frames 31 to 40, and frames 91 to 100). Before, it was the
+single reading after the frame; why that was changed is below. A second test in the file checks
+this estimator on series whose answer is known by arithmetic; it needs no model.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_memory.py -q -rP
+```
+
+**Result.** Four runs, all passed. Runs 1 and 2 asserted the two single readings (1 passed, 236 s
+and 232 s); another job may have been running the model at the same time. Runs 3 and 4 assert the
+two medians (2 passed, 245 s and 238 s); no other job ran the model during them (other checkouts
+ran their fast test suites). The reading of every frame was kept for runs 3 and 4 only.
+Differences are taken before rounding.
+
+| | run 1 | run 2 | run 3 | run 4 | limit |
+|---|---|---|---|---|---|
+| peak resident memory | 1.43 GB | 1.44 GB | 1.43 GB | 1.42 GB | 3 GB |
+| median of the ten readings after frames 31 to 40 | not kept | not kept | 1400 MB | 1393 MB | |
+| median of the ten readings after frames 91 to 100 | not kept | not kept | 1418 MB | 1394 MB | |
+| growth between the two medians | | | +18 MB | +1 MB | 50 MB (asserted in runs 3 and 4) |
+| single reading after frame 40 | 1388 MB | 1403 MB | 1274 MB | 1393 MB | |
+| single reading after frame 100 | 1398 MB | 1392 MB | 1418 MB | 1401 MB | |
+| growth between the two single readings | +10 MB | −10 MB | +144 MB | +9 MB | 50 MB (asserted in runs 1 and 2 only) |
+| growth of the peak from frame 40 to frame 100 | +32 MB | 0 MB | +8 MB | +22 MB | not asserted |
+| single readings after frames 1, 20, 60, 80 | 1181, 1378, 1402, 1290 MB | 1181, 1318, 1405, 1400 MB | 1177, 1407, 1404, 1426 MB | 1180, 1234, 1406, 1404 MB | |
+| all readings from frame 40 on | up to 1430 MB | 1260 to 1407 MB | 1253 to 1428 MB | 1179 to 1418 MB | |
+| low readings (more than 50 MB under those around them), frames 2 to 100 | | | 20 | 18 | |
+| most low readings among ten in a row, from frame 21 on | | | 3 | 3 | |
+| s per frame (10 objects) | 2.26 | 2.21 | 2.33 | 2.27 | |
+| object-frames without a mask | 112 of 1000 | 112 of 1000 | 112 of 1000 | 112 of 1000 | not asserted |
+
+- Last week 1.7 GB was measured for 10 objects; every run here stays below that.
+- **Why medians.** A reading of resident memory after one frame is not a steady number. In runs 3
+  and 4 about every fifth reading (20 and 18 of 99) is 57 to 214 MB below the readings around it,
+  for one frame; the next reading is back where it was. These low readings come about every 10 s
+  (every 4 or 5 frames at 2.3 s per frame). They came with no other job running the model, so
+  they belong to this process on this laptop; their cause was not looked for. In run 3 one of
+  them fell on frame 40: the two single readings differ by +144 MB, so the test as first written
+  would have failed there with no leak, and a low reading on frame 100 would have hidden a leak
+  of that size. Of the ten readings that end at frame 40 and of the ten that end at frame 100,
+  two or three were low; a median of ten is not moved by up to four. A steady leak shows in the
+  medians in full: the middles of the two groups are 60 frames apart, so a leak of 50 / 60 =
+  0.83 MB per frame or more fails the test.
+- **Can this test fail?** With the backend's pruning switched off (patched in memory for one run
+  of the same child, no file changed): peak 3.06 GB, and resident memory 1181, 1638, 1980, 2343,
+  2701, 3063 MB after frames 1, 20, 40, 60, 80, 100: +1083 MB from frame 40 to frame 100, 18 MB
+  per frame. Both limits are exceeded. That run was made before the change; on its saved readings
+  the two medians differ by +1076 MB. The test of the estimator was written first and failed with
+  the single readings: +108 MB for a flat series with one low reading on frame 40, where 0 is
+  right. It also holds a leak of 1.7 MB per frame that a low reading on frame 100 hides from the
+  single readings (−6 MB); the medians give +100 MB.
+- **Uncertain.** The level between the low readings moves too, in steps and without a trend: from
+  frame 21 on between 1389 and 1428 MB in run 3 and between 1375 and 1418 MB in run 4. The
+  medians of ten readings in a row span 37 MB in run 3 and 20 MB in run 4, with no leak, and the
+  limit is 50 MB. So the test can still fail without a leak, if such a step exceeds 50 MB, or if
+  five of ten readings in a row are low (a median then moves by about half the depth of a low
+  reading; if they come every 10 s on other computers too, that needs about 5 s per frame).
+  Neither was seen in these two runs. With 100 frames the limit of 3 GB catches the run without
+  pruning only just (3.06 GB); the growth is what shows it clearly.
+- The model lost about a tenth of the object-frames on this clip (a plain background, objects of
+  16 × 6 px). That is tracking quality, not memory, and is not asserted here.
+
 ## 5. The `selftest` command with the real model (task B2, 2026-10-07)
 
 **What was tested.** `outline_tracker.selftest.selftest`, the port of last week's selftest, called
