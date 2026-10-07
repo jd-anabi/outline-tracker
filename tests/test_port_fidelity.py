@@ -18,9 +18,9 @@ clip) goes into `MOVED_BLOCKS`, with the block's first and last line and the few
 
 A ported test file goes into `PORTED_TESTS` when it is one file of the template (only its import
 line may differ), or into `SPLIT_TESTS` when the template's file was shared out among several new
-files (each listed definition must equal the template's; the test that was not shared out is named
-in `NOT_PORTED_HERE`). The two end-to-end tests that go through `from_tracker` are in
-`REWRITTEN_TESTS`, with every piece of text that changed; a helper copied from the template's
+files (each listed definition must equal the template's; a test that has no home yet is named in
+`NOT_PORTED_HERE`). The end-to-end tests, two through `from_tracker` and one through `selftest`, are
+in `REWRITTEN_TESTS`, with every piece of text that changed; a helper copied from the template's
 test file into a helper module is in `COPIED_HELPERS`.
 """
 
@@ -66,6 +66,71 @@ VERBATIM: list[tuple[str, str, tuple[str, ...]]] = [
     ),
 ]
 
+# Last week's `selftest`, which now tracks its clip through `from_tracker` (task B2): the pieces of its
+# text that changed, for its row in `ADAPTED`. Everything else, from the limit of 3 px to the two last
+# lines it prints, is last week's, character for character.
+_SELFTEST_DOC_OLD = 'tracked for 20 frames at step 2."""'
+_SELFTEST_DOC_NEW = '''\
+tracked for 20 frames at step 2.
+
+    Returns `ok` (found on every frame, and never 3 px or more from the true center), `max_error_px`
+    (the largest distance from the true center, px in Tracker's image coordinates), `seconds_per_frame`
+    (s per tracked frame) and `minutes_one`, `minutes_ten` (the estimated minutes for 1,200 frames of
+    one shrimp, and of ten together). `folder` takes the clip and the run folder (default: a new
+    temporary folder, which is kept); the other arguments are `from_tracker`'s. Raises RuntimeError
+    when the run ended before its last frame (Ctrl+C), and whatever `from_tracker` raises."""'''
+# The lines that make the clip and its Tracker export: `MOVED_BLOCKS` below finds the same lines in
+# `synthetic.selftest_clip`, which returns what the lines after them need.
+_SELFTEST_CLIP_OLD = """\
+    folder.mkdir(parents=True, exist_ok=True)
+    video, export = folder / "selftest_tracker.mp4", folder / "selftest.csv"
+    w, h, mm_per_px, n = 1920, 1080, 0.0324, 40
+    rng = np.random.default_rng(0)
+    yy, xx = np.mgrid[0:h, 0:w]
+    base = 205.0 - 15.0 * ((xx - w / 2) ** 2 + (yy - h / 2) ** 2) / (0.49 * h) ** 2
+    truth = [(700.0 + 0.6 * f, 500.0 + 0.2 * f) for f in range(n)]  # array coordinates: pixel centers at integers
+    out = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 240, (w, h))
+    angle = float(np.degrees(np.arctan2(0.2, 0.6)))
+    for x, y in truth:
+        img = base.copy()
+        cv2.ellipse(img, (int(round(x * 16)), int(round(y * 16))), (8 * 16, 3 * 16), angle, 0, 360, 70.0, -1,
+                    cv2.LINE_AA, 4)
+        img = np.clip(img + rng.normal(0, 3.0, img.shape), 0, 255).astype(np.uint8)
+        out.write(cv2.cvtColor(img, cv2.COLOR_GRAY2BGR))
+    out.release()
+    frames = list(range(0, n, 2))
+    tpx = np.array([truth[f][0] + 0.5 for f in frames])  # Tracker's pixel convention (+0.5)
+    tpy = np.array([truth[f][1] + 0.5 for f in frames])
+    write_tracker_file(export, "selftest", frames, np.array(frames) / 240.0, (tpx - w / 2) * mm_per_px,
+                       -(tpy - h / 2) * mm_per_px, tpx, tpy)
+"""
+_SELFTEST_CLIP_NEW = """\
+    clip = selftest_clip(folder)
+    video, export, tpx, tpy = clip["video"], clip["export"], clip["pixelx"], clip["pixely"]
+"""
+# `from_tracker` where `track_video` stood. fps_true is still typed as 240, which comes before any
+# manifest, so the manifest that does not exist is no longer named. The run folder is SPEC 8.1's default
+# next to the clip, <folder>/selftest_tracker_outline_selftest/, under the student name "selftest".
+_SELFTEST_RUN_OLD = """\
+    res = track_video(video, export, model=model, fps=240.0, out=folder / model, device=device,
+                      segmenter=segmenter, overlay=False, manifest=folder / "none.csv", log=log)
+"""
+_SELFTEST_RUN_NEW = """\
+    res = from_tracker(video, export, model=model, fps=240.0, student="selftest", device=device,
+                       segmenter=segmenter, overlay=False, log=log)
+"""
+# The result is a record, not a dict. After Ctrl+C `from_tracker` returns with the frames tracked so
+# far (last week's `track_video` wrote empty rows for the others): that is no verdict, and it is said so.
+_SELFTEST_READ_OLD = """\
+    got = pd.read_csv(res["files"][0], skiprows=1)
+"""
+_SELFTEST_READ_NEW = """\
+    got = pd.read_csv(res.files[0], skiprows=1) if res.files else pd.DataFrame()
+    if len(got) != len(tpx):  # stopped with Ctrl+C: `from_tracker` keeps the frames tracked so far
+        raise RuntimeError(f"The test run ended after {len(got)} of {len(tpx)} frames, so there is no verdict. "
+                           "Run the selftest again and let it finish.")
+"""
+
 # (new module, reference module, name, ((old text, new text), ...)). The new source must equal the
 # reference source after the replacements, nothing else.
 ADAPTED: list[tuple[str, str, str, tuple[tuple[str, str], ...]]] = [
@@ -88,6 +153,18 @@ ADAPTED: list[tuple[str, str, str, tuple[tuple[str, str], ...]]] = [
              "from outline_tracker.segmenter.edgetam_convert import load_edgetam"),
         ),
     ),
+    (
+        "outline_tracker.selftest",
+        "shrimp.segment",
+        "selftest",
+        (
+            (_SELFTEST_DOC_OLD, _SELFTEST_DOC_NEW),  # the docstring also names what is returned, with units
+            (_SELFTEST_CLIP_OLD, _SELFTEST_CLIP_NEW),
+            (_SELFTEST_RUN_OLD, _SELFTEST_RUN_NEW),
+            (_SELFTEST_READ_OLD, _SELFTEST_READ_NEW),
+            ('res["seconds_per_frame"]', "res.seconds_per_frame"),
+        ),
+    ),
 ]
 
 # (new module, reference module, names of module-level constants). Compared by value; for a dict
@@ -96,6 +173,7 @@ CONSTANTS: list[tuple[str, str, tuple[str, ...]]] = [
     ("outline_tracker.segmenter.edgetam_convert", "shrimp._edgetam", ("KEYS_TO_MODIFY_MAPPING", "PERCEIVER")),
     ("outline_tracker.segmenter.hf", "shrimp.segment", ("KEEP_FRAMES", "MODELS")),
     ("outline_tracker.from_tracker", "shrimp.segment", ("MAX_SPEED_MM_S",)),  # the speed `_flags` calls a jump
+    ("outline_tracker.selftest", "shrimp.segment", ("EXTRA_PER_SHRIMP",)),  # the selftest's estimate for 10 shrimp
 ]
 
 # (new module, new class, reference module, reference class, methods moved verbatim, methods of
@@ -140,8 +218,8 @@ PORTED_TESTS: list[tuple[str, str, tuple[str, str]]] = [
 # Each row: (new file, the import line that replaces the template's `from shrimp import segment`,
 # the top-level definitions and assignments taken over, whether the file holds nothing else).
 # Each taken-over name must have the same source text as in the template; the alias keeps the
-# bodies of the tests unchanged. The three end-to-end tests are not here: two go through
-# from_tracker (`REWRITTEN_TESTS` below), one through selftest (task B2).
+# bodies of the tests unchanged. The three end-to-end tests are not here but in `REWRITTEN_TESTS`
+# below: two go through from_tracker, one through selftest (task B2).
 SPLIT_REFERENCE = "test_segment.py"
 SPLIT_REFERENCE_IMPORT = "from shrimp import segment"
 SPLIT_TESTS: list[tuple[str, str, tuple[str, ...], bool]] = [
@@ -169,9 +247,7 @@ SPLIT_TESTS: list[tuple[str, str, tuple[str, ...], bool]] = [
         False,  # this file adds tests of its own below the template's
     ),
 ]
-NOT_PORTED_HERE = (
-    "test_selftest_runs_and_reports_the_time",
-)
+NOT_PORTED_HERE: tuple[str, ...] = ()  # empty since task B2 ported the selftest's test
 
 # The template's two end-to-end tests of `track_video`, which now go through `from_tracker` (X3):
 # (new file, test, ((old text, new text), ...)). The test's source must equal the template's after
@@ -179,6 +255,7 @@ NOT_PORTED_HERE = (
 # (`from_tracker` with `ThresholdFake` where `track_video` with `DiskFinder` stood), the result's
 # fields (a record, not a dict), and the paths, which SPEC 8.1 moved into the run folder. Every
 # assertion on frames, times and positions is therefore the template's, character for character.
+# The template's test of `selftest` is the third row.
 _RUN_LOG_OLD = '    assert (tmp_path / "stand-in" / "run.log").exists()  # not .txt: load_tracks reads .csv and .txt'
 _RUN_LOG_NEW = """\
     # SPEC 8.1: the files are in the run folder, <video folder>/<video stem>_outline_<student>/; the
@@ -194,6 +271,12 @@ _FILES_NEW = """\
     # folder that holds extra/, as last week, and the tracks are in a folder named after the model
     assert [f.relative_to(tmp_path).as_posix() for f in res.files] == [
         "clip_tracker_outline_ana/stand-in/A.csv", "clip_tracker_outline_ana/stand-in/B.csv"]"""
+_SELFTEST_TIME_OLD = '    assert res["minutes_ten"] > res["minutes_one"] > 0'
+_SELFTEST_TIME_NEW = """\
+    assert res["minutes_ten"] > res["minutes_one"] > 0
+    # SPEC 8.1: the run has a run folder of its own next to the clip, <video stem>_outline_<student>/, and
+    # the positions were read from its Tracker-format file, in a folder named after the model
+    assert (tmp_path / "selftest_tracker_outline_selftest" / "stand-in" / "selftest.csv").is_file()"""
 REWRITTEN_TESTS: list[tuple[str, str, tuple[tuple[str, str], ...]]] = [
     (
         "test_from_tracker_port.py", "test_whole_run_with_a_stand_in_model",
@@ -216,6 +299,17 @@ REWRITTEN_TESTS: list[tuple[str, str, tuple[tuple[str, str], ...]]] = [
              "                       segmenter=ThresholdFake(), overlay=False, log=lambda *a: None)"),
             (_FILES_OLD, _FILES_NEW),
             ('zip(res["files"], ', "zip(res.files, "),
+        ),
+    ),
+    (
+        # The template's test of `selftest` (task B2): the ported `selftest` with `ThresholdFake` where
+        # `segment.selftest` with `DiskFinder` stood. Its two assertions are the template's; the third is
+        # new, for the place of the file that the positions are read from.
+        "test_selftest.py", "test_selftest_runs_and_reports_the_time",
+        (
+            ('res = segment.selftest(model="stand-in", segmenter=DiskFinder(), folder=tmp_path, log=lambda *a: None)',
+             'res = selftest(model="stand-in", segmenter=ThresholdFake(), folder=tmp_path, log=lambda *a: None)'),
+            (_SELFTEST_TIME_OLD, _SELFTEST_TIME_NEW),
         ),
     ),
 ]

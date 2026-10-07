@@ -228,3 +228,64 @@ H.264 with B-frames): one evenly timed, one with three gaps in its timestamps (b
 - Not covered: real phone files. `outline-tracker check VIDEO --seek` compares 20 random frames
   on a real file and prints the number of timestamp gaps.
 
+## 5. The `selftest` command with the real model (task B2, 2026-10-07)
+
+**What was tested.** `outline_tracker.selftest.selftest`, the port of last week's selftest, called
+as the command `outline-tracker selftest` calls it: it makes last week's clip (one dark ellipse,
+semi-axes 8 and 3 px, on a 1080p frame; 20 tracked frames at step 2), loads EdgeTAM itself, tracks
+the clip through `from_tracker` (coarse, whole frame, no overlay, fps_true 240) and compares the
+positions in the run's Tracker-format file with the true centers. Same laptop, versions and weights
+as section 1; the model was already on the laptop, so nothing was downloaded.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_selftest_real.py -q -rP
+```
+
+**Result.** 2 passed in 30 s.
+
+| device | verdict | max error (limit 3 px) | mean error | s per frame | estimate for 1,200 frames: one shrimp / 10 shrimp | device at the end |
+|---|---|---|---|---|---|---|
+| cpu | OK | 0.461 px | 0.265 px | 0.38 | 7.7 min / 42.2 min | cpu |
+| mps | OK | 0.461 px | 0.272 px | 0.14 | 2.8 min / 15.7 min | mps (no fall back to the processor) |
+
+- The max error is worked out twice, by `selftest` and by the test from the Tracker-format file and
+  the true centers (700.5 + 0.6 f, 500.5 + 0.2 f px in frame f): the two agree. On cpu it is the
+  0.461 px that last week's own selftest got with the same model (section 1.2).
+- The test shrimp was found on all 20 frames on both devices.
+- s per frame is what `from_tracker` reports for the whole job: decoding, the model, measuring the
+  mask and saving the results, without loading the model. Section 1.2 measured 0.37 s on cpu around
+  the segmenter alone. Another job may have been running the real model on the same laptop at the
+  same time, so these values are upper bounds.
+- The estimate is last week's arithmetic: s per frame × 1,200 frames, and for 10 shrimp together
+  that × (1 + 9 × 0.5) for EdgeTAM.
+
+**The command itself**, run once on each device (exit code 0 both times):
+
+```
+uv run outline-tracker selftest --device cpu
+uv run outline-tracker selftest
+```
+
+| command | ran on | wall time | last two lines |
+|---|---|---|---|
+| `selftest --device cpu` | cpu | 18 s | `OK: edgetam followed the test shrimp within 0.5 pixels (should be under 3). 0.38 s per frame here.` / `Estimate for 10 s at step 2 (1,200 frames): one shrimp about 8 min; 10 shrimp together about 42 min.` |
+| `selftest` (device `auto`) | mps | 14 s | `OK: edgetam followed the test shrimp within 0.5 pixels (should be under 3). 0.14 s per frame here.` / `Estimate for 10 s at step 2 (1,200 frames): one shrimp about 3 min; 10 shrimp together about 15 min.` |
+
+### 5.1 Can the selftest say PROBLEM?
+
+Checked with stand-ins in the fast tests (`tests/test_selftest.py`, no model): a stand-in whose
+masks lie 5 px beside the ellipse gives `PROBLEM`, `ok` false and exit code 1; one that loses the
+ellipse after 10 frames gives `PROBLEM` and `ok` false too. A run stopped with Ctrl+C, and a model
+that cannot be loaded, give one `ERROR:` line and exit code 1, without a verdict.
+
+### 5.2 Not covered by this section
+
+- SAM 2.1 (`--model sam2`): the weights were not downloaded and the model was not run; the option
+  is tested with a stand-in.
+- `--device cuda` (no NVIDIA GPU here), and Windows.
+- A first run that downloads the model, and a run without internet, with the real loader.
+- A shrimp that the real model loses on every frame: the verdict is then `PROBLEM`, with `nan` in
+  place of the pixels and a numpy warning next to it, as last week (seen once with a stand-in, by
+  hand; no test holds it).
