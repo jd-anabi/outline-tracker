@@ -213,8 +213,9 @@ def line_pattern(line: str) -> str:
 
 
 def output_problems(text: str, real_lines: list[str]) -> list[str]:
-    """Lines of the README's `text` blocks that no line printed by the real commands fits."""
-    real = [COMMIT.sub("commit X", line.strip()) for line in real_lines]
+    """Lines of the README's `text` blocks that no line printed by the real commands fits. The README writes
+    every path with `/`; Windows prints `\\`, so the real lines are read with `/` (nothing else is relaxed)."""
+    real = [COMMIT.sub("commit X", line.strip().replace("\\", "/")) for line in real_lines]
     return [f"line {block.number}: {line.strip()}" for block in code_blocks(text) if block.language == "text"
             for line in block.lines if line.strip() and not any(re.fullmatch(line_pattern(line), r) for r in real)]
 
@@ -426,6 +427,23 @@ def test_the_output_check_finds_a_line_that_no_command_prints():
     assert output_problems(fenced("text", "OK: edgetam found the test shrimp"), real) != []
     assert output_problems(fenced("text", "OK: edgetam followed the test shrimp within 1 pixels (should be over 3)."),
                            real) != []
+
+
+def test_the_output_check_reads_paths_the_same_with_slashes_and_with_backslashes():
+    """`from-tracker` prints `str(Path)`: backslashes on Windows. The README writes them with `/`, once, for
+    both systems; the Windows CI job must accept what Windows prints, and still refuse a wrong name."""
+    folder = "D:\\recordings\\video_tracker_outline_sam"  # a drive letter and backslashes; not a home folder
+    windows = [f"  run folder: {folder}",
+               f"  saved {folder}\\edgetam\\A.csv, {folder}\\edgetam\\B.csv and {folder}\\overlay.mp4"]
+    readme = ["  run folder: .../video_tracker_outline_sam",
+              "  saved .../edgetam/A.csv, .../edgetam/B.csv and .../overlay.mp4"]
+    assert output_problems(fenced("text", *readme), windows) == []
+    assert output_problems(fenced("text", *readme), [line.replace("\\", "/") for line in windows]) == []
+    assert output_problems(fenced("text", "  run folder: .../video_tracker_outline_ana"), windows) != []
+    assert output_problems(fenced("text", "  saved .../edgetam/C.csv, .../edgetam/B.csv and .../overlay.mp4"),
+                           windows) != []
+    assert output_problems(fenced("text", "  saved .../edgetam/A.csv, .../edgetam/B.csv and .../overlay.mp4"),
+                           [f"  saved {folder}\\edgetam\\A.csv, {folder}\\edgetam\\B.csv and {folder}\\overlay.avi"]) != []
 
 
 def test_the_run_folder_check_reads_the_bullets_of_the_fallback_section():
