@@ -66,6 +66,29 @@ def test_frame_timestamps_is_none_when_ffmpeg_cannot_read_the_file(tmp_path):
     assert video.frame_timestamps(tmp_path / "missing.mp4") is None
 
 
+def test_frame_timestamps_leaves_out_the_packets_that_the_file_hides(disk_clip, monkeypatch):
+    # A file cut without re-encoding starts at a keyframe and marks the packets before the cut as
+    # not to be shown (flag bit 0x4 in ffmpeg's list); the decoder does not deliver those frames.
+    # Lines as ffmpeg writes them: stream, dts, pts, duration, size, checksum, then the flags of a
+    # packet that is not a plain keyframe, then side data. Times in units of 1/15360 s.
+    listing = "\n".join([
+        "#software: Lavf61.7.100", "#tb 0: 1/15360", "#media_type 0: video", "#codec_id 0: h264",
+        "0,       -320,       -192,       64,      737, 0xc2467ba8, F=0x5",  # hidden keyframe
+        "0,       -256,          0,       64,      299, 0x7f2c91cc, F=0x0",
+        "0,       -192,       -128,       64,      160, 0x141a5232, F=0x4",  # hidden
+        "0,       -128,        -64,       64,      175, 0x74ba58ba, F=0x4",  # hidden
+        "0,        -64,        256,       64,      307, 0xd0ab9942, F=0x0",
+        "0,          0,         64,       64,      149, 0x0d964511, F=0x0",
+        "0,         64,        128,       64,      166, 0x18ed4bc7, F=0x0, S=1,       10, 0x0a0b0c0d",
+        "0,        128,        448,       64,     1200, 0x640d4ff0",  # a keyframe that is shown: no flags field
+        "0,        192,        320,       64,      150, 0x0d964512, S=1,       10, 0x0a0b0c0d",
+    ]) + "\n"
+    listed = subprocess.CompletedProcess([], 0, listing, "")
+    monkeypatch.setattr(subprocess, "run", lambda command, **options: listed)
+    times = video.frame_timestamps(disk_clip.path)
+    assert times == pytest.approx(np.array([0, 64, 128, 256, 320, 448]) / 15360.0, abs=1e-12)  # s, the 6 shown
+
+
 def test_ffmpeg_is_started_without_a_console_window_on_windows(disk_clip, monkeypatch):
     # CREATE_NO_WINDOW exists only on Windows; there, the table must not flash a console window.
     started = {}

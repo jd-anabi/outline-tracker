@@ -253,13 +253,17 @@ def iter_rgb_frames(path, frames):
 # ---------------------------------------------------------------------------------------------
 # Frame identity: the time stamped on every frame, and a hash of a decoded frame
 
+HIDDEN_PACKET = 0x4  # bit of a packet's flags in ffmpeg's list (AV_PKT_FLAG_DISCARD): decoded, never shown
+
 
 def frame_timestamps(path) -> np.ndarray | None:
     """Time stamped on every frame of the file's first video stream, read without decoding.
 
     Returns a float64 array in s of file time (not real time), sorted, frame 0 at 0: entry k
     belongs to frame k of the sequential decode (a file with B-frames stores its frames in another
-    order). None if the bundled ffmpeg cannot list the file's packets.
+    order). Packets that the file marks as not to be shown are left out, as the decoder leaves
+    their frames out (a copy cut without re-encoding has them, before the cut). None if the
+    bundled ffmpeg cannot list the file's packets.
     """
     try:
         import imageio_ffmpeg  # imported here, as convert.ffmpeg_exe does
@@ -279,8 +283,11 @@ def frame_timestamps(path) -> np.ndarray | None:
             if line.startswith("#tb"):  # "#tb 0: 1/15360": s per timestamp unit
                 numerator, denominator = line.split(":")[1].split("/")
                 time_base = int(numerator) / int(denominator)
-            elif line and not line.startswith("#"):  # "stream, dts, pts, duration, size, checksum"
-                stamps.append(int(line.split(",")[2]))
+            elif line and not line.startswith("#"):  # "stream, dts, pts, duration, size, checksum[, F=0x4]"
+                fields = [part.strip() for part in line.split(",")]
+                flags = next((int(part[2:], 16) for part in fields[6:] if part.startswith("F=")), 0)
+                if not flags & HIDDEN_PACKET:
+                    stamps.append(int(fields[2]))
     except (ValueError, IndexError, ZeroDivisionError):
         return None
     if time_base is None or not stamps:
