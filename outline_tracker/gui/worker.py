@@ -16,7 +16,10 @@ connected to them runs there, however it was connected.
 - Outlines: `request_preview` hands the engine a frame and the clicks on it. The newest request
   wins: a request that waits is replaced by a newer one, and the result of an older one is
   dropped. `busy` is true from a request until its result or its failure has arrived.
-- `stop()` ends the thread and closes the segmenter. It waits for the call the engine is in.
+- Jobs: `run(task)` has `task(segmenter)` called in the thread, after what the thread is doing; an
+  outline asked for meanwhile waits for it. gui/worker_jobs.py tracks with this.
+- `stop()` ends the thread and closes the segmenter. It waits for the call the engine is in; a
+  task that runs asks `stopping` and ends early.
 - A failure (loading, or a frame) is shown as one plain line. Its trace is not shown: it is written
   to this module's log when it happens (`traced`) and kept in `Worker.traces` for run.log (SPEC 10.2).
 - What comes back is put into the coordinates of the full frame by `found_in`: each mask
@@ -188,11 +191,13 @@ class _Engine(QObject):
             if request is None:
                 return
             height, width = request.image.shape[:2]
+            # a frame of the view's cache is read-only, and the model may write to what it is given
+            image = request.image if request.image.flags.writeable else request.image.copy()
             try:
                 set_view = getattr(self.segmenter, "set_view", None)  # ExactFake is told what each image shows
                 if set_view is not None:
                     set_view(request.frame, request.offset, (width, height))
-                results = self.segmenter.preview(request.image, request.prompts)
+                results = self.segmenter.preview(image, request.prompts)
             except Exception as error:  # whatever a model raises on a frame
                 ids = [prompt.obj_id for prompt in request.prompts]
                 what = (f"The outline of {'object' if len(ids) == 1 else 'objects'} {', '.join(ids)} on frame "
@@ -203,6 +208,12 @@ class _Engine(QObject):
                 newer = self._waiting is not None
             if not newer:  # else this result is out of date already
                 self.previewed.emit(Preview(request.serial, request.frame, request.offset, (width, height), results))
+
+    @Slot(object)
+    def run(self, task) -> None:
+        """Call `task(segmenter)` here, in the worker thread: one job, between two outlines. The
+        task reports by itself and raises nothing; `segmenter` is None when no model was loaded."""
+        task(self.segmenter)
 
 
 class Worker(QObject):
@@ -223,11 +234,13 @@ class Worker(QObject):
     busy_changed = Signal(bool)
     _load = Signal(object, str, str, object)
     _wake = Signal()
+    _run = Signal(object)
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
         self.state, self.message = "idle", ""
         self.traces: list[str] = []
+        self.stopping = threading.Event()  # set by `stop()`: a task that runs ends after its current frame
         self._serial = 0
         self._awaited: int | None = None  # the request whose result is waited for
         self._window = None
@@ -237,6 +250,7 @@ class Worker(QObject):
         self._engine.moveToThread(self._thread)
         self._load.connect(self._engine.load)
         self._wake.connect(self._engine.work)
+        self._run.connect(self._engine.run)
         self._engine.state.connect(self._engine_state)
         self._engine.previewed.connect(self._previewed)
         self._engine.failed.connect(self._failed)
@@ -275,6 +289,19 @@ class Worker(QObject):
         if trace:
             self.traces.append(trace)
             del self.traces[:-TRACES_KEPT]
+
+    def keep_trace(self, trace: str) -> None:
+        """Keep the trace of a failure in a task (`run`) with the others in `traces`; "" keeps none."""
+        self._keep(trace)
+
+    def run(self, task) -> bool:
+        """Have `task(segmenter)` called once in the worker thread, after what the thread is doing
+        now; outlines asked for meanwhile wait until it has returned. `segmenter` is the loaded
+        model. The task must raise nothing and report through signals of an object of the GUI
+        thread. Returns whether it was handed over: only while the model is ready."""
+        if self.ready:
+            self._run.emit(task)
+        return self.ready
 
     # ------------------------------------------------------------------ loading
 
@@ -334,7 +361,8 @@ class Worker(QObject):
         the request's number (rising from 1).
 
         frame: the video frame number. image: what the model is shown, an RGB uint8 array
-        [row, column, 3]: the frame or a part of it; it is not copied and must not be changed.
+        [row, column, 3]: the frame or a part of it; it must not be changed (the model gets a copy
+        of an array that cannot be written to).
         offset: (column, row) of the image's top-left pixel in the full frame, px. prompts: one per
         object, points in px of `image`. The result comes with `preview_done`, a failure with
         `preview_failed`; a request made before the model is ready waits for it. A newer request
@@ -377,6 +405,7 @@ class Worker(QObject):
         Calling it again does nothing."""
         if self.state == "stopped":
             return
+        self.stopping.set()
         self._starter.stop()
         self._engine.ask(None)
         if self._thread.isRunning():
