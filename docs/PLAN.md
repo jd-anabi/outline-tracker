@@ -204,6 +204,14 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 03:30, A15: one test marked `xfail(strict=True)`, for J to confirm its removal.**
+  `tests/test_tracking_guard.py::test_hashes_made_by_another_decoder_are_not_compared_but_logged`
+  asserts that a frame hash made on another computer is only logged. That was my own wording in
+  the task hand-over, and it contradicts decision X8 (such a hash is made anew here and stored).
+  The review caught it; the code now follows X8, and the test next to it
+  (`..._are_made_anew_here_and_logged`) checks that. The old test stays, marked xfail, because
+  tests are never deleted without J. Default: J says "delete it" and it goes.
+
 - **Tue 23:50, A07: one review finding parked.** `session.py` is 488 lines; SPEC §12 says to split
   a file past about 400. Splitting needs a new module, which the parallel work lane was not
   allowed to create. Ruling: accepted for now and listed for a tidy-up after the core is built
@@ -364,7 +372,10 @@ outline_tracker/
   derive_outline.py  outline resampling, radial profile, hull, Feret             (A12)
   qc.py              flags                                                       (A13)
   results.py         results.npz store                                           (A14)
-  tracking.py        runs, coarse and fine runners, corrections, hash guard      (A15-A17)
+  tracking.py        jobs, callbacks, run_job, the coarse runner                 (A15)
+  tracking_plan.py   run planning, dish crop box                                 (A15)
+  tracking_guard.py  frame-hash guard                                            (A15)
+  tracking_*.py      fine runner; corrections and the edit functions             (A16, A17)
   export.py          every file of §8 except the overlay                         (A18)
   overlay.py         overlay.mp4                                                 (A19)
   probes.py          brightness probes                                           (A20)
@@ -830,7 +841,8 @@ because derive and flags read the arrays the results store defines).
     else; `HEADGUESS` on every frame of a track without a head click.
   - Check: `uv run pytest tests/test_qc.py -q`
 
-- [ ] **A15 · Tracking: runs and the coarse runner** [CP] (§3.5, §6.1, §6.2, §6.4, §6.5, §13.2)
+- [x] **A15 · Tracking: runs and the coarse runner** [CP] (§3.5, §6.1, §6.2, §6.4, §6.5, §13.2)
+  - Done Wed 03:25 (commits b64837e, f96cb09, 7b077ce). Verified: 71 tests with the stand-in segmenters (positions equal ground truth within 0.01 px with the dish crop on and off; shared session for objects with the same start frame; hash guard; cancel keeps what was tracked; autosave; a clip that ends early; an object never found; odd folder names). Split into `tracking.py`, `tracking_plan.py`, `tracking_guard.py`. Uncertain: the real model has not been run through this runner yet (B5 does that); one test is marked xfail, see "Raised during the work".
   - Files: `tracking.py`, `tests/test_tracking_coarse.py`.
   - Produces: `Job(session, run_folder, video_path, make_segmenter, track_ids=None)`;
     `Callbacks(progress, frame_result, log, finished, should_cancel, save_session=None)`;
