@@ -16,19 +16,27 @@ The strategy, with one capture kept open:
   and decode forward from frame 0, which is the definition of frame k.
 
 Counting from frame 0 is the truth; the table and the decoder's time stamps are evidence, and are
-checked wherever that costs nothing:
+checked wherever that costs little:
 - a time stamp is a table entry's only if the two agree to `MATCH` of the shortest step between two
   frames (they are the same whole number of ticks of the file's clock, so they agree to rounding
   or not at all), never merely because that entry is the nearest;
 - when the file is opened, the decoder's times for frames 0 and 1 must be the table's, or the table
   is not used;
-- while the table is in use, no frame is returned unless it carries the table's time for frame k,
-  however it was reached; if it does not, frame k is counted from frame 0;
+- before the first jump is trusted, the far end of the table is looked at through a seek: the last
+  frame of the file is the frame after which none comes, whatever its number, and it must carry the
+  table's last time. A table that is whole frame steps off from some frame on, or a decoder whose
+  times are whole frame steps off after a seek, agrees with itself at every single frame and fails
+  here. Until this has succeeded, every jump decodes from frame 0;
+- while the table is in use, every frame stepped to, and so every frame returned, must carry the
+  table's time for its number; if one does not, frame k is counted from frame 0;
 - if a frame counted from frame 0 carries another time than the table gives it, the table is not
-  this file's and is not used from then on.
-What these checks cannot see: a table and a decoder that agree at every frame compared and still
-number the frames differently (the decoder leaves a frame out, and the times around it are evenly
-spaced). `check_seek` compares the frames themselves, on a given file.
+  this file's: it is not used from then on, and the cached frames are dropped, because some may
+  have been placed with it.
+What these checks cannot see: a table that fits the decoder at both ends of the file and at every
+frame compared, and still numbers a stretch in between differently (the decoder leaves one frame
+out and the table another, with evenly spaced times around them). A jump into such a stretch is
+misplaced until a count passes over it. `check_seek` compares the frames themselves, on a given
+file.
 
 Frames are RGB uint8 arrays [row, column, 3] of the full frame (SPEC 3.1: the pixel in column c and
 row r has its center at (c + 0.5, r + 0.5) px). Frame numbers count from 0. Times are s of file
@@ -60,8 +68,8 @@ class FrameSource:
     there is no table or the table does not fit the decoder's time stamps, which is found when the
     file is opened or later, while reading; every jump back then decodes from the start of the
     file. `stats` counts, since the file was opened: "cache" (frames served from the cache),
-    "forward" (frames stepped over going forward), "seek" (seeks made) and "from_zero" (decodes
-    restarted at frame 0).
+    "forward" (frames stepped over going forward), "seek" (seeks made, the one that looks at the
+    far end of the table included) and "from_zero" (decodes restarted at frame 0).
 
     Close it when done, or use it in a `with` block: on Windows the file stays locked while open.
     """
@@ -77,6 +85,7 @@ class FrameSource:
         self._cache: OrderedDict[int, np.ndarray] = OrderedDict()
         self._held: int | None = -1  # number of the frame grabbed last (-1: none yet; None: not known)
         self._end: int | None = None  # the video has no frame with this number or a higher one, if known
+        self._end_fits = False  # whether the table's last entry was seen to be the decoder's last frame
         self._capture: cv2.VideoCapture | None = self._open()  # as iter_rgb_frames opens it
         try:
             self._use_timestamps()
@@ -170,8 +179,9 @@ class FrameSource:
     def _go_to(self, k: int) -> bool:
         """Make frame `k` the frame grabbed last; False if the video has no such frame.
 
-        While the table is in use, the frame reached is taken only if it carries the table's time
-        for frame `k`; if not, frame `k` is counted from frame 0.
+        While the table is in use, the frame reached is taken only if it, and every frame stepped
+        to on the way, carries the table's time for its number; if not, frame `k` is counted from
+        frame 0.
         """
         ahead = -1 if self._held is None else k - self._held
         if 0 <= ahead <= FORWARD_MAX or (ahead > 0 and self.timestamps_s is None):
@@ -183,37 +193,58 @@ class FrameSource:
         return self._from_zero(k)
 
     def _forward(self, count: int) -> bool:
-        """Grab the next `count` frames; False, and the position unknown, if one does not come."""
+        """Grab the next `count` frames. False if one does not come (the position is then unknown)
+        or if, with the table in use, one carries another time than the table gives its number."""
         for _ in range(count):
             if not self._capture.grab():
                 self._held = None
                 return False
-        self._held += count
-        self.stats["forward"] += count
+            self._held += 1
+            self.stats["forward"] += 1
+            if self.timestamps_s is not None and not self._time_is(self._held):
+                return False
         return True
 
     def _seek_to(self, k: int) -> bool:
+        """Jump to frame `k` with a seek; False if the jump cannot be trusted (the caller then
+        decodes from the start).
+
+        Frames 0 and 1 fit the table since the file was opened, but a frame reached by a seek is
+        placed by its time stamp alone, and times that are whole frame steps off agree with each
+        other. So before the first jump is trusted, the far end is looked at in the same way: a
+        seek to the table's last frame must reach a frame that carries the table's last time, with
+        no frame after it. That is tried again at each jump until it has succeeded once.
+        """
+        if not self._end_fits:
+            fits = self._land_on(len(self._times_ms) - 1) and not self._capture.grab()
+            self._held = None  # past the last frame, or somewhere unknown
+            if not fits:
+                return False
+            self._end_fits = True
+        return self._land_on(k)
+
+    def _land_on(self, k: int) -> bool:
         """Seek a little before frame `k`, find out which frame arrived, and step forward to `k`.
 
-        False if the frame that arrived cannot be told from its time stamp, or lies after `k` even
-        for a seek to frame 0, or a frame does not come: the caller then decodes from the start.
+        False if the frame that arrived cannot be told from its time stamp, or a frame stepped to
+        carries another time than the table's, or no frame at or before `k` arrives even for a
+        seek to frame 0.
         """
         back = SEEK_BACK
         while True:
             target = max(k - back, 0)
             self._seek(target)
             self._held = None
-            if not self._capture.grab():
-                return False
-            arrived = self._arrived()
-            if arrived is None:
-                return False
-            if arrived <= k:
-                self._held = arrived
-                return self._forward(k - arrived)
+            if self._capture.grab():
+                arrived = self._arrived()
+                if arrived is None:
+                    return False
+                if arrived <= k:
+                    self._held = arrived
+                    return self._forward(k - arrived)
             if target == 0:
                 return False
-            back *= 4  # it landed after k: ask for an earlier frame
+            back *= 4  # it landed after k, or after the last frame: ask for an earlier frame
 
     def _arrived(self) -> int | None:
         """Number of the frame grabbed last, from its time stamp and the table; None if that time
@@ -235,8 +266,9 @@ class FrameSource:
         """Open the file again and grab frames 0 to `k`: slow, and exact by definition.
 
         False if the video ends before frame `k`; where it ends is then known for later calls.
-        Frame `k` is known here by counting: a table that gives it another time than the decoder
-        does is not this file's, and is not used from here on.
+        Every frame is known here by counting: a table that gives one of them another time than the
+        decoder does is not this file's. It is not used from there on, and the cached frames are
+        dropped: some may have been placed with it.
         """
         self.stats["from_zero"] += 1
         self._capture.release()
@@ -246,9 +278,10 @@ class FrameSource:
             if not self._capture.grab():
                 self._end = frame
                 return False
+            if self.timestamps_s is not None and not self._time_is(frame):
+                self.timestamps_s = self._end = None  # the end was the table's too
+                self._cache.clear()
         self._held = k
-        if self.timestamps_s is not None and not self._time_is(k):
-            self.timestamps_s = self._end = None  # the end was the table's too
         return True
 
 

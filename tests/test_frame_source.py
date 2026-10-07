@@ -8,7 +8,7 @@ timestamps come from how the clips are written (`GAPS_BEFORE`, `frame_times`), e
 from the sequential decode `video.iter_rgb_frames`: decoded frames are compared with decoded
 frames, never with drawn ones (the codec changes the levels). What video.py itself adds is tested
 in tests/test_video_frames.py; a wrong table and wrong time stamps from the decoder (here only the
-seek is made wrong) in tests/test_frame_source_times.py.
+seek is made wrong) in tests/test_frame_source_times.py and tests/test_frame_source_jumps.py.
 """
 
 import hashlib

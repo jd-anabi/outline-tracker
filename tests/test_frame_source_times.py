@@ -108,10 +108,11 @@ def test_a_table_that_is_not_the_decoders_is_not_used(fault, clip, monkeypatch):
 def test_a_table_that_fits_only_the_first_frames_is_given_up(fault_steps, clip, monkeypatch):
     # From frame 50 on the table is 0.3 or 1 frame step late; frames 0 and 1 cannot show that.
     # Frame 60 is read 11 frames after frame 49, so it is reached by counting, and the count is
-    # the truth: the table disagrees with it and is given up. (Reached by a jump instead, frame 60
-    # would be placed with the table. A time 0.3 of a step off is no entry's time, see the next
-    # test; a whole step off is the time the table gives the frame before, and no time stamp can
-    # tell that from the truth: this is the limit of the method, stated in frame_source.py.)
+    # the truth: the table disagrees with it and is given up. (A jump instead would not be placed
+    # with this table either. A time 0.3 of a step off is no entry's time, see the next test; a
+    # whole step off is the time the table gives the frame before, which no single time stamp can
+    # tell from the truth, and there the look at the far end of the file stops the jump:
+    # tests/test_frame_source_jumps.py.)
     _, path, frames = clip
     change_the_table(monkeypatch, lambda times_s: times_s + fault_steps * STEP_S * (np.arange(N) >= LATER))
     with FrameSource(path) as source:
