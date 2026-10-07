@@ -12,6 +12,10 @@ Every change it makes to the session (a run's record, whether the results are co
 hash made anew on this computer, a fine window it chose) is handed to `Callbacks.save_session` as
 a `SessionChanges`, so that session.json has one writer.
 
+The edits between jobs (objects, clicks, "Re-track from here", "End track here", "Continue as new
+track", the flags table) are in outline_tracker/tracking_edit.py; its names are importable from
+here too, so that the GUI's panels need this one module.
+
 Units and coordinates (SPEC 3.1): records are in px in the full frame, Tracker's convention, the
 pixel in column c and row r with its center at (c + 0.5, r + 0.5); a box is
 (c0, r0, width, height) in whole px of the full frame. Frames are video frame numbers; times are
@@ -38,13 +42,18 @@ from outline_tracker.results import ResultsStore
 from outline_tracker.schema import RESULTS_NPZ, SESSION_JSON
 from outline_tracker.segmenter.base import ObjectPrompt, Segmenter
 from outline_tracker.session import RunRecord, Session
+from outline_tracker.tracking_edit import (Edit, add_object, add_prompt, end_track, flags_table, new_piece,
+                                           next_track_id, pending_runs, remove_object, retrack_from, set_head,
+                                           undo_prompt)
 from outline_tracker.tracking_fine import FineStart, check_fine_settings, fine_starts, fine_window, fine_window_px
 from outline_tracker.tracking_guard import FrameHashMismatch, FrameHashUpdate, check_start_frames
-from outline_tracker.tracking_plan import RunPlan, dish_box, partial_tracks, plan_runs, run_prompts
+from outline_tracker.tracking_plan import RunPlan, dish_box, partial_tracks, plan_job, plan_runs, run_prompts
 from outline_tracker.video import iter_rgb_frames
 
-__all__ = ["AUTOSAVE_EVERY", "Callbacks", "FrameHashMismatch", "FrameHashUpdate", "Job", "RunPlan", "SessionChanges",
-           "dish_box", "fine_window", "fine_window_px", "partial_tracks", "plan_runs", "run_job"]
+__all__ = ["AUTOSAVE_EVERY", "Callbacks", "Edit", "FrameHashMismatch", "FrameHashUpdate", "Job", "RunPlan",
+           "SessionChanges", "add_object", "add_prompt", "dish_box", "end_track", "fine_window", "fine_window_px",
+           "flags_table", "new_piece", "next_track_id", "partial_tracks", "pending_runs", "plan_runs",
+           "remove_object", "retrack_from", "run_job", "set_head", "undo_prompt"]
 
 AUTOSAVE_EVERY = 200  # results and session are saved after every this many tracked frames (SPEC 6.4)
 COMPLETE, CANCELLED, FAILED = "complete", "cancelled", "failed"  # what `run_job` returns
@@ -169,7 +178,7 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
     _check_settings(session)
     results_path = Path(job.run_folder) / RESULTS_NPZ
     store = ResultsStore.load(results_path) if results_path.is_file() else ResultsStore()
-    plans = _plan(session, store, job.track_ids)
+    plans = plan_job(session, store, job.track_ids)
     if not plans:
         callbacks.log("Nothing to track: no object has clicks that are not tracked yet.")
         callbacks.finished(COMPLETE)
@@ -221,17 +230,6 @@ def _check_settings(session: Session) -> None:
                          "manifest or the stopwatch clip, or type it in, before tracking.")
 
 
-def _plan(session: Session, store: ResultsStore, track_ids: Sequence[str] | None) -> list[RunPlan]:
-    """The runs of a job: those of every pending track, or of the named tracks only."""
-    if track_ids is None:
-        return plan_runs(session, store)
-    known = [track.id for track in session.tracks]
-    unknown = [track_id for track_id in track_ids if track_id not in known]
-    if unknown:
-        raise ValueError(f"The session has no track {', '.join(unknown)} (its tracks: {', '.join(known) or 'none'}).")
-    return plan_runs(replace(session, tracks=[track for track in session.tracks if track.id in track_ids]), store)
-
-
 def _now() -> str:
     """The time now, local, as ISO 8601 with the offset from UTC, to the second."""
     return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -275,7 +273,7 @@ class _Runner:
         self.total, self.done = total, 0  # frames to track and frames tracked, over all runs of the job
         self.began = time.perf_counter()
         self.new_hashes = tuple(new_hashes)  # frame hashes made anew (X8), until they are handed over
-        self.reached = -1  # the video frame on which a completed run of this job ended; -1 before one did
+        self.video_end: int | None = None  # the last frame a run got from a video that ended before the run did
 
     def track(self, plan: RunPlan, view, prompts: list[ObjectPrompt], number: int, count: int,
               fine: FineStart | None = None) -> str:
@@ -351,11 +349,13 @@ class _Runner:
         did not complete; else it is about the results, not about this job: True only if no track
         of the session is partial (`partial_tracks`). So it stays False while the job has runs to
         come, whose tracks still wait. `frames`: the run's video frames, of which the first
-        `tracked` were tracked."""
+        `tracked` were tracked; fewer than all means the video ended there, before the clip does.
+        A run that ends early because its track was ended says nothing about the other tracks."""
         if status != COMPLETE:
             return False
-        self.reached = max(self.reached, frames[tracked - 1])  # the clip's last frame, or the video's
-        return not partial_tracks(self.session, self.store, self.reached)
+        if tracked < len(frames):
+            self.video_end = frames[tracked - 1]
+        return not partial_tracks(self.session, self.store, self.video_end)
 
     def _progress(self) -> None:
         s_per_frame = (time.perf_counter() - self.began) / self.done

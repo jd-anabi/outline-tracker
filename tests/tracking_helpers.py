@@ -3,7 +3,8 @@
 A test builds a session for a synthetic clip (`make_session`, `track`), runs it (`run`) with a
 stand-in segmenter and a `Recorder` for the callbacks, and compares results.npz and session.json
 with the clip's ground truth. `Watched` wraps a stand-in and writes down how the runner used it; the
-stand-in still does the segmenting.
+stand-in still does the segmenting. `Renaming` is `ExactFake` answering for one track with another
+object's ground truth: a piece (A2 is the animal A), or a track that jumped to another animal.
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,
 row r) has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A box is
@@ -11,11 +12,16 @@ row r) has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A
 are video frame numbers.
 """
 
+from contextlib import closing
+from dataclasses import replace
+
 import numpy as np
 
 from outline_tracker.measure import mask_center
+from outline_tracker.segmenter.fake import ExactFake
 from outline_tracker.session import Circle, Clip, Processing, Prompt, Session, TimeSettings, Track, VideoRef
 from outline_tracker.tracking import Callbacks, Job, run_job
+from outline_tracker.video import decoder_tag, frame_hash, iter_rgb_frames
 
 FULL_SMALL = (0, 0, 320, 240)  # the whole frame of the fast tests' clips (helpers.SMALL)
 
@@ -50,6 +56,22 @@ def track(clip, track_id, frame=0, mode="coarse"):
     return track_at(track_id, frame, [center(clip, track_id, frame)], [1], mode)
 
 
+def frame_identity(clip, frame):
+    """What the GUI knows of the frame a click is placed on: (frame hash, decoder tag) of video
+    frame `frame` as this computer decodes it."""
+    with closing(iter_rgb_frames(clip.path, [frame])) as frames:
+        ((_, rgb),) = frames
+    return frame_hash(rgb), decoder_tag()
+
+
+def clicks_at(clip, track_id, frame, on=None):
+    """The clicks of a correction: one positive click on the center of the scene's object `on`
+    (`track_id` itself if None) in video frame `frame`, with that frame's hash and decoder tag."""
+    found, tag = frame_identity(clip, frame)
+    return Prompt(frame=frame, frame_hash=found, decoder=tag,
+                  points_px=[list(center(clip, on or track_id, frame))], labels=[1])
+
+
 def make_session(clip, run_folder, tracks, *, start=0, end=None, step=2, circle=None, dish_crop=True):
     """A session for a synthetic clip: the clip's frames `start` to `end` (the last frame of the
     video if None) every `step`, fps_true = the scene's frame rate, and the given tracks."""
@@ -60,6 +82,16 @@ def make_session(clip, run_folder, tracks, *, start=0, end=None, step=2, circle=
     return Session(video=video, clip=Clip(start, scene.n_frames - 1 if end is None else end, step),
                    time=TimeSettings(fps_true=scene.fps, source="typed"), circle=circle,
                    processing=Processing(dish_crop=dish_crop), tracks=list(tracks))
+
+
+def abc_session(clip, run_folder):
+    """A session with a click on each of the dish scene's objects A, B and C in frame 0, tracked on
+    the whole frame every 2nd frame, with a scale (a stick of 100 px for 3.24 mm) and the origin in
+    the middle of a 320 x 240 px frame."""
+    session = make_session(clip, run_folder, [track(clip, name) for name in "ABC"], dish_crop=False)
+    session.calibration.stick = {"p1_px": [10.5, 20.5], "p2_px": [110.5, 20.5], "length_mm": 3.24}
+    session.axes.origin_px = [160.5, 120.5]
+    return session
 
 
 class Recorder:
@@ -134,6 +166,41 @@ class Watched:
     def close(self):
         self.calls.append("close")
         self.inner.close()
+
+
+class Renaming:
+    """`ExactFake` behind other names: a track id in `names` is answered with the ground truth of
+    the scene's object it names, from video frame `from_frame` on (before it, with its own).
+    {"A2": "A"}: the piece A2 is the animal A. {"A": "C"} from frame 40: the track A jumps to the
+    animal C there. The runner must name each frame with `set_view`, as it does for `ExactFake`.
+    """
+
+    def __init__(self, ground_truth, names, from_frame=0):
+        self.inner, self.names, self.from_frame = ExactFake(ground_truth), dict(names), from_frame
+        self._frame, self._prompts = None, None
+
+    def set_view(self, frame, offset, size):
+        self._frame = frame
+        self.inner.set_view(frame, offset, size)
+
+    def _answer(self, image, prompts):
+        names = self.names if self._frame >= self.from_frame else {}
+        asked = [replace(prompt, obj_id=names.get(prompt.obj_id, prompt.obj_id)) for prompt in prompts]
+        return [replace(result, obj_id=prompt.obj_id)
+                for result, prompt in zip(self.inner.preview(image, asked), prompts, strict=True)]
+
+    def start(self, image, prompts):
+        self._prompts = list(prompts)
+        return self._answer(image, prompts)
+
+    def step(self, image):
+        return self._answer(image, self._prompts)
+
+    def preview(self, image, prompts):
+        return self._answer(image, prompts)
+
+    def close(self):
+        self._prompts = None
 
 
 def run(clip, session, run_folder, segmenter, recorder=None, *, track_ids=None, record_session=False):

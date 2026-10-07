@@ -4,7 +4,8 @@ what is left when jobs have run: the tracks whose results are partial (`partial_
 
 A run is a set of tracks plus a start frame: coarse objects with the same start frame share one
 streaming session of the model, a fine object has a session of its own. A run covers the frames of
-the clip's grid from its start frame to the clip's end.
+the clip's grid from its start frame to the clip's end, or to the frame where its tracks were ended
+("End track here", SPEC 6.6): a track is never tracked beyond its end.
 
 Units and coordinates (SPEC 3.1): px in Tracker's convention, the origin at the top-left corner of
 the frame, u to the right, v downward, the pixel in column c and row r with its center at
@@ -18,7 +19,8 @@ from __future__ import annotations
 
 import math
 import numbers
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 
 from outline_tracker.geometry import grid_frames
 from outline_tracker.measure import MODES
@@ -35,10 +37,11 @@ class RunPlan:
 
     track_ids: the objects of the run, in the order of the session; one for a fine run.
     start_frame: the video frame number the run starts on, the frame of the objects' clicks.
-    mode: "coarse" or "fine". frames: the video frame numbers of the run, from `start_frame` to the
-    clip's end on the clip's grid. input_box: (c0, r0, width, height) in whole px of the full frame,
-    the part of the frame the model is shown in a coarse run: the dish square or the whole frame.
-    For a fine run it is the part on which the object is first looked for.
+    mode: "coarse" or "fine". frames: the video frame numbers of the run, on the clip's grid from
+    `start_frame` to the clip's end, or to the last grid frame up to `ended_at` of its tracks, which
+    is then the same for all of them. input_box: (c0, r0, width, height) in whole px of the full
+    frame, the part of the frame the model is shown in a coarse run: the dish square or the whole
+    frame. For a fine run it is the part on which the object is first looked for.
     """
 
     track_ids: tuple[str, ...]
@@ -90,9 +93,10 @@ def view_box(session: Session) -> tuple[int, int, int, int]:
     return 0, 0, width, height
 
 
-def _start_frame(track: Track, store: ResultsStore) -> int | None:
+def pending_from(track: Track, store: ResultsStore) -> int | None:
     """The video frame from which a track still has to be tracked: the frame of its newest clicks,
-    unless the results already hold that frame. None for a track that has nothing to track."""
+    unless `store`, the results so far, already holds that frame. None for a track that has
+    nothing to track."""
     if not track.prompts:
         return None
     start = max(prompt.frame for prompt in track.prompts)
@@ -101,39 +105,68 @@ def _start_frame(track: Track, store: ResultsStore) -> int | None:
     return start
 
 
+def _last_grid_frame(grid: range, limit: int) -> int:
+    """The last frame of the clip's grid at or before video frame `limit`; a frame before the grid's
+    first one when `limit` is."""
+    return grid.start + (min(limit, grid[-1]) - grid.start) // grid.step * grid.step
+
+
 def plan_runs(session: Session, store: ResultsStore) -> list[RunPlan]:
     """The runs that "Track" starts (SPEC 6.1): one per group of pending coarse objects with the same
-    start frame, and one per pending fine object.
+    start frame and the same last frame, and one per pending fine object.
 
     An object is pending when it has clicks and `store` (the results so far) does not hold the
     frame of its newest clicks; its run starts on that frame, a video frame number. For an object
-    that was never tracked this is its start frame. Runs are in the order of their start frames, a
-    coarse run before the fine runs of the same frame. Each run's `input_box` is `view_box(session)`,
-    in px of the full frame. Raises ValueError for a clip without frames (`geometry.grid_frames`),
-    a mode other than "coarse" or "fine", and clicks on a frame that is not on the clip's grid.
+    that was never tracked this is its start frame. A run ends on the clip's last grid frame; the
+    run of a track that was ended, on the last grid frame up to its `ended_at`. Runs are in the
+    order of their start frames, a coarse run before the fine runs of the same frame. Each run's
+    `input_box` is `view_box(session)`, in px of the full frame. Raises ValueError for a clip
+    without frames (`geometry.grid_frames`), a mode other than "coarse" or "fine", clicks on a
+    frame that is not on the clip's grid, and clicks after the end of a track that was ended.
     """
     clip = session.clip
     grid = grid_frames(clip.start, clip.end, clip.step)
     box = view_box(session)
-    coarse: dict[int, list[str]] = {}
-    fine: list[tuple[int, str]] = []
+    coarse: dict[tuple[int, int], list[str]] = {}  # (start frame, last frame) -> the tracks
+    fine: list[tuple[int, int, str]] = []
     for track in session.tracks:
         if track.mode not in MODES:
             raise ValueError(f"Track {track.id}: the mode must be 'coarse' or 'fine', not {track.mode!r}.")
-        start = _start_frame(track, store)
+        start = pending_from(track, store)
         if start is None:
             continue
         if start not in grid:
             raise ValueError(f"Track {track.id} was clicked on frame {start}, which is not a frame of the clip "
                              f"(frames {grid[0]} to {grid[-1]}, every {grid.step}). Go to a frame of the clip and "
                              "click the object there.")
+        last = grid[-1] if track.ended_at is None else _last_grid_frame(grid, track.ended_at)
+        if start > last:
+            raise ValueError(f"Track {track.id} was ended at frame {track.ended_at} and has clicks on frame {start}, "
+                             "after its end. Undo those clicks, or continue the animal as a new track from there.")
         if track.mode == "coarse":
-            coarse.setdefault(int(start), []).append(track.id)
+            coarse.setdefault((int(start), last), []).append(track.id)
         else:
-            fine.append((int(start), track.id))
-    plans = [RunPlan(tuple(ids), start, "coarse", grid[grid.index(start):], box) for start, ids in coarse.items()]
-    plans += [RunPlan((track_id,), start, "fine", grid[grid.index(start):], box) for start, track_id in fine]
+            fine.append((int(start), last, track.id))
+
+    def frames(start: int, last: int) -> range:
+        return grid[grid.index(start):grid.index(last) + 1]
+
+    plans = [RunPlan(tuple(ids), start, "coarse", frames(start, last), box) for (start, last), ids in coarse.items()]
+    plans += [RunPlan((track_id,), start, "fine", frames(start, last), box) for start, last, track_id in fine]
     return sorted(plans, key=lambda plan: (plan.start_frame, plan.mode != "coarse"))
+
+
+def plan_job(session: Session, store: ResultsStore, track_ids: Sequence[str] | None) -> list[RunPlan]:
+    """The runs of a job: those of every pending track (`plan_runs`) when `track_ids` is None, else
+    those of the named tracks only. Raises ValueError for a name the session has no track for, and
+    as `plan_runs` does. Frames are video frame numbers, boxes px of the full frame."""
+    if track_ids is None:
+        return plan_runs(session, store)
+    known = [track.id for track in session.tracks]
+    unknown = [track_id for track_id in track_ids if track_id not in known]
+    if unknown:
+        raise ValueError(f"The session has no track {', '.join(unknown)} (its tracks: {', '.join(known) or 'none'}).")
+    return plan_runs(replace(session, tracks=[track for track in session.tracks if track.id in track_ids]), store)
 
 
 def partial_tracks(session: Session, store: ResultsStore, last_frame: int | None = None) -> list[str]:
@@ -141,9 +174,10 @@ def partial_tracks(session: Session, store: ResultsStore, last_frame: int | None
     `complete` is true only when there is none.
 
     A track is partial when it has clicks but no record in `store` (the results so far); when it
-    has clicks that are not tracked yet (`plan_runs` would start a run for it); when its records
-    stop before its last frame; or when a frame of the clip's grid is missing between its first
-    and its last record. Its last frame is the last frame of the clip's grid, or the last grid
+    has clicks that are not tracked yet (`pending_from`: `plan_runs` has a run for it, or refuses
+    its clicks, those after the end of a track that was ended); when its records stop before its
+    last frame; or when a frame of the clip's grid is missing between its first and its last
+    record. Its last frame is the last frame of the clip's grid, or the last grid
     frame up to `track.ended_at` for a track that was ended. `last_frame` is the last video frame
     number tracking can reach when the video ends before the clip does; None for the clip's end.
     A track without clicks and without records is not partial. Raises ValueError for a clip
@@ -160,10 +194,9 @@ def partial_tracks(session: Session, store: ResultsStore, last_frame: int | None
             continue
         frames = store.arrays(track.id).frames
         first, last = int(frames[0]), int(frames[-1])
-        end = reach if track.ended_at is None else min(reach, track.ended_at)
-        end = grid.start + (end - grid.start) // grid.step * grid.step  # the last grid frame at or before it
+        end = _last_grid_frame(grid, reach if track.ended_at is None else min(reach, track.ended_at))
         gap = (last - first) // grid.step + 1 > len(frames)
-        if _start_frame(track, store) is not None or last < end or gap:
+        if pending_from(track, store) is not None or last < end or gap:
             partial.append(track.id)
     return partial
 

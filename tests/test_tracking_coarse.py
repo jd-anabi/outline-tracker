@@ -35,6 +35,7 @@ from outline_tracker.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from outline_tracker.session import Circle, Session
 from outline_tracker.tracking import RunPlan, dish_box, plan_runs
+from outline_tracker.tracking_plan import plan_job
 
 GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions here take every 2nd
 
@@ -91,6 +92,19 @@ def test_coarse_objects_on_one_start_frame_share_a_run_and_a_later_start_makes_a
         RunPlan(track_ids=("A", "B"), start_frame=0, mode="coarse", frames=range(0, 120, 2), input_box=DISH_BOX),
         RunPlan(track_ids=("C",), start_frame=60, mode="coarse", frames=range(60, 120, 2), input_box=DISH_BOX),
     ]
+
+
+def test_a_job_for_named_tracks_plans_the_runs_of_those_tracks_only(dish_clip, tmp_path):
+    tracks = [track(dish_clip, "A"), track(dish_clip, "C", frame=60), track(dish_clip, "B")]
+    session = make_session(dish_clip, tmp_path, tracks, circle=dish_circle(dish_clip.scene))
+    from_0 = {"start_frame": 0, "mode": "coarse", "frames": range(0, 120, 2), "input_box": DISH_BOX}
+    from_60 = RunPlan(track_ids=("C",), start_frame=60, mode="coarse", frames=range(60, 120, 2), input_box=DISH_BOX)
+    assert plan_job(session, ResultsStore(), None) == [RunPlan(track_ids=("A", "B"), **from_0), from_60]  # all pending
+    assert plan_job(session, ResultsStore(), ["B", "C"]) == [RunPlan(track_ids=("B",), **from_0), from_60]
+    assert plan_job(session, ResultsStore(), []) == []
+    assert [a_track.id for a_track in session.tracks] == ["A", "C", "B"]  # the session keeps its tracks
+    with pytest.raises(ValueError, match=r"no track Z \(its tracks: A, C, B\)"):
+        plan_job(session, ResultsStore(), ["A", "Z"])
 
 
 def test_fine_objects_get_a_run_each_and_are_not_in_a_coarse_run(dish_clip, tmp_path):
