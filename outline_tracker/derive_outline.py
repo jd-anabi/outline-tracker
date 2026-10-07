@@ -22,6 +22,11 @@ import numpy as np
 
 _SLACK = 1e-9   # a ray through a vertex meets both of its segments: the ends count, with this margin
 _CHUNK = 32     # frames worked on at once: rays x segments x frames numbers are in memory together
+# Points count as lying on one line (no convex hull) when their spread across the line is at most
+# this fraction of their spread along it. Measured: on the outline of a straight one-pixel-wide
+# mask, which is a line, the rounding of the world transform leaves up to 4e-12 (2 px long, origin
+# 10,000 px away); an outline 1 px wide that crosses a 4K frame has 4.5e-4.
+_FLAT = 1e-9
 
 
 def ray_angles(step_deg) -> np.ndarray:
@@ -102,16 +107,32 @@ def hull_area_and_feret(points) -> tuple[float, float]:
     """(area of the convex hull, maximum Feret diameter) of points [m, 2] (SPEC 7.7): the area in
     the points' unit squared and the largest distance between two hull corners in the points'
     unit. (NaN, NaN) when there is no hull: fewer than 3 points, a point that is not finite, or
-    all points on one line."""
+    all points on one line.
+
+    "On one line" is decided from the points themselves, not by whether Qhull fails: their spread
+    across their best line is at most `_FLAT` (1e-9) times their spread along it, which includes
+    points that all coincide. The two spreads are the singular values of the centered points, so
+    the answer does not depend on where the points lie, how the line is turned or which unit they
+    are in: an outline that has no hull has none under every calibration.
+    """
     from scipy.spatial import ConvexHull, QhullError   # imported here: only export and previews need it
     from scipy.spatial.distance import pdist
 
     points = np.asarray(points, float)
     if points.ndim != 2 or len(points) < 3 or not np.isfinite(points).all():
         return float("nan"), float("nan")
+    # Centered in two steps. Subtracting the mean alone leaves the rounding of a sum of m large
+    # numbers in every point, which reads as a spread across the line when the points are far
+    # from the origin. Differences from one of the points are small numbers; their mean is exact
+    # enough.
+    centered = points - points[0]
+    centered -= centered.mean(axis=0)
+    along, across = np.linalg.svd(centered, compute_uv=False)
+    if across <= _FLAT * along:
+        return float("nan"), float("nan")
     try:
-        hull = ConvexHull(points - points.mean(axis=0))
-    except QhullError:
+        hull = ConvexHull(centered)
+    except QhullError:   # not expected after the check above; Qhull's own word on a flat set is kept
         return float("nan"), float("nan")
     return float(hull.volume), float(pdist(hull.points[hull.vertices]).max())
 
@@ -120,7 +141,8 @@ def feret_max(points) -> float:
     """The maximum Feret diameter of an outline (SPEC 7.7): the largest distance between two of
     its points, in the unit of the points. For a stored outline (`outline_px`, [256, 2] image
     points in px) the result is in px; it does not depend on the frame's orientation. NaN when
-    there is no convex hull: a lost frame's NaN outline, fewer than 3 points, points on one line.
+    there is no convex hull: a lost frame's NaN outline, fewer than 3 points, points on one line
+    (as `hull_area_and_feret` decides it; a straight mask one pixel wide without logits is one).
     """
     return hull_area_and_feret(points)[1]
 

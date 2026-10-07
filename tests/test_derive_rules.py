@@ -17,6 +17,7 @@ import pytest
 from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 
 from outline_tracker import derive
+from outline_tracker.derive_outline import hull_area_and_feret
 from outline_tracker.measure import measure_mask
 from outline_tracker.session import Circle
 
@@ -165,6 +166,96 @@ def test_an_outline_on_one_line_has_no_hull_and_raises_nothing():
     assert track.perimeter_mm[0] == pytest.approx(128.0 * K, rel=1e-5)
     assert track.circularity[0] == pytest.approx(0.0, abs=1e-6)
     assert np.isfinite(track.outline_xy_mm[0]).all()
+
+
+def straight_mask(kind, length):
+    """`length` pixels in one straight line, one pixel wide, with 2 px of background around them,
+    indexed [row, column]: a row, a column, or a diagonal (down or up to the right on screen)."""
+    line = {"row": np.ones((1, length), bool), "column": np.ones((length, 1), bool),
+            "diagonal": np.eye(length, dtype=bool), "anti-diagonal": np.eye(length, dtype=bool)[::-1]}[kind]
+    return np.pad(line, 2)
+
+
+def turned(alpha_deg):
+    """The calibration TILTED with its +x axis at `alpha_deg` degrees instead of 25."""
+    return dataclasses.replace(TILTED, alpha_rad=np.radians(alpha_deg))
+
+
+STRAIGHT = ["row", "column", "diagonal", "anti-diagonal"]
+AXIS_ANGLES = [25.0, -30.0, 137.0, 90.0]   # degrees; 25 is TILTED
+PLACES = [(700, 400), (37, 911), (1500, 600)]   # (column, row) of the mask array's corner, px
+
+
+@pytest.mark.parametrize("alpha_deg", AXIS_ANGLES)
+@pytest.mark.parametrize("kind", STRAIGHT)
+def test_a_straight_one_pixel_wide_mask_without_logits_has_no_hull_at_any_axis_angle(kind, alpha_deg):
+    # Without logits the outline is the chain of the pixel centers, there and back: every point on
+    # one line, of length 2 (n - 1) steps of 1 px (row, column) or sqrt(2) px (diagonals). On one
+    # line means no hull, whatever the calibration: turning the axes must not turn it into numbers.
+    step = 1.0 if kind in ("row", "column") else np.sqrt(2.0)
+    for length in (2, 12, 30):
+        for place in PLACES:
+            result = shapes.pixel_result(straight_mask(kind, length), offset=place)
+            track = h.derive([measure_mask(result, 0, h.FULL_HD, "coarse")], turned(alpha_deg))
+            assert np.isnan(track.solidity[0]) and np.isnan(track.feret_max_mm[0]), (length, place)
+            assert track.perimeter_mm[0] == pytest.approx(2 * (length - 1) * step * K, rel=1e-6), (length, place)
+            assert track.circularity[0] == pytest.approx(0.0, abs=1e-6), (length, place)
+
+
+@pytest.mark.parametrize("alpha_deg", AXIS_ANGLES)
+@pytest.mark.parametrize("kind", STRAIGHT)
+def test_the_same_straight_masks_with_logits_have_a_hull(kind, alpha_deg):
+    # Logits +1 on the n pixels and -1 around them: the level set runs through the midpoints to
+    # the neighbors. For a row or column that is a hexagon n px from tip to tip and 1 px wide; for
+    # a diagonal it is a rectangle (2n - 1) / sqrt(2) px long and 1 / sqrt(2) px wide. Both are
+    # convex (solidity 1), and the largest distance is n px, or the rectangle's diagonal.
+    # Each end of that distance lies within half a spacing of the 256 stored points, so it may
+    # come out short by one spacing. These outlines are at most 2 sqrt(2) times as long as their
+    # largest distance, so that is at most 2 sqrt(2) / 256 = 1.1% of it.
+    for length in (2, 12, 30):
+        feret_px = float(length) if kind in ("row", "column") else np.sqrt(((2 * length - 1) ** 2 + 1) / 2.0)
+        for place in PLACES:
+            result = shapes.pixel_result(straight_mask(kind, length), offset=place, logits=True)
+            track = h.derive([measure_mask(result, 0, h.FULL_HD, "coarse")], turned(alpha_deg))
+            assert track.solidity[0] == pytest.approx(1.0, abs=1e-3), (length, place)
+            assert track.feret_max_mm[0] == pytest.approx(feret_px * K, rel=0.012), (length, place)
+            assert track.feret_max_mm[0] <= feret_px * K * (1 + 1e-6), (length, place)
+
+
+@pytest.mark.parametrize("alpha_deg", [0.0] + AXIS_ANGLES)
+def test_a_long_strip_two_pixels_wide_keeps_its_hull_at_any_axis_angle(alpha_deg):
+    # 400 x 2 pixels without logits: the outline is the rectangle through the centers of the
+    # border pixels, 399 x 1 px. Thin, but not a line: convex, and its diagonal is the diameter
+    # (short by at most one spacing of the stored points, 800 / 256 px, under 0.8%).
+    strip = shapes.pixel_result(shapes.blocks((6, 404), (2, 4, 2, 402)), offset=(700, 400))
+    track = h.derive([measure_mask(strip, 0, h.FULL_HD, "coarse")], turned(alpha_deg))
+    assert track.solidity[0] == pytest.approx(1.0, abs=1e-6)
+    assert track.feret_max_mm[0] == pytest.approx(np.hypot(399.0, 1.0) * K, rel=0.008)
+
+
+def test_points_on_one_line_have_no_hull_wherever_the_line_lies_and_a_sliver_has_one():
+    # 51 points on a segment of length 2, turned, moved about and given in another unit: always on
+    # one line, so no hull. The same with the middle point 2e-11 off the line, a few times the
+    # rounding that the world transform leaves on a short line: still no hull. With the middle
+    # point 2e-5 off they are a triangle of base 2 and height 2e-5: a hull of area 2e-5 whose
+    # largest distance is still the base. Areas scale with the unit squared, distances with the unit.
+    position = np.linspace(-1.0, 1.0, 51)
+    for angle_deg in (0.0, 17.0, 45.0, 90.0, 133.3):
+        along_line = shapes.direction(np.radians(angle_deg))
+        across = np.array([-along_line[1], along_line[0]])
+        for middle in ((0.0, 0.0), (26.31, -17.47), (-311.2, 904.6)):
+            for unit in (1.0, 1e-6, 1e6):
+                case = (angle_deg, middle, unit)
+                line = np.asarray(middle) + position[:, None] * along_line
+                assert np.isnan(hull_area_and_feret(line * unit)).all(), case
+                assert np.isnan(derive.feret_max(line * unit)), case
+                wobbly, sliver = line.copy(), line.copy()
+                wobbly[25] += 2e-11 * across
+                sliver[25] += 2e-5 * across
+                assert np.isnan(hull_area_and_feret(wobbly * unit)).all(), case
+                area, feret = hull_area_and_feret(sliver * unit)
+                assert area == pytest.approx(2e-5 * unit ** 2, rel=1e-6), case
+                assert feret == pytest.approx(2.0 * unit, rel=1e-9), case
 
 
 def test_an_outline_that_is_one_point_gives_nan_shape_numbers():
