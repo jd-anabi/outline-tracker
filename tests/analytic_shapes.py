@@ -127,6 +127,15 @@ def to_result(distance: np.ndarray, *, origin: tuple[int, int] = (0, 0), pad: in
     return result
 
 
+def blocks(shape: tuple[int, int], *rectangles: tuple[int, int, int, int]) -> np.ndarray:
+    """A mask of `shape` (rows, columns) with the given pixel rectangles (row0, row1, col0, col1) set;
+    row1 and col1 are one past the last pixel, as in a slice. Boolean, indexed [row, column], in px."""
+    mask = np.zeros(shape, bool)
+    for row0, row1, col0, col1 in rectangles:
+        mask[row0:row1, col0:col1] = True
+    return mask
+
+
 def pixel_result(mask: np.ndarray, offset: tuple[int, int] = (0, 0), *, logits: bool = False,
                  score: float | None = None, obj_id: str = "A") -> MaskResult:
     """A `MaskResult` made of exactly the given pixels: no cropping, `offset` = (column, row) of
