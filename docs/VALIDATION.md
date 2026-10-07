@@ -532,3 +532,66 @@ that cannot be loaded, give one `ERROR:` line and exit code 1, without a verdict
 - A shrimp that the real model loses on every frame: the verdict is then `PROBLEM`, with `nan` in
   place of the pixels and a numpy warning next to it, as last week (seen once with a stand-in, by
   hand; no test holds it).
+
+## 6. The real model through the window (tasks C4 and C5, 2026-10-07)
+
+Sections 1 to 5 ran the model from tests and from the command line. Here it runs where a student
+runs it: inside the window, on the window's worker thread, with the frames coming from the
+window's frame cache. Same laptop, versions and weights as section 1. Only short synthetic clips.
+The window ran offscreen (no screen was looked at; pictures of the window were grabbed and looked
+at afterwards).
+
+### 6.1 A tracking run through the window's worker (the slow test of C5)
+
+**Command.** One per device:
+
+```
+uv run pytest -m slow tests/slow/test_gui_worker_real_model.py -q -rP -k cpu
+uv run pytest -m slow tests/slow/test_gui_worker_real_model.py -q -rP -k mps
+```
+
+**Result.** 2 passed (26 s and 14 s). The clip is last week's selftest clip, 20 tracked frames, one
+object, one click, tracked by the Track button's own job.
+
+| device | status | max error against the true centers (limit 3 px) | mean error | s per frame | device at the end |
+|---|---|---|---|---|---|
+| cpu | complete | 0.460 px | 0.265 px | 0.42 | cpu |
+| mps | complete | 0.460 px | 0.272 px | 0.12 | mps (no fall back) |
+
+The errors are those of sections 1.2 and 5 (0.461 px): the window adds nothing to them. No error
+was recorded by the worker in either run.
+
+### 6.2 The whole path by hand, once (not a test)
+
+A script drove the window the way a user does, with the real EdgeTAM on the Apple GPU, on the
+synthetic close-up clip (`outline-tracker synth closeup`, 1920 × 1080 px, 240 fps): open the clip,
+type a name and fps_true into the fields of panels 1 and 2, Add in panel 6, one positive click on
+the body of the shrimp on frame 0, Track in panel 7 with the clip ending at frame 119 (60 tracked
+frames at step 2).
+
+| what | measured |
+|---|---|
+| model ready after the window opened | 7 to 8 s (the model was on the laptop already) |
+| outline after the click (the preview) | 0.69 s |
+| the run: 60 frames, 1 object, coarse, whole frame | about 9 s; the panel said "Tracking is complete: 1 object, 60 frames." |
+| files in the run folder afterwards | `session.json`, `results.npz`, `run.log` |
+| stored position of the object | (1391.0, 461.2) px on frame 0, (1315.3, 363.8) px on frame 60, (1201.2, 324.4) px on frame 118; found on every frame |
+
+In the picture of frame 60 the stored outline lies on the animal and includes both antennae. On
+frame 0 the preview from the one click on the body included one antenna and left the other out;
+section 4.2 found the body alone from one click in fine mode. So what one click includes varies:
+the user has to look at the outline, and click on an antenna that is missing.
+
+**Found on the way, and fixed.** The first run gave a warning from torch: the frame cache hands
+out arrays that cannot be written to. The worker now gives the model a copy it may write to
+(task C5), and a test holds that. Click points of another frame stayed on the picture when a part
+other than the bottom bar changed the frame; they now follow the frame on the screen.
+
+### 6.3 Not covered by this section
+
+- A real screen, on macOS or on Windows: nobody has yet used the window by hand.
+- A real video of shrimp, and a long one (opening time, memory over minutes).
+- Export from the window, the corrections of panel 8, and fine mode in the window with the real
+  model: those panels were not merged when this was written.
+- Windows with the real model: the Windows test machine runs only the fast tests, with stand-in
+  models.
