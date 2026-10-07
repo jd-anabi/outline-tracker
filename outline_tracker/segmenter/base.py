@@ -3,7 +3,9 @@
 A segmenter is given one image at a time. `start` receives the first image of a run together with
 the prompts of every object; `step` receives each later image; both return one `MaskResult` per
 object, in the order of the prompts. `preview` returns the masks for one image without keeping any
-tracking state. No torch here: the stand-ins of the tests implement the same protocol.
+tracking state. A prompt holds one or more points with labels 1 (positive) and 0 (negative); points
+outside the image are not used, and an object needs a positive point inside it (`points_in_image`).
+No torch here: the stand-ins of the tests implement the same protocol.
 
 Coordinates: an image is an RGB array indexed [row, column]. Prompt points and boxes are in px in
 the pixel frame of that image, Tracker's convention: u to the right, v downward, and the pixel in
@@ -15,7 +17,7 @@ plus the offset. Logits have no unit; the mask is logits > 0.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 
 import numpy as np
@@ -46,6 +48,35 @@ class Segmenter(Protocol):
     def step(self, image: np.ndarray) -> list[MaskResult]: ...
     def preview(self, image: np.ndarray, prompts: list[ObjectPrompt]) -> list[MaskResult]: ...
     def close(self) -> None: ...
+
+
+class PromptError(ValueError):
+    """An object's prompt cannot be given to the model; the message says which object and why."""
+
+
+def points_in_image(prompt: ObjectPrompt, height: int, width: int) -> ObjectPrompt:
+    """A copy of the prompt without the points that lie outside the image given to the model.
+
+    `height` and `width` are the image's size in px. A point (u, v), in px in the pixel frame of
+    that image (SPEC 3.1), is inside if 0 <= u < width and 0 <= v < height; points outside (a
+    click that a crop left out, also NaN) are dropped together with their labels. They must never
+    reach a model: the Hugging Face processor, for one, treats the coordinate -10 as padding.
+    Raises `PromptError` if the numbers of points and labels differ, if a label is not 1
+    (positive) or 0 (negative), or if no positive point is left inside the image.
+    """
+    points, labels = list(prompt.points_px), list(prompt.labels)
+    if len(points) != len(labels):
+        raise PromptError(f"Object {prompt.obj_id!r} has {len(points)} points and {len(labels)} labels.")
+    if any(label not in (0, 1) for label in labels):
+        raise PromptError(f"Object {prompt.obj_id!r}: labels must be 1 (positive) or 0 (negative), not {labels}.")
+    kept = [(point, label) for point, label in zip(points, labels)
+            if 0 <= point[0] < width and 0 <= point[1] < height]
+    if not any(label == 1 for _, label in kept):
+        raise PromptError(
+            f"Object {prompt.obj_id!r} has no positive point inside the image given to the model "
+            f"({width} x {height} px): click on the object itself. Points outside the image, or outside the "
+            "part of it that is tracked, are not used.")
+    return replace(prompt, points_px=[point for point, _ in kept], labels=[label for _, label in kept])
 
 
 def crop_to_bbox(mask: np.ndarray, logits: np.ndarray | None, pad: int = 8, *, obj_id: str = "",

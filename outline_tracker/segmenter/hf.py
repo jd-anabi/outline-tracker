@@ -11,12 +11,22 @@ parts with the reference copy):
 
 Changed:
 - prompts go to the session with one call per object. One call for all objects, as last week,
-  makes the processor pad objects that have fewer points, and the padding changes how a one-click
-  object is decoded. With one click per object both ways leave the same session;
+  makes the processor pad objects that have fewer points (with -10), and the padding changes how a
+  one-click object is decoded. With one click per object both ways leave the same session;
 - results are `MaskResult`s (segmenter/base.py): logits from `post_process_masks(binarize=False)`,
   one object at a time, mask = logits > 0 (equal to last week's `binarize=True`), both cropped to
   the bounding box +/- 8 px; `score` is the model's object-presence logit (> 0: present);
 - an `OSError` while loading says that the first run needs internet once.
+
+Added (SPEC 5, 6.2, 6.4):
+- an object can have several points, positive (label 1) and negative (label 0). Points outside
+  the image given to the model are dropped; an object left without a positive point is refused
+  with a `PromptError` before the model is called (`points_in_image` of segmenter/base.py);
+- `step()` falls back from mps to cpu too: a new session on the frame that failed, with one
+  positive click per object where it was last found;
+- `preview()`: the masks for one image, in a session that is thrown away;
+- `MODEL_LOCK` is held during every call of a model, and `reserve_ui_thread()` leaves one
+  processor thread to a user interface.
 
 Coordinates: an image is an RGB uint8 array indexed [row, column]. Prompt points are px in the
 pixel frame of that image, Tracker's convention (pixel centers at +0.5, SPEC 3.1), and go to the
@@ -30,11 +40,14 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import threading
 from pathlib import Path
 
 import numpy as np
 
-from outline_tracker.segmenter.base import MaskResult, ObjectPrompt, crop_to_bbox
+from outline_tracker.measure import mask_center
+from outline_tracker.segmenter.base import (MaskResult, ObjectPrompt, PromptError, crop_to_bbox,
+                                            points_in_image)
 from outline_tracker.segmenter.edgetam_convert import edgetam_cache
 
 MODELS = {
@@ -43,6 +56,12 @@ MODELS = {
     "edgetam": "facebook/EdgeTAM",
 }
 KEEP_FRAMES = 20        # per-frame model results kept in memory (the model looks back at most 16 frames)
+# What a failing Apple GPU raises: a missing operation is a NotImplementedError (a RuntimeError), a
+# tensor on the wrong device a RuntimeError, a float64 tensor a TypeError.
+MPS_ERRORS = (RuntimeError, TypeError)
+# Held during every call of a model and while a model is moved to another device: a preview and a
+# run never use a model at the same time, whichever segmenters and threads they come from.
+MODEL_LOCK = threading.Lock()
 
 
 # --------------------------------------------------------------------------- loading
@@ -117,9 +136,9 @@ def prompt_lists(prompt: ObjectPrompt) -> tuple[list, list]:
     """One object's points and labels in the nesting the processor expects.
 
     Returns (input_points, input_labels) = ([[[[x, y], ...]]], [[[label, ...]]]): the levels are
-    [image][object][point]. x and y are px in the pixel frame of the image given to the model
-    (SPEC 3.1), unchanged; a label is 1 (positive) or 0 (negative). The values are Python floats
-    and ints: the processor refuses numpy's float32 and int64 scalars.
+    [image][object][point], with one image and one object. x and y are px in the pixel frame of
+    the image given to the model (SPEC 3.1), unchanged; a label is 1 (positive) or 0 (negative).
+    The values are Python floats and ints: the processor refuses numpy's float32 and int64 scalars.
     """
     points = [[float(x), float(y)] for x, y in prompt.points_px]
     labels = [int(label) for label in prompt.labels]
@@ -131,9 +150,10 @@ def add_prompts(processor, session, prompts: list[ObjectPrompt], original_size) 
 
     Returns the integers 1..N by which the session knows the objects, in the order of `prompts`
     (as last week). Points are px in the pixel frame of the image; `original_size` is the image's
-    (height, width) in px, as the processor returned it. Each call replaces the session's list of
-    objects with new inputs, so the list is set to all objects at the end, in a list of its own:
-    the model removes entries from it while it runs.
+    (height, width) in px, as the processor returned it. Objects are never put into one call: the
+    processor would pad those with fewer points. Each call replaces the session's list of objects
+    with new inputs, so the list is set to all objects at the end, in a list of its own: the model
+    removes entries from it while it runs.
     """
     ids = list(range(1, len(prompts) + 1))
     for obj, prompt in zip(ids, prompts):
@@ -145,7 +165,40 @@ def add_prompts(processor, session, prompts: list[ObjectPrompt], original_size) 
     return ids
 
 
+# --------------------------------------------------------------------------- threads
+
+_ui_thread_reserved = False
+
+
+def reserve_ui_thread() -> int:
+    """Leave one processor thread to the user interface (SPEC 6.4).
+
+    torch gets one thread fewer than it has, but at least one. Only the first call in a process
+    changes anything. Only the GUI worker calls this, just before it loads the model: the command
+    line keeps torch's own number, which the comparison with last week's script needs (SPEC 13.3).
+    Returns the number of threads torch uses afterwards. No quantities, so no units.
+    """
+    global _ui_thread_reserved
+    import torch
+
+    if not _ui_thread_reserved:
+        torch.set_num_threads(max(1, torch.get_num_threads() - 1))
+        _ui_thread_reserved = True
+    return torch.get_num_threads()
+
+
 # --------------------------------------------------------------------------- the segmenter
+
+def _lost(obj_id: str) -> MaskResult:
+    """The result for an object that is not in the session: an empty mask and no score."""
+    return MaskResult(obj_id, (0, 0), np.zeros((0, 0), bool), np.zeros((0, 0), np.float32), None)
+
+
+def _first_line(err: BaseException, limit: int = 200) -> str:
+    """The first line of an error's text, cut to `limit` characters."""
+    lines = str(err).splitlines()
+    return lines[0][:limit] if lines else ""
+
 
 class HFSegmenter:
     """SAM 2 / EdgeTAM through Hugging Face transformers, one frame at a time ("streaming").
@@ -154,10 +207,17 @@ class HFSegmenter:
     cpu), `cpu`, `mps` or `cuda`; `edgetam_checkpoint` is a local edgetam.pt (testing). Give
     `model` and `processor`, as returned by `load_model(model_key)`, to share one loaded model
     between segmenters. Attributes: `device` (the one in use; it changes to `cpu` after a fall
-    back), `model_id` (the model's name on the Hugging Face Hub), `weights_sha256` (SHA-256 of the
-    `model.safetensors` file that `load_model(model_key)` reads, or None if that file is not on
-    this computer). Images and coordinates: see the module text.
+    back, and stays there), `model_id` (the model's name on the Hugging Face Hub),
+    `weights_sha256` (SHA-256 of the `model.safetensors` file that `load_model(model_key)` reads,
+    or None if that file is not on this computer), `log` (a function that takes one line of text,
+    `print` unless replaced: `step()` and `preview()` report a fall back through it).
+
+    A run is `start`, any number of `step`s, `close`. `preview` can be called at any time and
+    leaves a run as it is. Images and coordinates: see the module text.
     """
+
+    session = None  # the session of the run; None between runs
+    log = staticmethod(print)
 
     def __init__(self, model_key: str = "edgetam", device: str = "auto", edgetam_checkpoint=None, model=None,
                  processor=None):
@@ -169,8 +229,8 @@ class HFSegmenter:
             model, processor = load_model(model_key, edgetam_checkpoint)
         self.model, self.processor = model.eval(), processor
         self.device = self._pick_device(device)
-        self.model.to(self.device)
-        self.session = None
+        with MODEL_LOCK:
+            self.model.to(self.device)
         self.model_id = MODELS.get(model_key, model_key)
         weights = weights_file(model_key)
         self.weights_sha256 = None if weights is None else file_sha256(weights)
@@ -185,13 +245,13 @@ class HFSegmenter:
             return "mps"
         return "cpu"
 
-    def _results(self, out, inputs) -> list[MaskResult]:
+    def _results(self, out, inputs, ids, names) -> list[MaskResult]:
         sizes = [[int(v) for v in size] for size in inputs.original_sizes]
         low = out.pred_masks.float().cpu()  # (objects, 1, 256, 256): logits on the model's grid
         scores = out.object_score_logits.float().cpu().reshape(-1)
         row = {obj: k for k, obj in enumerate(out.object_ids)}
         results = []
-        for obj, name in zip(self.ids, self.names):
+        for obj, name in zip(ids, names):
             k = row[obj]
             # one object at a time: only one full-frame float array exists at any moment
             logits = self.processor.post_process_masks([low[k:k + 1]], original_sizes=sizes,
@@ -199,43 +259,139 @@ class HFSegmenter:
             results.append(crop_to_bbox(logits > 0, logits, pad=8, obj_id=name, score=float(scores[k])))
         return results
 
-    def _forward(self, rgb, prompts=None):
+    def _infer(self, rgb, prompts=None, keep=True) -> list[MaskResult]:
+        """One image through the model: the only method that calls it (with `MODEL_LOCK` held).
+
+        With `prompts`, a new session is opened and the image is its frame 0; with `keep` it
+        becomes the session of the run, without `keep` it is thrown away after this image (a
+        preview: the run's session, frame count and pruning are not touched). Without `prompts`
+        the image is the next frame of the run. Returns one result per object of the session, in
+        the order of its prompts.
+        """
         torch = self.torch
         inputs = self.processor(images=rgb, device=self.device, return_tensors="pt")
         if prompts is not None:
-            self.session = self.processor.init_video_session(inference_device=self.device, dtype=torch.float32)
-            self.index = 0
-            self.names = [prompt.obj_id for prompt in prompts]
-            self.ids = add_prompts(self.processor, self.session, prompts, inputs.original_sizes[0])
+            session = self.processor.init_video_session(inference_device=self.device, dtype=torch.float32)
+            index, names = 0, [prompt.obj_id for prompt in prompts]
+            ids = add_prompts(self.processor, session, prompts, inputs.original_sizes[0])
+            if keep:
+                self.session, self.index, self.ids, self.session_names = session, index, ids, names
         else:
             self.index += 1
+            session, index, ids, names = self.session, self.index, self.ids, self.session_names
         with torch.inference_mode():
             # the frame number is given explicitly: the session would otherwise count its stored frames
-            out = self.model(inference_session=self.session, frame_idx=self.index,
+            out = self.model(inference_session=session, frame_idx=index,
                              frame=inputs.pixel_values[0].to(self.device))
-        self._prune()
-        return self._results(out, inputs)
+        if keep:
+            self._prune()
+        return self._results(out, inputs, ids, names)
+
+    def _forward(self, rgb, prompts=None, slots=None):
+        """One frame of the run through the model, and the notes a fall back needs.
+
+        With `prompts` alone a run begins: points outside the image are dropped (`PromptError`
+        before the model is called). With `prompts` and `slots`, a new session continues the run
+        after a fall back: `slots[k]` is the place, in the order of the run's prompts, of the
+        object of `prompts[k]`. Returns one result per object of the run, in the order of its
+        prompts; an object that is not in the session is lost. Remembers where each object was
+        last found: (u, v) in px in the pixel frame of the image (SPEC 3.1).
+        """
+        if prompts is not None and slots is None:
+            prompts = [points_in_image(prompt, rgb.shape[0], rgb.shape[1]) for prompt in prompts]
+            self.names = [prompt.obj_id for prompt in prompts]
+            self.last_center = [None] * len(prompts)
+            slots = list(range(len(prompts)))
+        if slots is not None:
+            self.slots = slots
+        results = [_lost(name) for name in self.names]
+        if self.slots:  # else no object is left to follow: the model is not called
+            with MODEL_LOCK:
+                found = self._infer(rgb, prompts)
+            for slot, result in zip(self.slots, found):
+                results[slot] = result
+                u, v, area = mask_center(result.mask)
+                if area:
+                    self.last_center[slot] = (u + result.offset[0], v + result.offset[1])
+        return results
+
+    def _to_cpu(self) -> None:
+        """Give up the Apple GPU: this segmenter uses the processor (cpu) from now on."""
+        self.device = "cpu"
+        with MODEL_LOCK:
+            self.model.to("cpu")
 
     def start(self, image: np.ndarray, prompts: list[ObjectPrompt]) -> list[MaskResult]:
         """First frame of a run: the prompts start the tracking in a new session.
 
         `image` is an RGB uint8 array [row, column]; prompt points are px in its pixel frame
-        (SPEC 3.1). Returns one result per prompt, in the same order, with offsets in px of `image`.
+        (SPEC 3.1), with labels 1 (positive) and 0 (negative). Points outside the image are
+        dropped; an object without a positive point inside it raises `PromptError` before the
+        model is called. Returns one result per prompt, in the same order, with offsets in px of
+        `image`.
         """
         try:
             return self._forward(image, prompts)
+        except PromptError:
+            raise
         except Exception as err:  # an Apple GPU (mps) can lack an operation: fall back to the processor
             if self.device == "mps":
                 print(f"  The Apple GPU failed ({type(err).__name__}); using the processor instead.")
                 self.device = "cpu"
-                self.model.to("cpu")
+                with MODEL_LOCK:
+                    self.model.to("cpu")
                 return self._forward(image, prompts)
             raise
 
     def step(self, image: np.ndarray) -> list[MaskResult]:
         """The next frame of the run: an RGB uint8 array [row, column] of the same size as the
-        first. Returns one result per object, in the order of the prompts, offsets in px of `image`."""
-        return self._forward(image)
+        first. Returns one result per object, in the order of the prompts, offsets in px of `image`.
+
+        If the Apple GPU fails here (a `RuntimeError` or a `TypeError` while the device is mps),
+        the run continues on cpu: a new session starts on this frame, with one positive click per
+        object at the center where it was last found (px in the pixel frame of the image). The
+        model's memory of the earlier frames is lost. An object that was never found gets no click
+        and stays lost for the rest of the run. One line goes to `log`.
+        """
+        try:
+            return self._forward(image)
+        except MPS_ERRORS as err:
+            if self.device != "mps":
+                raise
+            slots = [slot for slot, center in enumerate(self.last_center) if center is not None]
+            seeds = [ObjectPrompt(self.names[slot], [self.last_center[slot]], [1]) for slot in slots]
+            self._to_cpu()
+            never = [name for slot, name in enumerate(self.names) if slot not in slots]
+            self.log(f"  The Apple GPU failed ({type(err).__name__}: {_first_line(err)}); using the processor "
+                     "instead. Tracking starts again on this frame, from the last position of "
+                     f"{', '.join(seed.obj_id for seed in seeds) or 'no object'}"
+                     + (f"; never found, so still lost: {', '.join(never)}." if never else "."))
+            return self._forward(image, seeds, slots)
+
+    def preview(self, image: np.ndarray, prompts: list[ObjectPrompt]) -> list[MaskResult]:
+        """The masks for one image, as the first frame of a run would give them; nothing is kept.
+
+        `image` is an RGB uint8 array [row, column]; prompt points are px in its pixel frame
+        (SPEC 3.1) and are checked as in `start`. The image goes through a session of its own on
+        the same loaded model, thrown away afterwards, so a run in progress is not changed.
+        Returns one result per prompt, in the same order, with offsets in px of `image`. Between
+        runs an Apple GPU that fails is given up as in `step` (one line to `log`); during a run
+        the error is raised instead, because the run's session lives on that device.
+        """
+        prompts = [points_in_image(prompt, image.shape[0], image.shape[1]) for prompt in prompts]
+        if not prompts:
+            return []
+        try:
+            with MODEL_LOCK:
+                return self._infer(image, prompts, keep=False)
+        except MPS_ERRORS as err:
+            if self.device != "mps" or self.session is not None:
+                raise
+            self._to_cpu()
+            self.log(f"  The Apple GPU failed ({type(err).__name__}: {_first_line(err)}); using the processor "
+                     "instead.")
+            with MODEL_LOCK:
+                return self._infer(image, prompts, keep=False)
 
     def close(self) -> None:
         """End the run: forget the session (the loaded model stays). No quantities, so no units."""

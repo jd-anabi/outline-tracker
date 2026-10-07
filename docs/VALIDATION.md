@@ -83,3 +83,127 @@ The threshold was then set back. A change of a few boundary pixels is therefore 
   pruning keeps. The pruning code is last week's, unchanged, and is tested on plain dictionaries.
 - The fall back from mps to cpu was not triggered by the model. The fall back in `start()` is
   tested with a stand-in; the one in `step()` belongs to task A04b.
+
+## 2. Backend extensions: negative prompts, preview, the fall back in `step()` (task A04b, 2026-10-06)
+
+**What was tested.** `HFSegmenter` with several points per object (labels 1 and 0), its
+`preview()`, and its fall back from the Apple GPU to the processor in `step()`. Same laptop,
+versions and weights as section 1. Scenes are 1080p frames made in memory in the selftest's style
+(bright background with a vignette, noise of sigma 3, dark ellipses whose edge pixels are darkened
+by the covered fraction); the ground truth is the ellipse itself.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_real_model.py -q -rP
+```
+
+**Result.** 8 passed in 30 s (5 tests without weights, 3 with the real EdgeTAM). The whole slow
+folder, `uv run pytest -m slow tests/slow -q -rP`: 17 passed in 82 s; the numbers of section 1 are
+unchanged (0.0005 px and 0.0000 px against last week's script).
+
+### 2.1 Negative prompt (SPEC 13.4): overlap with the neighbor under 5% of its area
+
+Two equal ellipses, semi-axes 40 and 15 px, both turned by 30°, touching flank to flank: the
+second center lies at 45° on the ellipse with twice the semi-axes around the first, which is the
+exact condition for two equal parallel ellipses to touch. Rasterized at pixel centers they have
+1885 px each (π·40·15), share no pixel, and come within 2 px of each other. `preview()` on `cpu`,
+one object:
+
+| prompt | mask | part of the neighbor covered | part of the clicked ellipse covered |
+|---|---|---|---|
+| **positive at the center of one ellipse, negative at the center of the other** | 1885 px | **0.0%** (limit 5%) | 98.6% |
+| positive click alone | 1906 px | 0.0% | 99.1% |
+| both clicks positive | 3801 px | 98.9% | 98.8% |
+
+- The test passes. In this scene the model already keeps to the clicked ellipse without the
+  negative click, so the first row alone does not show that the negative click does anything. The
+  third row does: with the same two points, the label decides whether the neighbor is in the mask.
+- One preview took 0.29 to 0.30 s.
+
+Not asserted, recorded by the same test: the positive click moved from the center of its ellipse
+toward the point where the two touch (30 px from the center), the negative click unchanged at
+the neighbor's center.
+
+| positive click, part of the way to the contact point | with the negative click: neighbor / clicked ellipse / mask | positive click alone: neighbor / clicked ellipse / mask |
+|---|---|---|
+| 0.50 | 0.1% / 98.6% / 1896 px | 0.0% / 99.2% / 1901 px |
+| 0.80 | 4.1% / 1.3% / 127 px | 0.0% / 98.7% / 1891 px |
+| 0.95 | 22.8% / 0.1% / 448 px | 0.0% / 98.9% / 1937 px |
+| 1.00 (on the contact point) | 29.9% / 0.0% / 571 px | 99.7% / 100.0% / 4019 px |
+
+- With the positive click 15 px from the contact point (0.50) the result is as at the center.
+  At 6 px (0.80) and closer, together with the negative click on the neighbor, the mask shrinks to
+  a small patch: neither ellipse. With the positive click alone at the same places the mask is the
+  clicked ellipse. A positive click exactly on the contact point selects both ellipses, and the
+  negative click does not repair that.
+- For students this means: click well inside the animal, and judge a negative click by the
+  preview. This is the model's behavior with two points (it then gives one mask instead of
+  choosing among three), not a tolerance of the test; nothing was tuned.
+
+### 2.2 Preview equals the first frame of a run
+
+Three ellipses (semi-axes 8 and 3 px, at least 300 px apart) with 1, 3 and 2 points, among them
+two negative points on the background 40 px beside an ellipse. On `cpu`, one loaded model:
+
+- `preview(image, prompts)` equals `start(image, prompts)` in every field of every object:
+  offset, mask, logits and score, bit for bit;
+- a run of three frames with two previews in between (another frame and other prompts; then the
+  first frame again) equals the plain run on every frame, bit for bit; the second of those
+  previews again equals the first frame;
+- the previewed centers are 0.21, 0.37 and 0.47 px from the true centers;
+- one preview of three objects took 0.42 to 0.43 s (SPEC 5 asks for under 1.5 s).
+
+### 2.3 Fall back in `step()` with the real model on the Apple GPU
+
+A plain mps run does not fail by itself (section 1.2), so the test makes the model call raise
+`NotImplementedError` once, on the third frame, while the device is mps. Three ellipses moving
+0.6 px per frame, one positive click each, 12 frames.
+
+| | result |
+|---|---|
+| device after each frame | mps, mps, then cpu for frames 2 to 11 |
+| frame numbers given to the model | 0, 1, 2 (raised) on mps; 0, 1, …, 9 in the new session on cpu |
+| prompts of the new session | one positive point per object, at its center on frame 1 (the last frame on which it was found) |
+| max error against the true centers | 0.885 px over all frames (limit 3 px): 0.441 px on mps, 0.675 px on the fallback frame, 0.885 px after it |
+| lost | 0 of 36 |
+| log | one line: `The Apple GPU failed (NotImplementedError: …); using the processor instead. Tracking starts again on this frame, from the last position of A, B, C.` |
+| time | 0.77 to 0.84 s per frame on cpu after the fall back (3 objects, three runs), 0.74 to 0.77 s for the fallback frame |
+
+Timing: another test job was running on the same laptop, so the values may be a little high.
+
+### 2.4 Checks that need no weights
+
+With the real processor and session and a stand-in for the network (seconds):
+- objects with 1, 3 and 2 points are stored as tensors of shape (1, 1, P, 2) with labels ≥ 0 and
+  the given labels: no padding (−10), since every object has a call of its own;
+- points outside the image, among them (−10, −10), never reach the session; an object whose only
+  positive point is outside is refused before the model is called;
+- a preview goes through a session of its own at frame 0; the run's session, its objects and its
+  frame count are untouched, and the next frame of the run is the next number;
+- with the stand-in failing on its third call on mps: the processor and the first session really
+  run on mps, the new session is on cpu, its frames count from 0, and it holds one positive point
+  per object at the center where that object was last found (for an object not found on the
+  second frame: its center on the first);
+- `reserve_ui_thread()` in a process of its own: torch has one thread fewer after the first call,
+  and a second call changes nothing.
+
+The same logic without torch (fast tests, `tests/test_hf_helpers.py`): an object that was never
+found gets no click and stays lost; a `RuntimeError` on cpu, or an error of another kind on mps,
+is raised and not hidden; every model call and every move of the model happens with the one model
+lock held.
+
+### 2.5 Can these tests fail?
+
+- Against the backend as it was before this task, the three real-model tests failed: two for the
+  missing `preview`, the third with the injected `NotImplementedError`, which `step()` did not
+  catch. Four of the five tests without weights failed too.
+- The 5% limit is far from both outcomes seen: 0.0% with the negative label and 98.9% with a
+  positive label on the same point, so a label sent wrongly would fail the test.
+
+### 2.6 Not covered by this section
+
+- A real failure of the Apple GPU. None was seen; the failure is injected at the model call.
+- A fall back in the middle of a longer run with objects close to each other: the model loses its
+  memory of the earlier frames there, and each object is found again from one click.
+- SAM 2.1; fine mode and the dish crop (they belong to the tracking tasks).
