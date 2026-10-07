@@ -10,7 +10,6 @@ such a message does arrive there).
 
 import math
 import re
-import sys
 from collections import Counter
 
 import pytest
@@ -94,15 +93,6 @@ def badge_fill(window, badge) -> str:
 
 
 # Why the tests that probe one pixel beside a badge's digit cannot pass on Windows (task C0b).
-NO_FONT_OFFSCREEN_ON_WINDOWS = (
-    "Windows only, measured on the test machine (task C0b, CI run 37655575335): the offscreen platform "
-    "knows no font there (0 font families: Qt looks for font files in PySide6/lib/fonts, which does not "
-    "exist) and draws an empty square of 8 x 8 px, from (4, 4) to (12, 12) px of the 20 px badge, in place "
-    "of every character. The probe at (4, 10) is on the square's left side and reads the digit's colour. "
-    "The badge itself is drawn well: on the Windows platform, at a scale of 100 %, the digit is Segoe UI "
-    "at 12 px, inside x 6 to 12 and y 6 to 15 px (tests/gui/test_badge.py checks it with that font). "
-    "Superseded by the test below this one, which reads the fill as the most frequent colour inside the ring."
-)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -212,7 +202,6 @@ def test_the_palette_gives_each_role_its_token(dark, qapp):
 # On the window
 
 
-@pytest.mark.xfail(sys.platform == "win32", strict=True, reason=NO_FONT_OFFSCREEN_ON_WINDOWS)
 @BOTH
 def test_the_theme_draws_the_window_without_a_qt_message(dark, window, qapp, qtbot, qt_messages, look):
     colors = theme.tokens(dark)
@@ -283,7 +272,6 @@ def test_the_style_is_fusion_on_every_system(qapp, look):
     assert qapp.style().name() == "fusion"
 
 
-@pytest.mark.xfail(sys.platform == "win32", strict=True, reason=NO_FONT_OFFSCREEN_ON_WINDOWS)
 def test_a_state_change_is_drawn_at_once(window, qapp, qtbot, look):
     theme.apply(qapp, False)
     with qtbot.waitExposed(window):
