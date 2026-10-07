@@ -3,6 +3,8 @@ name = "outline-tracker"
 version = "0.1.0"
 description = "Track objects in videos with EdgeTAM; export positions and outline shapes"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
 dependencies = [
     # Pinned from the first commit: `uv tool install` ignores uv.lock (SPEC 15), so these pins ARE

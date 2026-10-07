@@ -1,0 +1,14 @@
+Outline Tracker
+Copyright 2026 The Outline Tracker authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It includes code adapted from the Hugging Face Transformers library
+(src/transformers/models/edgetam_video/convert_edgetam_video_to_hf.py),
+Copyright 2025 The HuggingFace Inc. team, licensed under the Apache License,
+Version 2.0. The adapted code is in outline_tracker/segmenter/edgetam_convert.py.
+
+The models it downloads at first use are not part of this repository and
+carry their own licenses: EdgeTAM (facebook/EdgeTAM) and SAM 2.1
+(facebook/sam2.1-hiera-tiny, facebook/sam2.1-hiera-small), both published by
+Meta under the Apache License, Version 2.0.

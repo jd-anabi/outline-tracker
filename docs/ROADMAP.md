@@ -133,6 +133,7 @@ Rules and legal:
 
 1. License of the tool. Default: Apache-2.0 with a NOTICE file. [W0, W7; W6's choice of
    dependencies]
+   Decided 2026-10-07: Apache-2.0. LICENSE and NOTICE are in the repository.
 2. The rule for a superseded test. Today a test may never be edited or deleted; it is marked
    `xfail(strict=True)` and waits. Default: a test that a deliberate change makes obsolete is
    replaced in the same commit, and the commit message names the old test, the new one and the
@@ -142,12 +143,14 @@ Rules and legal:
    on every system, 2 on some systems only). Three reason texts carry an alternative that the
    deletion closes: decision X8 stands, and the Tracker-format file gets no rows for frames
    without a record. Default: delete. [W1]
+   Decided 2026-10-07: delete them. Done in W0 (the 22 marked tests and the two unmarked ones).
 4. The class template: `tests/reference/` holds ten files copied from the owner's template
    repository, and functions ported from it stay in the package after the copies go. Default:
    the owner confirms before the repository is made public that this code may be published
    under the license of decision 1; the copies and the port-fidelity tests are retired in W1
    after reference numbers are frozen. Once the repository is public its history cannot be
    taken back. [W0, W1]
+   Decided 2026-10-07: the template's code may be published. Its retirement stays a step of W1.
 
 Making the tool general (inventory: domain):
 

@@ -232,3 +232,7 @@ Tracker cannot read HEVC (H.265), the format that iPhones use for 240 fps slow m
 2. Run `outline-tracker check VIDEO` on it. If it says "The file says" a frame rate below 100 fps, the file is probably a re-timed "compatible" copy made by the phone or an app. Transfer the ORIGINAL file again. If it says that motion per frame is larger at the start and at the end, the slow motion was rendered. Do not analyze this file.
 3. Run `outline-tracker convert VIDEO` on the original. Open the `_tracker.mp4` copy in Tracker, and use the same copy for `from-tracker`.
 4. Real time comes from your stopwatch clip (fps_true in `data/manifest.csv`), never from the frame rate in the file.
+
+## License
+
+Outline Tracker is licensed under the Apache License, Version 2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). The models it downloads have their own licenses, named in NOTICE.
