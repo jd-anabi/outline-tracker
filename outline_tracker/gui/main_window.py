@@ -241,7 +241,9 @@ class MainWindow(QMainWindow):
             self.navigation.set_frame(self.view.frame)
 
     def _video_opened(self) -> None:
+        """Show the new video from its first frame, wherever the bar was in the video before it."""
         self.view.set_source(self.controller.source)
+        self.navigation.set_grid([])  # off the old video's frame: the new grid then starts at its first one
         self.video_area.setCurrentWidget(self._picture_page)
         self.view.setFocus()  # not a button: Space or Enter must not press one by accident
         self._session_changed()

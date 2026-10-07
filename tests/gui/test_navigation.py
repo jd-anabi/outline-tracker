@@ -4,6 +4,8 @@ Expected values come from the spec and the design note:
 - the frame grid of a clip is start, start + step, ... up to its end (SPEC 3.4); the slider, the
   buttons and the keys move on it, and a typed frame goes to the nearest grid frame (a frame
   exactly between two goes to the later one, the direction of decision X20);
+- a video that is opened shows its first frame (frame 0 of a new session's clip), also when another
+  video was open before it and the bar was elsewhere;
 - left and right arrow: 1 step; with Shift: 10 steps; Home and End: the first and the last frame;
 - t = frame / fps_true in s with three decimals, or a dash while fps_true is not known (SPEC 3.3);
 - the bar is 76 px high: 8, slider 20, 2, flag strip 6, 4, button row 28, 8; the buttons are
@@ -16,7 +18,9 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
+import helpers
 from gui_helpers import StandInSource, picture, show, shown_pixels
+from outline_tracker import synthetic
 from outline_tracker.frame_source import FrameSource
 from outline_tracker.geometry import grid_frames
 from outline_tracker.gui.navigation import NavigationBar
@@ -211,6 +215,21 @@ def test_a_new_grid_keeps_the_frame_if_it_can(bar):
     assert bar.asked == []  # the bar does not ask: whoever set the grid shows `frame`
 
 
+def test_an_empty_grid_switches_the_bar_off_and_the_next_grid_starts_at_its_first_frame(bar):
+    bar.set_fps(2.0)
+    bar.set_frame(27)
+    assert bar.time_label.text() == "t = 13.500 s"  # 27 / 2
+    bar.set_grid([])
+    assert not bar.isEnabled() and bar.frame is None
+    assert (bar.slider.value(), bar.slider.maximum(), bar.frame_box.value()) == (0, 0, 0)
+    assert bar.time_label.text() == DASH  # no frame: no time
+    bar.set_grid(grid_frames(3, 99, 8))  # 3, 11, 19, 27, ...: 27 is on it, but the bar was on no frame
+    assert bar.isEnabled()
+    assert (bar.frame, bar.frame_box.value(), bar.slider.value(), bar.slider.maximum()) == (3, 3, 0, 12)
+    assert bar.time_label.text() == "t = 1.500 s"  # 3 / 2
+    assert bar.asked == []
+
+
 def test_t_is_the_frame_over_fps_true_in_seconds_or_a_dash(bar):
     assert bar.time_label.text() == DASH  # fps_true is not known yet
     bar.set_frame(7)
@@ -237,6 +256,45 @@ def test_opening_a_video_puts_the_bar_on_the_clips_grid(window, qtbot, dish_clip
     assert (bar.slider.minimum(), bar.slider.maximum()) == (0, 59)
     assert (bar.frame, window.view.frame) == (0, 0)
     assert bar.time_label.text() == DASH  # a new session has no fps_true
+
+
+def test_a_second_video_opens_on_its_first_frame(window, qtbot, dish_clip, disk_clip, tmp_path):
+    # Each video opened starts at its frame 0, wherever the bar was in the video before it: on a
+    # frame the new clip has too, or past the new clip's end. The picture is frame 0 of the new file.
+    short = synthetic.render(synthetic.closeup_scene(size=helpers.SMALL, n_frames=30), tmp_path / "short_tracker.mp4")
+    view = picture(window, qtbot, dish_clip)
+    bar, controller = window.navigation, window.controller
+    controller.session.time.fps_true = 240.0
+    controller.touch()
+    bar.slider.setValue(20)
+    assert (view.frame, bar.frame) == (40, 40)
+    assert bar.time_label.text() == "t = 0.167 s"  # 40 / 240 = 0.1667
+
+    window.open_path(disk_clip.path)  # as long as the first one: frame 40 is on its grid too
+    assert controller.video_path == disk_clip.path
+    assert (bar.slider.minimum(), bar.slider.maximum()) == (0, 59)
+    assert (view.frame, bar.frame, bar.slider.value(), bar.frame_box.value()) == (0, 0, 0, 0)
+    assert bar.time_label.text() == DASH  # the new session has no fps_true
+    with FrameSource(disk_clip.path) as reference:
+        assert not np.array_equal(reference.get(0), reference.get(40))  # the frames do differ
+        assert np.array_equal(shown_pixels(view), reference.get(0))
+
+    bar.slider.setValue(20)
+    assert (view.frame, bar.frame) == (40, 40)
+    window.open_path(short.path)  # frames 0 to 29: its grid is 0, 2, ..., 28, and frame 40 is past its end
+    assert controller.video_path == short.path
+    assert (bar.slider.minimum(), bar.slider.maximum()) == (0, 14)
+    assert (view.frame, bar.frame, bar.slider.value(), bar.frame_box.value()) == (0, 0, 0, 0)
+    with FrameSource(short.path) as reference:
+        assert not np.array_equal(reference.get(0), reference.get(28))
+        assert np.array_equal(shown_pixels(view), reference.get(0))
+
+    qtbot.keyClick(window, Qt.Key.Key_End)
+    assert (view.frame, bar.frame) == (28, 28)
+    window.open_path(short.path)  # the same file once more: a new session, from its first frame
+    assert (view.frame, bar.frame, bar.slider.value(), bar.frame_box.value()) == (0, 0, 0, 0)
+    qtbot.keyClick(window, Qt.Key.Key_Right)  # and the bar moves on the new clip's grid from there
+    assert (view.frame, bar.frame) == (2, 2)
 
 
 def test_the_arrow_keys_move_one_and_ten_steps(window, qtbot, dish_clip):
