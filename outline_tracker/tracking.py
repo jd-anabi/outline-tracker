@@ -94,7 +94,7 @@ class Callbacks:
     eta_s: s left at that rate.
     frame_result(track_id, frame, record): one object's `PixelRecord` on video frame `frame`, in px
     in the full frame.
-    log(msg): one line of text for the log.
+    log(msg): text for the log, one line; only the traceback of a failed run is several lines.
     finished(status): once, when `run_job` returns "complete", "cancelled" or "failed".
     should_cancel(): asked before every run and every frame; True stops the job there.
     save_session(changes): a `SessionChanges` to apply and save. None, the default, applies it to
