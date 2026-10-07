@@ -11,7 +11,9 @@ save that went wrong. Three small parts are shared with the other panels of this
 long) and `guard_wheel` (a box that the mouse wheel changes only while it has the keyboard).
 
 `video.check_video` reads about 120 frames of a long video (measured: 0.6 s for 10 s of 1080p at
-240 frames per second), so it runs in a thread of its own; its result comes back as a signal.
+240 frames per second), so it runs in a thread of its own; its result comes back as a signal. A
+check that could not be made is said like a warning: the panel is never done for a video that was
+not checked.
 
 Frames are video frame numbers counted from 0; the clip's step is in frames; the frame size is in
 px of the decoded frame; the file's frame rate is in frames per second and is what the file states,
@@ -22,6 +24,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QSpinBox,
@@ -43,6 +46,11 @@ HINT_VIDEO = "Open your video (a _tracker.mp4 file)."
 HINT_DONE = "{file} · {width} × {height} px · {frames} frames · clip {start} to {end}, step {step}."
 HINT_WARNINGS = ("This video has 1 warning. Read it below before you continue.",
                  "This video has {n} warnings. Read them below before you continue.")
+# In place of the check's warnings, when the check itself could not be made.
+NOT_CHECKED = ("This video could not be checked. Check that the file is still on this computer, not only in a cloud "
+               "folder, and open it again.")
+# What `video.check_video` raises for a file that went away or cannot be decoded.
+CHECK_ERRORS = (OSError, cv2.error, ValueError)
 NO_VALUE = "–"
 
 
@@ -162,8 +170,9 @@ def field_rows(fields) -> QGridLayout:
 
 class CheckThread(QThread):
     """Last week's check of one video (`video.check_video`), off the GUI thread. `done(path, check)`
-    is emitted when it is over: the video's path and its `VideoCheck`, or None when the file could
-    not be checked."""
+    is emitted when it is over, however it ended: the video's path and its `VideoCheck`, or None
+    when the check could not be made. An error that is not a bad file's (`CHECK_ERRORS`) is a
+    mistake in the program: it is not caught here, so Python reports it with its trace."""
 
     done = Signal(object, object)
 
@@ -172,11 +181,13 @@ class CheckThread(QThread):
         self.path = path
 
     def run(self) -> None:
+        check = None
         try:
             check = video.check_video(self.path)
-        except Exception:  # the file went away or cannot be decoded: no warnings to show
-            check = None
-        self.done.emit(self.path, check)
+        except CHECK_ERRORS:  # the file went away, or cannot be decoded: the panel says so
+            pass
+        finally:  # also on the way out with any other error: the video was not checked then either
+            self.done.emit(self.path, check)
 
 
 class VideoPanel(QWidget):
@@ -186,15 +197,16 @@ class VideoPanel(QWidget):
     `start_box`, `end_box`, `step_box`, `clip_message`, `folder_label` (the run folder's name),
     `save_message`; `video_part`, which holds everything from `file_label` on and is hidden until
     a video is open; the File menu's `open_session_action` and `save_action`. `check` is the
-    `VideoCheck` of the open video, None until its check is over; `check_threads` are the checks
-    that were started and may still run."""
+    `VideoCheck` of the open video, None until its check is over and when it could not be made;
+    `check_failed` says that it could not be made (`warnings_label` then says so, and the panel
+    needs attention); `check_threads` are the checks that were started and may still run."""
 
     def __init__(self, window):
         super().__init__()
         self._window, self._controller, self._panel = window, window.controller, window.panels[0]
         self._start_hint = self._panel.hint.text()
         self._clip_error: tuple[str, str] | None = None
-        self.check = None
+        self.check, self.check_failed = None, False
         self.check_threads: list[CheckThread] = []
 
         self.name_edit = QLineEdit()
@@ -310,7 +322,7 @@ class VideoPanel(QWidget):
             self.name_edit.setText(controller.student)
         else:  # a name that is typed and not entered yet belongs to the new session
             self._name_typed()
-        self._clip_error, self.check = None, None
+        self._clip_error, self.check, self.check_failed = None, None, False
         self.check_threads = [thread for thread in self.check_threads if thread.isRunning()]
         thread = CheckThread(controller.video_path, self)
         thread.done.connect(self._checked)
@@ -320,7 +332,7 @@ class VideoPanel(QWidget):
 
     def _checked(self, path, check) -> None:
         if path == self._controller.video_path:  # else: of a video that is no longer the open one
-            self.check = check
+            self.check, self.check_failed = check, check is None
             self._show()
 
     def _show(self) -> None:
@@ -345,7 +357,7 @@ class VideoPanel(QWidget):
         self.frame_size_label.setText(f"{info.width} × {info.height} px")
         self.frames_label.setText(str(info.n_frames))
         self.file_fps_label.setText(f"{info.fps_container:.2f} fps")
-        warnings = [] if self.check is None else self.check.warnings
+        warnings = [NOT_CHECKED] if self.check_failed else [] if self.check is None else self.check.warnings
         self.warnings_label.show_text("warning", "\n\n".join(warnings))
         at_fault, sentence = self._clip_error or (None, "")
         self.clip_message.show_text("problem", sentence)

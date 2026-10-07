@@ -8,8 +8,9 @@ The session is kept on disk as `session.json` in the run folder, which is SPEC 8
 the video and the student's name (`run_folder.default_run_folder`), or the folder a session was
 opened from. It is written 0.75 s after the last change, and at once by `save_now()` (the Save
 key, closing the window, before a run, on export). Nothing is written while the name is empty, and
-a `session.json` that this window neither opened nor wrote is never written over. Every write
-happens in the thread this object lives in, the GUI thread.
+a `session.json` that the open session was neither opened from nor wrote is never written over:
+Open video starts a new session, which owns no file yet, also when the same video was open before.
+Every write happens in the thread this object lives in, the GUI thread.
 
 Units and coordinates are the session's (SPEC 3): px in Tracker's image coordinates (origin at the
 top-left corner of the frame, u to the right, v downward, pixel centers at +0.5), frames as video
@@ -51,6 +52,16 @@ LOCKED = ("{name} is open in another program. Close it there. Until then the ses
           "the run folder.")
 
 
+def same_file(one: Path, other: Path) -> bool:
+    """Whether two paths name one file that is on the disk, however each is spelled: a file system
+    that ignores case (the default on macOS and Windows) knows a file by many spellings, and a link
+    gives it one more. False when either is not there."""
+    try:
+        return os.path.samefile(one, other)
+    except OSError:
+        return False
+
+
 class SessionController(QObject):
     """The open video and its session, or nothing yet.
 
@@ -87,7 +98,7 @@ class SessionController(QObject):
         self.run_folder: Path | None = None
         self.saved_path: Path | None = None
         self.save_problem: str | None = None
-        self._own: set[Path] = set()     # the session.json files this window opened or wrote
+        self._own: set[Path] = set()     # the session.json files the open session was opened from or wrote
         self._told: str | None = None    # what `trouble` said last, until a save goes well
         self.save_timer = QTimer(self)
         self.save_timer.setSingleShot(True)
@@ -176,7 +187,8 @@ class SessionController(QObject):
 
     def _take(self, session: Session, video_path: Path, source: FrameSource, run_folder: Path | None) -> None:
         """Replace what is open by a session and its video. `run_folder` is the folder the session
-        was opened from; None for a new session, which gets the default for its name."""
+        was opened from, whose session.json is then its own to write; None for a new session, which
+        gets the default folder for its name and owns no file until it has written one."""
         if self.save_timer.isActive():
             self._save()  # what was changed in the session that is left
         self.close()
@@ -184,8 +196,8 @@ class SessionController(QObject):
         self.student = session.student
         self.run_folder = self._default_folder() if run_folder is None else run_folder
         self.saved_path = self.save_problem = self._told = None
-        if run_folder is not None:
-            self._own.add(run_folder / schema.SESSION_JSON)
+        # the files of the session that is left are not this one's
+        self._own = set() if run_folder is None else {run_folder / schema.SESSION_JSON}
         self.video_opened.emit()
 
     def _default_folder(self) -> Path | None:
@@ -230,8 +242,9 @@ class SessionController(QObject):
         program holds `session.json` open; None when nothing was written.
 
         Nothing is written without a video or while the student's name is empty (`refusal` says
-        which), into a folder whose `session.json` this window neither opened nor wrote, or when
-        the file cannot be written; `save_problem` then says why, and nothing is raised. The video's
+        which), into a folder whose `session.json` this session was neither opened from nor wrote
+        (an earlier session, also one of this window: Open session goes on with it), or when the
+        file cannot be written; `save_problem` then says why, and nothing is raised. The video's
         path relative to the run folder is put into the session first (SPEC 8.1).
         """
         self.about_to_save.emit()
@@ -246,7 +259,7 @@ class SessionController(QObject):
         target = self.run_folder / schema.SESSION_JSON
         names = {"name": target.name, "folder": self.run_folder.name, "beside": new_name(target).name}
         written = problem = None
-        if target not in self._own and target.exists():
+        if not self._is_own(target) and target.exists():
             problem = HELD.format(**names)
         else:
             self.session.video.point_to(self.video_path, self.run_folder)
@@ -265,6 +278,12 @@ class SessionController(QObject):
         self._told = problem
         self.saved.emit()
         return written
+
+    def _is_own(self, target: Path) -> bool:
+        """Whether `target` is a session.json this session was opened from or wrote. The file
+        counts, not the spelling of its path: on a file system that ignores case the folder of
+        "ada" is also the folder of "Ada"."""
+        return target in self._own or any(same_file(target, own) for own in self._own)
 
     def refusal(self, action: str) -> str | None:
         """Why `action` (`track` or `export`) cannot start, as one plain sentence that says what to

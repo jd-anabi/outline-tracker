@@ -82,6 +82,18 @@ def settle(qtbot, window):
     return panel
 
 
+def second_spelling(folder: Path, name: str) -> Path:
+    """The folder `folder` under `name`, which differs from the folder's own name only in upper and
+    lower case: one folder with two spellings, as a file system that ignores case has it (the
+    default on macOS and Windows). Where the file system tells the two spellings apart, a link
+    named `name` beside the folder stands in for the second one. Returns the second spelling."""
+    assert name != folder.name and name.casefold() == folder.name.casefold()
+    other = folder.with_name(name)
+    if not other.exists():
+        other.symlink_to(folder.name, target_is_directory=True)
+    return other
+
+
 def read_json(path) -> dict:
     """A JSON file's content."""
     return json.loads(Path(path).read_text(encoding="utf-8"))

@@ -23,10 +23,11 @@ from outline_tracker import fileio
 from outline_tracker.gui.session_controller import SessionController
 from outline_tracker.session import Session, VideoNotFoundError
 from session_helpers import (FOLDER_OF_NAME, NAME, body, hd_clip, hd_scene_clip, own_settings,  # noqa: F401 (fixtures)
-                             read_json, settle, type_into, wait_for_check)
+                             read_json, second_spelling, settle, type_into, wait_for_check)
 
 NOT_WRITTEN = "A file could not be written"
 NOT_OPENED = "The session could not be opened"
+HELD = "The folder {folder} holds a session already. Open it with Open session, or type another name."
 
 
 @pytest.fixture
@@ -205,6 +206,93 @@ def test_a_session_that_is_in_the_run_folder_already_is_not_written_over(window,
     type_into(qtbot, panel.name_edit, "Grace")  # another name: saved, and the message goes
     assert controller.save_now() == path.parent / "dish_tracker_outline_Grace" / "session.json"
     assert panel.save_message.isHidden() and len(asked.messages) == 1
+
+
+@pytest.mark.parametrize("another_video_between", [False, True], ids=["at once", "after another video"])
+def test_the_same_video_opened_again_does_not_write_over_its_saved_session(named, qtbot, monkeypatch, hd_clip,
+                                                                           another_video_between):
+    # Open video starts a new session (default clip, no fps_true) whose run folder is the saved session's
+    window, path, target = named
+    asked = record_dialogs(monkeypatch)
+    controller = window.controller
+    body(window, 1).step_box.setValue(5)
+    type_into(qtbot, body(window, 2).fps_edit, "239.6")
+    assert controller.save_now() == target
+    before = target.read_bytes()
+    assert read_json(target)["clip"]["step"] == 5 and read_json(target)["time"]["fps_true"] == 239.6
+
+    if another_video_between:
+        window.open_path(hd_clip.path)
+    window.open_path(path)
+    assert controller.session.clip.step == 2 and controller.session.time.fps_true is None  # a new session
+    assert controller.run_folder == target.parent and controller.save_timer.isActive()
+    controller.save_timer.timeout.emit()  # the delayed save of the new session
+    assert target.read_bytes() == before
+    problem = HELD.format(folder=FOLDER_OF_NAME)
+    assert controller.save_problem == problem and controller.saved_path is None
+    assert controller.save_now() is None and target.read_bytes() == before  # the Save key, closing: the same
+    assert [(parent, kind, text) for parent, kind, text in asked.messages] == [
+        (window, "problem", f"{NOT_WRITTEN}\n{problem}")]
+
+    window.open_path(target)  # what the message says to do: Open session, and the work goes on
+    assert controller.session.clip.step == 5 and controller.session.time.fps_true == 239.6
+    assert controller.save_problem is None and body(window, 1).save_message.isHidden()
+    body(window, 1).step_box.setValue(6)
+    assert controller.save_now() == target and read_json(target)["clip"]["step"] == 6
+
+
+def test_a_new_name_does_not_lead_a_new_session_over_an_earlier_one_of_this_window(named, qtbot, monkeypatch):
+    window, path, first = named
+    controller, panel = window.controller, body(window, 1)
+    panel.step_box.setValue(5)
+    assert controller.save_now() == first
+    type_into(qtbot, panel.name_edit, "Grace")
+    second = path.parent / "dish_tracker_outline_Grace" / "session.json"
+    assert controller.save_now() == second
+    kept = {first: first.read_bytes(), second: second.read_bytes()}
+
+    asked = record_dialogs(monkeypatch)
+    window.open_path(path)  # a new session, named Grace as the field still says
+    assert controller.session.student == "Grace" and controller.session.clip.step == 2
+    controller.save_timer.timeout.emit()
+    assert controller.save_problem == HELD.format(folder="dish_tracker_outline_Grace")
+    type_into(qtbot, panel.name_edit, NAME)  # the first name's folder holds the first session
+    assert controller.save_timer.isActive()
+    controller.save_timer.timeout.emit()
+    assert controller.save_problem == HELD.format(folder=FOLDER_OF_NAME)
+
+    type_into(qtbot, panel.name_edit, "Mary")  # a folder of its own: the new session is saved there
+    assert controller.save_now() == path.parent / "dish_tracker_outline_Mary" / "session.json"
+    type_into(qtbot, panel.name_edit, NAME)  # having a file of its own does not make the others its own
+    assert controller.save_now() is None and controller.save_problem == HELD.format(folder=FOLDER_OF_NAME)
+    assert {file: file.read_bytes() for file in kept} == kept
+    assert [text.split("\n", 1)[0] for _, _, text in asked.messages] == [NOT_WRITTEN] * 3
+
+
+@pytest.mark.parametrize("through_open_session", [False, True], ids=["after a save", "after Open session"])
+def test_a_name_typed_again_in_another_case_stays_in_this_sessions_folder(window, qtbot, monkeypatch,
+                                                                          clip_in_odd_folder, through_open_session):
+    # macOS and Windows know a folder by every case of its name: the folder of "ada" is the folder of "Ada",
+    # and the session.json in it is this session's own under both spellings
+    asked = record_dialogs(monkeypatch)
+    path = clip_in_odd_folder.path
+    window.open_path(path)
+    panel, controller = body(window, 1), window.controller
+    type_into(qtbot, panel.name_edit, "ada")
+    first = path.parent / "dish_tracker_outline_ada" / "session.json"
+    assert controller.save_now() == first
+    again = second_spelling(first.parent, "dish_tracker_outline_Ada") / "session.json"
+    assert str(again) != str(first) and again.samefile(first)  # one file, two spellings
+    if through_open_session:
+        window.open_path(first)
+
+    type_into(qtbot, panel.name_edit, "Ada")  # the name, corrected
+    assert controller.run_folder == again.parent
+    assert controller.save_now() == again and controller.save_problem is None
+    assert read_json(first)["student"] == "Ada"  # the one file holds the corrected name
+    assert panel.save_message.isHidden() and asked.messages == []
+    panel.step_box.setValue(7)  # and the session goes on being saved there
+    assert controller.save_now() == again and read_json(first)["clip"]["step"] == 7
 
 
 def test_a_locked_session_file_is_saved_beside_it_and_the_user_is_told_once(named, monkeypatch):

@@ -13,6 +13,7 @@ import threading
 import time
 from pathlib import Path
 
+import cv2
 import pytest
 from PySide6.QtCore import QPoint, QPointF, QSettings, Qt
 from PySide6.QtGui import QKeySequence, QWheelEvent
@@ -30,6 +31,8 @@ NAME_MISSING = "Type your name in panel 1 first. The run folder is named after y
 NAME_FIRST = "Type your name in panel 1 first."
 TIME_HINT = "Type the true frame rate (fps_true), or measure it with the stopwatch."
 UNDER_100 = "fps_true is under 100 fps. This usually means a re-timed copy of the video. Check the value."
+NOT_CHECKED = ("This video could not be checked. Check that the file is still on this computer, not only in a cloud "
+               "folder, and open it again.")
 
 
 def state(window, number: int) -> tuple[str, str]:
@@ -219,6 +222,68 @@ def test_a_check_that_comes_back_for_another_video_is_dropped(window, qtbot, cli
     settle(qtbot, window)  # the dish clip's check, with its warning, has arrived by now
     assert panel.check.info.width == 1280 and panel.warnings_label.isHidden()
     assert window.panels[0].state == "todo"  # no warning, and no name yet
+
+
+@pytest.mark.parametrize("error", [OSError("the drive was taken out"), cv2.error("the stream is damaged"),
+                                   ValueError("no frame to compare")], ids=["OSError", "cv2.error", "ValueError"])
+def test_a_check_that_fails_is_said_and_the_panel_needs_attention(window, qtbot, hd_clip, clip_in_odd_folder,
+                                                                  monkeypatch, error):
+    real = video.check_video
+
+    def failing(path):  # what a file does that went away, or that cannot be decoded further on
+        if path == hd_clip.path:
+            raise error
+        return real(path)
+
+    monkeypatch.setattr(video, "check_video", failing)
+    window.open_path(hd_clip.path)  # the clip that the check has no warning for, when it can be made
+    panel = settle(qtbot, window)
+    assert panel.check is None and panel.check_failed
+    assert not panel.warnings_label.isHidden() and panel.warnings_label.property("kind") == "warning"
+    assert panel.warnings_label.text() == NOT_CHECKED
+    assert state(window, 1) == ("attention", "This video has 1 warning. Read it below before you continue.")
+    type_into(qtbot, panel.name_edit, NAME)  # never done for a video that was not checked
+    assert state(window, 1) == ("attention", "This video has 1 warning. Read it below before you continue.")
+    assert str(hd_clip.path.parent) not in panel.warnings_label.text() and str(error) not in panel.warnings_label.text()
+
+    window.open_path(clip_in_odd_folder.path)  # the next video's check is its own
+    assert not panel.check_failed and panel.warnings_label.isHidden()  # not known yet: nothing is said
+    wait_for_check(qtbot, window)
+    assert not panel.check_failed and len(panel.check.warnings) == 1
+    assert panel.warnings_label.text() == panel.check.warnings[0] != NOT_CHECKED
+
+
+def test_a_failed_check_of_a_video_that_is_no_longer_open_is_dropped(window, qtbot, clip_in_odd_folder, hd_clip,
+                                                                     monkeypatch):
+    real, let_go = video.check_video, threading.Event()
+
+    def held(path):  # the first video's check fails, and only after the second video's has come back
+        if path == clip_in_odd_folder.path:
+            let_go.wait(10)
+            raise OSError("the drive was taken out")
+        return real(path)
+
+    monkeypatch.setattr(video, "check_video", held)
+    window.open_path(clip_in_odd_folder.path)
+    window.open_path(hd_clip.path)
+    panel = wait_for_check(qtbot, window)
+    let_go.set()
+    settle(qtbot, window)
+    assert not panel.check_failed and panel.check.info.width == 1280 and panel.warnings_label.isHidden()
+
+
+def test_an_error_of_the_program_in_the_check_is_reported_and_the_video_counts_as_not_checked(window, qtbot, hd_clip,
+                                                                                             monkeypatch):
+    def broken(path):  # a mistake in the program, not a bad file
+        raise TypeError("a mistake in the program")
+
+    monkeypatch.setattr(video, "check_video", broken)
+    with qtbot.captureExceptions() as reported:  # what reached Python's own report of an error
+        window.open_path(hd_clip.path)
+        panel = settle(qtbot, window)
+    assert [(kind, str(value)) for kind, value, _ in reported] == [(TypeError, "a mistake in the program")]
+    assert panel.check is None and panel.check_failed and panel.warnings_label.text() == NOT_CHECKED
+    assert window.panels[0].state == "attention"
 
 
 def test_a_row_added_to_a_body_follows_what_is_there_with_the_notes_spacing(window, qtbot):
