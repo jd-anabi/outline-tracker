@@ -102,6 +102,14 @@ QPushButton[kind="primary"]:focus { border: 2px solid @text; }
 QPushButton:disabled, QPushButton[kind]:disabled { background: @window; border-color: @border; color: @disabled; }
 QFrame#BottomBar QPushButton { padding: 0 6px; }
 QFrame#BottomBar QPushButton:focus { padding: 0 5px; }
+/* Task C3 (panels 3 and 4): the chosen tool's button, a message in a panel, a typed value that cannot be used */
+QPushButton:checked { background: @accentSoft; border: 2px solid @accent; padding: 0 11px; }
+QFrame[role="msg"] { border-radius: 4px; border: 1px solid @border; background: @window; }
+QFrame[role="msg"][kind="success"] { background: @successBg; border-color: @success; }
+QFrame[role="msg"][kind="warning"] { background: @warningBg; border-color: @warning; }
+QFrame[role="msg"][kind="problem"] { background: @problemBg; border-color: @problem; }
+QFrame[role="msg"] QLabel { background: transparent; border: none; color: @text; }
+QAbstractSpinBox[check="error"] { background-color: @problemBg; }
 """
 
 
