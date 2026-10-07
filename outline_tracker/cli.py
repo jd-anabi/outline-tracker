@@ -23,7 +23,7 @@ import math
 import sys
 from pathlib import Path
 
-from outline_tracker import __version__, cli_probe
+from outline_tracker import cli_probe
 
 CONVERT_EXAMPLE = """\
 Usage (from the repository folder):
@@ -41,13 +41,24 @@ Prints what the file says about itself and any warnings. Exit code 1 means "do n
 """
 
 
+class _Version(argparse.Action):
+    """`--version`: print `outline-tracker 0.1.0 (commit abc1234)` and exit. The line is made only
+    when it is asked for (`provenance.tool_version` may ask git), not whenever a command starts."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        from outline_tracker.provenance import tool_version
+
+        print(tool_version())
+        parser.exit()
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Return the argument parser of `outline-tracker` (no quantities here, so no units or frame)."""
     parser = argparse.ArgumentParser(
         prog="outline-tracker",
         description="Track objects in videos with EdgeTAM; export positions and outline shapes.",
     )
-    parser.add_argument("--version", action="version", version=f"outline-tracker {__version__}")
+    parser.add_argument("--version", action=_Version, nargs=0, help="show the tool's version and commit and exit")
     commands = parser.add_subparsers(title="commands", dest="command", metavar="COMMAND")
 
     convert = commands.add_parser(
