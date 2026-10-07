@@ -179,3 +179,51 @@ def test_exit_code_reaches_the_shell(tmp_path):
     )
     assert done.returncode == 1
     assert done.stderr == f"ERROR: No such file: {missing}\n"
+
+
+# ---------------------------------------------------------------------------------------------
+# synth (hidden, decision X10): writes a synthetic clip at the spec's scale, 1920 x 1080 px, 240 fps
+
+
+@pytest.mark.parametrize("scene", ["dish", "closeup"])
+def test_synth_writes_a_clip_and_creates_its_folder(scene, tmp_path, capsys):
+    out = tmp_path / "new folder" / f"{scene}_tracker.mp4"
+    assert cli.main(["synth", scene, str(out), "--seconds", "0.1"]) == 0
+    info = video.probe(out)
+    assert (info.n_frames, info.width, info.height) == (24, 1920, 1080)  # 0.1 s at 240 fps
+    assert info.fps_container == pytest.approx(240.0)
+    shown = capsys.readouterr()
+    assert shown.out.splitlines()[0] == f"wrote {out}: 24 frames, 1920 x 1080 px, 240 fps"
+    assert shown.err == ""
+
+
+def test_synth_lasts_two_seconds_unless_told_otherwise():
+    args = cli.build_parser().parse_args(["synth", "closeup", "closeup_tracker.mp4"])
+    assert (args.scene, args.out, args.seconds) == ("closeup", "closeup_tracker.mp4", 2.0)
+
+
+def test_synth_is_not_shown_in_the_help(capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(["--help"])
+    assert stopped.value.code == 0
+    shown = capsys.readouterr().out
+    assert "convert" in shown and "synth" not in shown
+    assert cli.main([]) == 0
+    assert "synth" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("seconds", ["0", "-1", "nan", "inf"])
+def test_synth_refuses_a_length_that_is_not_positive(seconds, tmp_path, capsys):
+    out = tmp_path / "clips" / "dish_tracker.mp4"
+    assert cli.main(["synth", "dish", str(out), "--seconds", seconds]) == 1
+    shown = capsys.readouterr()
+    assert shown.err.startswith("ERROR: ") and "--seconds" in shown.err
+    assert not out.parent.exists()  # nothing written, no folder made
+
+
+def test_synth_knows_only_its_two_scenes(tmp_path, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(["synth", "ocean", str(tmp_path / "x.mp4")])
+    assert stopped.value.code == 2
+    assert "dish" in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
