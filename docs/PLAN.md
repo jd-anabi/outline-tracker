@@ -204,6 +204,13 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 11:45, C3: one superseded test marked `xfail(strict=True)`, for J to confirm its
+  removal.** `tests/gui/test_video_view.py::test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_and_fit_goes_back`
+  (from C1) paints a block of pixels at the frame's center and looks for it on the screen. The
+  axes are now drawn at the frame's center from the moment a video is open, and their y arrow
+  crosses that block. Its successor is the same test with the block beside the axes:
+  `tests/gui/test_tools.py::test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_beside_the_axes`.
+  Default: J says "delete it" and it goes.
 - **Wed 10:45, C1: one superseded test marked `xfail(strict=True)`, for J to confirm its
   removal.** `tests/gui/test_shell.py::test_the_video_area_says_how_to_start` was written for the
   empty window of C0, where the video area was one line of text. C1 put the Open video button
@@ -1371,7 +1378,8 @@ Conventions for every GUI task:
   - Check: `uv run outline-tracker gui ~/closeup_tracker.mp4`, then: type a name and fps, quit,
     reopen with `uv run outline-tracker gui "<run folder>/session.json"`: everything is back.
 
-- [ ] **C3 · Calibration stick, tape, circle, axes** (§4.2–4.5, panels 3–4)
+- [x] **C3 · Calibration stick, tape, circle, axes** (§4.2–4.5, panels 3–4)
+  - Done Wed 11:45 (commit 6b43000, and the tool line fix at the merge). Verified offscreen on macOS, 81 tests, also at 150% and 200% scaling: stick ends 926 px apart with 30 mm show 32.40 µm/px ± 0.08%; a 20 mm tape check within 1% says that it passes, outside that it does not (a word as well as the color); six points on the dish wall give the fit's center and radius, and Origin to Center copies the center to the axes; Redo clears; a third stick click starts again; a double click places one point; every value lands in the session and the graphics are redrawn from it. A screenshot with stick, tape, circle and axes on the synthetic dish clip was looked at. The code is in `gui/tools.py`, `gui/tool_items.py`, `gui/panels/calibration_panel.py` and `gui/panels/dish_panel.py`. Decisions made here: a new session starts with a stick length of 30.00 mm and a tape distance of 20.00 mm in the boxes; the origin starts at the frame's center, follows a fitted circle until it is placed by hand, and is drawn from the moment a video is open. Uncertain: surviving a restart is tested in memory only until C2's saving is merged; not yet tried by hand on a real screen; a student who places the stick and never types its length gets 30 mm.
   - Files: `gui/tools.py`, `gui/panels/calibration_panel.py`, `gui/panels/dish_panel.py`,
     `tests/gui/test_tools.py`.
   - Content: tool modes Pan, Stick, Tape, Circle, Axes (click to place; Redo clears; Esc returns

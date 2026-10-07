@@ -41,3 +41,6 @@ repository (`vX.Y.Z`).
 - The window opens a video (Open video, or `outline-tracker gui VIDEO`): the picture with zoom,
   pan, Fit and 1:1, and under it the frame slider, the step buttons and the frame box. The
   frame shown is exactly the frame the tracker reads.
+- Calibration in the window (panels 3 and 4): click the two ends of a known length for the
+  scale, check it with a second length, click points on the dish wall for the circle, and
+  place the axes. The numbers appear as you click.

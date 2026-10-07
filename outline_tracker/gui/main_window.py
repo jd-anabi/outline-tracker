@@ -16,7 +16,7 @@ from pathlib import Path
 from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
-                               QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
+                               QScrollArea, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget)
 
 from outline_tracker.geometry import grid_frames
 from outline_tracker.gui import dialogs, panels
@@ -182,6 +182,9 @@ class MainWindow(QMainWindow):
     def _picture_page_with_bar(self) -> QWidget:
         """The view under its bar: the tool's line at the left; Fit, 1:1 and the zoom at the right."""
         self.tool_text = QLabel(PAN_TEXT)
+        # as wide as the room it gets, never wider: a long sentence must not push the dock
+        self.tool_text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.tool_text.setToolTip(PAN_TEXT)
         self.fit_button, self.one_to_one_button = QPushButton("Fit"), QPushButton("1:1")
         self.fit_button.setToolTip("Show the whole frame")
         self.one_to_one_button.setToolTip("One video pixel per screen pixel")
@@ -262,6 +265,7 @@ class MainWindow(QMainWindow):
     def _tool_changed(self) -> None:
         tool = self.view.tool
         self.tool_text.setText(PAN_TEXT if tool is None else getattr(tool, "text", ""))
+        self.tool_text.setToolTip(self.tool_text.text())  # the whole sentence, where the line is cut
 
     def closeEvent(self, event) -> None:
         """Closing the window tells its parts first (`closing`: a panel saves, a worker stops), while
