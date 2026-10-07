@@ -15,3 +15,6 @@ repository (`vX.Y.Z`).
 - The EdgeTAM / SAM 2.1 backend, ported from last week's script: with the same click it gives the
   same positions (checked with the real model). New: several clicks per object, negative clicks,
   a preview on one frame, and a switch to the processor if the Apple GPU fails in mid-run.
+- Exact frame access for the display: a jump to any frame shows exactly the frame the tracker
+  sees, also in videos whose timestamps have gaps. `outline-tracker check VIDEO --seek` tests this
+  on a file.

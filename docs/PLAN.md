@@ -347,10 +347,12 @@ outline_tracker/
   tracker_io.py      ported: read/write Tracker files, Calibration, make_plan    (A03)
   fileio.py          atomic writes with Windows lock retry                       (A07)
   session.py         dataclasses <-> session.json, video identity                (A07)
-  video.py           ported probe/check_video/iter_frames + FrameSource          (A02, A09)
+  video.py           ported probe/check_video/iter_frames; timestamps, frame hash  (A02, A09)
+  frame_source.py    FrameSource: exact random access                            (A09)
   provenance.py      tool version and commit, machine facts for run.log          (A18)
   convert.py         ported                                                      (A02)
   synthetic.py       test clips with ground truth; the selftest clip             (A08)
+  synthetic_shapes.py  analytic shapes and paths behind the synthetic clips       (A08)
   segmenter/base.py  Segmenter, ObjectPrompt, MaskResult                         (A04a)
   segmenter/hf.py    ported TransformersSegmenter + extensions                   (A04a, A04b)
   segmenter/edgetam_convert.py  ported _edgetam.py                               (A04a)
@@ -634,7 +636,8 @@ because derive and flags read the arrays the results store defines).
     review focus 3: fps_true ≤ 0 raises `ValueError` and writes no file.
   - Check: `uv run pytest tests/test_fileio.py tests/test_session.py -q`
 
-- [ ] **A08 · Synthetic clips with ground truth** [CP: `render`, `dish_scene()`, `disk_scene()`] (§13.2)
+- [x] **A08 · Synthetic clips with ground truth** [CP: `render`, `dish_scene()`, `disk_scene()`] (§13.2)
+  - Done Wed 00:05 (commits a3a4cdd, a51f98c). Verified: 52 tests on the synthetic clips (ground truth equals the mask centroid, LED onset, solidity peaks at 9 Hz not 18 Hz, every frame distinct, odd folder names); the selftest clip is byte-identical to last week's. The shapes moved to `outline_tracker/synthetic_shapes.py` (file-size rule). Uncertain: writing to non-ASCII folders on Windows is first tested by CI after this merge.
   - Files: `synthetic.py`, `tests/test_synthetic.py`, fixtures in `tests/helpers.py`.
   - Rule for every synthetic shape (it is what makes the §13 tolerances reachable; see the
     measured table at the end of section 4): a shape is an **implicit function** with a
@@ -669,7 +672,8 @@ because derive and flags read the arrays the results store defines).
     `uv run outline-tracker synth closeup ~/closeup_tracker.mp4 && open ~/closeup_tracker.mp4`
     shows a shrimp-like shape beating its antennae.
 
-- [ ] **A09 · FrameSource: exact random access** [CP: `iter_rgb_frames`, `frame_hash`, `decoder_tag`] (§3.5, §6.5, §13.6)
+- [x] **A09 · FrameSource: exact random access** [CP: `iter_rgb_frames`, `frame_hash`, `decoder_tag`] (§3.5, §6.5, §13.6)
+  - Done Wed 01:35 (commits 146bc2e, b2c7d6b, 23feb66). Verified: every frame read through `FrameSource` is bit-identical to the sequential decode on an evenly timed clip and on a clip with three timestamp gaps, also with seeks shifted on purpose; plain OpenCV seeking was wrong for 11 of 27 frames on the gapped clip. `FrameSource` lives in `outline_tracker/frame_source.py`. Uncertain: real phone files (checked by `check VIDEO --seek` at go/no-go 1); a table that agrees at every compared frame but numbers a stretch differently cannot be detected by timestamps (the run-start hash guard covers tracking).
   - Files: `video.py` (adds `iter_rgb_frames(path, frames)` ported from `segment.py`,
     `frame_timestamps(path)`, `FrameSource`, `frame_hash`), `synthetic.py` (a clip variant with
     forced B-frames and gaps in its timestamps), `tests/test_frame_source.py`.
@@ -696,7 +700,8 @@ because derive and flags read the arrays the results store defines).
     differ in one pixel. These run on both CI runners: they are the Windows proof of §13.6.
   - Check: `uv run pytest tests/test_frame_source.py -q`
 
-- [ ] **A10 · Stand-in segmenters** [CP] (§12, §13.2)
+- [x] **A10 · Stand-in segmenters** [CP] (§12, §13.2)
+  - Done Wed 02:10 (commits 84d4e27, 015cb1d). Verified: 47 tests; `ThresholdFake` gives the same masks as the template's `DiskFinder` on the disk clip and 40 random sequences; `ExactFake` returns the ground-truth mask and analytic logits for any crop. Uncertain: none.
   - Files: `segmenter/fake.py`, `tests/test_fakes.py`.
   - Produces: `ThresholdFake()` (dark connected components within 20 px of each object's last
     position, as the template's `DiskFinder`; logits from a distance transform, since it is

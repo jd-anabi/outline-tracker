@@ -207,3 +207,24 @@ lock held.
 - A fall back in the middle of a longer run with objects close to each other: the model loses its
   memory of the earlier frames there, and each object is found again from one click.
 - SAM 2.1; fine mode and the dish crop (they belong to the tracking tasks).
+
+## 3. Exact frame access (task A09, 2026-10-07)
+
+Measured on the build Mac with OpenCV 5.0.0, on two small test clips (320 x 240 px, 120 frames,
+H.264 with B-frames): one evenly timed, one with three gaps in its timestamps (before frames 30,
+72 and 101), as a phone video with dropped frames has.
+
+| how a frame is fetched | evenly timed clip | clip with timestamp gaps |
+|---|---|---|
+| plain OpenCV seeking (`CAP_PROP_POS_FRAMES`) | 0 of 27 tested frames wrong | 11 of 27 wrong (a neighbor, one frame early or late) |
+| `FrameSource` (seek, identify the frame by its timestamp, step forward) | 0 wrong | 0 wrong |
+| `FrameSource` with every seek shifted on purpose by -2, -1, +1, +2 or +6 frames | 0 wrong | 0 wrong |
+
+- The first row is OpenCV's behavior and is printed by the test, not asserted; it was measured
+  only on the Mac.
+- Tracking never seeks: it decodes from the first frame, as last week. `FrameSource` is for the
+  display and for jumps. Before a run starts, the hash of each prompt frame is compared with the
+  frame the tracking decoder delivers.
+- Not covered: real phone files. `outline-tracker check VIDEO --seek` compares 20 random frames
+  on a real file and prints the number of timestamp gaps.
+
