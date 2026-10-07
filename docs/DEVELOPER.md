@@ -161,6 +161,8 @@ There is one worker thread per window. The model is loaded in it and only it cal
 
 A signal of the worker or of a job is connected only to a method of an object that lives in the GUI thread, never to a lambda: a lambda would run in the worker thread.
 
+An outline is made by the model that was asked for last. The `Worker` gives the engine a request only while its state is "ready". A request made while a model loads waits in the `Worker`, in the GUI thread, and so does one that is still awaited when another model is asked for; it is handed over when that model is ready. When a model begins to load, `gui/prompts.py` takes the outlines of the model before off the picture and asks for the frame shown again, and panel 7 forgets the time per frame.
+
 Who writes which file:
 
 | file | written by |

@@ -15,6 +15,9 @@ gui/panels/objects_panel.py.
 - After every change of the clicks on the frame shown, the worker is asked for the outlines of all
   objects clicked on that frame, on the part of the frame tracking would show the model
   (`tracking_plan.view_box`: the dish square, or the whole frame). The newest request wins.
+- An outline on the picture is of the model that is chosen now. When another model begins to load
+  (panel 7, an opened session), the outlines of the model before are taken away and the frame
+  shown is asked of the new one; the worker keeps that request until the model is ready.
 - While a tracking job runs (`worker_jobs.Jobs.running`) no point is placed, moved or taken back:
   the job works on the points as they were when it started. The tool's line says to wait.
 
@@ -137,8 +140,8 @@ class Prompts(QObject):
         worker.preview_failed.connect(self._preview_failed)
         worker.busy_changed.connect(self._busy_changed)
         worker.state_changed.connect(self._model_state)
-        self._jobs.started.connect(self._model_state)
-        self._jobs.finished.connect(self._model_state)
+        self._jobs.started.connect(self._busy_changed)
+        self._jobs.finished.connect(self._busy_changed)
 
     # ------------------------------------------------------------------ what is read
 
@@ -393,14 +396,22 @@ class Prompts(QObject):
         self._say("problem", text.format(reason=reason), "preview")
         self.changed.emit()
 
-    def _busy_changed(self, busy: bool) -> None:
+    def _busy_changed(self, *_) -> None:
+        """An outline is on its way or has arrived, or a tracking job started or ended."""
         self._update_tools()
         self.changed.emit()
 
-    def _model_state(self, *_) -> None:
-        """The model's state changed, or a tracking job started or ended."""
-        self._update_tools()
-        self.changed.emit()
+    def _model_state(self, state: str, message: str) -> None:
+        """The model's state changed. A model that begins to load takes the place of the one before:
+        that one's outlines, and the clicks it could not outline, are forgotten, and the frame
+        shown is asked for again."""
+        if state == "loading":
+            self._shown = self._gave_up = None
+            if self._message_from == "preview":
+                self._say("", "", "")
+            self.refresh()
+        else:
+            self._busy_changed()
 
     def _tool_changed(self) -> None:
         self.changed.emit()

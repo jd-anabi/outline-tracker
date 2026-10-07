@@ -11,6 +11,8 @@ panel's controls:
   `session.processing`, and the worker loads that model in place of the one it has (`Worker.load`);
   a session that is opened is loaded the same way, so the loaded model is always the session's.
   Both boxes are off without a video, while a model loads and during a run, and say why.
+  A model that could not be loaded leaves them on: the dialog about it says to choose another
+  one here, except at the first start with the defaults, where it says to check the internet.
 - Before a run the hint line gives the estimate (gui/estimate.py) and how many frames and objects
   it is for. Track is off, with the reason as the hint line and as its tooltip, while something is
   missing (`Jobs.refusal`), and while a run is going.
@@ -30,7 +32,9 @@ panel's controls:
   (`Jobs.video_end`); the frames named are those that have a record.
 
 The time one frame takes (`seconds_per_frame`, for one object) is taken from what this computer did
-last: the session's newest run, a run in this window, or the outline made after a click.
+last: the session's newest run, a run in this window, or the outline made after a click. A choice
+of another model or device forgets it: the outline that the new model makes of the frame shown is
+the next one that is timed, from the moment the model is ready.
 
 Units: times are s; frames are counts of tracked frames, and video frame numbers where a text
 names a frame. Lengths of widgets are Qt's device-independent px.
@@ -80,8 +84,12 @@ CANCELLED_TEXT = "Tracking was cancelled. The {frames} were kept."
 # Dialogs: the first line says what happened, the lines after it what to do next.
 JOB_DIALOG = ("Tracking stopped with an error\n{reason}\nFrames that were tracked before are kept. The details "
               "are in run.log in the run folder.")
-MODEL_DIALOG = ("The model could not be loaded\n{reason}\nTracking and outlines need the model. Check the "
-                "internet connection, which the first start needs, and start the app again.")
+MODEL_DIALOG = "The model could not be loaded\n{reason}\nTracking and outlines need the model. {advice}"
+# What to do next: at the first start with the defaults; and after a choice, or with a session's own
+# model, where starting again would load the same model again.
+FIRST_START = "Check the internet connection, which the first start needs, and start the app again."
+CHOOSE_ANOTHER = ("Choose another model or device in panel 7 (EdgeTAM and auto are the defaults). A model needs the "
+                  "internet the first time it is loaded.")
 OUTLINE_DIALOG = ("The outline could not be made\n{reason}\nClick on the animal again. If it happens again, the "
                   "details are in run.log in the run folder.")
 
@@ -111,6 +119,7 @@ class TrackPanel(QWidget):
         self.seconds_per_frame: float | None = None
         self.clock = time.perf_counter
         self._asked_at: float | None = None        # when the outline that is on its way was asked for
+        self._was_ready = False                    # a model was loaded in this window
         self._outcome: tuple[str, str] | None = None  # kind and text of the line about the last run
         self._frames_of: tuple = (None, {})        # a results store and the frames of its tracks (`_frames`)
 
@@ -196,6 +205,7 @@ class TrackPanel(QWidget):
             if any(getattr(processing, name) != value for name, value in choice.items()):
                 for name, value in choice.items():
                     setattr(processing, name, value)
+                self.seconds_per_frame = None  # the time the model before took, or took on the device before
                 self._controller.touch()
             self.worker.load(processing.model, processing.device)
         self.refresh()
@@ -213,8 +223,15 @@ class TrackPanel(QWidget):
         self.refresh()
 
     def _model_state(self, state: str, message: str) -> None:
+        if state == "ready":
+            self._was_ready = True
+            if self.worker.busy:  # an outline waited for this model: it is made from now on
+                self._asked_at = self.clock()
         if state == "failed" and message != NO_FACTORY:  # a window made without a model has nothing that failed
-            dialogs.message(self._window, "problem", MODEL_DIALOG.format(reason=message))
+            defaults = Processing()
+            first = not self._was_ready and self.worker.wanted == (defaults.model, defaults.device)
+            advice = FIRST_START if first else CHOOSE_ANOTHER
+            dialogs.message(self._window, "problem", MODEL_DIALOG.format(reason=message, advice=advice))
         self.refresh()
 
     def _busy_changed(self, busy: bool) -> None:

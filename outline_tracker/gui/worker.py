@@ -18,6 +18,10 @@ connected to them runs there, however it was connected.
 - Outlines: `request_preview` hands the engine a frame and the clicks on it. The newest request
   wins: a request that waits is replaced by a newer one, and the result of an older one is
   dropped. `busy` is true from a request until its result or its failure has arrived.
+- An outline is made by the model that was asked for last, never by the one before it. The engine
+  is given a request only while the state is "ready". A request made while a model loads, and one
+  that is still awaited when another model is asked for, waits here in the GUI thread and is
+  handed over when that model is ready; what the model before made of it is not reported.
 - Jobs: `run(task)` has `task(segmenter)` called in the thread, after what the thread is doing; an
   outline asked for meanwhile waits for it. gui/worker_jobs.py tracks with this.
 - `stop()` ends the thread and closes the segmenter. It waits for the call the engine is in; a
@@ -141,6 +145,7 @@ class Worker(QObject):
         self._serial = 0
         self._loads = 0                   # the number of the newest load: an older one's answer is not taken
         self._awaited: int | None = None  # the request whose result is waited for
+        self._request: _Request | None = None  # that request: it waits here while the model is not ready
         self._window = None
         self._engine = _Engine()
         self._thread = QThread(self)
@@ -185,9 +190,9 @@ class Worker(QObject):
         self.state, self.message = state, message
         self.state_changed.emit(state, message)
 
-    def _await(self, serial: int | None) -> None:
+    def _await(self, serial: int | None, request: _Request | None = None) -> None:
         was = self.busy
-        self._awaited = serial
+        self._awaited, self._request = serial, request
         if self.busy != was:
             self.busy_changed.emit(self.busy)
 
@@ -216,8 +221,9 @@ class Worker(QObject):
         (model: "edgetam", "sam2", ...; device: "auto", "cpu", "mps" or "cuda"), after
         `before_load()` if one is given (it is called once, at the first load). Returns at once;
         `state_changed` says how it went. A model that is loaded is closed first, and of two loads
-        asked for in a row only the second one's answer counts. Without a factory the state is
-        "failed" and no thread starts. After `stop` nothing starts."""
+        asked for in a row only the second one's answer counts. An outline that is awaited is made
+        by this model, when it is ready. Without a factory the state is "failed" and no thread
+        starts. After `stop` nothing starts."""
         if self.state == "stopped":
             return
         if factory is None:
@@ -226,6 +232,7 @@ class Worker(QObject):
         if not self._thread.isRunning():
             self._thread.start()
         self.wanted, self._loads = (model, device), self._loads + 1
+        self._engine.ask(None)  # what the model before was still to outline waits here, for this model
         self._set_state("loading", "")
         self._load.emit(factory, model, device, before_load, self._loads)
 
@@ -266,6 +273,9 @@ class Worker(QObject):
         self._keep(trace)
         if self.state == "stopped" or number != self._loads:  # the answer of a load that a newer one replaced
             return
+        if state == "ready" and self._awaited is not None:  # the outline that waited for this model
+            self._engine.ask(self._request)
+            self._wake.emit()
         self._set_state(state, message)
         if state == "failed" and self._awaited is not None:  # no model: no outline will come
             serial = self._awaited
@@ -285,15 +295,18 @@ class Worker(QObject):
         of an array that cannot be written to).
         offset: (column, row) of the image's top-left pixel in the full frame, px. prompts: one per
         object, points in px of `image`. The result comes with `preview_done`, a failure with
-        `preview_failed`; a request made before the model is ready waits for it. A newer request
-        replaces this one. While the state is "failed" or "stopped" nothing is asked.
+        `preview_failed`; a request made while a model loads waits for that model, also when
+        another one is still loaded. A newer request replaces this one. While the state is
+        "failed" or "stopped" nothing is asked.
         """
         self._serial += 1
         if self.state in ("failed", "stopped"):
             return self._serial
-        self._engine.ask(_Request(self._serial, int(frame), image, (int(offset[0]), int(offset[1])), list(prompts)))
-        self._await(self._serial)
-        self._wake.emit()
+        request = _Request(self._serial, int(frame), image, (int(offset[0]), int(offset[1])), list(prompts))
+        if self.ready:  # else it waits here until the model is (`_engine_state`)
+            self._engine.ask(request)
+            self._wake.emit()
+        self._await(self._serial, request)
         return self._serial
 
     def cancel_preview(self) -> None:
@@ -303,7 +316,8 @@ class Worker(QObject):
 
     @Slot(object)
     def _previewed(self, preview: Preview) -> None:
-        if preview.serial != self._awaited:  # out of date, cancelled, or after stop()
+        # out of date, cancelled, after stop(), or made by the model before the one that loads now
+        if preview.serial != self._awaited or not self.ready:
             return
         self.preview_done.emit(preview)
         if preview.serial == self._awaited:  # unless a slot asked again meanwhile
@@ -312,7 +326,7 @@ class Worker(QObject):
     @Slot(int, str, str)
     def _failed(self, serial: int, reason: str, trace: str) -> None:
         self._keep(trace)  # also of a request that nobody waits for any more
-        if serial != self._awaited:
+        if serial != self._awaited or not self.ready:  # the model that loads now will be asked
             return
         self._await(None)
         self.preview_failed.emit(serial, reason)

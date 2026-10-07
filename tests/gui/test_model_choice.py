@@ -4,6 +4,13 @@
   the one this system can have besides). A choice goes into `session.processing` and the worker
   loads that model: the window's factory is asked for it, which a recording factory shows. Both
   boxes are off while a model loads and during a run.
+- What is on the picture and in the estimate is the chosen model's: the outlines of the frame shown
+  are made again by the model that is loaded in place of the one before, and the time per frame of
+  the model before is not kept. Which stand-in made an outline is read from where the outline is:
+  a `ThresholdFake` outlines the disk under the click, an `ExactFake` the scene's object of the
+  track's name wherever the click is (the disk scene's centers are its ground truth).
+- A model that cannot be loaded says what to do next: at the first start, check the internet and
+  start again; after a choice, choose another in panel 7.
 - gui/worker.py was split: the engine of the thread is in gui/worker_engine.py, and what
   gui/worker.py offered is still importable from it.
 
@@ -15,31 +22,41 @@ import platform
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 from PySide6.QtCore import QCoreApplication
 
-from gui_helpers import picture, record_dialogs
+from gui_helpers import picture, record_dialogs, show
+from helpers import click
 from last_controls_helpers import RUNNING, OnDevice, choose, let_run_end, parked, press_track
 from outline_tracker.gui.panels.track_panel import devices_for
 from outline_tracker.gui.worker import Worker
-from prompt_helpers import Gate
+from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
+from prompt_helpers import Gate, Watched, objects_panel
 from session_helpers import body, read_json
-from track_helpers import NAME, own_copy, ready_to_track, track_panel
+from track_helpers import NAME, own_copy, ready_to_track, track_panel, window_hint
+from tracking_helpers import center
 
 DEVICE_TEXTS = {"auto": "auto", "cpu": "cpu", "mps": "mps (Apple GPU)", "cuda": "cuda (NVIDIA GPU)"}
 # What gui/worker.py defined before it was split (the module as of task C5), private names too.
 OFFERED = ["STACK_BYTES", "NO_FACTORY", "REASON_LENGTH", "TRACES_KEPT", "log", "Preview", "_Request", "Found",
            "found_in", "plain", "traced", "before_load_for", "_Engine", "Worker", "worker_of"]
+# The last sentences of the dialog about a model that could not be loaded: what to do next.
+CHOOSE_ANOTHER = ("Choose another model or device in panel 7 (EdgeTAM and auto are the defaults). A model needs the "
+                  "internet the first time it is loaded.")
+FIRST_START = "Check the internet connection, which the first start needs, and start the app again."
+NOT_ON_THIS_COMPUTER = "The weights of this model are not on this computer."
 
 
 class Recording:
     """A factory for the window that keeps what it was asked for: `asked` holds (model, device),
     `made` the stand-ins it gave, in order. The call number `park_at` (from 1) waits at `gate`
-    first; a model in `broken` raises `OSError(broken[model])` instead."""
+    first; a model in `broken` raises `OSError(broken[model])` instead. A model in `others` is
+    made by `others[model]()`, in place of the `OnDevice` every other model gets."""
 
-    def __init__(self, gate=None, park_at=None, broken=None):
+    def __init__(self, gate=None, park_at=None, broken=None, others=None):
         self.asked, self.made = [], []
-        self.gate, self.park_at, self.broken = gate, park_at, broken or {}
+        self.gate, self.park_at, self.broken, self.others = gate, park_at, broken or {}, others or {}
 
     def __call__(self, model, device):
         self.asked.append((model, device))
@@ -47,7 +64,8 @@ class Recording:
             self.gate.park()
         if model in self.broken:
             raise OSError(self.broken[model])
-        self.made.append(OnDevice("cpu" if device == "auto" else device))
+        make = self.others.get(model, lambda: OnDevice("cpu" if device == "auto" else device))
+        self.made.append(make())
         return self.made[-1]
 
 
@@ -64,6 +82,18 @@ def opened(window, qtbot, clip, factory):
 
 def entries(box) -> list[tuple[str, str]]:
     return [(box.itemData(index), box.itemText(index)) for index in range(box.count())]
+
+
+def middle(outline) -> tuple[float, float]:
+    """The middle of the box around an outline, (N, 2) points (u, v) in px of the frame: for the
+    outline of a disk, the disk's center."""
+    low, high = outline.min(axis=0), outline.max(axis=0)
+    return float(low[0] + high[0]) / 2, float(low[1] + high[1]) / 2
+
+
+def asked_of(stand_in: Watched) -> list[list[str]]:
+    """The objects of each preview that was asked of a `Watched` stand-in, in order."""
+    return [[name for name, _, _ in call] for call in stand_in.previews]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -151,6 +181,8 @@ def test_a_model_that_cannot_be_loaded_gives_its_plain_reason_and_another_can_be
     assert panel.worker.device is None and body(window, 6).model_label.text() == "Model not loaded"
     (_, kind, text), = shown.messages
     assert kind == "problem" and panel.worker.message in text and "Traceback" not in text
+    # what to do next is what helps here: another choice. Starting again would load the same model again.
+    assert text.endswith(CHOOSE_ANOTHER) and "start the app again" not in text
     assert panel.model_box.isEnabled() and panel.device_box.isEnabled()  # so that another can be chosen
     choose(panel.model_box, "sam2")  # the same again, after the internet came back, say: it is tried again
     qtbot.waitUntil(lambda: panel.worker.state == "failed" and len(factory.asked) == 3)
@@ -205,6 +237,157 @@ def test_a_session_that_is_opened_loads_its_own_model_and_device(window, qtbot, 
     assert factory.asked[-1] == ("sam2", "cpu")
     assert (panel.model_box.currentData(), panel.device_box.currentData()) == ("sam2", "cpu")
     assert [made.closed for made in factory.made] == [1, 1, 1, 1, 0]  # one model at a time
+
+
+def test_a_first_load_that_fails_says_to_check_the_internet_and_a_failed_choice_says_to_choose_another(
+        window, qtbot, clip_in_odd_folder, monkeypatch):
+    shown = record_dialogs(monkeypatch)
+    factory = Recording(broken={"edgetam": "The model files could not be downloaded."})
+    window.segmenter_factory = factory
+    window.controller.set_student(NAME)
+    picture(window, qtbot, clip_in_odd_folder)
+    panel = track_panel(window)
+    qtbot.waitUntil(lambda: panel.worker.state == "failed")
+    (_, kind, text), = shown.messages
+    assert kind == "problem" and "The model files could not be downloaded." in text
+    assert text.endswith(FIRST_START) and "panel 7" not in text  # the defaults, at the start: nothing was chosen
+    choose(panel.device_box, "cpu")  # a choice that fails too
+    qtbot.waitUntil(lambda: panel.worker.state == "failed" and len(shown.messages) == 2)
+    assert factory.asked == [("edgetam", "auto"), ("edgetam", "cpu")]
+    assert shown.messages[1][2].endswith(CHOOSE_ANOTHER) and "start the app again" not in shown.messages[1][2]
+
+
+def test_a_session_whose_own_model_cannot_be_loaded_says_to_choose_another_and_that_helps(window, qtbot,
+                                                                                         clip_in_odd_folder,
+                                                                                         monkeypatch):
+    """What a student meets who starts the app again after a choice that failed: the session still
+    names that model, so "start the app again" would lead nowhere."""
+    shown = record_dialogs(monkeypatch)
+    factory = Recording(broken={"sam2": NOT_ON_THIS_COMPUTER})
+    window.segmenter_factory = factory
+    window.controller.set_student(NAME)
+    window.open_path(clip_in_odd_folder.path)  # not shown yet: nothing is loaded
+    window.controller.session.processing.model = "sam2"  # as the session of the run before says
+    window.controller.touch()
+    show(window, qtbot)
+    panel = track_panel(window)
+    qtbot.waitUntil(lambda: panel.worker.state == "failed")
+    assert factory.asked == [("sam2", "auto")]  # the first load of this window is the session's own
+    text = shown.messages[-1][2]
+    assert NOT_ON_THIS_COMPUTER in text and text.endswith(CHOOSE_ANOTHER) and "start the app again" not in text
+    assert panel.model_box.isEnabled()
+    choose(panel.model_box, "edgetam")
+    qtbot.waitUntil(lambda: panel.worker.ready)
+    assert window.controller.session.processing.model == "edgetam"
+
+
+# ---------------------------------------------------------------------------------------------
+# What is on the picture, and the estimate, are the chosen model's
+
+
+def test_after_another_model_is_chosen_the_outline_on_the_picture_is_made_again_by_that_model(window, qtbot,
+                                                                                             disk_clip, tmp_path):
+    clip = own_copy(disk_clip, tmp_path / "disks")
+    with Gate() as gate:
+        first, second = Watched(), Watched(ExactFake(clip))
+        factory = Recording(gate, park_at=2, others={"edgetam": lambda: first, "sam2": lambda: second})
+        panel = opened(window, qtbot, clip, factory)
+        objects = objects_panel(window)
+        prompts = objects.prompts
+        objects.add_object()
+        assert prompts.add_point(*center(clip, "B", 0), 1)  # object A, clicked on the scene's disk B
+        qtbot.waitUntil(lambda: "A" in prompts.outlines)
+        assert middle(prompts.outlines["A"]) == pytest.approx(center(clip, "B", 0), abs=1.0)  # under the click
+        choose(panel.model_box, "sam2")
+        qtbot.waitUntil(gate.parked.is_set)
+        QCoreApplication.sendPostedEvents()  # whatever the model before had to report is handed over now
+        # while the other model loads, the outline of the model before is not left on the picture
+        assert panel.worker.state == "loading" and prompts.outlines == {}
+        assert prompts.busy and not objects.busy_label.isHidden()
+        assert objects.busy_label.text() == "The model is loading. The outline appears when it is ready."
+        gate.open()
+        qtbot.waitUntil(lambda: panel.worker.ready and not prompts.busy)
+    # no click and no other frame since: the outline of the frame shown was made again, by the second model
+    assert middle(prompts.outlines["A"]) == pytest.approx(center(clip, "A", 0), abs=1.0)
+    assert asked_of(first) == [["A"]] and asked_of(second) == [["A"]]  # the model before was not asked again
+    assert prompts.message == ("", "") and objects.busy_label.isHidden()
+
+
+def test_after_a_model_that_could_not_be_loaded_the_next_ones_outline_appears_and_the_message_goes(
+        window, qtbot, disk_clip, tmp_path, monkeypatch):
+    record_dialogs(monkeypatch)
+    clip = own_copy(disk_clip, tmp_path / "disks")
+    panel = opened(window, qtbot, clip, Recording(broken={"sam2": NOT_ON_THIS_COMPUTER}))
+    objects = objects_panel(window)
+    prompts = objects.prompts
+    objects.add_object()
+    assert prompts.add_point(*center(clip, "A", 0), 1)
+    qtbot.waitUntil(lambda: "A" in prompts.outlines)
+    choose(panel.model_box, "sam2")
+    qtbot.waitUntil(lambda: panel.worker.state == "failed")
+    # no model: the outline of the model before is gone, and the panel says why none is shown
+    assert prompts.outlines == {} and not prompts.busy
+    assert prompts.message == ("problem", "The model could not be loaded, so no outline can be shown. "
+                                          + NOT_ON_THIS_COMPUTER)
+    choose(panel.model_box, "edgetam")
+    qtbot.waitUntil(lambda: panel.worker.ready and not prompts.busy)
+    assert middle(prompts.outlines["A"]) == pytest.approx(center(clip, "A", 0), abs=1.0)  # by itself: no click
+    assert prompts.message == ("", "")
+
+
+def test_clicks_whose_outline_one_model_could_not_make_are_tried_on_the_next_model(window, qtbot, disk_clip,
+                                                                                  tmp_path, monkeypatch):
+    class Broken(ThresholdFake):
+        def preview(self, image, prompts):
+            raise RuntimeError("The model ran out of memory.")
+
+    record_dialogs(monkeypatch)
+    clip = own_copy(disk_clip, tmp_path / "disks")
+    panel = opened(window, qtbot, clip, Recording(others={"edgetam": Broken}))
+    objects = objects_panel(window)
+    prompts = objects.prompts
+    objects.add_object()
+    assert prompts.add_point(*center(clip, "A", 0), 1)
+    qtbot.waitUntil(lambda: prompts.message[0] == "problem" and not prompts.busy)
+    assert prompts.message == ("problem", "The outline could not be made. The model ran out of memory.")
+    assert prompts.outlines == {}
+    choose(panel.model_box, "sam2")  # the same clicks, another model
+    qtbot.waitUntil(lambda: panel.worker.ready and not prompts.busy)
+    assert middle(prompts.outlines["A"]) == pytest.approx(center(clip, "A", 0), abs=1.0)
+    assert prompts.message == ("", "")
+
+
+def test_the_time_per_frame_of_the_model_before_is_not_kept_and_the_new_models_outline_is_timed(window, qtbot,
+                                                                                             disk_clip, tmp_path):
+    """By hand: 2.0 s per frame for 60 frames of one object are 120 s, "about 2 min". The second model
+    is ready at 200.0 s and its outline of the one object is there at 203.0 s: 3.0 s per frame,
+    180 s, "about 3 min"."""
+    clip = own_copy(disk_clip, tmp_path / "disks")
+    now = [100.0]
+    with Gate() as gate:
+        second = Watched(gate=gate, park_at={0})
+        window.segmenter_factory = Recording(others={"sam2": lambda: second})
+        panel, objects = ready_to_track(window, qtbot, clip)  # object A, clicked, its outline shown
+        panel.clock = lambda: now[0]
+        panel.seconds_per_frame = 2.0  # as the first model was timed
+        panel.refresh()
+        assert window_hint(panel) == "Estimated time: about 2 min for 60 frames and 1 object."
+        now[0] = 200.0
+        choose(panel.model_box, "sam2")
+        assert panel.seconds_per_frame is None  # what the model before took says nothing about this one
+        qtbot.waitUntil(gate.parked.is_set)  # the second model is loaded, and at work on the outline
+        assert panel.worker.ready and panel.seconds_per_frame is None
+        assert window_hint(panel) == "No time estimate yet: 60 frames and 1 object are ready to track."
+        now[0] = 203.0
+        gate.open()
+        qtbot.waitUntil(lambda: not objects.prompts.busy)
+    assert panel.seconds_per_frame == pytest.approx(3.0)
+    assert window_hint(panel) == "Estimated time: about 3 min for 60 frames and 1 object."
+    choose(panel.model_box, "sam2")  # the same again: nothing changed, so the time stays
+    assert panel.seconds_per_frame == pytest.approx(3.0)
+    choose(panel.device_box, "cpu")  # another device is another speed
+    assert panel.seconds_per_frame is None
+    qtbot.waitUntil(lambda: panel.worker.ready and not objects.prompts.busy)
 
 
 def test_a_sessions_model_or_device_that_is_not_in_the_list_is_shown_as_it_is(window, qtbot, clip_in_odd_folder):
@@ -277,3 +460,50 @@ def test_of_two_loads_asked_for_in_a_row_only_the_second_makes_the_worker_ready(
         gate.open()
         qtbot.waitUntil(lambda: worker.ready)
     assert states == ["loading", "loading", "ready"]
+
+
+def two_blocks() -> np.ndarray:
+    """A light image of 60 x 40 px, an RGB array [row, column, 3], with two dark blocks of 10 x 10 px
+    whose centers are (15, 15) and (45, 15), px in Tracker's convention."""
+    image = np.full((40, 60, 3), 255, np.uint8)
+    image[10:20, 10:20] = image[10:20, 40:50] = 0
+    return image
+
+
+def test_an_outline_asked_for_while_another_model_loads_is_made_by_that_model(worker, qtbot):
+    """Also while the model before is still at work on an older request: it is given no newer one."""
+    image, done = two_blocks(), []
+    worker.preview_done.connect(lambda preview: done.append((worker.state, preview.serial)))
+    with Gate() as gate:
+        models = {"edgetam": Watched(gate=gate, park_at={0}), "sam2": Watched()}
+        worker.start(lambda model, device: models[model], "edgetam", "cpu")
+        qtbot.waitUntil(lambda: worker.ready)
+        worker.request_preview(0, image, (0, 0), [click("A", 15.0, 15.0)])
+        qtbot.waitUntil(gate.parked.is_set)  # the model before stands inside preview(), for A
+        worker.start(lambda model, device: models[model], "sam2", "cpu")
+        newest = worker.request_preview(0, image, (0, 0), [click("B", 45.0, 15.0)])
+        assert worker.busy and worker.state == "loading"
+        gate.open()
+        qtbot.waitUntil(lambda: worker.ready and not worker.busy)
+    assert asked_of(models["edgetam"]) == [["A"]] and asked_of(models["sam2"]) == [["B"]]
+    assert done == [("ready", newest)]
+    assert models["edgetam"].closed == 1 and models["sam2"].closed == 0
+
+
+def test_an_outline_that_is_awaited_when_another_model_is_asked_for_is_made_by_that_model(worker, qtbot):
+    """What the model before made of it is not reported: it arrives while the other model loads."""
+    image, done, failed = two_blocks(), [], []
+    worker.preview_done.connect(lambda preview: done.append((worker.state, preview.serial)))
+    worker.preview_failed.connect(lambda serial, reason: failed.append(serial))
+    with Gate() as gate:
+        models = {"edgetam": Watched(gate=gate, park_at={0}), "sam2": Watched()}
+        worker.start(lambda model, device: models[model], "edgetam", "cpu")
+        qtbot.waitUntil(lambda: worker.ready)
+        awaited = worker.request_preview(0, image, (0, 0), [click("A", 15.0, 15.0)])
+        qtbot.waitUntil(gate.parked.is_set)
+        worker.start(lambda model, device: models[model], "sam2", "cpu")
+        assert worker.busy
+        gate.open()
+        qtbot.waitUntil(lambda: worker.ready and not worker.busy)
+    assert asked_of(models["edgetam"]) == [["A"]] and asked_of(models["sam2"]) == [["A"]]
+    assert done == [("ready", awaited)] and failed == []  # reported once, and that one is the new model's
