@@ -56,3 +56,6 @@ repository (`vX.Y.Z`).
 - Around the panels: the cursor's position in px and mm and the gray value in the status bar,
   File and Help menus, About, play and pause with Space, a Stopwatch dialog for fps_true, and
   the keys 1 to 9 to select an object.
+- Export in the window (panel 9, File > Export): Export all writes the CSV files, the
+  overlay video, the log and README.txt to the run folder and lists them; Open folder shows
+  them.

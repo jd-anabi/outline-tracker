@@ -8,6 +8,8 @@ Sizes are Qt's device-independent px. The window comes from the `window` fixture
 which closes it.
 """
 
+import sys
+
 import pytest
 from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QScreen
@@ -96,7 +98,30 @@ def test_at_start_only_the_first_panel_is_open(window, qtbot):
     assert all(panel.header.isVisible() and panel.badge.isVisible() for panel in window.panels)
 
 
+@pytest.mark.xfail(
+    sys.platform.startswith("linux"), strict=True,
+    reason="Linux only, seen on the test machine (CI run of commit f0c961e): 393 px, not 400. The window is shown "
+           "here at its smallest width, 960 px, which leaves 560 px beside a 400 px dock. Since the Play button "
+           "(task C8a) the bottom row with all its padding needs a little more than that in the wider font of the "
+           "Linux machine, and by C8a's rule the dock gives up width before a button gives up padding. In the fonts "
+           "of macOS and Windows the row fits and the dock is 400 px. The test below, "
+           "test_the_dock_stays_at_the_right_and_is_400_px_wide_where_the_window_has_room, makes the same checks "
+           "in a window of 1440 px, the width the application opens with. For J or the controller: delete this "
+           "test.")
 def test_the_dock_stays_at_the_right_and_is_400_px_wide(window, qtbot):
+    shown(window, qtbot)
+    dock = window.dock
+    assert window.dockWidgetArea(dock) == Qt.DockWidgetArea.RightDockWidgetArea
+    assert dock.allowedAreas() == Qt.DockWidgetArea.RightDockWidgetArea
+    assert dock.features() == QDockWidget.DockWidgetFeature.NoDockWidgetFeatures  # not closable, movable, floating
+    assert not dock.isFloating()
+    assert (dock.minimumWidth(), dock.maximumWidth()) == (340, 520)
+    assert dock.width() == 400
+    assert window.scroll.geometry().top() == 0  # no title bar above the panels
+
+
+def test_the_dock_stays_at_the_right_and_is_400_px_wide_where_the_window_has_room(window, qtbot):
+    window.resize(1440, 900)  # the size the application opens with: room for the bottom row in any font
     shown(window, qtbot)
     dock = window.dock
     assert window.dockWidgetArea(dock) == Qt.DockWidgetArea.RightDockWidgetArea

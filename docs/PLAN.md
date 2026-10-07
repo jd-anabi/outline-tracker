@@ -204,6 +204,16 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 14:25, two more superseded tests marked `xfail(strict=True)`, for J to confirm their
+  removal.** (1) `tests/gui/test_menus.py::test_the_menu_bar_has_file_and_help_with_the_specs_items`
+  (from C8a) lists five File items; Export is the sixth (SPEC 10.1). Successor:
+  `tests/gui/test_export_panel.py::test_the_file_menu_has_export_between_save_session_as_and_quit`.
+  (2) On Linux only: `tests/gui/test_shell.py::test_the_dock_stays_at_the_right_and_is_400_px_wide`
+  (from C0) shows the window at its smallest width, 960 px. Since the Play button was added, the
+  bottom row needs a few px more than fit beside a 400 px dock in the wider font of the Linux
+  test machine, and the dock gives up 7 px (393). On macOS and Windows the row fits. Successor:
+  the same checks in a window of 1440 px, the width the application opens with
+  (`..._where_the_window_has_room`). Default: J says "delete them" and they go.
 - **Wed 13:25, C8a: two superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal.** (1) `tests/gui/test_navigation.py::test_the_bar_is_laid_out_as_the_design_note_says`
   listed the six step buttons in a row; the Play button now sits between −1 and +1 (SPEC 10.1).
@@ -1464,7 +1474,8 @@ Conventions for every GUI task:
     estimate, progress and ETA show; the window stays usable; Cancel stops and keeps what was
     tracked.
 
-- [ ] **C6 · Export and the smoke test** (§10.1 panel 9, §13.5 P0)
+- [x] **C6 · Export and the smoke test** (§10.1 panel 9, §13.5 P0)
+  - Done Wed 14:20 (commit 2fd50e2). Verified offscreen on macOS with the stand-in models, 23 tests: Export all runs in the worker and writes every P0 file of SPEC 8 with the overlay; the panel lists the files with their sizes, every warning (a locked file, a skipped overlay) and the time taken; File > Export is the same action; the smoke test walks the whole flow in the window (open a synthetic clip, calibrate, circle and origin, one object by a click, a run, Export, reopen the session in a second window with everything restored, no error recorded), once more on a clip in a folder with a space and accented letters. The code is in `gui/panels/export_panel.py`. Decisions made here: a session that could not be saved is not exported; the panel needs attention after an export with warnings and when the results are newer than positions.csv. Uncertain: Export all waits for the model to be loaded although it needs none (being fixed); closing the window during an export waits for it to end; a changed stick length alone does not yet tell the student to export again; not tried by hand on a real screen.
   - Files: `gui/panels/export_panel.py`, `tests/gui/test_smoke.py`.
   - Content: run folder (default from §8.1, changeable), Export all in the worker, Open folder.
   - Tests first: the §13.5 flow in one test: the window opens, a synthetic clip loads,
