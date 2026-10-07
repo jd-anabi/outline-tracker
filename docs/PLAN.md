@@ -204,6 +204,18 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 10:45, C1: one superseded test marked `xfail(strict=True)`, for J to confirm its
+  removal.** `tests/gui/test_shell.py::test_the_video_area_says_how_to_start` was written for the
+  empty window of C0, where the video area was one line of text. C1 put the Open video button
+  between its two sentences, so the area is no longer one label. Its successor is
+  `tests/gui/test_controller.py::test_the_empty_video_area_says_how_to_start_and_offers_open_video`.
+  Default: J says "delete it" and it goes.
+- **Wed 10:30, the Windows test machine and the window's tests (no action needed).** Three tests
+  of the window's colors failed on Windows only. Cause, measured there: the test platform on the
+  Windows machine had no font at all and drew a square for every character. On a real Windows
+  screen the panel badge is drawn well (Segoe UI, the digit centered). The test set-up now gives
+  that platform Windows' own fonts; the three tests pass there unchanged. Nobody has looked at
+  the window on a real Windows screen yet: that is part of go/no-go 2.
 - **Wed 06:50, export of a results file with a gap: two tests marked `xfail(strict=True)`, for J
   to confirm their removal.** The tool itself cannot make a gap inside a track any more (an edit
   that would leave one is refused). For a results.npz that has one all the same (made by hand or
@@ -1329,7 +1341,8 @@ Conventions for every GUI task:
   - Check: `uv run pytest tests/gui -q`; `uv run outline-tracker` opens an empty window with the
     numbered panels; `gh run list --limit 1` shows both CI jobs green.
 
-- [ ] **C1 · Video view and navigation** (§10.1, §13.6)
+- [x] **C1 · Video view and navigation** (§10.1, §13.6)
+  - Done Wed 10:45 (commits 395217f, 7620e34, and the `closing` signal added at the merge). Verified offscreen on macOS, 86 new tests: a synthetic clip opens (the Open video button, File > Open video, or `outline-tracker gui VIDEO`) and shows; the slider lands only on grid frames; the arrow keys step by 1 and 10; a click in the middle of pixel (c, r) reports (c + 0.5, r + 0.5) within 0.2 px, also at 150% and 200% scaling; the frame shown equals the tracker's frame, also in a clip whose timestamps have gaps; a file that is no video is refused with a plain message and the open video stays; a second video replaces the first and starts at its first frame. Beyond the plan's text, C1 laid the joints for the panel tasks: `gui/session_controller.py` (the open video and its session), tools and graphics on the view (`set_tool`, `add_item`), `gui/navigation.py`, `gui/dialogs.py`, and `gui/panels/` where each panel is one module with `build(window)`. Uncertain: not yet seen on a real screen (the native file dialog, the trackpad zoom); a long phone video is opened on the GUI thread (not measured); the bottom row is nearly full at the smallest window width.
   - Files: `gui/main_window.py`, `gui/video_view.py`, `tests/gui/test_video_view.py`.
   - Content: pyqtgraph `ImageItem` in a `ViewBox` (`row-major`, `invertY(True)`, aspect locked,
     context menu off, no auto-levels, wheel zoom, drag pan, Fit, 1:1); Open video; bottom bar

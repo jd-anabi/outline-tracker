@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QRect, Qt
+from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
@@ -85,9 +85,12 @@ class MainWindow(QMainWindow):
     and `start_hint`; in the bar above the picture `tool_text`, `fit_button`, `one_to_one_button`
     and `zoom_label`; in the File menu `open_action` and `quit_action`."""
 
+    closing = Signal()  # the window is about to close; the session and the video are still open
+
     def __init__(self, segmenter_factory=None, parent: QWidget | None = None):
         super().__init__(parent)
         self.segmenter_factory = segmenter_factory
+        self._closed = False
         self.setWindowTitle(TITLE)
         self.setMinimumSize(*MINIMUM_SIZE)
 
@@ -261,7 +264,12 @@ class MainWindow(QMainWindow):
         self.tool_text.setText(PAN_TEXT if tool is None else getattr(tool, "text", ""))
 
     def closeEvent(self, event) -> None:
-        """Closing the window releases the video file."""
+        """Closing the window tells its parts first (`closing`: a panel saves, a worker stops), while
+        the session and the video are still there, and then releases the video file. The parts are
+        told once, however often the window is closed."""
+        if not self._closed:
+            self._closed = True
+            self.closing.emit()
         self.controller.close()
         super().closeEvent(event)
 

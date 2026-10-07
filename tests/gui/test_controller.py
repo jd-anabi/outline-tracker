@@ -299,6 +299,18 @@ def test_a_session_file_is_only_named_until_sessions_can_be_opened(window, monke
     assert asked.messages == [] and window.controller.session is None
 
 
+def test_closing_tells_the_parts_first_while_the_video_is_still_open(window, qtbot, dish_clip):
+    # a panel saves and a worker stops on `closing`: both may still need the session and the video
+    window.open_path(dish_clip.path)
+    source, seen = window.controller.source, []
+    window.closing.connect(lambda: seen.append((window.controller.session is not None, source.get(0).shape)))
+    assert window.close()
+    assert seen == [(True, (240, 320, 3))]  # told once, before the video was released (frame: rows, columns, RGB)
+    with pytest.raises(ValueError):
+        source.get(0)
+    assert window.close() and len(seen) == 1  # a second close (the test's own teardown does one) tells nobody
+
+
 def test_closing_the_window_releases_the_video(window, qtbot, dish_clip, tmp_path):
     path = own_copy(dish_clip, tmp_path)
     window.open_path(path)

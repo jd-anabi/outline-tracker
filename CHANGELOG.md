@@ -38,3 +38,6 @@ repository (`vX.Y.Z`).
   open (last week's workflow with this week's files).
 - `outline-tracker` (no arguments) and `outline-tracker gui`: the window opens, so far empty,
   with the nine numbered panels. The panels are filled in next.
+- The window opens a video (Open video, or `outline-tracker gui VIDEO`): the picture with zoom,
+  pan, Fit and 1:1, and under it the frame slider, the step buttons and the frame box. The
+  frame shown is exactly the frame the tracker reads.
