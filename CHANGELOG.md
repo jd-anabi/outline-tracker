@@ -65,3 +65,8 @@ repository (`vX.Y.Z`).
 - Safer and more complete: the panels that a run depends on are locked while it runs; Remove
   asks before it deletes tracked frames; the model and the device can be chosen in panel 7;
   a Fill switch shows the masks. The README has a ten-step Quickstart.
+- Where the panels meet: Export all works while the model is still loading or could not be
+  loaded; an export locks the same controls as a tracking run; the model cannot be changed
+  once there are results; panel 9 says when the exported files are older than the session.
+- `docs/ROADMAP.md`: the plan for the next phase (a general, open-source tool), with the
+  facts it starts from in `docs/roadmap/`.

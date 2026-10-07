@@ -204,6 +204,20 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 16:30, C9: seven superseded tests marked `xfail(strict=True)`, for J to confirm their
+  removal, and one change of a decision to confirm.** The follow-up that joins the last panels
+  (Export all without the model, one lock for runs and exports, the model box off once there are
+  results, panel 9 telling when the files are older than the session) made seven tests of C6, C7
+  and C8b obsolete; each names its successor in `tests/gui/test_joins.py` in its reason text:
+  three in `tests/gui/test_export_panel.py`, one in `tests/gui/test_model_choice.py`, two in
+  `tests/gui/test_review.py`, one in `tests/gui/test_joins.py` itself. Default: J says "delete
+  them" and they go. The decision: X7 said one worker thread makes and uses the model. So that
+  Export all can run while a model is still loading, the model is now made in a short-lived
+  thread of its own and then used only in the worker thread (one copy of the weights, never two
+  uses at once, as X7 wants). Checked with the real model on this Mac (processor and Apple GPU);
+  not yet on Windows: the Windows check of go/no-go 2 covers it (the status bar must reach
+  "Model ready" and a run must finish). Default: keep it; the alternative is the simpler
+  form, in which an export pressed during a load is written when the load has ended.
 - **Wed 15:15, a finding worth telling the students: fine mode rescues a small object that
   coarse tracking loses.** With the real model through the window on the synthetic dish clip
   (three bodies about 14.5 px long), coarse tracking lost one body on 15 of 60 frames; with only

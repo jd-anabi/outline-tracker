@@ -618,7 +618,12 @@ table of panel 8 and Export all in panel 9. All panels were on the merged main (
 
 ### 6.4 Not covered by this section
 
-- A real screen, on macOS or on Windows: nobody has yet used the window by hand.
+- A real screen on Windows: nobody has yet used the window by hand there. On a Mac the owner did, on
+  2026-10-07: installed commit `ae870e2` the way a user does (`uv tool install` from the repository),
+  ran the selftest on the Apple GPU and on the processor, made the two synthetic clips, and went
+  through every panel in the window by hand; the report was that all of it works. That is one
+  person's check on one laptop, and it was made before the last follow-up (the lock during an
+  export, the model box after results, a thread of its own that makes the model) was merged.
 - A real video of shrimp, and a long one (opening time, memory over minutes).
 - The three corrections of panel 8 with the real model (they are tested with stand-in models),
   and the real model's antennae outline in fine mode in the window.

@@ -196,6 +196,10 @@ Converting path/to/video.MOV (a minute of 240 fps video takes a few minutes) ...
 
 ## Troubleshooting
 
+### An object is lost on many frames
+
+Panel 8 lists `LOST` for the frames on which the model did not find an object. Small objects are lost more often in coarse mode, where the model sees the whole picture. Fine mode follows one object in a close-up window, and it found a 14-pixel body on every frame where coarse mode lost it on a quarter of them. The mode of an object cannot be changed once it is tracked: remove the object in panel 6, add it again, set its mode to fine before you click on it, and track again. Fine objects are tracked one at a time, so the run takes longer.
+
 ### A file is open in another program
 
 On Windows, a program such as Excel locks a CSV file that is open in it. The tool cannot replace the file, so it writes the new data next to it, for example in `positions.new.csv`, and tells you. Close the program. Then write the files again with `outline-tracker export SESSION.json`, as shown above.
