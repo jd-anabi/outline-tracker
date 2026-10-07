@@ -10,9 +10,10 @@ Rules of the rows:
   their ids), frames ascending.
 - On a lost frame every measured number is an empty cell, the area too (an empty mask measures
   nothing); `frame` and `t_s` stay, the counts `visible`, `n_components` and `shape_ok` are 0.
-- positions.csv, shapes.csv and the Tracker-format files have every frame of the clip's grid from
-  a track's first to its last (SPEC 8.2). A track whose records leave one out is given a lost row
-  there first (`fill_gaps`); radial.csv and outlines.npz hold the frames with a record only.
+- positions.csv and shapes.csv have every frame of the clip's grid from a track's first to its
+  last (SPEC 8.2). A track whose records leave one out is given a lost row there first
+  (`fill_gaps`); the Tracker-format files, radial.csv and outlines.npz hold the frames with a
+  record only.
 
 The Tracker-format folder holds nothing but `<id>.csv`: students' own loaders read every .csv and
 .txt file in it as a track. So a file is written under `<id>.csv.tmp` by last week's writer
@@ -187,10 +188,10 @@ def write_tracker_folder(folder: Path, derived_by_track: Mapping[str, DerivedTra
     the folder of what is not a current track's file.
 
     folder: the Tracker-format folder, named after the model; created if needed. derived_by_track:
-    the tracks, without a gap (`fill_gaps`), with t_s in s, x_mm and y_mm in mm in the user's axes
-    (y up), u_px and v_px in image px; a lost frame keeps its row with those four empty, as in
-    positions.csv. names: each track's file name (`tracker_file_names`). log: told, one line each,
-    which files were removed.
+    the tracks as stored, one row per tracked frame (not filled by `fill_gaps`), with t_s in s,
+    x_mm and y_mm in mm in the user's axes (y up), u_px and v_px in image px; a lost frame keeps
+    its row with those four empty, as in positions.csv. names: each track's file name
+    (`tracker_file_names`). log: told, one line each, which files were removed.
 
     Returns (the files written, warnings). A file is `<id>.csv`, or `<id>.csv.new` when `<id>.csv`
     stayed locked by another program, which a warning then says. Raises PermissionError when the

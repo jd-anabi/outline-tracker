@@ -11,10 +11,11 @@ What is exported:
 - The tracks that the session lists and results.npz holds, in plain text order of their ids. A
   track that only results.npz holds is left out, with a warning.
 - Per track the frames that results.npz holds, so a run that was stopped exports what it has.
-  positions.csv, shapes.csv and the Tracker-format file of a track have every frame of the clip's
-  grid from its first to its last (SPEC 8.2). Tracking leaves none of them out; where a
-  results.npz made by hand or by an older version does, the frame is written as a lost row
-  (`export_tables.fill_gaps`), and a warning names the track.
+  positions.csv and shapes.csv have every frame of the clip's grid from a track's first to its
+  last (SPEC 8.2). Tracking leaves none of them out; where a results.npz made by hand or by an
+  older version does, those two files show the frame as a lost row (`export_tables.fill_gaps`),
+  and a warning names the track. No other file has a row for such a frame: the Tracker-format
+  file has one row per tracked frame (SPEC 8.3).
 - radial.csv and outlines.npz are always written. They hold the fine tracks (a track with records
   the fine runner made), or every track with the setting `shape_files_for_coarse`; with no such
   track, the header alone and `meta` alone (decision X12).
@@ -69,10 +70,11 @@ class ExportData:
     (mm in the user's axes with y up, s, rad; see `derive.DerivedTrack`). flags: each track's
     `flags` cells, one per row. shape_tracks: the ids that get rows in radial.csv and keys in
     outlines.npz. unlisted: ids that results.npz holds but the session does not list; they are
-    not exported. rows, row_flags: `derived` and `flags` as positions.csv, shapes.csv and the
-    Tracker-format files show them: with a lost row for every frame of the clip's grid between a
-    track's first and last record that has no record (`export_tables.fill_gaps`). A track without
-    such a frame is there as it is in `derived` and `flags`.
+    not exported. rows, row_flags: `derived` and `flags` as positions.csv and shapes.csv show
+    them: with a lost row for every frame of the clip's grid between a track's first and last
+    record that has no record (`export_tables.fill_gaps`). A track without such a frame is there
+    as it is in `derived` and `flags`. Every other file, the Tracker-format files too, is written
+    from `derived`.
     """
 
     arrays: dict[str, TrackArrays]
@@ -195,11 +197,11 @@ def export_all(run_folder, overlay: bool = False, log: Callable[[str], object] =
         if len(missing):
             warn(f"{schema.RESULTS_NPZ} has no record of track {track_id} on {len(missing)} "
                  f"frame{'' if len(missing) == 1 else 's'} of the clip between its first and its last (the first is "
-                 f"frame {int(missing[0])}): {schema.POSITIONS_CSV}, {schema.SHAPES_CSV} and "
-                 f"{model_folder.name}/{names[track_id]} show them as lost. Re-track from that frame to fill them.")
+                 f"frame {int(missing[0])}): {schema.POSITIONS_CSV} and {schema.SHAPES_CSV} show them as lost, and "
+                 "the other files have no row for them. Re-track from that frame to fill them.")
     write_text(schema.POSITIONS_CSV, schema.csv_text(
         schema.POSITIONS, export_tables.table_rows(schema.POSITIONS, data.rows, data.row_flags)))
-    tracker_files, tracker_warnings = export_tables.write_tracker_folder(model_folder, data.rows, names, log)
+    tracker_files, tracker_warnings = export_tables.write_tracker_folder(model_folder, data.derived, names, log)
     files += tracker_files
     for text in tracker_warnings:
         warn(text)
