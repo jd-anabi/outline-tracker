@@ -24,6 +24,17 @@ def export(*args) -> int:
     return cli.main(["export", *(str(arg) for arg in args)])
 
 
+def error_line(err: str) -> str:
+    """The one `ERROR: ...` line that `err` (what the command printed on stderr) must be, and no traceback."""
+    assert err.startswith("ERROR: ") and err.endswith("\n") and err.count("\n") == 1, err
+    return err.strip()
+
+
+def one_error(capsys) -> str:
+    """The one `ERROR: ...` line the command printed on stderr since the last call."""
+    return error_line(capsys.readouterr().err)
+
+
 def listing(folder) -> list[str]:
     """Every file and folder under `folder`, as sorted relative paths with forward slashes."""
     return sorted(path.relative_to(folder).as_posix() for path in folder.rglob("*"))

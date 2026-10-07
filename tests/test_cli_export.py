@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from cli_export_helpers import edit_session, export, listing, lock, within_rounding, written
+from cli_export_helpers import edit_session, export, listing, lock, one_error, within_rounding, written
 from cli_probe_helpers import decode
 from export_helpers import K, MODEL, coarse_run, load, table, world
 from helpers import ODD_FOLDER
@@ -63,13 +63,6 @@ def run_without_video(clip_in_odd_folder):
 def lines_of(capsys) -> list[str]:
     """The lines the command printed on stdout since the last call."""
     return capsys.readouterr().out.splitlines()
-
-
-def one_error(capsys) -> str:
-    """The one `ERROR: ...` line the command printed on stderr, and no traceback."""
-    err = capsys.readouterr().err
-    assert err.startswith("ERROR: ") and err.endswith("\n") and err.count("\n") == 1, err
-    return err.strip()
 
 
 def after_the_first_line(out: str) -> str:

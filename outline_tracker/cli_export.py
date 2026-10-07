@@ -16,7 +16,12 @@ made) and `WARNING:` lines (the export report's: a locked file written as `<name
 skipped because its video was not found, a track left out). Notes and warnings come last, where they are
 read. They do not change the exit code: 0 means the export ran to its end, even if a file went to a `.new`
 name or the overlay was skipped. Anything that stops the export is one `ERROR: ...` line on stderr and exit
-code 1, with nothing written (but for a file that stays locked, which can come after some were written).
+code 1, never a traceback: a message the package words itself (no such file, another schema version, a radial
+step of 10) is printed as it is; anything else, such as a value of the wrong kind in a session.json that was
+edited by hand (a head click that is one number) or a results.npz that was copied only in part, is printed
+as `UNUSABLE` says, with the name of the exception. Nothing is written when the error comes from reading the
+two files; a file that stays locked, or a video path of the wrong kind with `--overlay`, can come after
+some files were written.
 
 The files hold what SPEC 8 says: mm in the user's axes with y up, s, rad, and px in Tracker's image
 coordinates (pixel centers at +0.5); frames are the video's frame numbers. The text printed here is ASCII
@@ -49,6 +54,8 @@ NEWER_SESSION = ("{new} lies next to {old}: a save of the session could not repl
                  "settings, close the other program, rename {new} to {old} and export again.")
 NOT_REGENERATED = "{overlay} was not regenerated and is as it was. Add --overlay to make it again from the video."
 NOT_MADE = "{overlay} was not made: add --overlay to make it from the video."
+UNUSABLE = ("The export stopped on something it cannot use ({reason}). Check what was edited last in session.json, "
+            "and that results.npz was copied completely. If neither applies, this is a fault in outline-tracker.")
 
 
 def add_parser(commands) -> None:
@@ -87,6 +94,12 @@ def size_text(n_bytes: int) -> str:
     return f"{value:.1f} {units[step]}"
 
 
+def one_line(text: str) -> str:
+    """`text` on one line: every run of white space, line breaks included, becomes one space, and the ends
+    are trimmed. Some reasons run over several lines (OpenCV's, numpy's); an ERROR is one line."""
+    return " ".join(text.split())
+
+
 def run(args: argparse.Namespace) -> int:
     """Run `export` for parsed arguments: write every output file of the session's run folder, say what
     was written, and return the exit code.
@@ -96,17 +109,29 @@ def run(args: argparse.Namespace) -> int:
     a file written as `.new`, an overlay skipped for want of its video, a track left out). Returns 1 with
     one `ERROR: ...` line on stderr when something stops the export: no such file, a folder or a file with
     another name than session.json, a session of another schema version, no results.npz, a radial step
-    other than 5 degrees, two track ids that give one file name, a file that stays locked. Files are
-    written only after the checks pass; the error of a locked file can come after some were written. The
-    files hold mm in the user's axes (y up), s, rad and px in Tracker's image coordinates, as SPEC 8 says.
+    other than 5 degrees, two track ids that give one file name, a file that stays locked. Anything else
+    that goes wrong while the files are read or the numbers are made is a value the files should not hold:
+    a head click that is not [u, v], a video path that is not text, a results.npz cut short. Those are
+    one ERROR line too (`UNUSABLE`, with the name and the reason of the exception), never a traceback. Files
+    are written only after the files are read and the numbers are made; the error of a locked file, or of
+    a video path of the wrong kind under `--overlay`, can come after some were written. The files hold mm in
+    the user's axes (y up), s, rad and px in Tracker's image coordinates, as SPEC 8 says.
     """
     import cv2  # imported here, as the other commands do, so that the command line starts without it
 
     try:
         return _export(Path(args.session), bool(args.overlay))
     except (OSError, RuntimeError, ValueError, cv2.error) as error:
-        print(f"ERROR: {error}", file=sys.stderr)
-        return 1
+        return _fail(str(error))
+    except Exception as error:  # the last handler: a hand edit or a damaged file must never print a traceback
+        reason = type(error).__name__ + (f": {one_line(str(error))}" if str(error).strip() else "")
+        return _fail(UNUSABLE.format(reason=reason))
+
+
+def _fail(reason: str) -> int:
+    """Print `ERROR: ` and the reason on one line on stderr; returns the exit code 1."""
+    print(f"ERROR: {one_line(reason)}", file=sys.stderr)
+    return 1
 
 
 def _export(session_file: Path, overlay: bool) -> int:
