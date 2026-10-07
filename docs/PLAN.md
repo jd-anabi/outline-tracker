@@ -204,6 +204,13 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 05:20, track colors: a point for J (default: no change).** Decision X14 keeps last
+  week's overlay colors (A is yellow). While preparing the look of the app I had the list
+  checked for red-green color blindness: three pairs in it are hard to tell apart for such a
+  viewer (yellow and green, green and light green, magenta and azure). Every track also
+  carries its letter on the video, so color is never the only cue. A list with the same order
+  of hues and A still yellow, but easier to tell apart, is ready. Default: keep X14; if J says
+  "use the new colors", it is a change of one list and of no stored result.
 - **Wed 04:42, A16: two more superseded tests marked `xfail(strict=True)`, for J to confirm
   their removal.** (1) `tests/test_tracking_job.py::test_a_fine_object_is_not_tracked_yet` was
   A15's placeholder: it asserts that a fine object is refused as "not built yet"; A16 built it.
