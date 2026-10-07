@@ -102,6 +102,14 @@ QPushButton[kind="primary"]:focus { border: 2px solid @text; }
 QPushButton:disabled, QPushButton[kind]:disabled { background: @window; border-color: @border; color: @disabled; }
 QFrame#BottomBar QPushButton { padding: 0 6px; }
 QFrame#BottomBar QPushButton:focus { padding: 0 5px; }
+/* Task C4 (objects and click prompts): a checked tool button, the Remove button, a message in a panel */
+QPushButton:checked { background: @accentSoft; border: 2px solid @accent; padding: 0 11px; }
+QPushButton[kind="destructive"] { border-color: @problem; color: @problem; }
+QPushButton[kind="destructive"]:hover { background: @problemBg; }
+QPushButton:checked:disabled, QPushButton[kind="destructive"]:disabled { background: @window; border: 1px solid @border; padding: 0 12px; color: @disabled; }
+QLabel[role="msg"] { border-radius: 4px; border: 1px solid @border; background: @window; color: @text; padding: 6px 8px; }
+QLabel[role="msg"][kind="warning"] { background: @warningBg; border-color: @warning; }
+QLabel[role="msg"][kind="problem"] { background: @problemBg; border-color: @problem; }
 """
 
 
