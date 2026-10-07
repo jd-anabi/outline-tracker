@@ -376,7 +376,8 @@ because derive and flags read the arrays the results store defines).
 
 ### Phase A: core (Tue night)
 
-- [ ] **A01 · Scaffold, CI, repo guards** [CP] (§12 rules, §13.7, §15)
+- [x] **A01 · Scaffold, CI, repo guards** [CP] (§12 rules, §13.7, §15)
+  - Done Tue 21:39 (commits 10f790d, eb29f7f, 1363cee). Verified: fast suite green locally; both CI jobs green, including `torch, then Qt` on Windows. Note: the reverse order also passed on the Windows runner with torch 2.14.1, so the §10.2 failure did not show there; the import order is kept anyway.
   - Files: `pyproject.toml`, `uv.lock`, `.python-version` (3.12), `.gitignore` (videos, `*.npz`,
     weights, `.venv`, caches, J's notes file), `.gitattributes` (exactly `* text=auto eol=lf` and
     `tests/reference/** -text`, pushed no later than the workflow file), `conftest.py` (repo
@@ -423,7 +424,8 @@ because derive and flags read the arrays the results store defines).
   - Check: `uv sync && uv run outline-tracker --version && uv run pytest -m "not slow" -q`, then
     `gh run list --limit 1` shows the CI run green.
 
-- [ ] **A02 · Port video, convert, check** [CP] (§0, §11, §12)
+- [x] **A02 · Port video, convert, check** [CP] (§0, §11, §12)
+  - Done Tue 21:52 (commit 93c9a71). Verified: the 8 + 2 ported tests pass with only their import line changed; ported functions are source-identical to the reference (fidelity test). Uncertain: Windows console encoding for non-ASCII ffmpeg messages (covered later by the odd-folder fixture, A08).
   - Files: `outline_tracker/video.py` (the template's functions, unchanged), `convert.py`,
     `cli.py` (`convert VIDEO...`, `check VIDEO...`: the template's `main` bodies and messages;
     errors become `ERROR: …` with exit code 1), `tests/test_video.py` (8 tests),
@@ -434,7 +436,8 @@ because derive and flags read the arrays the results store defines).
     functions to this test.
   - Check: `uv run pytest tests/test_video.py tests/test_convert.py tests/test_port_fidelity.py -q`
 
-- [ ] **A03 · Port Tracker I/O and `mask_center`** [CP] (§0, §8.3, §11)
+- [x] **A03 · Port Tracker I/O and `mask_center`** [CP] (§0, §8.3, §11)
+  - Done Tue 22:07 (commit 390028f). Verified: 13 ported tests plus the `mask_center` case pass; outputs equal the reference on random inputs, including written bytes; CI green on both runners. Uncertain: none.
   - Files: `outline_tracker/tracker_io.py` (`read_tracker_export`, `Calibration`,
     `fit_calibration`, `write_tracker_file`, `Plan`, `make_plan`, and `_fps_from_export`,
     `_fps_from_manifest` under their original names, so `make_plan` is moved verbatim),
