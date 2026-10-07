@@ -204,6 +204,15 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Tue 23:15, A04b: how negative clicks behave with the real model (for J and the README).**
+  The §13.4 test passes (0.0% of the neighbor, limit 5%), but in that scene the positive click
+  alone already gives 0.0%, so the test only shows that the label matters (both clicks positive:
+  98.9%). Measured and recorded in docs/VALIDATION.md 2.1, not asserted: when the positive click
+  is within about 6 px of the point where two objects touch, adding a negative click on the
+  neighbor shrinks the mask to a small patch that is neither object; the positive click alone at
+  the same place gives the right object. Advice for students: click well inside the animal and
+  judge a negative click by the preview. Nothing was tuned. No test was changed or marked xfail.
+
 ---
 
 ## 3. How the work runs
@@ -451,8 +460,9 @@ because derive and flags read the arrays the results store defines).
     random masks (§13.1 Centroid); the fidelity test covers the moved functions.
   - Check: `uv run pytest tests/test_tracker_io.py tests/test_port_equivalence.py -q`
 
-- [ ] **A04a · Segmenter protocol and the Hugging Face backend, ported** [CP] (§6.2, §12, §13.3,
+- [x] **A04a · Segmenter protocol and the Hugging Face backend, ported** [CP] (§6.2, §12, §13.3,
   §13.4)
+  - Done Tue 22:50 (commit d6b4903). Verified with the real model on cpu: positions equal last week's script within 0.0005 px on the selftest clip and exactly (identical masks) on a three-object clip; selftest error 0.46 px on cpu and on the Apple GPU (limit 3 px). Numbers in docs/VALIDATION.md section 1. Uncertain: SAM 2.1 was not downloaded or run.
   - Files: `segmenter/base.py` (`Segmenter` with `start`, `step`, `close` as §12 plus
     `preview(image, prompts) -> list[MaskResult]` (X21); `ObjectPrompt`, `MaskResult` exactly as
     §12; `crop_to_bbox(mask, logits, pad=8) -> MaskResult`), `segmenter/edgetam_convert.py`
@@ -507,8 +517,9 @@ because derive and flags read the arrays the results store defines).
     `uv run pytest -m slow tests/slow/test_regression_reference.py -q` (a few minutes; the first
     run downloads the model).
 
-- [ ] **A04b · Backend extensions: several points, negative points, `step()` fallback, preview**
+- [x] **A04b · Backend extensions: several points, negative points, `step()` fallback, preview**
   (§5, §6.2, §13.4)
+  - Done Tue 23:10 (commit 6f8548d). Verified with the real model: negative-click test 0.0% overlap (limit 5%); preview equals the first frame of a run bit for bit; an injected Apple-GPU failure on the third frame finishes on cpu within 0.9 px. All 17 slow tests pass on main, none skipped. Uncertain: no real Apple-GPU failure was seen, so the fallback is tested by injection only; see the note on negative clicks under "Raised during the work".
   - Files: `segmenter/hf.py`, `tests/test_hf_helpers.py`, `tests/slow/test_real_model.py`.
   - Not on the critical path: `from-tracker` with one click per shrimp needs only A04a.
     `--fine` and the GUI need this task.
