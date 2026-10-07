@@ -18,8 +18,10 @@ clip) goes into `MOVED_BLOCKS`, with the block's first and last line and the few
 
 A ported test file goes into `PORTED_TESTS` when it is one file of the template (only its import
 line may differ), or into `SPLIT_TESTS` when the template's file was shared out among several new
-files (each listed definition must equal the template's; the three tests that were not shared out
-are named in `NOT_PORTED_HERE`).
+files (each listed definition must equal the template's; the test that was not shared out is named
+in `NOT_PORTED_HERE`). The two end-to-end tests that go through `from_tracker` are in
+`REWRITTEN_TESTS`, with every piece of text that changed; a helper copied from the template's
+test file into a helper module is in `COPIED_HELPERS`.
 """
 
 from __future__ import annotations
@@ -55,6 +57,8 @@ VERBATIM: list[tuple[str, str, tuple[str, ...]]] = [
          "_fps_from_export", "_fps_from_manifest", "Plan", "make_plan"),
     ),
     ("outline_tracker.measure", "shrimp.segment", ("mask_center",)),
+    # Last week's three checks (lost, jump, size change): the console's CHECK lines and from-tracker's flags (X22).
+    ("outline_tracker.from_tracker", "shrimp.segment", ("_flags",)),
     (
         "outline_tracker.segmenter.edgetam_convert",
         "shrimp._edgetam",
@@ -91,6 +95,7 @@ ADAPTED: list[tuple[str, str, str, tuple[tuple[str, str], ...]]] = [
 CONSTANTS: list[tuple[str, str, tuple[str, ...]]] = [
     ("outline_tracker.segmenter.edgetam_convert", "shrimp._edgetam", ("KEYS_TO_MODIFY_MAPPING", "PERCEIVER")),
     ("outline_tracker.segmenter.hf", "shrimp.segment", ("KEEP_FRAMES", "MODELS")),
+    ("outline_tracker.from_tracker", "shrimp.segment", ("MAX_SPEED_MM_S",)),  # the speed `_flags` calls a jump
 ]
 
 # (new module, new class, reference module, reference class, methods moved verbatim, methods of
@@ -135,8 +140,8 @@ PORTED_TESTS: list[tuple[str, str, tuple[str, str]]] = [
 # Each row: (new file, the import line that replaces the template's `from shrimp import segment`,
 # the top-level definitions and assignments taken over, whether the file holds nothing else).
 # Each taken-over name must have the same source text as in the template; the alias keeps the
-# bodies of the tests unchanged. The three end-to-end tests are not here: they go through
-# from_tracker and selftest (tasks B1 and B2), where their assertions are kept.
+# bodies of the tests unchanged. The three end-to-end tests are not here: two go through
+# from_tracker (`REWRITTEN_TESTS` below), one through selftest (task B2).
 SPLIT_REFERENCE = "test_segment.py"
 SPLIT_REFERENCE_IMPORT = "from shrimp import segment"
 SPLIT_TESTS: list[tuple[str, str, tuple[str, ...], bool]] = [
@@ -165,10 +170,61 @@ SPLIT_TESTS: list[tuple[str, str, tuple[str, ...], bool]] = [
     ),
 ]
 NOT_PORTED_HERE = (
-    "test_whole_run_with_a_stand_in_model",
-    "test_many_shrimp_from_a_start_file_in_extra",
     "test_selftest_runs_and_reports_the_time",
 )
+
+# The template's two end-to-end tests of `track_video`, which now go through `from_tracker` (X3):
+# (new file, test, ((old text, new text), ...)). The test's source must equal the template's after
+# the replacements, each of which must occur exactly once in the template's test: the call
+# (`from_tracker` with `ThresholdFake` where `track_video` with `DiskFinder` stood), the result's
+# fields (a record, not a dict), and the paths, which SPEC 8.1 moved into the run folder. Every
+# assertion on frames, times and positions is therefore the template's, character for character.
+_RUN_LOG_OLD = '    assert (tmp_path / "stand-in" / "run.log").exists()  # not .txt: load_tracks reads .csv and .txt'
+_RUN_LOG_NEW = """\
+    # SPEC 8.1: the files are in the run folder, <video folder>/<video stem>_outline_<student>/; the
+    # student is the name of the export's folder, and the tracks are in a folder named after the model
+    run = tmp_path / f"clip_tracker_outline_{tmp_path.name}"
+    assert (run / "run.log").exists()  # not .txt: load_tracks reads .csv and .txt
+    assert res.files == [run / "stand-in" / "A.csv"] and res.overlay == run / "overlay.mp4\""""
+_FILES_OLD = (
+    '    assert [f.relative_to(tmp_path).as_posix() for f in res["files"]] == '
+    '["ana/stand-in/A.csv", "ana/stand-in/B.csv"]')
+_FILES_NEW = """\
+    # SPEC 8.1: the run folder is next to the video, <video stem>_outline_<student>/; the student is the
+    # folder that holds extra/, as last week, and the tracks are in a folder named after the model
+    assert [f.relative_to(tmp_path).as_posix() for f in res.files] == [
+        "clip_tracker_outline_ana/stand-in/A.csv", "clip_tracker_outline_ana/stand-in/B.csv"]"""
+REWRITTEN_TESTS: list[tuple[str, str, tuple[tuple[str, str], ...]]] = [
+    (
+        "test_from_tracker_port.py", "test_whole_run_with_a_stand_in_model",
+        (
+            ('res = segment.track_video(video, export, model="stand-in", segmenter=DiskFinder(), log=lambda *a: None)',
+             'res = from_tracker(video, export, model="stand-in", segmenter=ThresholdFake(), log=lambda *a: None)'),
+            ('res["files"][0]', "res.files[0]"),
+            ('res["overlay"].exists() and res["overlay"].stat().st_size > 0',
+             "res.overlay.exists() and res.overlay.stat().st_size > 0"),
+            (_RUN_LOG_OLD, _RUN_LOG_NEW),
+            ('res["flags"] == []', "res.flags == []"),
+        ),
+    ),
+    (
+        "test_from_tracker_port.py", "test_many_shrimp_from_a_start_file_in_extra",
+        (
+            ('res = segment.track_video(video, start, model="stand-in", seconds=100 / 240, step=4, fps=240.0,\n'
+             "                              segmenter=DiskFinder(), overlay=False, log=lambda *a: None)",
+             'res = from_tracker(video, start, model="stand-in", seconds=100 / 240, step=4, fps=240.0,\n'
+             "                       segmenter=ThresholdFake(), overlay=False, log=lambda *a: None)"),
+            (_FILES_OLD, _FILES_NEW),
+            ('zip(res["files"], ', "zip(res.files, "),
+        ),
+    ),
+]
+
+# Helpers copied unchanged from the template's test_segment.py into a helper module of the new
+# tests: (new file, names). Each must have the template's source text.
+COPIED_HELPERS: list[tuple[str, tuple[str, ...]]] = [
+    ("from_tracker_helpers.py", ("disk_video",)),
+]
 
 
 def _source(module_name: str, name: str) -> str:
@@ -398,12 +454,28 @@ def test_split_ported_tests_differ_only_in_the_import_line(new_name, new_import,
     assert set(new) - {new_import} <= set(reference) - {SPLIT_REFERENCE_IMPORT}
 
 
+@pytest.mark.parametrize("new_name, test, replacements", REWRITTEN_TESTS, ids=[row[1] for row in REWRITTEN_TESTS])
+def test_rewritten_tests_differ_only_by_the_listed_replacements(new_name, test, replacements):
+    reference = _statement_sources(REFERENCE_TESTS / SPLIT_REFERENCE)[test]
+    assert _statement_sources(TESTS / new_name)[test] == _adapted(reference, replacements)
+    # what replaced the template's path assertions says where the rule comes from
+    assert any("SPEC 8.1" in new for _, new in replacements)
+
+
+@pytest.mark.parametrize("new_name, names", COPIED_HELPERS, ids=[row[0] for row in COPIED_HELPERS])
+def test_copied_helpers_equal_the_templates(new_name, names):
+    new, reference = _statement_sources(TESTS / new_name), _statement_sources(REFERENCE_TESTS / SPLIT_REFERENCE)
+    for name in names:
+        assert new[name] == reference[name], f"{new_name}: {name} differs from the template"
+
+
 def test_every_template_test_of_test_segment_has_a_home():
     reference = _statement_sources(REFERENCE_TESTS / SPLIT_REFERENCE)
     template_tests = {name for name in reference if name.startswith("test_")}
     homes = {name for _, _, names, _ in SPLIT_TESTS for name in names if name.startswith("test_")}
-    assert template_tests == homes | set(NOT_PORTED_HERE)
-    assert not homes & set(NOT_PORTED_HERE)
+    rewritten = {test for _, test, _ in REWRITTEN_TESTS}
+    assert template_tests == homes | rewritten | set(NOT_PORTED_HERE)
+    assert not homes & rewritten and not (homes | rewritten) & set(NOT_PORTED_HERE)
 
 
 # ---------------------------------------------------------------------------------------------
