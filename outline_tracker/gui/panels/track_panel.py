@@ -12,9 +12,16 @@ panel's controls:
   the frame, s per frame and the time left; the line is written at most 4 times a second. Cancel
   stops after the current frame.
 - After a run one line says what happened: complete, cancelled with what was kept, or the plain
-  reason of a failure. A failure is also shown in a dialog (`dialogs.message`); so is a model that
-  could not be loaded and an outline that could not be made. A trace is never shown: it goes to
-  run.log (`Jobs.write_traces`).
+  reason of a failure; then what the job had to say besides (`Jobs.notes`: the video ended before
+  the clip does, the results are in another file because results.npz was open in another program,
+  the model changed its device), and with such a note the line is a warning, not a success. A
+  failure is also shown in a dialog (`dialogs.message`); so is a model that could not be loaded
+  and an outline that could not be made. A trace is never shown: it goes to run.log
+  (`Jobs.write_traces`), where every line of every job is.
+- "Complete" is said of the results as they are on disk, in the hint line and after a run alike:
+  every object that has points is tracked as far as tracking can reach, which is the end of the
+  clip, or the last frame of a video that a job of this window saw end before it
+  (`Jobs.video_end`); the frames named are those that have a record.
 
 The time one frame takes (`seconds_per_frame`, for one object) is taken from what this computer did
 last: the session's newest run, a run in this window, or the outline made after a click.
@@ -31,7 +38,6 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QWidget
 
-from outline_tracker.geometry import grid_frames
 from outline_tracker.gui import dialogs, estimate
 from outline_tracker.gui.overlays import Overlays
 from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, SPACING, Message, button, column
@@ -51,6 +57,7 @@ RUNNING_HINT = "Tracking is running. You can look at other frames meanwhile."
 STOPPING = "Stopping after the current frame."
 MODEL_LOADING = "The model is loading."
 COMPLETE_TEXT = "Tracking is complete: {objects}, {frames}."
+RAN_TO_END = "Tracking ran to the end."  # after a job that completed while the results on disk are not whole
 NOT_COMPLETE = "Tracking is not complete: {ids} before the end of the clip."
 CANCELLED_AT = "Tracking was cancelled at frame {frame}. The {frames} were kept."
 CANCELLED_TEXT = "Tracking was cancelled. The {frames} were kept."
@@ -79,6 +86,7 @@ class TrackPanel(QWidget):
         self.clock = time.perf_counter
         self._asked_at: float | None = None        # when the outline that is on its way was asked for
         self._outcome: tuple[str, str] | None = None  # kind and text of the line about the last run
+        self._frames_of: tuple = (None, {})        # a results store and the frames of its tracks (`_frames`)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setTextVisible(False)
@@ -181,27 +189,42 @@ class TrackPanel(QWidget):
         if measured is not None and jobs.done:
             self.seconds_per_frame = measured
         frames = estimate.counted(jobs.done, "tracked frame")
-        if status == COMPLETE:
-            self._outcome = ("success", self._complete_text())
+        if status == COMPLETE:  # "complete" is said of the results on disk, as the hint line says it
+            whole = self._standing()[2] == "done"
+            kind, text = "success", self._complete_text() if whole else RAN_TO_END
         elif status == CANCELLED:
             at = jobs.stopped_at()
-            self._outcome = ("warning", CANCELLED_TEXT.format(frames=frames) if at is None
-                             else CANCELLED_AT.format(frame=at, frames=frames))
+            kind, text = "warning", (CANCELLED_TEXT.format(frames=frames) if at is None
+                                     else CANCELLED_AT.format(frame=at, frames=frames))
         else:
-            self._outcome = ("problem", f"{STOPPED} {reason}")
-            dialogs.message(self._window, "problem", JOB_DIALOG.format(reason=reason))
+            kind, text = "problem", f"{STOPPED} {reason}"
+        if jobs.notes:  # what the job had to say besides: it must not be lost behind "complete"
+            kind, text = ("warning" if kind == "success" else kind), " ".join([text, *jobs.notes])
+        self._outcome = (kind, text)
+        if status not in (COMPLETE, CANCELLED):
+            dialogs.message(self._window, "problem", JOB_DIALOG.format(reason=" ".join([reason, *jobs.notes])))
         self.refresh()
 
     # ------------------------------------------------------------------ showing
 
     def _complete_text(self) -> str:
-        """ "Tracking is complete: 3 objects, 60 frames.": the tracked objects of the session and
-        the frames of its clip."""
-        session, store = self._controller.session, self._results()
-        objects = sum(track.id in store.track_ids for track in session.tracks)
-        frames = len(grid_frames(session.clip.start, session.clip.end, session.clip.step))
-        return COMPLETE_TEXT.format(objects=estimate.counted(objects, "object"),
-                                    frames=estimate.counted(frames, "frame"))
+        """ "Tracking is complete: 3 objects, 60 frames.": the objects of the session that are
+        tracked, and the video frames on which at least one of them has a record. That is fewer
+        than the clip's frames where the video ends before the clip does, and where every track
+        starts after the clip's first frame."""
+        session, frames = self._controller.session, self._frames(self._results())
+        tracked = [frames[track.id] for track in session.tracks if track.id in frames]
+        return COMPLETE_TEXT.format(objects=estimate.counted(len(tracked), "object"),
+                                    frames=estimate.counted(len(set().union(*tracked)), "frame"))
+
+    def _frames(self, store: ResultsStore) -> dict[str, list[int]]:
+        """The video frames on which each track of `store` has a record, ascending. Kept until
+        the results are read from disk again (`ResultsOnDisk` then gives another store): reading
+        them out of long tracks takes a moment, and the panel is refreshed often."""
+        if self._frames_of[0] is not store:
+            self._frames_of = (store, {track_id: store.arrays(track_id).frames.tolist()
+                                       for track_id in store.track_ids})
+        return self._frames_of[1]
 
     def _results(self) -> ResultsStore:
         """The results on disk now; none when the file cannot be read as results."""
@@ -224,8 +247,8 @@ class TrackPanel(QWidget):
         if refused != NOTHING_LEFT:
             return refused, refused, "todo"
         session = self._controller.session
-        try:
-            partial = partial_tracks(session, self._results())
+        try:  # a video that ended before its clip is whole where it ended: only the job saw where
+            partial = partial_tracks(session, self._results(), self.jobs.video_end)
         except ValueError as error:
             return str(error), str(error), "attention"
         if partial:

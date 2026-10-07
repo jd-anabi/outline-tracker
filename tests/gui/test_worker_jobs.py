@@ -10,7 +10,9 @@ What is checked, with stand-in segmenters and no torch:
   the same and waits for the thread;
 - session.json is written by the GUI thread only, results.npz by the worker only;
 - every image the model is given can be written to;
-- a failure is reported in one plain line, and its trace goes to run.log, never to the window.
+- a failure is reported in one plain line, and its trace goes to run.log, never to the window;
+- what a job says while it tracks (`Callbacks.log`) is in run.log of the job's run folder once,
+  however the job ended, written by the GUI thread; the notes among it are kept for the panel.
 
 Expected values: the dish scene's clip has 120 frames, so a clip at step 2 has the 60 frames 0, 2,
 ..., 118; `ExactFake` answers with the scene's own masks, so a stored center is the centroid of
@@ -30,6 +32,7 @@ from PySide6.QtCore import QTimer
 
 from gui_helpers import record_dialogs
 from outline_tracker import schema, tracking
+from outline_tracker.gui import worker_jobs
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 from outline_tracker.results import ResultsStore
@@ -37,12 +40,13 @@ from outline_tracker.segmenter.fake import ExactFake
 from outline_tracker.session import Session
 from prompt_helpers import Gate, gui_thread, this_thread
 from session_helpers import body
-from track_helpers import (NAME, Heard, Tracked, off_the_gui_thread, own_copy, ready_to_track, results_of, run_to_end,
-                           session_on_disk)
+from track_helpers import (NAME, Heard, Saying, Tracked, off_the_gui_thread, own_copy, ready_to_track, results_of,
+                           run_log, run_to_end, session_on_disk)
 from tracking_helpers import center, table_truth
 
 GRID = list(range(0, 120, 2))  # the clips have 120 frames; a new session takes every 2nd
 FIRST_SIX = [0, 2, 4, 6, 8, 10]
+NOTE = "  The stand-in changed its device on frame 4."  # two blanks first: a note under a run's line
 
 
 def parked_in_frame_6(window, qtbot, clip, gate):
@@ -324,3 +328,168 @@ def test_a_copy_of_the_clip_is_what_the_helpers_track(tmp_path, dish_clip):
     copy = own_copy(dish_clip, tmp_path / "videos")
     assert copy.path.parent == tmp_path / "videos" and copy.path.read_bytes() == dish_clip.path.read_bytes()
     assert copy.scene is dish_clip.scene
+
+
+# ---------------------------------------------------------------------------------------------
+# What a job says goes to run.log, however the job ended
+
+
+def parked_with_a_note(window, qtbot, clip, gate):
+    """A job on the dish clip's object A whose stand-in said `NOTE` in its 3rd tracked frame (frame
+    4) and is parked in its call for the 6th. Returns the panel."""
+    segmenter = Saying({3: NOTE}, inner=ExactFake(clip), gate=gate, park_at={6})
+    panel, _ = ready_to_track(window, qtbot, clip, segmenter)
+    panel.track()
+    qtbot.waitUntil(gate.parked.is_set)
+    return panel
+
+
+def test_what_a_job_says_is_in_run_log_when_it_completes_written_by_the_gui_thread(window, qtbot, clip_in_odd_folder,
+                                                                                  monkeypatch):
+    said, writers = [], []
+    run_job, append_block = worker_jobs.run_job, worker_jobs.append_block
+
+    def listening(job, callbacks):  # every line `run_job` gives its log, as it gives it
+        log = callbacks.log
+        callbacks.log = lambda text: (said.append(text), log(text))[1]
+        return run_job(job, callbacks)
+
+    def appended(path, lines):
+        writers.append(this_thread())
+        return append_block(path, lines)
+
+    monkeypatch.setattr(worker_jobs, "run_job", listening)
+    monkeypatch.setattr(worker_jobs, "append_block", appended)
+    clip = clip_in_odd_folder
+    panel, _ = ready_to_track(window, qtbot, clip, Saying({3: NOTE}, inner=ExactFake(clip)), end=20)
+    folder = window.controller.run_folder
+    assert run_log(folder) == ""  # nothing was said yet
+    run_to_end(qtbot, panel)
+
+    assert panel.jobs.status == "complete" and worker_of(window).traces == []
+    assert NOTE in said and len(said) >= 3  # the premise: the run's line, the note, the run's time
+    lines = run_log(folder).splitlines()
+    (heading,) = [line for line in lines if line.startswith("Tracking in the window, ")]
+    assert heading.endswith(" (complete):")
+    assert lines[lines.index(heading) + 1:] == said  # every line, in its order, and nothing else
+    assert "Traceback" not in run_log(folder)
+    assert writers and set(writers) == {gui_thread()}
+    assert panel.jobs.notes == [NOTE.strip()]  # not the run's line, and not its time
+
+
+def test_what_a_cancelled_job_said_is_in_run_log_too(window, qtbot, clip_in_odd_folder):
+    with Gate() as gate:
+        panel = parked_with_a_note(window, qtbot, clip_in_odd_folder, gate)
+        panel.cancel()
+        gate.open()
+        qtbot.waitUntil(lambda: not panel.jobs.running)
+    assert panel.jobs.status == "cancelled" and worker_of(window).traces == []
+    log = run_log(window.controller.run_folder)
+    assert log.count("Tracking in the window, ") == 1 and " (cancelled):\n" in log
+    assert log.count(NOTE) == 1 and "Traceback" not in log
+    assert panel.jobs.notes == [NOTE.strip()]
+
+
+def test_closing_the_window_during_a_run_leaves_what_the_job_said_in_run_log(window, qtbot, clip_in_odd_folder):
+    with Gate() as gate:
+        panel = parked_with_a_note(window, qtbot, clip_in_odd_folder, gate)
+        run_folder = window.controller.run_folder
+        opener = threading.Timer(0.2, gate.open)  # the GUI thread waits in close(): another thread opens the gate
+        opener.start()
+        window.close()
+        opener.join()
+    assert not panel.jobs.running and panel.jobs.status == "cancelled"
+    log = run_log(run_folder)
+    assert " (cancelled):\n" in log and log.count(NOTE) == 1
+
+
+def test_what_a_failed_job_said_is_in_run_log_once_with_its_trace(window, qtbot, clip_in_odd_folder, monkeypatch):
+    record_dialogs(monkeypatch)
+    clip = clip_in_odd_folder
+    segmenter = Saying({2: NOTE}, inner=ExactFake(clip), fail_at=4, error=RuntimeError("The model ran out of memory."))
+    panel, _ = ready_to_track(window, qtbot, clip, segmenter)
+    run_to_end(qtbot, panel)
+    assert panel.jobs.status == "failed" and "The model ran out of memory." in panel.jobs.reason
+    log = run_log(window.controller.run_folder)
+    assert log.count(NOTE) == 1 and log.count("Traceback (most recent call last):") == 1
+    assert log.index(NOTE) < log.index("Traceback (most recent call last):")  # in the order they were said
+    assert panel.jobs.notes == [NOTE.strip()]  # the failure's own line is the reason, not one more note
+
+
+def test_a_run_log_that_cannot_be_written_when_the_job_ends_is_written_at_the_next_save(window, qtbot,
+                                                                                      clip_in_odd_folder,
+                                                                                      monkeypatch):
+    held = [True]
+    append_block = worker_jobs.append_block
+
+    def appended(path, lines):
+        if held[0]:
+            raise PermissionError(f"{path} is open in another program.")
+        return append_block(path, lines)
+
+    monkeypatch.setattr(worker_jobs, "append_block", appended)
+    clip = clip_in_odd_folder
+    panel, _ = ready_to_track(window, qtbot, clip, Saying({3: NOTE}, inner=ExactFake(clip)), end=20)
+    run_to_end(qtbot, panel)
+    folder = window.controller.run_folder
+    assert panel.jobs.status == "complete" and run_log(folder) == ""
+    assert panel.jobs.notes == [NOTE.strip()]  # the panel has the note whatever happens to the file
+    held[0] = False
+    window.controller.save_now()
+    log = run_log(folder)
+    assert log.count(NOTE) == 1 and " (complete):\n" in log
+    window.controller.save_now()
+    assert run_log(folder) == log  # written once
+
+
+def test_what_a_job_said_goes_to_its_own_run_folder_when_another_video_was_opened_meanwhile(window, qtbot,
+                                                                                          clip_in_odd_folder,
+                                                                                          dish_clip, tmp_path):
+    other = own_copy(dish_clip, tmp_path / "another video")
+    with Gate() as gate:
+        panel = parked_with_a_note(window, qtbot, clip_in_odd_folder, gate)
+        first = window.controller.run_folder
+        window.open_path(other.path)  # this cancels the run
+        assert window.controller.run_folder not in (None, first)
+        gate.open()
+        qtbot.waitUntil(lambda: not panel.jobs.running)
+    assert panel.jobs.status == "cancelled"
+    assert run_log(first).count(NOTE) == 1 and " (cancelled):\n" in run_log(first)
+    assert NOTE not in run_log(window.controller.run_folder)
+
+
+# ---------------------------------------------------------------------------------------------
+# Where a video ended before its clip
+
+
+def test_a_job_keeps_where_the_video_ended_and_it_says_nothing_about_the_video_opened_next(window, qtbot,
+                                                                                         clip_in_odd_folder,
+                                                                                         dish_clip, tmp_path):
+    # the clip asks for frames 0 to 200 every 2; the video has frames 0 to 119, so the last tracked frame is 118
+    clip = clip_in_odd_folder
+    panel, _ = ready_to_track(window, qtbot, clip, Tracked(ExactFake(clip)), end=200)
+    assert panel.jobs.video_end is None  # nobody has read the video to its end yet
+    run_to_end(qtbot, panel)
+    assert panel.jobs.status == "complete" and panel.jobs.video_end == 118
+    assert [(run.tracks, run.frames_done) for run in window.controller.session.runs] == [(["A"], 60)]
+    window.open_path(own_copy(dish_clip, tmp_path / "another video").path)
+    assert panel.jobs.video_end is None
+
+
+def test_a_job_that_tracks_every_frame_of_its_clip_saw_no_end_of_the_video(window, qtbot, clip_in_odd_folder):
+    clip = clip_in_odd_folder
+    with Gate() as gate:  # neither a job that ran to the clip's end, nor one that was cancelled before it
+        segmenter = Tracked(ExactFake(clip), gate=gate, park_at={17})
+        panel, _ = ready_to_track(window, qtbot, clip, segmenter, end=20)
+        run_to_end(qtbot, panel)
+        assert panel.jobs.status == "complete" and panel.jobs.video_end is None
+        body(window, 6).add_object()
+        assert body(window, 6).prompts.add_point(*center(clip, "B", 0), 1)
+        qtbot.waitUntil(lambda: "B" in body(window, 6).prompts.outlines)
+        panel.track()  # B: the 17th tracked frame of the stand-in is B's 6th
+        qtbot.waitUntil(gate.parked.is_set)
+        panel.cancel()
+        gate.open()
+        qtbot.waitUntil(lambda: not panel.jobs.running)
+    assert panel.jobs.status == "cancelled" and results_of(window).arrays("B").frames.tolist() == FIRST_SIX
+    assert panel.jobs.video_end is None  # a run that was stopped says nothing about the video

@@ -89,6 +89,23 @@ class Tracked:
         return getattr(self.inner, name)
 
 
+class Saying(Tracked):
+    """A `Tracked` that has something to say during a job, as the real model has when it changes
+    its device: before it answers for the tracked frame n (counted from 1), it writes `says[n]`
+    to `log`. `run_job` points `log` at the job's log while it tracks; a text that begins with two
+    blanks is a note under the run's line there."""
+
+    def __init__(self, says: dict[int, str], **how):
+        super().__init__(**how)
+        self.says = dict(says)
+        self.log = lambda text: None  # outside a job nobody listens
+
+    def _note(self, what: str, image) -> None:
+        if what != "preview" and self.tracked + 1 in self.says:
+            self.log(self.says[self.tracked + 1])
+        super()._note(what, image)
+
+
 class Heard(QObject):
     """An object of the GUI thread that keeps what a `Jobs` reports: `progress` holds (done, total,
     s per frame, s left), `finished` holds (status, reason), `order` the names of the signals as
@@ -175,6 +192,12 @@ def results_of(window) -> ResultsStore:
 def session_on_disk(window) -> dict:
     """session.json of the window's run folder, read now."""
     return json.loads((window.controller.run_folder / schema.SESSION_JSON).read_text(encoding="utf-8"))
+
+
+def run_log(folder) -> str:
+    """The text of run.log in the run folder `folder`; "" while there is none."""
+    path = Path(folder) / schema.RUN_LOG
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
 
 
 def off_the_gui_thread(segmenter: Tracked) -> bool:

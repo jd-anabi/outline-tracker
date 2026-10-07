@@ -22,6 +22,11 @@ A failure (loading the model, an outline, a job) is said in one plain line by wh
 its trace is kept by the worker and appended here to `<run folder>/run.log` as soon as there is a
 run folder (SPEC 10.2).
 
+What a job says while it tracks (`Callbacks.log`) is kept, however the job ends: every line goes
+to run.log of the job's run folder, written here in the GUI thread when the job has ended (the
+lines of a failed job with its trace, the others as an entry of their own), and the notes among
+them, which tell the user something to know or to do (`notes_of`), are `Jobs.notes` for the panel.
+
 Units: frames are counts of tracked frames, or video frame numbers where a name says so; times
 are s. This module does not import torch.
 """
@@ -30,6 +35,7 @@ from __future__ import annotations
 
 import copy
 import numbers
+import re
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -41,7 +47,8 @@ from outline_tracker.fileio import append_block
 from outline_tracker.gui import worker as worker_module
 from outline_tracker.gui.click_rules import ResultsOnDisk
 from outline_tracker.gui.worker import REASON_LENGTH, plain, traced
-from outline_tracker.tracking import CANCELLED, FAILED, Callbacks, Job, SessionChanges, plan_runs, run_job
+from outline_tracker.tracking import (CANCELLED, COMPLETE, FAILED, Callbacks, Job, SessionChanges, plan_runs,
+                                      run_job)
 
 RUNNING = "Tracking is running."
 NO_FPS = "Type the true frame rate (fps_true) in panel 2 (Time) first."
@@ -52,6 +59,8 @@ NO_MODEL = "The model could not be loaded. {reason}"
 NOT_SAVED = "The session could not be saved to the run folder, so tracking did not start."
 STOPPED = "Tracking stopped with an error."
 TRACE_STARTS = "Traceback (most recent call last):"  # how the entry with a failed run's trace begins
+RUN_TIME = re.compile(r"\s+\d+ frames in [\d.]+ s \(")  # how the entry with the time a run took begins
+JOB_ENTRY = "Tracking in the window, {when} ({status}):"  # the line above a job's lines in run.log
 
 
 def failure_of(lines: list[str]) -> str:
@@ -63,6 +72,23 @@ def failure_of(lines: list[str]) -> str:
     said = lines[before_trace[-1]] if before_trace else lines[-2] if len(lines) >= 2 else ""
     said = said.strip().splitlines()
     return said[0].strip()[:REASON_LENGTH] if said else STOPPED
+
+
+def notes_of(lines: list[str], reason: str = "") -> list[str]:
+    """What a job said for the user to know or to act on, from the lines `run_job` logged: the
+    entries under a run's line, which begin with blanks (the video ended before the clip does;
+    results.npz was open in another program, so the results are in another file; the model found
+    nothing at an object's clicks; the model changed its device). Each is one line, the first of
+    its entry, given once, in the order they were said. Left out: the line that begins a run, the
+    time a run took, a trace, and the failure's own line, which is `reason` (`failure_of`)."""
+    notes = []
+    for text in lines:
+        if not text[:1].isspace() or RUN_TIME.match(text) or not text.strip():
+            continue
+        note = text.strip().splitlines()[0].strip()
+        if note[:REASON_LENGTH] != reason:
+            notes.append(note)
+    return list(dict.fromkeys(notes))
 
 
 class _Task:
@@ -90,8 +116,8 @@ class _Task:
                 reason, trace = failure_of(lines), "\n".join([what, *lines])
                 worker_module.log.error(trace)
         except Exception as error:  # what `run_job` refuses before it tracks, and whatever else is raised
-            status, reason, trace = FAILED, plain(error), traced(what)
-        jobs._ended.emit(status, reason, trace)
+            status, reason, trace = FAILED, plain(error), traced("\n".join([what, *lines]))
+        jobs._ended.emit(status, reason, trace, lines)  # a failed job's trace holds its lines
 
 
 class Jobs(QObject):
@@ -102,7 +128,10 @@ class Jobs(QObject):
     tracked (from 1). `done`, `total`: tracked frames and frames to track over all runs;
     `s_per_frame`, `eta_s`: s per tracked frame so far and s left. `status`, `reason`: how the last
     job ended ("complete", "cancelled", "failed"; "" before the first) and the plain reason of a
-    failure. `results`: results.npz as it is on disk, for planning.
+    failure. `notes`: what the last job said for the user to know or to do (`notes_of`).
+    `video_end`: the last video frame of a video that ended before the clip does, as a job of this
+    window saw it on the open session; None while none did (only tracking reads the video to its
+    end). `results`: results.npz as it is on disk, for planning.
 
     Signals, all emitted in the GUI thread: `started()`; `progress(done, total, s_per_frame, eta_s)`
     after every tracked frame; `saved()` when the worker has written results.npz or a run has
@@ -115,7 +144,7 @@ class Jobs(QObject):
     finished = Signal(str, str)
     _progress = Signal(int, int, float, float)
     _changed = Signal(object)
-    _ended = Signal(str, str, str)
+    _ended = Signal(str, str, str, object)  # status, reason, trace, the lines the job logged
 
     def __init__(self, window, worker):
         super().__init__(window)
@@ -126,11 +155,16 @@ class Jobs(QObject):
         self.run_number = self.done = self.total = 0
         self.s_per_frame = self.eta_s = 0.0
         self.status = self.reason = ""
+        self.notes: list[str] = []
         self._task: _Task | None = None
         self._session = None                         # the session the job is about
+        self._folder: Path | None = None             # the run folder the job writes into
         self._first_run = 0                          # the place of the job's first run in `session.runs`
         self._last: SessionChanges | None = None     # the newest change of the job
+        self._tracked: dict[int, int] = {}           # the frames each run of the job has tracked, by its place
+        self._video_end: int | None = None           # where the video of `_session` ended, if a job saw it
         self._logged: list[str] = []                 # the traces that are in run.log
+        self._entries: list[tuple[Path, list[str]]] = []  # (run folder, lines) that wait for run.log
         self._progress.connect(self._on_progress)
         self._changed.connect(self._on_changed)
         self._ended.connect(self._on_ended)
@@ -187,10 +221,13 @@ class Jobs(QObject):
             return controller.save_problem or NOT_SAVED
         session = controller.session
         self.plans = self.pending()
-        self._session, self._first_run, self._last = session, len(session.runs), None
-        self._task = _Task(self, copy.deepcopy(session), Path(controller.run_folder), Path(controller.video_path),
+        if session is not self._session:
+            self._video_end = None  # another session: where its video ends is not known yet
+        self._session, self._first_run, self._last, self._tracked = session, len(session.runs), None, {}
+        self._folder = Path(controller.run_folder)
+        self._task = _Task(self, copy.deepcopy(session), self._folder, Path(controller.video_path),
                            self.worker.stopping)
-        self.running, self.cancelling, self.status, self.reason = True, False, "", ""
+        self.running, self.cancelling, self.status, self.reason, self.notes = True, False, "", "", []
         self.run_number, self.done, self.total = 1, 0, sum(len(plan.frames) for plan in self.plans)
         self.s_per_frame = self.eta_s = 0.0
         self.worker.run(self._task)
@@ -203,6 +240,12 @@ class Jobs(QObject):
         if self.running and not self.cancelling:
             self.cancelling = True
             self._task.cancel.set()
+
+    @property
+    def video_end(self) -> int | None:
+        """The last video frame of the open session's video, where a job of this window saw that
+        video end before the clip does; None while none did, and for a session opened since."""
+        return self._video_end if self._controller.session is self._session else None
 
     def stopped_at(self) -> int | None:
         """The first video frame that the last job did not track, from its plans and the record of
@@ -228,19 +271,34 @@ class Jobs(QObject):
         saved by its controller, as after any other change."""
         self._last = changes
         self.run_number = changes.run_index - self._first_run + 1
+        self._tracked[self.run_number - 1] = changes.run.frames_done
         if self._controller.session is self._session:
             changes.apply(self._session)
             self._controller.touch()
         self.saved.emit()
 
-    def _on_ended(self, status: str, reason: str, trace: str) -> None:
+    def _on_ended(self, status: str, reason: str, trace: str, lines: list[str]) -> None:
         self.worker.keep_trace(trace)
         self.running, self.cancelling, self._task = False, False, None
-        self.status, self.reason = status, reason
+        self.status, self.reason, self.notes = status, reason, notes_of(lines, reason)
+        if status != FAILED and lines:  # the lines of a failed job are in its trace
+            when = datetime.now().astimezone().isoformat(timespec="seconds")
+            self._entries.append((self._folder, [JOB_ENTRY.format(when=when, status=status), *lines]))
+        seen_end = self._seen_end() if status == COMPLETE else None
+        if seen_end is not None:
+            self._video_end = seen_end
         if self._controller.session is self._session:
             self._controller.save_now()
         self.write_traces()
         self.finished.emit(status, reason)
+
+    def _seen_end(self) -> int | None:
+        """The last video frame the job that has just completed got from a video that ended before
+        the clip does: the last tracked frame of a run that tracked fewer frames than its plan
+        (a run that completes stops early for no other reason). None when every run was whole."""
+        ends = [plan.frames[self._tracked[place] - 1] for place, plan in enumerate(self.plans)
+                if 0 < self._tracked.get(place, len(plan.frames)) < len(plan.frames)]
+        return max(ends) if ends else None
 
     def _worker_state(self, state: str, message: str) -> None:
         """A worker that has stopped (the window closes) says nothing more by itself: take over
@@ -248,16 +306,18 @@ class Jobs(QObject):
         if state == "stopped" and self.running:
             QCoreApplication.sendPostedEvents(self, QEvent.Type.MetaCall.value)
             if self.running:  # the thread ended before the task's turn came
-                self._on_ended(CANCELLED, "", "")
+                self._on_ended(CANCELLED, "", "", [])
         self.write_traces()
 
-    # ------------------------------------------------------------------ traces
+    # ------------------------------------------------------------------ run.log: traces, and what jobs said
 
     def write_traces(self, *_) -> None:
         """Append the traces the worker keeps and run.log does not hold yet to
         `<run folder>/run.log`, under a line with the time. Nothing is written before the run
         folder is there, nor into a folder whose session is another one's; it is tried again
-        whenever the session was saved or the worker reports."""
+        whenever the session was saved or the worker reports. The lines of jobs that wait for
+        run.log (`_write_entries`) are written first."""
+        self._write_entries()
         controller, folder = self._controller, self._controller.run_folder
         new = [trace for trace in self.worker.traces if not any(trace is old for old in self._logged)]
         if not new or folder is None or not Path(folder).is_dir() or controller.save_problem is not None:
@@ -268,6 +328,19 @@ class Jobs(QObject):
         except OSError:
             return  # the folder cannot be written now: the next save tries again
         self._logged = list(self.worker.traces)
+
+    def _write_entries(self) -> None:
+        """Append what the jobs that ended said (`_entries`) to run.log, each in the run folder of
+        its job, which its session.json is in. An entry that cannot be written now waits for the
+        next try; one whose folder is gone is dropped."""
+        waiting = []
+        for folder, lines in self._entries:
+            try:
+                if folder.is_dir():
+                    append_block(folder / schema.RUN_LOG, lines)
+            except OSError:
+                waiting.append((folder, lines))
+        self._entries = waiting
 
 
 def jobs_of(window) -> Jobs:
