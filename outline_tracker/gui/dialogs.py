@@ -1,13 +1,14 @@
-"""The two dialogs of the window (SPEC 10.2): a message, and the choice of a file to open.
+"""The three dialogs of the window (SPEC 10.2): a message, the choice of a file to open, and the
+choice of a folder.
 
-Every module of the window asks through `message` and `open_file`, so that there is one place for
-how a dialog looks and behaves, and one pair of functions for a test to replace. Both show their
-dialog with `open()`: the call returns at once and the window's event loop goes on. Neither uses
-`exec()`, which would start a second event loop inside the call.
+Every module of the window asks through `message`, `open_file` and `choose_folder`, so that there is
+one place for how a dialog looks and behaves, and one set of functions for a test to replace. Each
+shows its dialog with `open()`: the call returns at once and the window's event loop goes on. None
+uses `exec()`, which would start a second event loop inside the call.
 
 A dialog is for an action the user asked for that could not start or was stopped, and for what the
-spec names (file dialogs); a warning, a field's error or a success is shown in the panel it belongs
-to, not here. No quantities in this module, so no units and no coordinate frame.
+spec names (file dialogs, About); a warning, a field's error or a success is shown in the panel it
+belongs to, not here. No quantities in this module, so no units and no coordinate frame.
 """
 
 from __future__ import annotations
@@ -57,5 +58,21 @@ def open_file(parent: QWidget, title: str, filters: list[str], on_chosen) -> Non
     dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
     dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
     dialog.setNameFilters(list(filters))
+    dialog.fileSelected.connect(lambda name: on_chosen(Path(name)))
+    dialog.open()
+
+
+def choose_folder(parent: QWidget, title: str, on_chosen) -> None:
+    """Ask for one folder in a dialog over `parent`, and return at once.
+
+    `title` is the dialog's title. The dialog shows folders only, and a new folder can be made in
+    it. When the user chooses a folder, `on_chosen(path)` is called with its `pathlib.Path`; when
+    the user cancels, nothing is called.
+    """
+    dialog = QFileDialog(parent, title)
+    dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+    dialog.setFileMode(QFileDialog.FileMode.Directory)
+    dialog.setOption(QFileDialog.Option.ShowDirsOnly, True)
+    dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
     dialog.fileSelected.connect(lambda name: on_chosen(Path(name)))
     dialog.open()

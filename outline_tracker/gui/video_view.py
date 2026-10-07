@@ -15,7 +15,7 @@ pyqtgraph is imported after PySide6, so it uses that binding (outline_tracker/gu
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import QWidget
 
@@ -52,13 +52,16 @@ class VideoView(pg.GraphicsView):
     `frame`: the number of the frame shown (video frame number, counted from 0), None while none
     is. `tool`: the tool that gets the clicks, None for Pan. `zoom`: screen px per video px.
     `zoom_changed(zoom)` and `tool_changed()` say when these change; `frame_changed(frame)` comes each
-    time a frame has been put on the screen, whoever asked for it. `view_box` and `image_item`
-    are pyqtgraph's parts. Esc returns to Pan, wherever the focus is in the view's window.
+    time a frame has been put on the screen, whoever asked for it. `cursor_px` is where the mouse
+    is on the picture, and `cursor_moved()` comes when the mouse has moved over the view or left
+    it. `view_box` and `image_item` are pyqtgraph's parts. Esc returns to Pan, wherever the focus
+    is in the view's window.
     """
 
     zoom_changed = Signal(float)
     tool_changed = Signal()
     frame_changed = Signal(int)
+    cursor_moved = Signal()
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent, background=theme.LIGHT["canvas"])  # the same colour in both themes
@@ -66,6 +69,7 @@ class VideoView(pg.GraphicsView):
         self.frame: int | None = None
         self.tool = None
         self._zoom = 0.0
+        self._mouse_at = None  # where the mouse is in the scene (a QPointF); None while it is not over the view
         self.view_box = _PictureBox()
         self.setCentralItem(self.view_box)
         self.image_item = pg.ImageItem(axisOrder="row-major")
@@ -146,14 +150,41 @@ class VideoView(pg.GraphicsView):
             self.viewport().setCursor(DRAG_CURSOR if held else PAN_CURSOR)
 
     def _clicked(self, event) -> None:
-        image = self.image_item.image
-        if self.tool is None or image is None:
-            return
-        at = self.image_item.mapFromScene(event.scenePos())
-        rows, columns = image.shape[:2]
-        if 0 <= at.x() < columns and 0 <= at.y() < rows:
+        at = self._on_picture(event.scenePos())
+        if self.tool is not None and at is not None:
             event.accept()
-            self.tool.click(at.x(), at.y(), event.button(), event.modifiers())
+            self.tool.click(*at, event.button(), event.modifiers())
+
+    def _on_picture(self, scene_point) -> tuple[float, float] | None:
+        """The point (u, v) of the frame shown that is drawn at `scene_point` (a QPointF in the
+        scene's coordinates), in px of the video frame (SPEC 3.1); None when no frame is shown or
+        the point is beside it. A click and the cursor's read-out both come through here."""
+        image = self.image_item.image
+        if scene_point is None or image is None:
+            return None
+        at = self.image_item.mapFromScene(scene_point)
+        rows, columns = image.shape[:2]
+        return (at.x(), at.y()) if 0 <= at.x() < columns and 0 <= at.y() < rows else None
+
+    # ------------------------------------------------------------------ the cursor
+
+    @property
+    def cursor_px(self) -> tuple[float, float] | None:
+        """Where the mouse is on the frame shown: (u, v) in px of the video frame (SPEC 3.1: u to
+        the right, v down, the middle of pixel (c, r) at (c + 0.5, r + 0.5)), as a click there
+        would report it. None while the mouse is not over the picture."""
+        return self._on_picture(self._mouse_at)
+
+    def mouseMoveEvent(self, event) -> None:
+        self._mouse_at = self.mapToScene(event.position().toPoint())
+        super().mouseMoveEvent(event)
+        self.cursor_moved.emit()
+
+    def viewportEvent(self, event) -> bool:
+        if event.type() == QEvent.Type.Leave:  # the mouse left the view
+            self._mouse_at = None
+            self.cursor_moved.emit()
+        return super().viewportEvent(event)
 
     # ------------------------------------------------------------------ graphics of other parts
 

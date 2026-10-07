@@ -75,6 +75,10 @@ def test_before_a_video_is_open_the_bar_cannot_be_used(window, qtbot):
     assert asked == []
 
 
+@pytest.mark.xfail(strict=True, reason="Task C8a: the row has the Play button now, between −1 and +1 (SPEC 10.1), so "
+                   "these two are no longer 4 px apart. Everything else here holds. The test that follows this one "
+                   "is test_the_row_has_play_between_the_steps_back_and_the_steps_forward in tests/gui/test_play.py: "
+                   "this test with seven buttons. For J or the controller: delete this test.")
 def test_the_bar_is_laid_out_as_the_design_note_says(bar):
     assert bar.height() == 76
     assert (bar.slider.geometry().top(), bar.slider.height()) == (8, 20)
