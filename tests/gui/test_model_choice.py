@@ -192,6 +192,11 @@ def test_a_model_that_cannot_be_loaded_gives_its_plain_reason_and_another_can_be
     assert window.controller.session.processing.model == "edgetam"
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task C8b. Its last lines expect the model box to be on again after the run. Task C9 (item 3): once "
+    "a track has stored frames the model box stays off, with its own sentence; the device box is on again. Its "
+    "successor is tests/gui/test_joins.py::test_during_a_run_both_boxes_are_off_and_after_it_the_device_box_is_on_"
+    "again. For J or the controller: delete this test."))
 def test_during_a_run_both_boxes_are_off_and_no_other_model_is_loaded(window, qtbot, clip_in_odd_folder):
     clip, asked = clip_in_odd_folder, []
     with Gate() as gate:

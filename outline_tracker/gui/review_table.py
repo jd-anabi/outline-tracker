@@ -5,16 +5,16 @@ The rows are `tracking.flags_table(run_folder)`: one row per flag on a frame, by
 frame, from session.json and results.npz as they are on disk. That function derives every track
 again, which takes seconds for 10 tracks of 1,200 frames: far longer than a window may stand
 still. So `Listing` never has it called in the GUI thread, and the window stays usable meanwhile.
-It is called in the worker thread (`Worker.run`). The worker takes a task only while its model is
-ready: when the model could not be loaded, the flags are listed in a thread of the listing's own,
-which is started for the first such listing and ended when the window closes. The rows are asked
+It is called in the worker thread (`Worker.run`), the one thread of the window (decision X7), as a
+task that needs no model: the flags are listed the same way while a model is still loading
+and when none could be loaded. The rows are asked
 for again only when what they are made of has changed: results.npz (its size, time and file
 number), whether session.json is there, or the parts of the session that the flags are derived
 from (fps_true, the scale and the axes, the dish circle, the settings, and the id, head click and
 start frame of each track that has results). A click on an animal changes none of these, so it
 never makes the worker list the flags while it should outline the click.
 
-Who reads and writes what. The task, in either thread, reads the two files and nothing else: it
+Who reads and writes what. The task reads the two files and nothing else: it
 is given the run folder as a path, never the session object, and it writes nothing. session.json
 is written by the controller in the GUI thread, results.npz by a tracking job or a correction;
 both are replaced in one step, so a read never meets half a file. `sync()` is therefore called
@@ -34,13 +34,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, Qt, QThread, Signal, Slot
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QAbstractItemView, QApplication, QHeaderView, QTableView
 
 from outline_tracker import schema, tracking
 from outline_tracker.gui import theme
-from outline_tracker.gui.worker import STACK_BYTES, plain, traced, worker_of
+from outline_tracker.gui.worker import plain, traced, worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 
 COLUMNS = ("Track", "Frame", "t", "Flag")
@@ -207,8 +207,7 @@ def reason_of(error: Exception) -> str:
 
 
 class _Task:
-    """One listing as a thread runs it (the worker's, or the listing's own):
-    `tracking.flags_table` of a run folder."""
+    """One listing as the worker thread runs it: `tracking.flags_table` of a run folder."""
 
     def __init__(self, listing: Listing, serial: int, folder: Path):
         self._listing, self._serial, self._folder = listing, serial, folder
@@ -231,15 +230,6 @@ class _Task:
         self._listing._done.emit(self._serial, rows, problem, trace)
 
 
-class _Aside(QObject):
-    """The object in a listing's own thread: `run` is its slot and runs there."""
-
-    @Slot(object)
-    def run(self, task) -> None:
-        """Call `task(None)`: no model is there. The task reports by itself and raises nothing."""
-        task(None)
-
-
 class Listing(QObject):
     """The flags of the window's run folder, kept up to date from the GUI thread (see the module's
     text).
@@ -248,17 +238,16 @@ class Listing(QObject):
     code); `problem`: one plain sentence that says why the flags could not be listed (that
     function's own when it refused: no scale, no fps_true), "" when they were. `version` counts
     the listings that were taken. `pending`: the files on disk are no longer what `rows` was made
-    of, and the new rows have not arrived (they are being listed, or wait for the model to be
-    ready or for a run to end). `held`: while true `sync` does nothing; whoever saves a correction
+    of, and the new rows have not arrived (they are being listed, or wait for the worker thread
+    or for a run to end). `held`: while true `sync` does nothing; whoever saves a correction
     and starts its run at once sets it, so that the flags are listed after that run and not
     before it. `changed` is emitted in the GUI thread whenever `rows`, `problem` or `pending` has
     changed.
     """
 
     changed = Signal()
-    # serial, rows, problem, the trace of an error (`worker.traced`): emitted by the task, in the thread that runs it
+    # serial, rows, problem, the trace of an error (`worker.traced`): emitted by the task, in the worker thread
     _done = Signal(int, object, str, str)
-    _aside = Signal(object)  # a task for this listing's own thread
 
     def __init__(self, window):
         super().__init__(window)
@@ -271,9 +260,7 @@ class Listing(QObject):
         self._wanted = None    # what is on disk now, as far as `sync` has seen
         self._asked: tuple[int, object] | None = None  # the listing on its way: its number, what it is made of
         self._serial = 0
-        self._thread: QThread | None = None  # this listing's own: made for the first listing without a model
-        self._runner: _Aside | None = None   # the object in it
-        self._stopped = False                # the window has closed: nothing is listed any more
+        self._stopped = False  # the window has closed: nothing is listed any more
         self._done.connect(self._arrived)
         self._controller.video_opened.connect(self.sync)
         self._controller.saved.connect(self.sync)
@@ -285,11 +272,6 @@ class Listing(QObject):
     def pending(self) -> bool:
         """Whether `rows` is out of date (see the class)."""
         return self._wanted != self._made_of
-
-    def is_running(self) -> bool:
-        """Whether this listing's own thread runs: from the first listing without a model until
-        the window closes. With a model the flags are listed in the worker thread, and it never does."""
-        return self._thread is not None and self._thread.isRunning()
 
     def _inputs(self):
         """What the flags on disk are made of, for telling whether they changed; None while no
@@ -317,7 +299,7 @@ class Listing(QObject):
         """List the flags again if what they are made of changed since `rows` was listed. Call it
         when session.json is up to date on disk; it returns at once, and `changed` says when the
         rows are there. Nothing is asked for during a run, while `held`, or after `stop`. The
-        worker thread lists; when the model could not be loaded, this listing's own thread does."""
+        worker thread lists, with a model or without one."""
         if self.held or self._stopped or self._jobs.running or self._worker.state == "stopped":
             return
         before = (self.version, self.pending)
@@ -332,34 +314,15 @@ class Listing(QObject):
             self._serial += 1
             task = _Task(self, self._serial, Path(self._controller.run_folder))
             self._asked = (self._serial, self._wanted)
-            if not self._worker.run(task):
-                if self._worker.state == "failed":
-                    self._list_aside(task)
-                else:
-                    self._asked = None  # the model is loading: `state_changed` calls this again
+            if not self._worker.run(task, needs_model=False):
+                self._asked = None  # the worker has stopped: the window is closing
         if before != (self.version, self.pending):
             self.changed.emit()
 
-    def _list_aside(self, task) -> None:
-        """Have `task(None)` called in this listing's own thread, after the listing that thread may
-        be in. The thread is made and started at the first call, with the stack of the worker
-        thread, where the same task runs when there is a model."""
-        if self._thread is None:
-            self._thread, self._runner = QThread(self), _Aside()
-            self._thread.setStackSize(STACK_BYTES)
-            self._runner.moveToThread(self._thread)
-            self._aside.connect(self._runner.run)
-            self._thread.start()
-        self._aside.emit(task)
-
     def stop(self) -> None:
-        """The window closes: list nothing from now on, and end this listing's own thread if it
-        runs. It waits until the listing the thread is in has returned, as `Worker.stop` waits for
-        the worker's; a listing that waits behind that one is dropped. Calling it again does nothing."""
+        """The window closes: list nothing from now on (`Worker.stop` waits for the listing the
+        worker thread may be in). Calling it again does nothing."""
         self._stopped = True
-        if self.is_running():
-            self._thread.quit()
-            self._thread.wait()
 
     def _arrived(self, serial: int, rows: list[Row], problem: str, trace: str) -> None:
         """Take what a task listed: in the GUI thread. The trace of an error is kept with the

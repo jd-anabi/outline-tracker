@@ -18,6 +18,12 @@ finished and stored, the next one is not started, and what was tracked stays (`"
 Closing the window does the same through the worker's `stopping`, waits for the thread, and then
 takes over what the job still had to say, so that the session on disk has the run as it ended.
 
+One lock. While the worker is busy with a task that writes files, nothing may change what that
+task works on: a tracking run writes results.npz from the objects, the clip and the video as they
+were when it started, and Export all (panel 9, which tells `set_exporting`) writes the output
+files from session.json and results.npz. `Jobs.writing()` is the one function that says whether,
+and why; every panel asks it for the parts it switches off, and `writing_changed` says when.
+
 A failure (loading the model, an outline, a job) is said in one plain line by whoever shows it;
 its trace is kept by the worker and appended here to `<run folder>/run.log` as soon as there is a
 run folder (SPEC 10.2).
@@ -51,6 +57,7 @@ from outline_tracker.tracking import (CANCELLED, COMPLETE, FAILED, Callbacks, Jo
                                       run_job)
 
 RUNNING = "Tracking is running."
+EXPORT_RUNNING = "An export is running."
 NO_FPS = "Type the true frame rate (fps_true) in panel 2 (Time) first."
 NO_OBJECT = "Add an object in panel 6 first."
 NOTHING_LEFT = "Every object that has points is tracked already."
@@ -129,15 +136,18 @@ class Jobs(QObject):
     `s_per_frame`, `eta_s`: s per tracked frame so far and s left. `status`, `reason`: how the last
     job ended ("complete", "cancelled", "failed"; "" before the first) and the plain reason of a
     failure. `notes`: what the last job said for the user to know or to do (`notes_of`).
+    `exporting`: panel 9 handed an export to the worker, and it has not ended (`set_exporting`).
     `video_end`: the last video frame of a video that ended before the clip does, as a job of this
     window saw it on the open session; None while none did (only tracking reads the video to its
     end). `results`: results.npz as it is on disk, for planning.
 
     Signals, all emitted in the GUI thread: `started()`; `progress(done, total, s_per_frame, eta_s)`
     after every tracked frame; `saved()` when the worker has written results.npz or a run has
-    started, and the session has what the job changed; `finished(status, reason)`.
+    started, and the session has what the job changed; `finished(status, reason)`;
+    `writing_changed()` whenever `writing()` gives another answer (a run or an export starts or ends).
     """
 
+    writing_changed = Signal()
     started = Signal()
     progress = Signal(int, int, float, float)
     saved = Signal()
@@ -150,7 +160,7 @@ class Jobs(QObject):
         super().__init__(window)
         self._controller, self.worker = window.controller, worker
         self.results = ResultsOnDisk(window.controller)
-        self.running = self.cancelling = False
+        self.running = self.cancelling = self.exporting = False
         self.plans: list = []
         self.run_number = self.done = self.total = 0
         self.s_per_frame = self.eta_s = 0.0
@@ -174,6 +184,22 @@ class Jobs(QObject):
         window.controller.saved.connect(self.write_traces)
         window.controller.video_opened.connect(self.cancel)
 
+    # ------------------------------------------------------------------ the lock
+
+    def writing(self) -> str | None:
+        """Whether, and why, the worker is busy with a task that writes files: `RUNNING` during a
+        tracking run, `EXPORT_RUNNING` during an export, None otherwise. While it gives a sentence,
+        nothing may change what the task works on (the objects and their points, the clip, the
+        video, the run folder, the model, the results): the sentence is the reason to show."""
+        return RUNNING if self.running else EXPORT_RUNNING if self.exporting else None
+
+    def set_exporting(self, exporting: bool) -> None:
+        """Panel 9 says that it handed an export to the worker (true), or that the export has ended
+        (false): `exporting` follows, and `writing_changed` is emitted when it changed."""
+        if exporting != self.exporting:
+            self.exporting = exporting
+            self.writing_changed.emit()
+
     # ------------------------------------------------------------------ before a job
 
     def pending(self) -> list:
@@ -185,12 +211,13 @@ class Jobs(QObject):
 
     def refusal(self) -> str | None:
         """Why no job can start now, as one sentence that says what to do first; None when one can.
-        In this order: a job runs; the student's name or the video is missing
+        In this order: a job runs, or an export (`writing`); the student's name or the video is missing
         (`controller.refusal`); the model could not be loaded; fps_true is missing; the clicks or
         the clip cannot be tracked; nothing is left to track; the model is still loading."""
         controller, session = self._controller, self._controller.session
-        if self.running:
-            return RUNNING
+        busy = self.writing()
+        if busy is not None:
+            return busy
         missing = controller.refusal("track")
         if missing is not None:
             return missing
@@ -231,6 +258,7 @@ class Jobs(QObject):
         self.run_number, self.done, self.total = 1, 0, sum(len(plan.frames) for plan in self.plans)
         self.s_per_frame = self.eta_s = 0.0
         self.worker.run(self._task)
+        self.writing_changed.emit()
         self.started.emit()
         return None
 
@@ -290,6 +318,7 @@ class Jobs(QObject):
         if self._controller.session is self._session:
             self._controller.save_now()
         self.write_traces()
+        self.writing_changed.emit()
         self.finished.emit(status, reason)
 
     def _seen_end(self) -> int | None:

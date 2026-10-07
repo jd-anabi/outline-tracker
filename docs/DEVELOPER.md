@@ -81,12 +81,15 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `gui/tool_items.py` | the graphics of those tools on the picture |
 | `gui/click_rules.py` | the rules of a click on the video: which click is negative, which frame takes a click |
 | `gui/prompts.py` | the point tools Positive, Negative, Head, undo, and the outline shown after a click |
+| `gui/prompt_drawing.py` | the items those tools draw: the marks of the clicks, the outline, the id, the fine window |
 | `gui/overlays.py` | results on the picture: stored outlines, centroids, ids, head marks, the mask fill |
 | `gui/estimate.py` | how long tracking will take, and how the time is worded |
 | `gui/stopwatch_dialog.py` | the Stopwatch dialog of panel 2 |
 | `gui/worker.py` | the `Worker`: the GUI thread's handle of the worker thread |
-| `gui/worker_engine.py` | the engine: the object that lives in the worker thread and calls the model |
-| `gui/worker_jobs.py` | `Jobs`: tracking in the worker thread, and what a job reports back |
+| `gui/worker_engine.py` | the engine: the object that lives in the worker thread, has the model made in a thread of its own, and calls the model |
+| `gui/worker_jobs.py` | `Jobs`: tracking in the worker thread, what a job reports back, and the one lock, `Jobs.writing()` |
+| `gui/review_table.py` | the flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread |
+| `gui/panel_parts.py` | the small parts the panels share: `Message`, `ElidedLabel`, `guard_wheel`, `field_rows` |
 | `gui/panels/__init__.py` | `PANEL_MODULES` and `build_bodies`: one module per panel, found by its name |
 | `gui/panels/video_panel.py` | panel 1: the name, Open video, Open session, the file's facts, the clip |
 | `gui/panels/time_panel.py` | panel 2: fps_true with its source, Stopwatch…, the manifest; `settings()` |
@@ -94,8 +97,10 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `gui/panels/dish_panel.py` | panel 4: Circle, Origin to Center, Axes, "Crop to dish for tracking" |
 | `gui/panels/objects_panel.py` | panel 6: the table of objects, Add, Remove, mode, fine window, the point tools |
 | `gui/panels/track_panel.py` | panel 7: model, device, the estimate, Track, progress, Cancel |
+| `gui/panels/review_panel.py` | panel 8: the flags table, Previous flag and Next flag, the three corrections |
+| `gui/panels/export_panel.py` | panel 9: the run folder, Export all, what it wrote, Open folder |
 
-Panel 8 (`gui/panels/review_panel.py`, with its table in `gui/review_table.py`) and panel 9 (`gui/panels/export_panel.py`) are tasks of their own. Panel 5 has no module (`probes_panel` in `PANEL_MODULES`): it shows its hint line alone, and the `probe` command does its work.
+Panel 5 has no module (`probes_panel` in `PANEL_MODULES`): it shows its hint line alone, and the `probe` command does its work.
 
 ## Tests
 
@@ -148,16 +153,18 @@ These are the rules of `CLAUDE.md` that every change has to keep, and at the end
 3. To change the session: change `controller.session`, then call `controller.touch()`. To show the session: listen to `controller.session_changed` and `controller.video_opened`.
 4. The panel's own state and hint line: `window.panels[n - 1].set_state("todo" | "done" | "attention")` and `.set_hint(text)`. The hint line says the next step, and why the main button is off.
 5. Give the panel public functions with plain arguments, and connect the buttons to them: the tests call the functions. A dialog is asked for only through `gui/dialogs.py` (`message`, `confirm`, `open_file`, `choose_folder`), from a button's own small function.
-6. A part that changes what a tracking job works on (the objects, the clip, the video, the model) is off while `jobs_of(window).running` is true, and says so in its tooltip. `Jobs.started` and `Jobs.finished` say when.
+6. A part that changes what a tracking job or an export works on (the objects, the clip, the video, the run folder, the model, the results) is off while `jobs_of(window).writing()` gives a sentence, and shows that sentence as its tooltip: "Tracking is running." or "An export is running." `Jobs.writing_changed` says when. Ask this one function, never another panel's attribute.
 7. No Qt object is made when the module is imported.
 
 ## The worker thread and the GUI thread
 
-There is one worker thread per window. The model is loaded in it and only it calls the model: an outline after a click, or one tracking job, one at a time.
+There is one worker thread per window (decision X7 in docs/PLAN.md). It owns the loaded model and only it calls the model: an outline after a click, or one tracking job, one at a time. The same thread runs the two tasks that need no model, Export all and the listing of the flags table: `Worker.run(task, needs_model=False)` takes them whatever the model's state, so they also work while a model is still loading and when no model could be loaded.
 
-- `gui/worker_engine.py`, `_Engine`: the object that lives in the worker thread.
+A model is made in a thread of its own, which calls the factory, does nothing else, and ends when the factory has returned (`_Making` in `gui/worker_engine.py`; the same 64 MiB of stack as the worker thread). The worker thread takes the model over and is free until then. What keeps X7's reasons: the model before is closed before the next one is made, a second load waits until what the first one made is closed (one copy of the weights), and no thread but the worker thread ever calls a model (no concurrent use). The step before loading, which sets torch's thread limit, runs in the worker thread. A model that is made while a task runs is taken over when that task has returned, and the state stays "loading" until then.
+
+- `gui/worker_engine.py`, `_Engine`: the object that lives in the worker thread. `_Making`: the thread that makes one model and ends.
 - `gui/worker.py`, `Worker`: its handle in the GUI thread. Its methods return at once (`start`, `load`, `request_preview`, `run`, `stop`). Its signals are always emitted in the GUI thread.
-- `gui/worker_jobs.py`, `Jobs`: starts `tracking.run_job` in the worker thread with a copy of the session, and takes over what the job reports.
+- `gui/worker_jobs.py`, `Jobs`: starts `tracking.run_job` in the worker thread with a copy of the session, and takes over what the job reports. `Jobs.writing()` is the one lock: it says whether, and why, the worker is busy with a task that writes files (a tracking run, or the export that panel 9 reports with `set_exporting`).
 
 A signal of the worker or of a job is connected only to a method of an object that lives in the GUI thread, never to a lambda: a lambda would run in the worker thread.
 
@@ -167,8 +174,9 @@ Who writes which file:
 
 | file | written by |
 |---|---|
-| session.json | the GUI thread only (`SessionController`). What a job changes in the session crosses as the value of a signal and is applied and saved there. |
-| results.npz | the worker thread while a job runs (`tracking.run_job`). Between jobs, the GUI thread's edits that delete records write it (Remove), which is one reason why they are off during a run. |
+| session.json | the GUI thread only (`SessionController`). What a job changes in the session crosses as the value of a signal and is applied and saved there. A closing window writes it only when a save is due: its time tells panel 9 whether the exported files are older than the session. |
+| results.npz | the worker thread while a job runs (`tracking.run_job`). Between jobs, the GUI thread's edits that delete records write it (Remove, and the corrections of panel 8), which is one reason why they are off during a run and during an export. |
+| positions.csv and the other exported files | the worker thread during Export all (`export.export_all`), from session.json and results.npz as they are on disk. |
 | run.log | the GUI thread, when a job has ended, with the lines the job said and the trace of a failure; an export appends its own block. |
 | the settings (the manifest's place, Fill) | the GUI thread (`gui/panels/time_panel.py`, `settings()`). |
 

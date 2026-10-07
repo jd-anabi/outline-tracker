@@ -10,12 +10,13 @@ panel's controls:
   and the one this system can have besides, `devices_for`). A choice goes into
   `session.processing`, and the worker loads that model in place of the one it has (`Worker.load`);
   a session that is opened is loaded the same way, so the loaded model is always the session's.
-  Both boxes are off without a video, while a model loads and during a run, and say why.
+  Both boxes are off without a video, while a model loads and during a run or an export; the
+  model box also once a track has stored frames, which were made with that model. Each says why.
   A model that could not be loaded leaves them on: the dialog about it says to choose another
   one here, except at the first start with the defaults, where it says to check the internet.
 - Before a run the hint line gives the estimate (gui/estimate.py) and how many frames and objects
   it is for. Track is off, with the reason as the hint line and as its tooltip, while something is
-  missing (`Jobs.refusal`), and while a run is going.
+  missing (`Jobs.refusal`), and while a run or an export is going.
 - During a run: the bar counts the tracked frames of all runs, and the line under it says the run,
   the frame, s per frame and the time left; the line is written at most 4 times a second. Cancel
   stops after the current frame.
@@ -56,7 +57,7 @@ from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, SPACING
 from outline_tracker.gui.panels.video_panel import field_rows, guard_wheel
 from outline_tracker.gui.session_controller import VIDEO_FIRST
 from outline_tracker.gui.worker import NO_FACTORY, worker_of
-from outline_tracker.gui.worker_jobs import NOTHING_LEFT, RUNNING, STOPPED, jobs_of
+from outline_tracker.gui.worker_jobs import EXPORT_RUNNING, NOTHING_LEFT, RUNNING, STOPPED, jobs_of
 from outline_tracker.results import ResultsStore
 from outline_tracker.session import Processing
 from outline_tracker.tracking import CANCELLED, COMPLETE, partial_tracks
@@ -69,6 +70,7 @@ MODEL_NAMES = {"edgetam": "EdgeTAM", "sam2": "SAM 2.1 tiny"}
 DEVICE_NAMES = {"auto": "auto", "cpu": "cpu", "mps": "mps (Apple GPU)", "cuda": "cuda (NVIDIA GPU)"}
 MODEL_TIP = "The model that finds the outlines. EdgeTAM is the default."
 DEVICE_TIP = "What the model runs on. auto takes the graphics processor if it works, else the processor (cpu)."
+MODEL_FIXED = "The results were made with {model}. For another model, remove the objects or start a new session."
 TRACK_TIP = "Track the objects that have points (panel 6)"
 CANCEL_TIP = "Stop after the current frame. The tracked frames are kept."
 ESTIMATE = "Estimated time: {time} for {frames} and {objects}."
@@ -161,8 +163,8 @@ class TrackPanel(QWidget):
 
         controller, jobs, worker = self._controller, self.jobs, self.worker
         controller.video_opened.connect(self._video_opened)
-        controller.session_changed.connect(self.refresh)
-        controller.saved.connect(self.refresh)
+        for changed in (controller.session_changed, controller.saved, jobs.writing_changed):  # an export too
+            changed.connect(self.refresh)
         self._panel.header.toggled.connect(self.refresh)  # a name typed before a video is open says nothing
         worker.state_changed.connect(self._model_state)
         worker.busy_changed.connect(self._busy_changed)
@@ -191,16 +193,17 @@ class TrackPanel(QWidget):
     def set_model(self, model: str) -> None:
         """Take `model` (a key of the segmenter's models: "edgetam", "sam2") for this session: it
         is stored in `session.processing` and the worker loads it. Nothing changes without a
-        video, while a model loads and during a run."""
-        self._choose(model=model)
+        video, while a model loads, during a run or an export, and once the session has results."""
+        if not self._has_results():
+            self._choose(model=model)
 
     def set_device(self, device: str) -> None:
-        """Take `device` ("auto", "cpu", "mps" or "cuda") for this session, as `set_model` takes a model."""
+        """Take `device` ("auto", "cpu", "mps" or "cuda") for this session, also when it has results."""
         self._choose(device=device)
 
     def _choose(self, **choice) -> None:
         session = self._controller.session
-        if session is not None and not self.jobs.running and self.worker.state != "loading":
+        if session is not None and not self.jobs.writing() and self.worker.state != "loading":
             processing = session.processing
             if any(getattr(processing, name) != value for name, value in choice.items()):
                 for name, value in choice.items():
@@ -309,6 +312,11 @@ class TrackPanel(QWidget):
         except ValueError:
             return ResultsStore()
 
+    def _has_results(self) -> bool:
+        """Whether a track of the session has stored frames: they were made with the session's model."""
+        session = self._controller.session
+        return session is not None and bool({track.id for track in session.tracks} & set(self._results().track_ids))
+
     def _standing(self) -> tuple[str | None, str, str]:
         """(why Track is off or None, the hint line, the panel's state) while no job runs."""
         refused = self.jobs.refusal()
@@ -320,8 +328,8 @@ class TrackPanel(QWidget):
                 return None, NO_ESTIMATE.format(**words), "todo"
             seconds = estimate.estimate_seconds(self.seconds_per_frame, plans)
             return None, ESTIMATE.format(time=estimate.about(seconds), **words), "todo"
-        if refused != NOTHING_LEFT:
-            return refused, refused, "todo"
+        if refused != NOTHING_LEFT:  # during an export Track waits for it, and the panel stays as it stands
+            return refused, refused, self._panel.state if refused == EXPORT_RUNNING else "todo"
         session = self._controller.session
         try:  # a video that ended before its clip is whole where it ended: only the job saw where
             partial = partial_tracks(session, self._results(), self.jobs.video_end)
@@ -365,13 +373,15 @@ class TrackPanel(QWidget):
         self.progress_label.setVisible(jobs.running or loading)
         session = self._controller.session
         chosen = Processing() if session is None else session.processing
-        off = RUNNING if jobs.running else MODEL_LOADING if loading else VIDEO_FIRST if session is None else None
-        for box, key, tip in ((self.model_box, chosen.model, MODEL_TIP), (self.device_box, chosen.device, DEVICE_TIP)):
+        off = jobs.writing() or (MODEL_LOADING if loading else VIDEO_FIRST if session is None else None)
+        fixed = MODEL_FIXED.format(model=MODEL_NAMES.get(chosen.model, chosen.model)) if self._has_results() else None
+        for box, key, tip, why in ((self.model_box, chosen.model, MODEL_TIP, off or fixed),
+                                   (self.device_box, chosen.device, DEVICE_TIP, off)):
             if box.findData(key) < 0:
                 box.addItem(key, key)  # a session from elsewhere: shown as it is, never changed
             box.setCurrentIndex(box.findData(key))
-            box.setEnabled(off is None)
-            box.setToolTip(tip if off is None else off)
+            box.setEnabled(why is None)
+            box.setToolTip(why or tip)
         self.track_button.setEnabled(reason is None)
         self.track_button.setToolTip(TRACK_TIP if reason is None else reason)
         self.cancel_button.setEnabled(jobs.running and not jobs.cancelling)

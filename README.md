@@ -74,9 +74,9 @@ outline-tracker
 5. In panel 4 (**Dish and axes**), click **Circle** and click 6 or more points on the inner wall of the dish, spread around it. Then click **Origin to Center**, or place the origin yourself with **Axes**.
 6. In panel 6 (**Objects**), click **Add**, click on one animal, and check that the outline follows it: do this for each animal. If the antennae matter, click on each antenna too, because one click on the body leaves them out.
 7. In panel 7 (**Track**), read the estimated time, then click **Track**. You can look at other frames while it runs, and **Cancel** stops it and keeps the frames that are tracked.
-8. In panel 8 (**Review and fix**), look at the flags: each flag names a track and a frame where something may be wrong. Go to that frame, and if the outline is on the wrong animal, click on the right one and use Re-track from here.
-9. In panel 9 (**Export**), click Export all. It writes the CSV files, the overlay video, the log and README.txt to the run folder.
-10. Your files are in the run folder, next to your video: panel 1 shows its name. The parts "Where the files are" and "Load the tracks in your notebook" below say what each file holds and how to read the tracks.
+8. In panel 8 (**Review and fix**), look at the flags: each flag names a track and a frame where something may be wrong. Click a row to go to its frame: if the outline is on the wrong animal, click on the right one, then click **Re-track from here**.
+9. In panel 9 (**Export**), click **Export all**. It writes the CSV files, the overlay video, the log and README.txt to the run folder.
+10. Your files are in the run folder, next to your video: **Open folder** in panel 9 shows it. The parts "Where the files are" and "Load the tracks in your notebook" below say what each file holds and how to read the tracks.
 
 More about step 6:
 

@@ -16,8 +16,8 @@ three corrections Re-track from here, End track here and Continue as new track.
   said, and the window goes there. After a correction the controller's `touch()` tells the rest of
   the window (the object table, the picture).
 - The buttons of the corrections are off, with the reason as the end of the hint line and as their
-  tooltip, during a run, before anything is tracked, without a selected object, and for an object
-  that has no results yet; Re-track from here also while the model is not ready.
+  tooltip, during a run or an export (`Jobs.writing`), before anything is tracked, without a selected
+  object, and for an object that has no results yet; Re-track from here also while the model is not ready.
 - The panel is "Not started" before anything is tracked, done when tracking is complete and no
   flag on a position is listed, and needs attention otherwise; the hint line gives the number.
 
@@ -129,7 +129,7 @@ class ReviewPanel(QWidget):
         self._controller.video_opened.connect(self._video_opened)
         self.worker.state_changed.connect(self.refresh)
         self.jobs.started.connect(self._run_started)
-        self.jobs.finished.connect(self.refresh)
+        self.jobs.writing_changed.connect(self.refresh)  # a run or an export has started or ended
         self.refresh()
 
     def _button(self, text: str, tip: str, pressed):
@@ -200,7 +200,7 @@ class ReviewPanel(QWidget):
     def _retrack(self, track_id: str, frame: int) -> None:
         """The question was answered with yes: make the correction, save it, and start its run."""
         session = self._controller.session
-        if session is None or self.jobs.running:
+        if session is None or self.jobs.writing():
             return
         try:
             edit = tracking.retrack_from(session, None, [track_id], frame, {}, self._controller.run_folder)
@@ -231,7 +231,7 @@ class ReviewPanel(QWidget):
     def _end(self, track_id: str, frame: int) -> None:
         """The question was answered with yes: make the correction and save it."""
         session = self._controller.session
-        if session is None or self.jobs.running:
+        if session is None or self.jobs.writing():
             return
         try:
             edit = tracking.end_track(session, None, track_id, frame, self._controller.run_folder)
@@ -317,8 +317,8 @@ class ReviewPanel(QWidget):
         each one sentence, or None when the button can be used."""
         session, selected = self._controller.session, self.prompts.selected
         tracked = set() if session is None else {track.id for track in session.tracks} & set(self._results().track_ids)
-        if self.jobs.running:
-            both = RUNNING
+        if self.jobs.writing():
+            both = RUNNING if self.jobs.running else self.jobs.writing()  # "An export is running."
         elif not tracked:
             both = NOT_STARTED
         elif selected is None:

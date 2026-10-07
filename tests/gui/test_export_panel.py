@@ -130,6 +130,12 @@ def test_export_all_is_off_while_tracking_runs(window, qtbot, clip_in_odd_folder
     assert is_on(window)
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task C6, when Export all waited for the model. Task C9 (item 1): Export all needs no model, and the "
+    "sentence that sent the student to the command line is gone. Its successors are in tests/gui/test_joins.py: "
+    "test_after_a_model_that_could_not_be_loaded_export_all_and_the_flags_run_in_the_workers_thread and "
+    "test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thread. For J or the "
+    "controller: delete this test."))
 def test_export_all_waits_for_the_worker_that_runs_it(window, second_window, qtbot, clip_in_odd_folder,
                                                       monkeypatch):
     record_every_dialog(monkeypatch)
@@ -336,6 +342,12 @@ def test_closing_the_window_during_an_export_waits_for_it_and_ends_the_thread(wi
 # Done, or to be exported again
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task C6, when only results.npz was held against positions.csv. Task C9 (item 4): session.json "
+    "counts too, and this test leaves its time at today, long after the 14:05 it gives positions.csv. Its successor, "
+    "which says when session.json was written, is tests/gui/test_joins.py::"
+    "test_results_written_after_the_export_need_attention_and_a_new_export_is_done. For J or the controller: delete "
+    "this test."))
 def test_panel_9_is_done_after_an_export_and_needs_attention_when_the_results_are_newer(window, qtbot,
                                                                                        clip_in_odd_folder):
     panel = tracked(window, qtbot, clip_in_odd_folder)
@@ -359,6 +371,11 @@ def test_panel_9_is_done_after_an_export_and_needs_attention_when_the_results_ar
     assert state(window) == "done" and panel.message.kind == "success"
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task C6, when only results.npz was held against positions.csv. Task C9 (item 4): session.json "
+    "counts too, and this test leaves its time at today, long after the 09:31 it gives positions.csv. Its successor "
+    "is tests/gui/test_joins.py::test_an_export_on_the_disk_is_done_when_its_session_is_opened. For J or the "
+    "controller: delete this test."))
 def test_an_export_that_is_on_the_disk_is_done_when_the_session_is_opened(window, second_window, qtbot,
                                                                          clip_in_odd_folder):
     panel = tracked(window, qtbot, clip_in_odd_folder)
