@@ -83,7 +83,7 @@ Open the terminal in your repository folder, the one that holds `data/manifest.c
 outline-tracker from-tracker "path/to/video_tracker.mp4" "path/to/sam/extra/start.csv"
 ```
 
-You see the plan, the folder for the files, the progress, and at the end the files that were saved:
+You see the plan, the folder for the files, the progress, and at the end the files that were saved. Your numbers are different:
 
 ```text
 edgetam: 2 shrimp (A, B), frames 120-1320 every 2 (601 frames, 5.0 s at fps_true = 239.6); scale 32.40 um per pixel
