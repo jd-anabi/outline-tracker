@@ -204,6 +204,16 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 05:40, B1: one more test marked `xfail(strict=True)`, on Linux and Windows only, for J
+  to confirm its removal.** `tests/test_from_tracker_cli.py::test_folders_with_spaces_and_other_alphabets`
+  runs `from-tracker` with the video, the export, the student name and the run folder all in
+  folders with spaces and accented letters. That part works on all three systems. Its last
+  check asks that the threshold stand-in finds the 14 × 6 px shrimp of the H.264 dish clip within
+  1 px; that limit was not derived, it held on macOS only, and on the Linux and Windows test
+  machines two of ten frames were 1.1 and 1.3 px off. The test next to it,
+  `..._with_the_disk_clip`, makes the same folder-name checks with the clip and the 0.25 px
+  limit the stand-in is specified for, and runs on all three systems. Default: J says "delete
+  it" and the first one goes.
 - **Wed 05:20, track colors: a point for J (default: no change).** Decision X14 keeps last
   week's overlay colors (A is yellow). While preparing the look of the app I had the list
   checked for red-green color blindness: three pairs in it are hard to tell apart for such a
