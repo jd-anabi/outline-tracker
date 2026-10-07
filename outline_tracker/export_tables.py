@@ -6,10 +6,14 @@ the column lists, number formats and file texts are `schema`'s. `export.export_a
 written where.
 
 Rules of the rows:
-- One row per stored frame of a track, tracks in the order given (plain text order of their ids),
-  frames ascending.
+- One row per frame of a track as it is given, tracks in the order given (plain text order of
+  their ids), frames ascending.
 - On a lost frame every measured number is an empty cell, the area too (an empty mask measures
   nothing); `frame` and `t_s` stay, the counts `visible`, `n_components` and `shape_ok` are 0.
+- positions.csv and shapes.csv have every frame of the clip's grid from a track's first to its
+  last (SPEC 8.2). A track whose records leave one out is given a lost row there first
+  (`fill_gaps`); the Tracker-format files, radial.csv and outlines.npz hold the frames with a
+  record only.
 
 The Tracker-format folder holds nothing but `<id>.csv`: students' own loaders read every .csv and
 .txt file in it as a track. So a file is written under `<id>.csv.tmp` by last week's writer
@@ -26,6 +30,7 @@ video frame numbers. No Qt, no torch.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import json
 import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -70,14 +75,61 @@ def tracker_file_names(track_ids: Sequence[str]) -> dict[str, str]:
     return names
 
 
+def fill_gaps(derived: DerivedTrack, cells: Sequence[str], grid_start: int, grid_step: int,
+              fps_true: float) -> tuple[DerivedTrack, list[str]]:
+    """A track's rows without a gap (SPEC 8.2): the track and its `flags` cells, with a lost row
+    added for every frame of the clip's grid that lies between the track's first and last frame
+    and is not among its frames. Tracking leaves no such frame; a results.npz made by hand or by
+    an older version may.
+
+    derived: the track in world units (mm in the user's axes with y up, s, rad; px in image
+    coordinates), one row per stored frame. cells: its `flags` cells, one per row. grid_start,
+    grid_step: the clip's start frame and step, video frame numbers: the grid is every frame that
+    is a whole number of steps from the start. fps_true: frames per s, for the new rows' `t_s`.
+
+    An added row is what a lost frame is: `visible`, the counts and `shape_ok` 0, every measured
+    number NaN, `t_s` = frame / fps_true, the flags LOST and, as on every row of a track without a
+    head click, HEADGUESS; its `mode` is that of the row before it. A row whose frame is not on
+    the grid stays. Returns (track, cells); the ones given when no frame is missing.
+    """
+    frames = derived.frame
+    if len(frames) < 2:
+        return derived, list(cells)
+    first, last = int(frames[0]), int(frames[-1])
+    on_grid = np.arange(first + (grid_start - first) % grid_step, last, grid_step)
+    missing = np.setdiff1d(on_grid, frames)
+    if not len(missing):
+        return derived, list(cells)
+    at = np.searchsorted(frames, missing)  # the row each missing frame comes before; never row 0
+    filled = {}
+    for field in dataclasses.fields(derived):
+        if field.name == "track_id":
+            continue
+        column = getattr(derived, field.name)
+        if field.name == "frame":
+            new = missing
+        elif field.name == "t_s":
+            new = missing / float(fps_true)
+        elif field.name in ("mode", "headguess"):  # one per track: as on the row before
+            new = column[at - 1]
+        elif column.dtype.kind == "f":
+            new = np.full((len(missing), *column.shape[1:]), np.nan)
+        else:  # `visible`, the counts, `shape_ok`, `orient`
+            new = np.zeros((len(missing), *column.shape[1:]), column.dtype)
+        filled[field.name] = np.insert(column, at, new, axis=0)
+    lost = schema.join_flags(["LOST", "HEADGUESS"] if derived.headguess[0] else ["LOST"])
+    return dataclasses.replace(derived, **filled), np.insert(np.array(cells, dtype=object), at, lost).tolist()
+
+
 def table_rows(columns: Sequence[schema.Column], derived_by_track: Mapping[str, DerivedTrack],
                flags_by_track: Mapping[str, Sequence[str]]) -> Iterator[list[object]]:
     """The rows of positions.csv or shapes.csv (`columns` = `schema.POSITIONS` or `schema.SHAPES`),
     each a list in column order for `schema.csv_text`.
 
     derived_by_track: the tracks in the order of the file, in world units (mm, y up; s; rad; px in
-    image coordinates). flags_by_track: each track's `flags` cells, one per row (`qc.compute_flags`).
-    On a lost row every float except `t_s` is NaN, which the file shows as an empty cell.
+    image coordinates), without a gap (`fill_gaps`). flags_by_track: each track's `flags` cells,
+    one per row (`qc.compute_flags`, `fill_gaps`). On a lost row every float except `t_s` is NaN,
+    which the file shows as an empty cell.
     """
     for track_id, derived in derived_by_track.items():
         lost = derived.visible == 0
@@ -136,8 +188,9 @@ def write_tracker_folder(folder: Path, derived_by_track: Mapping[str, DerivedTra
     the folder of what is not a current track's file.
 
     folder: the Tracker-format folder, named after the model; created if needed. derived_by_track:
-    the tracks, with t_s in s, x_mm and y_mm in mm in the user's axes (y up), u_px and v_px in
-    image px; a lost frame keeps its row with those four empty. names: each track's file name
+    the tracks as stored, one row per tracked frame (not filled by `fill_gaps`), with t_s in s,
+    x_mm and y_mm in mm in the user's axes (y up), u_px and v_px in image px; a lost frame keeps
+    its row with those four empty, as in positions.csv. names: each track's file name
     (`tracker_file_names`). log: told, one line each, which files were removed.
 
     Returns (the files written, warnings). A file is `<id>.csv`, or `<id>.csv.new` when `<id>.csv`

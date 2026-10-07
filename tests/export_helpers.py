@@ -148,6 +148,20 @@ def cells(path):
     return header, [dict(zip(header, line.split(","), strict=True)) for line in lines[1:-1]]
 
 
+def log_section(run_folder, name):
+    """The lines under the line `name` ("runs:", "corrections:", ...) in the newest block of
+    run.log, without their indent."""
+    lines = (run_folder / "run.log").read_text(encoding="utf-8").split("==== export, ")[-1].split("\n")
+    below = lines[lines.index(name) + 1:]
+    return [line.strip() for line in below[:next(i for i, line in enumerate(below) if not line.startswith("  "))]]
+
+
+def frames_of(run_folder, name, track_id):
+    """The frames of one track's rows in a CSV file of the run folder."""
+    rows = table(run_folder / name)
+    return list(rows[rows.track_id == track_id].frame)
+
+
 def true_pose(clip, track_id, frame):
     """(u, v, heading) of a scene's object: its center in px and its head direction in rad,
     counterclockwise on screen from the image's rightward direction."""
