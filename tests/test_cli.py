@@ -179,3 +179,121 @@ def test_exit_code_reaches_the_shell(tmp_path):
     )
     assert done.returncode == 1
     assert done.stderr == f"ERROR: No such file: {missing}\n"
+
+
+# ---------------------------------------------------------------------------------------------
+# synth (hidden, decision X10): writes a synthetic clip at the spec's scale, 1920 x 1080 px, 240 fps
+
+
+@pytest.mark.parametrize("scene", ["dish", "closeup"])
+def test_synth_writes_a_clip_and_creates_its_folder(scene, tmp_path, capsys):
+    out = tmp_path / "new folder" / f"{scene}_tracker.mp4"
+    assert cli.main(["synth", scene, str(out), "--seconds", "0.1"]) == 0
+    info = video.probe(out)
+    assert (info.n_frames, info.width, info.height) == (24, 1920, 1080)  # 0.1 s at 240 fps
+    assert info.fps_container == pytest.approx(240.0)
+    shown = capsys.readouterr()
+    assert shown.out.splitlines()[0] == f"wrote {out}: 24 frames, 1920 x 1080 px, 240 fps"
+    assert shown.err == ""
+
+
+def test_synth_lasts_two_seconds_unless_told_otherwise():
+    args = cli.build_parser().parse_args(["synth", "closeup", "closeup_tracker.mp4"])
+    assert (args.scene, args.out, args.seconds) == ("closeup", "closeup_tracker.mp4", 2.0)
+
+
+def test_synth_is_not_shown_in_the_help(capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(["--help"])
+    assert stopped.value.code == 0
+    shown = capsys.readouterr().out
+    assert "convert" in shown and "synth" not in shown
+    assert cli.main([]) == 0
+    assert "synth" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("seconds", ["0", "-1", "nan", "inf"])
+def test_synth_refuses_a_length_that_is_not_positive(seconds, tmp_path, capsys):
+    out = tmp_path / "clips" / "dish_tracker.mp4"
+    assert cli.main(["synth", "dish", str(out), "--seconds", seconds]) == 1
+    shown = capsys.readouterr()
+    assert shown.err.startswith("ERROR: ") and "--seconds" in shown.err
+    assert not out.parent.exists()  # nothing written, no folder made
+
+
+def test_synth_knows_only_its_two_scenes(tmp_path, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(["synth", "ocean", str(tmp_path / "x.mp4")])
+    assert stopped.value.code == 2
+    assert "dish" in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# check --seek (hidden, decision X19): 20 random frames through FrameSource against the sequential
+# decode, and the number of gaps in the file's timestamps. The seek line comes last.
+
+SEEK_OK = "  seek: 20 of 20 frames exact"
+
+
+def test_check_seek_ends_with_the_gap_count_and_the_seek_line(good_clip, capsys):
+    assert cli.main(["check", str(good_clip), "--seek"]) == 0
+    shown = capsys.readouterr()
+    lines = shown.out.splitlines()
+    assert "  OK: no problems found. Now measure fps_true from your stopwatch clip." in lines
+    assert lines[-2:] == ["  timestamps: 0 gaps in 48 frames", SEEK_OK]  # written evenly timed, 48 frames
+    assert shown.err == ""
+
+
+def test_check_seek_counts_the_gaps_of_a_clip_with_gaps(gapped_clip, capsys):
+    # 320 x 240 px: `check` warns about the low resolution (exit code 1) and goes on to the seek check.
+    assert cli.main(["check", "--seek", str(gapped_clip.path)]) == 1
+    lines = capsys.readouterr().out.splitlines()
+    assert sum(line.startswith("  WARNING: ") for line in lines) == 1
+    assert lines[-2:] == ["  timestamps: 3 gaps in 120 frames", SEEK_OK]
+
+
+def test_check_seek_reports_each_video(good_clip, small_clip, capsys):
+    assert cli.main(["check", "--seek", str(good_clip), str(small_clip)]) == 1  # 160 x 120 px: low resolution
+    lines = capsys.readouterr().out.splitlines()
+    assert lines.count(SEEK_OK) == 2 and lines[-1] == SEEK_OK
+    assert "  timestamps: 0 gaps in 48 frames" in lines and "  timestamps: 0 gaps in 60 frames" in lines
+
+
+def test_check_seek_says_when_there_is_no_timestamp_table(good_clip, monkeypatch, capsys):
+    monkeypatch.setattr(video, "frame_timestamps", lambda path: None)
+    assert cli.main(["check", str(good_clip), "--seek"]) == 0  # still exact, only slower
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[-2].startswith("  timestamps: no usable table") and "slower" in lines[-2]
+    assert lines[-1] == SEEK_OK
+
+
+def test_check_seek_with_a_wrong_frame_exits_1_and_says_how_many(good_clip, monkeypatch, capsys):
+    from outline_tracker.frame_source import FrameSource
+
+    get = FrameSource.get
+    monkeypatch.setattr(FrameSource, "get", lambda self, k: get(self, (k + 1) % 48))  # always the next frame
+    assert cli.main(["check", str(good_clip), "--seek"]) == 1
+    assert capsys.readouterr().out.splitlines()[-1] == "  seek: 0 of 20 frames exact"
+
+
+def test_check_seek_on_a_missing_file_is_one_error_line(tmp_path, capsys):
+    missing = tmp_path / "does_not_exist.MOV"
+    assert cli.main(["check", str(missing), "--seek"]) == 1
+    shown = capsys.readouterr()
+    assert shown.err == f"ERROR: No such file: {missing}\n"
+    assert shown.out == ""
+
+
+def test_check_without_seek_does_not_run_the_seek_check(good_clip, capsys):
+    assert cli.main(["check", str(good_clip)]) == 0
+    shown = capsys.readouterr().out
+    assert "seek:" not in shown and "timestamps:" not in shown
+
+
+def test_check_seek_is_not_shown_in_the_help(capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(["check", "--help"])
+    assert stopped.value.code == 0
+    shown = capsys.readouterr().out
+    assert "VIDEO" in shown and "--seek" not in shown

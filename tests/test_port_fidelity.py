@@ -12,7 +12,9 @@ each of which must occur once in the reference source. Module-level constants go
 and are compared by value (for a dict, also the order of its items). Methods moved unchanged into
 a class with a new name go into `VERBATIM_METHODS`; the methods of the same name that were
 rewritten are named in the same row, so none is forgotten. Names that exist in both modules and
-are listed in no table fail `test_no_ported_name_is_left_unchecked`.
+are listed in no table fail `test_no_ported_name_is_left_unchecked`. A new function that took over
+one run of lines of a reference function (adapted: the part of last week's selftest that makes the
+clip) goes into `MOVED_BLOCKS`, with the block's first and last line and the few lines of its own.
 
 A ported test file goes into `PORTED_TESTS` when it is one file of the template (only its import
 line may differ), or into `SPLIT_TESTS` when the template's file was shared out among several new
@@ -27,6 +29,8 @@ import importlib
 import inspect
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
@@ -41,6 +45,8 @@ VERBATIM: list[tuple[str, str, tuple[str, ...]]] = [
         ("VideoInfo", "VideoCheck", "_open", "_to_gray", "probe", "iter_frames", "read_frame",
          "frame_changes", "_ramp_ratio"),
     ),
+    # The sequential decode that defines frame numbers (SPEC 3.5); tracking and FrameSource's tests use it.
+    ("outline_tracker.video", "shrimp.segment", ("iter_rgb_frames",)),
     ("outline_tracker.convert", "shrimp.convert", ("ffmpeg_exe", "convert_for_tracker")),
     (
         "outline_tracker.tracker_io",
@@ -97,6 +103,22 @@ VERBATIM_METHODS: list[tuple[str, str, str, str, tuple[str, ...], tuple[str, ...
         # call per object and returns cropped results with logits; start and step take and return
         # the records of segmenter/base.py.
         ("__init__", "_forward", "start", "step"),
+    ),
+]
+
+# (new module, new function, reference module, reference function, first line and last line of the
+# block of the reference function that was moved, the new function's own lines before the block,
+# its own lines after it). Docstrings aside, the new function is these three parts and nothing else.
+MOVED_BLOCKS: list[tuple[str, str, str, str, str, str, tuple[str, ...], tuple[str, ...]]] = [
+    (
+        # The clip-making part of last week's selftest: the made-up 1080p video and its Tracker export.
+        "outline_tracker.synthetic", "selftest_clip", "shrimp.segment", "selftest",
+        "    folder.mkdir(parents=True, exist_ok=True)",
+        "                       -(tpy - h / 2) * mm_per_px, tpx, tpy)",
+        # The caller names the folder (the selftest command makes a temporary one).
+        ("    folder = Path(folder)",),
+        # Instead of tracking: what the caller needs to track the clip and to judge the result.
+        ('    return {"video": video, "export": export, "frames": frames, "pixelx": tpx, "pixely": tpy}',),
     ),
 ]
 
@@ -178,6 +200,22 @@ def _adapted(source: str, replacements: tuple[tuple[str, str], ...]) -> str:
     return source
 
 
+def _body_lines(module_name: str, name: str) -> list[str]:
+    """The source lines of a module-level function's body, without its docstring."""
+    source = _source(module_name, name)
+    function = ast.parse(source).body[0]
+    body = function.body[1:] if ast.get_docstring(function) is not None else function.body
+    return source.splitlines()[body[0].lineno - 1:]
+
+
+def _block(lines: list[str], first: str, last: str) -> list[str]:
+    """The lines from `first` to `last`, both included; each must occur exactly once, in this order."""
+    assert lines.count(first) == 1, f"{first!r} must occur exactly once in the reference function"
+    assert lines.count(last) == 1, f"{last!r} must occur exactly once in the reference function"
+    assert lines.index(first) <= lines.index(last)
+    return lines[lines.index(first):lines.index(last) + 1]
+
+
 def _top_level_names(path: Path) -> set[str]:
     """Names of the functions, classes and constants defined at the top level of a Python file."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -243,7 +281,7 @@ METHOD_CASES = [(new, cls, ref, ref_cls, name)
                 for new, cls, ref, ref_cls, names, _ in VERBATIM_METHODS for name in names]
 METHOD_IDS = [f"{new}.{cls}.{name}" for new, cls, _, _, name in METHOD_CASES]
 MODULE_PAIRS = sorted({(row[0], row[1]) for row in [*VERBATIM, *ADAPTED, *CONSTANTS]}
-                      | {(row[0], row[2]) for row in VERBATIM_METHODS})
+                      | {(row[0], row[2]) for row in [*VERBATIM_METHODS, *MOVED_BLOCKS]})
 
 
 @pytest.mark.parametrize("new_module, reference_module, name", VERBATIM_CASES, ids=VERBATIM_IDS)
@@ -277,6 +315,48 @@ def test_no_ported_method_is_left_unchecked(new_module, new_class, reference_mod
     shared = _method_names(new_module, new_class) & _method_names(reference_module, reference_class)
     assert not set(verbatim) & set(rewritten)
     assert shared == set(verbatim) | set(rewritten)
+
+
+@pytest.mark.parametrize("new_module, new_name, reference_module, reference_name, first, last, before, after",
+                         MOVED_BLOCKS, ids=[f"{row[0]}.{row[1]}" for row in MOVED_BLOCKS])
+def test_moved_block_is_the_references_and_the_rest_is_as_listed(new_module, new_name, reference_module,
+                                                                reference_name, first, last, before, after):
+    block = _block(_body_lines(reference_module, reference_name), first, last)
+    assert len(block) > len(before) + len(after)  # mostly last week's lines
+    assert _body_lines(new_module, new_name) == [*before, *block, *after]
+
+
+def test_selftest_clip_writes_the_files_the_reference_selftest_writes(tmp_path):
+    # Last week's selftest, run with the template's stand-in model (no torch), leaves its clip and
+    # its Tracker export in the folder. The moved lines must write the same frames and the same text.
+    from shrimp import segment as reference
+    from template_tests.test_segment import DiskFinder
+
+    from outline_tracker import synthetic
+
+    report = reference.selftest(model="stand-in", segmenter=DiskFinder(), folder=tmp_path / "reference",
+                                log=lambda *a: None)
+    assert report["ok"]
+    made = synthetic.selftest_clip(tmp_path / "new")
+    assert made["video"] == tmp_path / "new" / "selftest_tracker.mp4"
+    assert made["export"] == tmp_path / "new" / "selftest.csv"
+    assert made["export"].read_bytes() == (tmp_path / "reference" / "selftest.csv").read_bytes()
+    assert made["frames"] == list(range(0, 40, 2))
+    # the true centers of the tracked frames, px in Tracker's convention: 700.5 + 0.6 f, 500.5 + 0.2 f
+    assert np.allclose(made["pixelx"], 700.5 + 0.6 * np.arange(0, 40, 2))
+    assert np.allclose(made["pixely"], 500.5 + 0.2 * np.arange(0, 40, 2))
+    new = cv2.VideoCapture(str(made["video"]))
+    old = cv2.VideoCapture(str(tmp_path / "reference" / "selftest_tracker.mp4"))
+    try:
+        for frame in range(40):
+            (ok_new, image_new), (ok_old, image_old) = new.read(), old.read()
+            assert ok_new and ok_old, f"frame {frame} is missing"
+            assert image_new.shape == (1080, 1920, 3)
+            assert np.array_equal(image_new, image_old), f"frame {frame} differs"
+        assert not new.read()[0] and not old.read()[0]  # 40 frames each, no more
+    finally:
+        new.release()
+        old.release()
 
 
 @pytest.mark.parametrize("new_module, reference_module", MODULE_PAIRS)
@@ -336,6 +416,35 @@ def test_adapted_demands_a_unique_match():
         _adapted("see a and b", (("c", "d"),))  # absent: the table has rotted
     with pytest.raises(AssertionError):
         _adapted("a and a", (("a", "x"),))  # ambiguous
+
+
+def test_block_demands_both_ends_once_and_in_order():
+    lines = ["def f():", "    a = 1", "    b = 2", "    c = 3", "    return a"]
+    assert _block(lines, "    a = 1", "    b = 2") == ["    a = 1", "    b = 2"]
+    assert _block(lines, "    c = 3", "    c = 3") == ["    c = 3"]
+    with pytest.raises(AssertionError):
+        _block(lines, "    a = 1", "    d = 4")  # the last line is gone: the table has rotted
+    with pytest.raises(AssertionError):
+        _block([*lines, "    a = 1"], "    a = 1", "    b = 2")  # ambiguous
+    with pytest.raises(AssertionError):
+        _block(lines, "    c = 3", "    a = 1")  # in the wrong order
+
+
+def test_body_lines_leaves_out_the_signature_and_the_docstring():
+    assert _body_lines(__name__, "_documented") == ["    x = 1", "    return x"]
+    assert _body_lines(__name__, "_undocumented") == ["    return 2"]
+
+
+def _documented(a,
+                b=2):
+    """Two lines
+    of text."""
+    x = 1
+    return x
+
+
+def _undocumented():
+    return 2
 
 
 def test_unchecked_finds_same_named_definitions_that_nobody_compares(tmp_path):
