@@ -2,14 +2,15 @@
 
 `run_job` is the one entry point, for the command line and for the GUI's worker thread. It plans
 the runs (outline_tracker/tracking_plan.py), checks the start frames (tracking_guard.py), and
-tracks each coarse run: every frame of the run is decoded, cut to the part the model sees, given
-to the segmenter, measured (`measure.measure_mask`) and discarded. The fine runner comes next to
-the coarse one.
+tracks each run: every frame of the run is decoded, cut to the part the model sees, given to the
+segmenter, measured (`measure.measure_mask`) and discarded. A coarse run shows the model one fixed
+part of the frame, for all its objects; a fine run shows it a window that follows its one object
+(outline_tracker/tracking_fine.py).
 
 Who writes what: `run_job` works on a copy of the job's session and writes only results.npz.
 Every change it makes to the session (a run's record, whether the results are complete, a frame
-hash made anew on this computer) is handed to `Callbacks.save_session` as a `SessionChanges`, so
-that session.json has one writer.
+hash made anew on this computer, a fine window it chose) is handed to `Callbacks.save_session` as
+a `SessionChanges`, so that session.json has one writer.
 
 Units and coordinates (SPEC 3.1): records are in px in the full frame, Tracker's convention, the
 pixel in column c and row r with its center at (c + 0.5, r + 0.5); a box is
@@ -37,12 +38,13 @@ from outline_tracker.results import ResultsStore
 from outline_tracker.schema import RESULTS_NPZ, SESSION_JSON
 from outline_tracker.segmenter.base import ObjectPrompt, Segmenter
 from outline_tracker.session import RunRecord, Session
+from outline_tracker.tracking_fine import FineStart, check_fine_settings, fine_starts, fine_window, fine_window_px
 from outline_tracker.tracking_guard import FrameHashMismatch, FrameHashUpdate, check_start_frames
 from outline_tracker.tracking_plan import RunPlan, dish_box, partial_tracks, plan_runs, run_prompts
 from outline_tracker.video import iter_rgb_frames
 
 __all__ = ["AUTOSAVE_EVERY", "Callbacks", "FrameHashMismatch", "FrameHashUpdate", "Job", "RunPlan", "SessionChanges",
-           "dish_box", "partial_tracks", "plan_runs", "run_job"]
+           "dish_box", "fine_window", "fine_window_px", "partial_tracks", "plan_runs", "run_job"]
 
 AUTOSAVE_EVERY = 200  # results and session are saved after every this many tracked frames (SPEC 6.4)
 COMPLETE, CANCELLED, FAILED = "complete", "cancelled", "failed"  # what `run_job` returns
@@ -72,17 +74,23 @@ class SessionChanges:
     of the run the change is about, as it is now (a copy: the receiver's own), and run_index: its
     place in `session.runs`. frame_hashes: the hashes of start frames made anew on this computer
     for clicks that came from another one (X8); they go with the first change of a job.
+    fine_windows: (track id, window in px) for each fine window the job chose from the object's
+    mask on its start frame (SPEC 6.3); it goes with the change that starts the track's run, and
+    becomes the track's `fine_window_px`, so that a later run of the track shows the model the
+    object at the same scale. The 96 px of an object that was not found there are not stored.
     """
 
     complete: bool
     run_index: int
     run: RunRecord
     frame_hashes: tuple[FrameHashUpdate, ...] = ()
+    fine_windows: tuple[tuple[str, int], ...] = ()
 
     def apply(self, session: Session) -> None:
         """Make the changes in `session`: the run's record replaces the one at `run_index`, or is
-        added when the session has no such run yet, and each new frame hash is stored in the
-        prompts it is for (`FrameHashUpdate.apply`). No quantities, so no units."""
+        added when the session has no such run yet, each new frame hash is stored in the prompts
+        it is for (`FrameHashUpdate.apply`), and each chosen fine window (px) in its track, if
+        the session still has it."""
         session.complete = self.complete
         record = copy.deepcopy(self.run)
         if self.run_index < len(session.runs):
@@ -91,6 +99,10 @@ class SessionChanges:
             session.runs.append(record)
         for new_hash in self.frame_hashes:
             new_hash.apply(session)
+        for track_id, window in self.fine_windows:
+            for track in session.tracks:
+                if track.id == track_id:
+                    track.fine_window_px = window
 
 
 @dataclass
@@ -124,19 +136,26 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
     Before anything is tracked: the settings are checked, results.npz of the run folder is read if
     there is one, the runs are planned for the job's tracks (`plan_runs`), the prompts are shifted
     into what the model sees (`run_prompts`) and the start frames are checked (`check_start_frames`).
+    Then `make_segmenter` is called, and each fine object is looked for on its start frame, which
+    gives its window, the window's first place and its clicks in that window
+    (`tracking_fine.fine_starts`; that reads the video up to the last such frame once more).
     What fails there is raised, nothing is written and `finished` is not called: ValueError
-    (`core_open_frac` not finite or negative, `fps_true` not a positive number, an unknown track, a
-    prompt that cannot be used, a start frame the video does not have, a results.npz of another
-    version), `FrameHashMismatch`, NotImplementedError for a fine object (its runner is not written
-    yet), and whatever `make_segmenter` raises, which is called last.
+    (`core_open_frac` not finite or negative, `fps_true` not a positive number, a fine window or
+    `fine_window_factor` that cannot be used, an unknown track, a prompt that cannot be used, a
+    fine object whose window holds none of its positive clicks, a start frame the video does not
+    have, a results.npz of another version), `FrameHashMismatch`, and whatever `make_segmenter`
+    raises.
 
-    Then each run is tracked, frame by frame. Records are in px in the full frame, frames are video
-    frame numbers. results.npz and, through `save_session`, the session are saved when a run
-    starts (the session only), after every 200 tracked frames, and when a run ends. Returns
-    "complete"; "cancelled" when `should_cancel` said so or the user pressed Ctrl+C; "failed" when
-    the model or the video raised an error during a run, which is logged. In all three cases what
-    was tracked is saved. A video that ends before the clip does is tracked to its last frame,
-    which is logged, and is "complete".
+    Then each run is tracked, frame by frame: a coarse run on the part of the frame that
+    `plan.input_box` names, a fine run on a window that follows its object (SPEC 6.3). A fine
+    window the job chose from the object's mask goes to the session when the object's run starts
+    (`SessionChanges`); the 96 px of an object the model did not find are for that run only.
+    Records are in px in the full frame, frames are video frame numbers. results.npz and, through
+    `save_session`, the session are saved when a run starts (the session only), after every 200
+    tracked frames, and when a run ends. Returns "complete"; "cancelled" when `should_cancel` said
+    so or the user pressed Ctrl+C; "failed" when the model or the video raised an error during a
+    run, which is logged. In all three cases what was tracked is saved. A video that ends before
+    the clip does is tracked to its last frame, which is logged, and is "complete".
 
     The session's `complete` describes the results, not this job: it is True only after "complete",
     and then only if no track of the session is left partial (`partial_tracks`): one that an
@@ -155,10 +174,7 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
         callbacks.log("Nothing to track: no object has clicks that are not tracked yet.")
         callbacks.finished(COMPLETE)
         return COMPLETE
-    fine = [plan.track_ids[0] for plan in plans if plan.mode == "fine"]
-    if fine:
-        raise NotImplementedError(f"Fine tracking is not available yet (fine objects: {', '.join(fine)}). Set them "
-                                  "to coarse, or track the other objects by name.")
+    check_fine_settings(session, plans)
     prompts = [run_prompts(session, plan) for plan in plans]
     new_hashes = check_start_frames(job.video_path, session, plans, callbacks.log)
 
@@ -166,15 +182,21 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
     own_log = getattr(segmenter, "log", None)
     if own_log is not None:  # so that a switch from the Apple GPU to the processor reaches the log
         segmenter.log = callbacks.log
-    runner = _Runner(job, session, store, callbacks, segmenter, total=sum(len(plan.frames) for plan in plans),
-                     new_hashes=new_hashes)
+    frame_size = (session.video.width, session.video.height)
     status = COMPLETE
     try:
+        fine = fine_starts(job.video_path, session, plans, segmenter)  # before any run: a preview needs the model idle
+        runner = _Runner(job, session, store, callbacks, segmenter, total=sum(len(plan.frames) for plan in plans),
+                         new_hashes=new_hashes)
         for number, (plan, run_prompt) in enumerate(zip(plans, prompts), start=1):
             if callbacks.should_cancel():
                 status = CANCELLED
                 break
-            status = runner.coarse(plan, run_prompt, number, len(plans))
+            if plan.mode == "fine":
+                start = fine[plan.track_ids[0]]
+                status = runner.track(plan, start.crop, start.prompts, number, len(plans), start)
+            else:
+                status = runner.track(plan, _FixedView(plan.input_box, frame_size), run_prompt, number, len(plans))
             if status != COMPLETE:
                 break
     finally:
@@ -215,6 +237,32 @@ def _now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+class _FixedView:
+    """What the model is shown during a coarse run: always the same `box` = (c0, r0, width, height),
+    whole px of the full frame (the dish square or the whole frame, SPEC 6.2). `frame_size` =
+    (width, height) of the video's frames, px. A fine run has `tracking_fine.FollowCrop` instead."""
+
+    mode = "coarse"
+
+    def __init__(self, box: tuple[int, int, int, int], frame_size: tuple[int, int]):
+        self.box = box
+        self.whole = box == (0, 0, *frame_size)
+
+    def describe(self) -> str:
+        c0, r0, width, height = self.box
+        seen = "the whole frame" if self.whole else f"columns {c0} to {c0 + width - 1}, rows {r0} to {r0 + height - 1}"
+        return f"{seen} ({width} x {height} px)"
+
+    def cut(self, rgb: np.ndarray) -> np.ndarray:
+        # without a crop the model gets the decoded frame itself, as last week (SPEC 6.2)
+        c0, r0, width, height = self.box
+        return rgb if self.whole else np.ascontiguousarray(rgb[r0:r0 + height, c0:c0 + width])
+
+    def measure(self, result, frame: int, core_open_frac: float) -> PixelRecord:
+        in_frame = replace(result, offset=(result.offset[0] + self.box[0], result.offset[1] + self.box[1]))
+        return measure_mask(in_frame, frame, self.box, self.mode, core_open_frac)
+
+
 class _Runner:
     """One job while it runs: its session copy, results, segmenter and frame counts."""
 
@@ -229,24 +277,31 @@ class _Runner:
         self.new_hashes = tuple(new_hashes)  # frame hashes made anew (X8), until they are handed over
         self.reached = -1  # the video frame on which a completed run of this job ended; -1 before one did
 
-    def coarse(self, plan: RunPlan, prompts: list[ObjectPrompt], number: int, count: int) -> str:
-        """Track one coarse run (SPEC 6.2): every frame of `plan.frames` is cut to `plan.input_box`,
-        given to the segmenter, and each object's result is shifted back into the full frame and
-        measured. `prompts` are in px of the box. Returns "complete", "cancelled" or "failed"."""
+    def track(self, plan: RunPlan, view, prompts: list[ObjectPrompt], number: int, count: int,
+              fine: FineStart | None = None) -> str:
+        """Track one run (SPEC 6.2, 6.3): every frame of `plan.frames` is cut to what `view` shows
+        the model (`view.cut`; `view.box`, px of the full frame, says which part), given to the
+        segmenter, and each object's result is shifted back into the full frame and measured
+        (`view.measure`). `view` is a `_FixedView` for a coarse run and the `FollowCrop` of `fine`,
+        how the run starts, for a fine one. `prompts` are in px of the first image. Returns
+        "complete", "cancelled" or "failed"."""
         session, callbacks, segmenter, log = self.session, self.callbacks, self.segmenter, self.callbacks.log
-        c0, r0, width, height = plan.input_box
-        whole = plan.input_box == (0, 0, session.video.width, session.video.height)
         set_view = getattr(segmenter, "set_view", None)  # ExactFake is told what each image shows
         frames = plan.frames
         log(f"Run {number} of {count}: {', '.join(plan.track_ids)} ({plan.mode}), frames {frames[0]} to {frames[-1]} "
-            f"every {frames.step} ({len(frames)} frames). The model sees "
-            + ("the whole frame" if whole else f"columns {c0} to {c0 + width - 1}, rows {r0} to {r0 + height - 1}")
-            + f" ({width} x {height} px).")
+            f"every {frames.step} ({len(frames)} frames). The model sees {view.describe()}.")
+        windows = ()
+        if fine is not None:
+            if not fine.found:
+                log(f"  The model found nothing at the clicks of {plan.track_ids[0]} on frame {plan.start_frame}: "
+                    "the window starts around the first click.")
+            if fine.chosen and fine.found:  # measured on the object: a later run shows it at the same scale
+                windows = ((plan.track_ids[0], fine.crop.window),)
 
         record = RunRecord(tracks=list(plan.track_ids), start_frame=plan.start_frame, mode=plan.mode, started=_now())
         index = len(session.runs)
         session.runs.append(record)
-        self._hand_over(record, index, complete=False)
+        self._hand_over(record, index, complete=False, fine_windows=windows)
         status, tracked, began, frame = COMPLETE, 0, time.perf_counter(), plan.start_frame
         try:
             with closing(iter_rgb_frames(self.video_path, frames)) as decoded:  # closed at once: Windows locks the file
@@ -254,15 +309,12 @@ class _Runner:
                     if callbacks.should_cancel():
                         status = CANCELLED
                         break
-                    # without a crop the model gets the decoded frame itself, as last week (SPEC 6.2)
-                    image = rgb if whole else np.ascontiguousarray(rgb[r0:r0 + height, c0:c0 + width])
+                    image = view.cut(rgb)
                     if set_view is not None:
-                        set_view(frame, (c0, r0), (width, height))
+                        set_view(frame, view.box[:2], view.box[2:])
                     results = segmenter.start(image, prompts) if tracked == 0 else segmenter.step(image)
                     for track_id, result in zip(plan.track_ids, results, strict=True):
-                        in_frame = replace(result, offset=(result.offset[0] + c0, result.offset[1] + r0))
-                        measured = measure_mask(in_frame, frame, plan.input_box, plan.mode,
-                                                session.processing.core_open_frac)
+                        measured = view.measure(result, frame, session.processing.core_open_frac)
                         self.store.put(track_id, measured)
                         callbacks.frame_result(track_id, frame, measured)
                     tracked += 1
@@ -320,14 +372,15 @@ class _Runner:
                                    f"{written.name} next to it. Close that program, then rename the file.")
         self._hand_over(record, index, complete)
 
-    def _hand_over(self, record: RunRecord, index: int, complete: bool) -> None:
+    def _hand_over(self, record: RunRecord, index: int, complete: bool,
+                   fine_windows: tuple[tuple[str, int], ...] = ()) -> None:
         """Give the run's record, with the device in use now, to the session's writer."""
         record.device = str(getattr(self.segmenter, "device", None) or "")
         record.model_id = getattr(self.segmenter, "model_id", None)
         record.weights_sha256 = getattr(self.segmenter, "weights_sha256", None)
         new_hashes, self.new_hashes = self.new_hashes, ()  # with the first change of the job only
         self.save_session(SessionChanges(complete=complete, run_index=index, run=copy.deepcopy(record),
-                                         frame_hashes=new_hashes))
+                                         frame_hashes=new_hashes, fine_windows=fine_windows))
 
 
 def _save_to_run_folder(job: Job, log: Callable[[str], None]) -> Callable[[SessionChanges], None]:
