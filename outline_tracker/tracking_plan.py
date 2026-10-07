@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import math
 import numbers
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 
 from outline_tracker.geometry import grid_frames
 from outline_tracker.measure import MODES
@@ -153,6 +154,19 @@ def plan_runs(session: Session, store: ResultsStore) -> list[RunPlan]:
     plans = [RunPlan(tuple(ids), start, "coarse", frames(start, last), box) for (start, last), ids in coarse.items()]
     plans += [RunPlan((track_id,), start, "fine", frames(start, last), box) for start, last, track_id in fine]
     return sorted(plans, key=lambda plan: (plan.start_frame, plan.mode != "coarse"))
+
+
+def plan_job(session: Session, store: ResultsStore, track_ids: Sequence[str] | None) -> list[RunPlan]:
+    """The runs of a job: those of every pending track (`plan_runs`) when `track_ids` is None, else
+    those of the named tracks only. Raises ValueError for a name the session has no track for, and
+    as `plan_runs` does. Frames are video frame numbers, boxes px of the full frame."""
+    if track_ids is None:
+        return plan_runs(session, store)
+    known = [track.id for track in session.tracks]
+    unknown = [track_id for track_id in track_ids if track_id not in known]
+    if unknown:
+        raise ValueError(f"The session has no track {', '.join(unknown)} (its tracks: {', '.join(known) or 'none'}).")
+    return plan_runs(replace(session, tracks=[track for track in session.tracks if track.id in track_ids]), store)
 
 
 def partial_tracks(session: Session, store: ResultsStore, last_frame: int | None = None) -> list[str]:

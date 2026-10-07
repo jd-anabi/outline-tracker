@@ -8,6 +8,8 @@
   `new_piece` ("Continue as new track"). Each adds an entry to `session.corrections` (SPEC 8.10).
 - The flags table of a run folder: `flags_table` (outline_tracker/tracking_flags.py).
 
+Every name of `__all__` is importable from outline_tracker.tracking too.
+
 Who writes what. These functions change the `Session` they are given and never save it: saving
 session.json is the caller's part (the GUI saves on its own thread). `store` is the `ResultsStore`
 of the run folder as results.npz holds it now (load it again after a job). A function that removes
