@@ -380,6 +380,25 @@ def test_the_quickstart_carries_what_the_real_model_needs(text):
     assert "egative" in whole and "empty" in whole  # docs/VALIDATION.md 2.1: a negative point near a positive one
 
 
+# The buttons of panels 8 and 9 as SPEC 10.1 writes them (task C9). Where the Quickstart names one, it is in bold like
+# the buttons of the other panels: what is in bold is held against the window itself in tests/gui/.
+LATE_BUTTONS = ["Next flag", "Previous flag", "Re-track from here", "End track here", "Continue as new track",
+                "Export all", "Open folder"]
+
+
+def test_the_quickstart_names_the_buttons_of_panels_8_and_9_in_bold(text):
+    steps = dict(numbered_steps(text))
+    assert "**Re-track from here**" in steps[8] and "**Export all**" in steps[9]
+    unmarked = re.sub(r"\*\*[^*]+\*\*", "", section(text, QUICKSTART))  # the section without what is in bold
+    assert [name for name in LATE_BUTTONS if name in unmarked] == []
+
+
+def test_the_check_for_bold_finds_a_button_that_is_named_plainly():
+    page = "## Quickstart\n8. Click **Next flag**, then use Re-track from here.\n9. Click Export all.\n"
+    unmarked = re.sub(r"\*\*[^*]+\*\*", "", section(page, QUICKSTART))
+    assert [name for name in LATE_BUTTONS if name in unmarked] == ["Re-track from here", "Export all"]
+
+
 @pytest.mark.parametrize("bad, found", [
     ("## Quickstart\n1. One.\n2. Two.\n4. Four.\n", [1, 2, 4]),
     ("## Quickstart\n1. One.\n## Other\n2. Two.\n", [1]),

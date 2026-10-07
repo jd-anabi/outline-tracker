@@ -3,7 +3,7 @@
 `Prompts` is the part of panel 6 that works on the video view: the three point tools (Positive,
 Negative, Head), undo, the marks of the clicks on the frame shown, and the outline the model
 gives for them (the preview), with the window of a fine object. The table and the buttons are in
-gui/panels/objects_panel.py.
+gui/panels/objects_panel.py; the items that are drawn are made in gui/prompt_drawing.py.
 
 - Every edit goes through `outline_tracker.tracking` (`add_prompt`, `undo_prompt`, `set_head`):
   the frame grid, the frame hash and the rule against a gap inside a track are decided there. A
@@ -18,8 +18,8 @@ gui/panels/objects_panel.py.
 - An outline on the picture is of the model that is chosen now. When another model begins to load
   (panel 7, an opened session), the outlines of the model before are taken away and the frame
   shown is asked of the new one; the worker keeps that request until the model is ready.
-- While a tracking job runs (`worker_jobs.Jobs.running`) no point is placed, moved or taken back:
-  the job works on the points as they were when it started. The tool's line says to wait.
+- While a tracking job or an export runs (`worker_jobs.Jobs.writing`) no point is placed, moved or
+  taken back: that task works on the points as they were when it started. The tool's line says to wait.
 
 Coordinates: (u, v) in px of the full video frame, Tracker's convention (u to the right, v
 downward, the pixel in column c and row r with its center at (c + 0.5, r + 0.5)): clicks arrive
@@ -35,16 +35,19 @@ from dataclasses import dataclass
 
 import numpy as np
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtGui import QColor, QKeySequence, QShortcut
+from PySide6.QtGui import QColor, QKeySequence, QShortcut  # noqa: F401 (QColor: offered from here before the split)
 
 import pyqtgraph as pg
 
 from outline_tracker import tracking
 from outline_tracker.gui.click_rules import (DoubleClickWatch, Mark, PointTool, ResultsOnDisk, frame_shown, marks_on,
                                             point_kind, preview_input)
+# The look of what is drawn has its own file; its names are passed on, as this module offered them before.
+from outline_tracker.gui.prompt_drawing import (BLACK, CASING, LINE_WIDTHS, MARK_SIZES, MARK_SYMBOLS,  # noqa: F401
+                                                PLUS_SIZE, WHITE, Drawn, colour_of, draw_outline, mark_spots)
 from outline_tracker.gui.worker import Found, found_in
 from outline_tracker.gui.worker_jobs import jobs_of
-from outline_tracker.tracking_fine import crop_box
+from outline_tracker.tracking_fine import crop_box  # noqa: F401 (offered from here before the split)
 from outline_tracker.video import decoder_tag, frame_hash
 
 KINDS = ("positive", "negative", "head")
@@ -52,35 +55,12 @@ TOOL_TEXTS = {"positive": "Positive: click on animal {id}.", "negative": "Negati
               "head": "Head: click on the head of {id}."}
 BUSY_TEXT = "The outline is being updated."
 WAIT_TEXT = "Wait until tracking has stopped."  # a point tool's line while a job runs
+WAIT_EXPORT_TEXT = "Wait until the export has ended."  # and while an export runs
 LOADING_TEXT = "The model is loading. The outline appears when it is ready."
 NO_OBJECT = "Click Add first. A point belongs to an object."
 NOTHING_FOUND = "The model found nothing at the points of {objects}. Click on the animal itself."
 NO_OUTLINE = "The outline could not be made. {reason}"
 NO_MODEL = "The model could not be loaded, so no outline can be shown. {reason}"
-
-# The look of the design note: marks told apart by shape, outlines in the track's colour on a casing.
-BLACK, WHITE = "#000000", "#FFFFFF"
-CASING = (0, 0, 0, 180)
-MARK_SIZES = {"positive": 12, "negative": 14, "head": 13}  # screen px
-MARK_SYMBOLS = {"positive": "o", "negative": "x", "head": "d"}
-PLUS_SIZE = 7             # the black + on a positive mark
-LINE_WIDTHS = (2, 4)      # an outline and its casing; one more each for the selected object
-
-
-@dataclass
-class Drawn:
-    """The items that draw one object's outline: `casing` under `line` (the outline, closed),
-    `label` (the id), and for a fine object `window`, its square, with `box` = (c0, r0, W, W) in
-    whole px of the full frame; both None for a coarse object."""
-
-    casing: pg.PlotCurveItem
-    line: pg.PlotCurveItem
-    label: pg.TextItem
-    window: pg.PlotCurveItem | None = None
-    box: tuple[int, int, int, int] | None = None
-
-    def items(self) -> list:
-        return [item for item in (self.window, self.casing, self.line, self.label) if item is not None]
 
 
 @dataclass(frozen=True)
@@ -88,11 +68,6 @@ class _Shown:
     signature: tuple
     frame: int
     found: dict[str, Found]
-
-
-def colour_of(track) -> str:
-    """A track's colour as `#RRGGBB`; white for a track whose colour is no colour name."""
-    return track.color if QColor.isValidColorName(track.color) else WHITE
 
 
 class Prompts(QObject):
@@ -140,8 +115,7 @@ class Prompts(QObject):
         worker.preview_failed.connect(self._preview_failed)
         worker.busy_changed.connect(self._busy_changed)
         worker.state_changed.connect(self._model_state)
-        self._jobs.started.connect(self._busy_changed)
-        self._jobs.finished.connect(self._busy_changed)
+        self._jobs.writing_changed.connect(self._busy_changed)
 
     # ------------------------------------------------------------------ what is read
 
@@ -201,7 +175,7 @@ class Prompts(QObject):
         message says so, and the view goes to that frame."""
         session = self._controller.session
         inside = session is not None and 0 <= u < session.video.width and 0 <= v < session.video.height
-        if not inside or self._jobs.running:
+        if not inside or self._jobs.writing():
             return False
         if self.selected is None:
             return self._refuse("warning", NO_OBJECT)
@@ -222,7 +196,7 @@ class Prompts(QObject):
         shown. It is no point of the object and is never given to the model. Returns whether it
         was placed (the head belongs to the object's start frame)."""
         session = self._controller.session
-        if session is None or self._view.frame is None or self._jobs.running:
+        if session is None or self._view.frame is None or self._jobs.writing():
             return False
         if self.selected is None:
             return self._refuse("warning", NO_OBJECT)
@@ -237,7 +211,7 @@ class Prompts(QObject):
     def undo(self) -> bool:
         """Remove the newest point of the selected object. Returns whether there was one."""
         session = self._controller.session
-        if session is None or self.selected is None or self._jobs.running:
+        if session is None or self.selected is None or self._jobs.writing():
             return False
         try:
             removed = tracking.undo_prompt(session, self.results.now(), self.selected)
@@ -280,13 +254,9 @@ class Prompts(QObject):
 
     def _draw_marks(self, tracks) -> None:
         self.marks = marks_on(tracks, self._view.frame)
-        colours = {track.id: colour_of(track) for track in tracks}
-        edge = pg.mkPen(BLACK, width=1.5)
-        self._points.setData([
-            {"pos": (mark.u, mark.v), "size": MARK_SIZES[mark.kind], "symbol": MARK_SYMBOLS[mark.kind], "pen": edge,
-             "brush": pg.mkBrush(WHITE if mark.kind == "head" else colours[mark.track_id])} for mark in self.marks])
-        self._pluses.setData([{"pos": (mark.u, mark.v), "size": PLUS_SIZE, "symbol": "+", "pen": pg.mkPen(None),
-                               "brush": pg.mkBrush(BLACK)} for mark in self.marks if mark.kind == "positive"])
+        points, pluses = mark_spots(self.marks, tracks)
+        self._points.setData(points)
+        self._pluses.setData(pluses)
 
     def _draw_outlines(self, tracks) -> None:
         for drawn in self.graphics.values():
@@ -300,24 +270,7 @@ class Prompts(QObject):
             hit = self._shown.found.get(track.id)
             if hit is None or not any(prompt.frame == frame and prompt.points_px for prompt in track.prompts):
                 continue
-            colour, selected = colour_of(track), track.id == self.selected
-            line_width, casing_width = (width + selected for width in LINE_WIDTHS)
-            closed = np.vstack([hit.outline, hit.outline[:1]])
-            drawn = Drawn(
-                casing=pg.PlotCurveItem(closed[:, 0], closed[:, 1], pen=pg.mkPen(CASING, width=casing_width),
-                                        antialias=True),
-                line=pg.PlotCurveItem(closed[:, 0], closed[:, 1], pen=pg.mkPen(colour, width=line_width),
-                                      antialias=True),
-                label=pg.TextItem(track.id, color=BLACK, fill=colour, anchor=(0, 1),
-                                  border=pg.mkPen(WHITE, width=2) if selected else pg.mkPen(BLACK)))
-            drawn.label.setPos(float(closed[:, 0].max()), float(closed[:, 1].min()))  # above and right of the outline
-            side = track.fine_window_px if isinstance(track.fine_window_px, int) else hit.auto_window
-            if track.mode == "fine" and side and side > 0:
-                drawn.box = c0, r0, _, _ = crop_box(hit.center, side)
-                far_c, far_r = c0 + side, r0 + side
-                corners = np.array([(c0, r0), (far_c, r0), (far_c, far_r), (c0, far_r), (c0, r0)], float)
-                drawn.window = pg.PlotCurveItem(corners[:, 0], corners[:, 1], antialias=True,
-                                                pen=pg.mkPen(colour, width=LINE_WIDTHS[0], style=Qt.PenStyle.DotLine))
+            drawn = draw_outline(track, hit, track.id == self.selected)
             for z, item in enumerate(drawn.items(), start=10):
                 item.setZValue(z)
                 self._view.add_item(item)
@@ -329,8 +282,9 @@ class Prompts(QObject):
         for kind, tool in self.tools.items():
             text = (LOADING_TEXT if loading else BUSY_TEXT) if self.busy else TOOL_TEXTS[kind].format(id=self.selected)
             cursor = Qt.CursorShape.BusyCursor if self.busy else Qt.CursorShape.CrossCursor
-            if self._jobs.running:  # before anything else: a click does nothing now
-                text, cursor = WAIT_TEXT, Qt.CursorShape.ForbiddenCursor
+            if self._jobs.writing():  # before anything else: a click does nothing now
+                text = WAIT_TEXT if self._jobs.running else WAIT_EXPORT_TEXT
+                cursor = Qt.CursorShape.ForbiddenCursor
             if (tool.text, tool.cursor) != (text, cursor):
                 tool.text, tool.cursor = text, cursor
                 if tool is self._view.tool:
@@ -397,7 +351,7 @@ class Prompts(QObject):
         self.changed.emit()
 
     def _busy_changed(self, *_) -> None:
-        """An outline is on its way or has arrived, or a tracking job started or ended."""
+        """An outline is on its way or has arrived, or a tracking job or an export started or ended."""
         self._update_tools()
         self.changed.emit()
 

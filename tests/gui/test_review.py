@@ -228,6 +228,12 @@ def test_without_a_model_the_window_goes_on_while_the_flags_are_listed(window, q
     assert 60 in frames_with(review.rows, "B", "CONTACT") and not hint(window).startswith(LISTING)
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task C7, when the flags were listed in a thread of the listing's own if no model could be loaded. "
+    "Task C9 (item 1; decision X7) removed that thread: the worker's one thread lists, also without a model, so "
+    "`review.worker.is_running()` is true here and `Listing.is_running` is gone. Its successor is tests/gui/"
+    "test_joins.py::test_without_a_model_the_flags_are_listed_in_the_worker_thread_and_closing_ends_it. For J or "
+    "the controller: delete this test."))
 def test_closing_the_window_ends_the_thread_that_lists_without_a_model(window, qtbot, dish_run, tmp_path,
                                                                        monkeypatch):
     with Gate() as gate:
@@ -245,6 +251,11 @@ def test_closing_the_window_ends_the_thread_that_lists_without_a_model(window, q
     assert not review.listing.is_running() and len(calls.threads) == 1
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task C7. It asks `Listing.is_running`, which task C9 (item 1; decision X7) removed with the "
+    "listing's own thread. That there is no such thread, with a model or without one, is held by tests/gui/"
+    "test_joins.py::test_without_a_model_the_flags_are_listed_in_the_worker_thread_and_closing_ends_it. For J or "
+    "the controller: delete this test."))
 def test_with_a_model_the_listing_has_no_thread_of_its_own(window, qtbot, dish_run, tmp_path):
     review = opened_run(window, qtbot, dish_run, tmp_path / "run")
     assert review.rows and review.worker.is_running() and not review.listing.is_running()

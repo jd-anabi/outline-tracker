@@ -2,16 +2,17 @@
 
 Export all is `export.export_all(run_folder, overlay=True)`: every output file of SPEC 8 from
 session.json and results.npz, with overlay.mp4. It runs as one task in the window's worker thread
-(`Worker.run`), after what that thread is doing, so the window stays usable; this module is the
-panel's controls, and what they say:
+(`Worker.run`), after what that thread is doing, so the window stays usable. It needs no model: it
+starts the same while a model loads (and is written when the load has ended) and after a model
+could not be loaded. While it runs, `Jobs.writing()` says so to every panel: what a tracking run
+switches off is off during an export too. This module is the panel's controls, and what they say:
 
 - The run folder's name (the whole path is its tooltip) and Change folder, which is the File
   menu's Save session as.
 - Export all, and File > Export, which is the same function. Both are off, with the reason as the
   hint line and as the button's tooltip, while an export or a tracking run is going, while the
-  name or the video is missing, while nothing is tracked, while the session has no fps_true or no
-  scale, and while the worker cannot take a task (`Worker.run` takes one only once the model is
-  loaded). Before a video is open the hint line stays the window's own.
+  name or the video is missing, while nothing is tracked, and while the session has no fps_true or
+  no scale. Before a video is open the hint line stays the window's own.
 - Before the task is handed over, here in the GUI thread: `controller.refusal("export")`, and
   `controller.save_now()`, because the export reads session.json from the disk. A session that
   could not be saved there is not exported from the older file: the panel says why.
@@ -20,9 +21,10 @@ panel's controls, and what they say:
   export's report (a locked file whose data went to `<name>.new<ext>`, an overlay that was
   skipped). A failure is one plain sentence in the panel and in a dialog (`dialogs.message`); its
   trace goes to run.log with the worker's others (`Jobs.write_traces`), never to the window.
-- The panel is done when positions.csv is there and results.npz is not newer; it needs attention
-  when results.npz is newer (export again), after a failure, and after an export with warnings.
-  What the last export said is shown until the results change or the next export starts.
+- The panel is done when positions.csv is there and neither results.npz nor session.json is
+  newer; it needs attention when one of them is (export again: an export saves the session first,
+  so a fresh export is never older), after a failure, and after an export with warnings. What the
+  last export said is shown until the results change or the next export starts.
 - Open folder shows the run folder in the system's file browser (`show_folder`).
 
 No measurement is made here. Sizes of files are bytes, written in kB, MB (1 kB = 1000 bytes, as the
@@ -63,15 +65,13 @@ NO_RESULTS = "Nothing is tracked yet. Click Track in panel 7 (Track) first."
 NO_FPS = "No frame rate is set. Type fps_true in panel 2 (Time). Export needs it to write times in s."
 NO_SCALE = ("No scale is set. Place the stick in panel 3 (Calibration). Export needs the scale to write positions "
             "in mm.")
-LOADING = "The model is loading. Export all is ready when the model is ready."
-NO_MODEL = ("The model could not be loaded. {reason} Export all cannot run without it in this window. Start the app "
-            "again, or run “outline-tracker export” on the session.json of the run folder.")
 NOT_SAVED = "The session could not be saved to the run folder, so nothing was exported."
 NO_FOLDER = "There is no run folder yet. Type your name and open your video in panel 1 first."
 NOT_SHOWN = "The run folder could not be opened. Point at its name in panel 9 (Export) to see where it is."
 # The hint line once something was exported, or should be.
 EXPORTED = "Exported at {time}. Export all replaces these files."
 STALE = "The results changed after the last export. Click Export all again."
+SESSION_STALE = "The session changed after the last export. Click Export all again."
 WARNINGS_HINT = ("The export has 1 warning. Read it below.", "The export has {n} warnings. Read them below.")
 FAILED_HINT = "Export all stopped. See the message below."
 # While an export runs, and how it ended.
@@ -131,7 +131,8 @@ class ExportPanel(QWidget):
     `open_button`, and `export_action`, the File menu's Export. `worker` is the window's `Worker`,
     `jobs` its `Jobs`.
 
-    `exporting`: an export was handed to the worker and has not reported its end. `report`: the
+    `exporting`: an export was handed to the worker and has not reported its end (kept by `jobs`,
+    which tells the other panels). `report`: the
     `ExportReport` of the last export that ran to its end, None before one did and after one that
     stopped. `seconds`: how long the last export took, s. `clock`: gives the time in s."""
 
@@ -143,7 +144,6 @@ class ExportPanel(QWidget):
         self._window, self._controller, self._panel = window, window.controller, window.panels[8]
         self.worker, self.jobs = worker_of(window), jobs_of(window)
         self._start_hint = self._panel.hint.text()  # what Export all does: the line until something is exported
-        self.exporting = False
         self.report: ExportReport | None = None
         self.seconds: float | None = None
         self.clock = time.perf_counter
@@ -203,12 +203,13 @@ class ExportPanel(QWidget):
 
     # ------------------------------------------------------------------ the buttons
 
+    exporting = property(lambda self: self.jobs.exporting, doc="Whether an export is going (`Jobs.exporting`).")
+
     def refusal(self) -> str | None:
         """Why no export can start now, as one sentence that says what to do first; None when one
         can. In this order: an export runs; tracking runs; the student's name or the video is
         missing (`controller.refusal`); results.npz cannot be read, or holds no track of the
-        session; fps_true is missing; the scale is missing; the model could not be loaded, or is
-        still loading (the worker takes a task only once it is loaded)."""
+        session; fps_true is missing; the scale is missing. The model is not asked for."""
         off = self._off()
         return None if off is None else off[0]
 
@@ -225,18 +226,19 @@ class ExportPanel(QWidget):
         if refused is None:
             folder = Path(controller.run_folder)
             task = _Task(self, folder)
-            if not self.worker.run(task):
-                refused = LOADING
+            if not self.worker.run(task, needs_model=False):
+                return  # the worker has stopped: the window is closing
         if refused is not None:
             self._refused = refused
             self._window.statusBar().showMessage(refused)
             self.refresh()
             return
         self._task, self._folder, self._line = task, folder, WRITING.format(folder=folder.name)
-        self.exporting, self.report, self.seconds = True, None, None
+        self.report, self.seconds = None, None
         self._refused = self._outcome = self._outcome_of = None
         self._files = []
         self._started_at = self.clock()
+        self.jobs.set_exporting(True)  # the lock: every panel is told
         self.refresh()
 
     def open_folder(self) -> None:
@@ -257,7 +259,7 @@ class ExportPanel(QWidget):
 
     def _on_ended(self, report: ExportReport | None, reason: str, trace: str) -> None:
         self.worker.keep_trace(trace)
-        folder, self.exporting, self._task = self._folder, False, None
+        folder, self._task = self._folder, None
         self.seconds = self.clock() - self._started_at
         if report is None:
             self._outcome = said = ("problem", f"{STOPPED} {reason}")
@@ -272,12 +274,13 @@ class ExportPanel(QWidget):
         self._outcome_of = _results_key(folder)
         self._window.statusBar().showMessage(said[1])
         self.jobs.write_traces()  # a failure's trace goes to run.log now
+        self.jobs.set_exporting(False)
         self.refresh()
 
     def _worker_state(self, state: str, message: str) -> None:
         if state == "stopped" and self.exporting:  # the window closes: take over what the export reported
             QCoreApplication.sendPostedEvents(self, QEvent.Type.MetaCall.value)
-            self.exporting = False
+            self.jobs.set_exporting(False)
         self.refresh()
 
     def _session_changed(self) -> None:
@@ -292,8 +295,8 @@ class ExportPanel(QWidget):
     def _off(self) -> tuple[str, str | None] | None:
         """(why Export all is off, the panel's state with it) or None when it can start; the state
         is None where it is the state of what is in the run folder (`_exported`)."""
-        controller, session, worker = self._controller, self._controller.session, self.worker
-        if self.exporting or self.jobs.running:
+        controller, session = self._controller, self._controller.session
+        if self.jobs.writing() is not None:
             return (EXPORTING if self.exporting else TRACKING), self._panel.state
         missing = controller.refusal("export")
         if missing is not None:
@@ -307,15 +310,12 @@ class ExportPanel(QWidget):
         fps = session.time.fps_true
         if not isinstance(fps, numbers.Real) or isinstance(fps, bool) or not fps > 0:
             return NO_FPS, "attention"
-        if mm_per_px(session) is None:
-            return NO_SCALE, "attention"
-        if worker.state in ("failed", "stopped"):
-            return one_line(NO_MODEL.format(reason=worker.message)), None
-        return None if worker.ready else (LOADING, None)
+        return (NO_SCALE, "attention") if mm_per_px(session) is None else None
 
     def _exported(self) -> tuple[str, str]:
         """(the hint line, the panel's state) from how the last export of this window ended and from
-        the run folder: done when positions.csv is there and results.npz is not newer."""
+        the run folder: done when positions.csv is there and neither results.npz nor session.json
+        is newer (the files' times of change are compared)."""
         kind = None if self._outcome is None else self._outcome[0]
         if kind == "problem":
             return FAILED_HINT, "attention"
@@ -324,12 +324,12 @@ class ExportPanel(QWidget):
             return WARNINGS_HINT[count > 1].format(n=count), "attention"
         folder = self._controller.run_folder
         try:
-            written = (Path(folder) / schema.POSITIONS_CSV).stat().st_mtime_ns
-            tracked = (Path(folder) / schema.RESULTS_NPZ).stat().st_mtime_ns
+            written, tracked, saved = ((Path(folder) / name).stat().st_mtime_ns for name in (
+                schema.POSITIONS_CSV, schema.RESULTS_NPZ, schema.SESSION_JSON))
         except (OSError, TypeError):  # nothing was exported yet; or there is no run folder
             return self._start_hint, "todo"
-        if tracked > written:
-            return STALE, "attention"
+        if max(tracked, saved) > written:  # the exported files are older than what they come from
+            return (STALE if tracked > written else SESSION_STALE), "attention"
         return EXPORTED.format(time=f"{datetime.fromtimestamp(written / 1e9):%H:%M}"), "done"
 
     def refresh(self, *_) -> None:
@@ -344,7 +344,6 @@ class ExportPanel(QWidget):
         self.open_button.setToolTip(OPEN_TIP if on_disk else NO_FOLDER)
         if self._outcome is not None and not self.exporting and self._outcome_of != _results_key(folder):
             self._outcome, self._outcome_of, self._files, self.report = None, None, [], None  # of other results
-
         off = self._off()
         reason, state = (None, None) if off is None else off
         hint = reason

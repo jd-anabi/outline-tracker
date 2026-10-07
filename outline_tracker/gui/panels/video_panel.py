@@ -6,14 +6,13 @@ the clip (start, end, step), and where the session is saved.
 a value typed here goes into the session (`controller.touch()` then tells everyone), and whatever
 changes the session is shown here. It also gives the window what belongs to saving: what the File
 menu's Open session and Save session do, the save when the window closes, and the one dialog that
-tells of a save that went wrong. Three small parts are shared with the other panels of this task:
-`Message` (a line of text in a tinted box), `ElidedLabel` (a file's name, cut in the middle when it
-is too long) and `guard_wheel` (a box that the mouse wheel changes only while it has the keyboard).
+tells of a save that went wrong. The small parts that the panels share (`Message`, `ElidedLabel`,
+`guard_wheel`, `field_rows`) are in gui/panel_parts.py, and importable from here as before.
 
 The name is the controller's: one that code gave it (`set_student`, an opened session) shows in the
 field, and the field's text becomes the name only if it was changed since the two last agreed, so a
-field nobody touched never replaces a newer name. While a tracking job runs (`Jobs.running`) the name,
-the clip and the two Open buttons are off, with the reason as their tooltip.
+field nobody touched never replaces a newer name. While a tracking job or an export runs
+(`Jobs.writing`) the name, the clip and the two Open buttons are off, with the reason as their tooltip.
 
 `video.check_video` reads about 120 frames of a long video (measured: 0.6 s for 10 s of 1080p at
 240 frames per second), so it runs in a thread of its own; its result comes back as a signal. A
@@ -30,18 +29,19 @@ from __future__ import annotations
 from pathlib import Path
 
 import cv2
-from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal
-from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QSpinBox,
-                               QVBoxLayout, QWidget)
+from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal  # noqa: F401 (see the next comment)
+from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,  # noqa: F401
+                               QSizePolicy, QSpinBox, QVBoxLayout, QWidget)
 
-from outline_tracker import video
+from outline_tracker import schema, video
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.navigation import LARGEST_FRAME
-from outline_tracker.gui.worker_jobs import RUNNING, jobs_of
+# The parts every panel shares have their own file; their names, and the names they needed, are passed on:
+# whatever this module offered before the two were split is still importable from it.
+from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, LABEL_WIDTH, SPACING, ElidedLabel,  # noqa: F401
+                                             Message, _WheelGuard, field_label, field_rows, guard_wheel)
+from outline_tracker.gui.worker_jobs import RUNNING, jobs_of  # noqa: F401
 
-LABEL_WIDTH = 120     # the column of the field labels
-SPACING = 8           # between two rows, and between two buttons
-CONTROL_HEIGHT = 28   # a field, a box
 SESSION_FILTERS = ["Session (*.json)", "All files (*)"]
 NOT_WRITTEN = "A file could not be written"  # the heading of the dialog; what to do follows it
 
@@ -84,93 +84,6 @@ def clip_problem(start: int, end: int, step: int, n_frames: int) -> tuple[str, s
     if step < 1:
         return "step", "The step must be 1 frame or more."
     return None
-
-
-class Message(QLabel):
-    """A line of text in a tinted box, under the control it is about: `show_text(kind, text)` with
-    kind `problem` or `warning`; an empty text hides it. It wraps, and is never wider than its room."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("role", "msg")
-        self.setWordWrap(True)
-        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        self.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.hide()
-
-    def show_text(self, kind: str, text: str) -> None:
-        self.setText(text)
-        theme.set_property(self, "kind", kind)
-        self.setVisible(bool(text))
-
-
-class ElidedLabel(QLabel):
-    """A label for the name of a file or a folder: `full_text` is the name, and what shows is cut
-    in the middle when the label is too narrow for it. The tooltip holds the name, or what
-    `set_full_text` was given as `tip` (the whole path)."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.full_text = ""
-        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-
-    def set_full_text(self, text: str, tip: str | None = None) -> None:
-        self.full_text = text
-        self.setToolTip(text if tip is None else tip)
-        self._cut()
-
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
-        self._cut()
-
-    def _cut(self) -> None:
-        self.setText(self.fontMetrics().elidedText(self.full_text, Qt.TextElideMode.ElideMiddle, self.width()))
-
-
-class _WheelGuard(QObject):
-    """Passes the mouse wheel on to what is behind a box while the box does not have the keyboard."""
-
-    def eventFilter(self, watched, event) -> bool:
-        if event.type() == QEvent.Type.Wheel and not watched.hasFocus():
-            event.ignore()  # the dock scrolls instead
-            return True
-        return False
-
-
-def guard_wheel(box: QWidget) -> None:
-    """Make `box` (a spin box, a combo box) react to the mouse wheel only while it has the keyboard:
-    the dock scrolls with the wheel, and that must never change a value."""
-    box.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  # the wheel alone does not give it the keyboard
-    box.installEventFilter(_WheelGuard(box))
-
-
-def field_label(text: str) -> QLabel:
-    """The label of a field, for the left column of a panel's rows."""
-    label = QLabel(text)
-    label.setFixedWidth(LABEL_WIDTH)
-    return label
-
-
-def field_rows(fields) -> QGridLayout:
-    """The rows of a panel: each of `fields` is (label, widget), the label a text or a label made
-    with `field_label`, in the left column, the widget filling the rest; or (None, widget) for a
-    widget over both columns. A field that is typed in is the buddy of its label."""
-    grid = QGridLayout()
-    grid.setContentsMargins(0, 0, 0, 0)
-    grid.setHorizontalSpacing(12)
-    grid.setVerticalSpacing(SPACING)
-    grid.setColumnStretch(1, 1)
-    for row, (word, part) in enumerate(fields):
-        if word is None:
-            grid.addWidget(part, row, 0, 1, 2)
-            continue
-        label = field_label(word) if isinstance(word, str) else word
-        grid.addWidget(label, row, 0)
-        grid.addWidget(part, row, 1)
-        if isinstance(part, (QLineEdit, QSpinBox)):
-            label.setBuddy(part)
-            part.setMinimumHeight(CONTROL_HEIGHT)
-    return grid
 
 
 class CheckThread(QThread):
@@ -274,12 +187,11 @@ class VideoPanel(QWidget):
         controller.saved.connect(self._show)
         controller.trouble.connect(lambda text: dialogs.message(window, "problem", f"{NOT_WRITTEN}\n{text}"))
         window.closing.connect(self._closing)
-        # the parts that are off while a tracking job runs, each with its own tooltip to put back after it
+        # the parts that are off while a run or an export is going, each with its own tooltip to put back after it
         self._lockable = {part: part.toolTip() for part in (self.name_edit, self.open_video_button,
                                                             self.open_session_button, *boxes)}
         self._jobs = jobs_of(window)  # after `closing` was connected: the session is saved before the worker stops
-        self._jobs.started.connect(self._show)
-        self._jobs.finished.connect(self._show)
+        self._jobs.writing_changed.connect(self._show)
         self._show()
 
     def choose_session(self) -> None:
@@ -300,8 +212,14 @@ class VideoPanel(QWidget):
         self._window.statusBar().showMessage(said)
 
     def _closing(self) -> None:
-        """The window closes: save, and wait for the checks that still read a video file."""
-        self._controller.save_now()
+        """The window closes: save what is due, and wait for the checks that still read a video
+        file. A session that is on the disk as it is, is not written again: the time of
+        session.json tells panel 9 whether the exported files are older than the session."""
+        controller, folder = self._controller, self._controller.run_folder
+        controller.about_to_save.emit()  # what is typed and not entered yet counts, as for any save
+        on_disk = folder is not None and (folder / schema.SESSION_JSON).is_file()
+        if controller.save_timer.isActive() or controller.save_problem is not None or not on_disk:
+            controller.save_now()
         for thread in self.check_threads:
             thread.wait()
 
@@ -310,7 +228,7 @@ class VideoPanel(QWidget):
         name = self.name_edit.text().strip()
         if name != self.name_edit.text():
             self.name_edit.setText(name)
-        if name != self._name_shown and not self._jobs.running:
+        if name != self._name_shown and not self._jobs.writing():
             self._name_shown = name
             self._controller.set_student(name)
         self._show()
@@ -349,15 +267,15 @@ class VideoPanel(QWidget):
             self._show()
 
     def _show(self, *_) -> None:
-        """Bring every part in line with the session, the check, the last save and a running job."""
-        controller, session, running = self._controller, self._controller.session, self._jobs.running
+        """Bring every part in line with the session, the check, the last save and the lock."""
+        controller, session, busy = self._controller, self._controller.session, self._jobs.writing()
         if controller.student != self._name_shown:  # given by code, or an opened session's: the newer one
             self._name_shown = controller.student
             self.name_edit.setText(controller.student)
         named, boxes = bool(controller.student), (self.start_box, self.end_box, self.step_box)
         for part, tip in self._lockable.items():
-            part.setEnabled(not running and (session is not None or part not in boxes))
-            part.setToolTip(RUNNING if running else tip)
+            part.setEnabled(not busy and (session is not None or part not in boxes))
+            part.setToolTip(busy or tip)
         self.video_part.setVisible(session is not None)
         self.name_message.show_text("problem", NAME_MISSING if session is not None and not named else "")
         folder = controller.run_folder

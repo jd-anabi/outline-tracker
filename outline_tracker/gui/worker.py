@@ -23,7 +23,10 @@ connected to them runs there, however it was connected.
   that is still awaited when another model is asked for, waits here in the GUI thread and is
   handed over when that model is ready; what the model before made of it is not reported.
 - Jobs: `run(task)` has `task(segmenter)` called in the thread, after what the thread is doing; an
-  outline asked for meanwhile waits for it. gui/worker_jobs.py tracks with this.
+  outline asked for meanwhile waits for it. gui/worker_jobs.py tracks with this, and such a task is
+  taken only while the model is ready. A task that needs no model (`needs_model=False`: Export all,
+  the flags table) is taken whatever the model's state: it runs in this same thread (X7), after a
+  load that is going on, and the thread is started for it in a window without a model.
 - `stop()` ends the thread and closes the segmenter. It waits for the call the engine is in; a
   task that runs asks `stopping` and ends early.
 - A failure (loading, or a frame) is shown as one plain line. Its trace is not shown: it is written
@@ -205,14 +208,20 @@ class Worker(QObject):
         """Keep the trace of a failure in a task (`run`) with the others in `traces`; "" keeps none."""
         self._keep(trace)
 
-    def run(self, task) -> bool:
+    def run(self, task, needs_model: bool = True) -> bool:
         """Have `task(segmenter)` called once in the worker thread, after what the thread is doing
-        now; outlines asked for meanwhile wait until it has returned. `segmenter` is the loaded
-        model. The task must raise nothing and report through signals of an object of the GUI
-        thread. Returns whether it was handed over: only while the model is ready."""
-        if self.ready:
-            self._run.emit(task)
-        return self.ready
+        now (loading a model too); outlines asked for meanwhile wait until it has returned.
+        `segmenter` is the loaded model, None while there is none. The task must raise nothing and
+        report through signals of an object of the GUI thread. Returns whether it was handed over:
+        a task that needs the model only while the model is ready; one that does not
+        (`needs_model` false) in every state but "stopped", and the thread is started for it if it
+        does not run yet."""
+        if self.state == "stopped" or (needs_model and not self.ready):
+            return False
+        if not self._thread.isRunning():
+            self._thread.start()
+        self._run.emit(task)
+        return True
 
     # ------------------------------------------------------------------ loading
 
