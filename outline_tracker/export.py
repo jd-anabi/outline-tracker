@@ -11,6 +11,10 @@ What is exported:
 - The tracks that the session lists and results.npz holds, in plain text order of their ids. A
   track that only results.npz holds is left out, with a warning.
 - Per track the frames that results.npz holds, so a run that was stopped exports what it has.
+  positions.csv, shapes.csv and the Tracker-format file of a track have every frame of the clip's
+  grid from its first to its last (SPEC 8.2). Tracking leaves none of them out; where a
+  results.npz made by hand or by an older version does, the frame is written as a lost row
+  (`export_tables.fill_gaps`), and a warning names the track.
 - radial.csv and outlines.npz are always written. They hold the fine tracks (a track with records
   the fine runner made), or every track with the setting `shape_files_for_coarse`; with no such
   track, the header alone and `meta` alone (decision X12).
@@ -27,6 +31,7 @@ coordinates (pixel centers at +0.5); frames are video frame numbers. No Qt, no t
 from __future__ import annotations
 
 import contextlib
+import operator
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -64,7 +69,10 @@ class ExportData:
     (mm in the user's axes with y up, s, rad; see `derive.DerivedTrack`). flags: each track's
     `flags` cells, one per row. shape_tracks: the ids that get rows in radial.csv and keys in
     outlines.npz. unlisted: ids that results.npz holds but the session does not list; they are
-    not exported.
+    not exported. rows, row_flags: `derived` and `flags` as positions.csv, shapes.csv and the
+    Tracker-format files show them: with a lost row for every frame of the clip's grid between a
+    track's first and last record that has no record (`export_tables.fill_gaps`). A track without
+    such a frame is there as it is in `derived` and `flags`.
     """
 
     arrays: dict[str, TrackArrays]
@@ -72,6 +80,8 @@ class ExportData:
     flags: dict[str, list[str]]
     shape_tracks: list[str]
     unlisted: list[str]
+    rows: dict[str, DerivedTrack]
+    row_flags: dict[str, list[str]]
 
 
 def derive_all(session: Session, store: ResultsStore) -> ExportData:
@@ -82,8 +92,9 @@ def derive_all(session: Session, store: ResultsStore) -> ExportData:
     disk and no mask is measured again.
 
     Raises ValueError, with a message for the user, when the session has no fps_true or no scale,
-    when `radial_step_deg` is not 5 (radial.csv has 72 fixed columns), and what `derive_track` and
-    `compute_flags` raise for settings they cannot use.
+    when `radial_step_deg` is not 5 (radial.csv has 72 fixed columns), when the clip's step is not
+    a whole number of frames, 1 or more (it gives the grid of the rows), and what `derive_track`
+    and `compute_flags` raise for settings they cannot use.
     """
     step = session.processing.radial_step_deg
     if step != schema.RADIAL_STEP_DEG:
@@ -93,6 +104,7 @@ def derive_all(session: Session, store: ResultsStore) -> ExportData:
     if session.time.fps_true is None:
         raise ValueError("This session has no fps_true yet: take it from the manifest or the stopwatch clip, or "
                          "type it in, then export.")
+    grid_start, grid_step = _grid(session)
     world_frame = session.world_frame()
     tracks = {track.id: track for track in session.tracks}
     ids = [track_id for track_id in store.track_ids if track_id in tracks]  # the store gives text order
@@ -102,8 +114,27 @@ def derive_all(session: Session, store: ResultsStore) -> ExportData:
     flags = compute_flags(derived, arrays, world_frame, session.processing)
     every = bool(session.processing.shape_files_for_coarse)
     shape_tracks = [track_id for track_id in ids if every or bool(np.any(arrays[track_id].mode == "fine"))]
+    filled = {track_id: export_tables.fill_gaps(derived[track_id], flags[track_id], grid_start, grid_step,
+                                                session.time.fps_true) for track_id in ids}
     return ExportData(arrays, derived, flags, shape_tracks,
-                      unlisted=[track_id for track_id in store.track_ids if track_id not in tracks])
+                      unlisted=[track_id for track_id in store.track_ids if track_id not in tracks],
+                      rows={track_id: rows for track_id, (rows, _) in filled.items()},
+                      row_flags={track_id: cells for track_id, (_, cells) in filled.items()})
+
+
+def _grid(session: Session) -> tuple[int, int]:
+    """(start, step) of the clip's frame grid, video frame numbers. Raises ValueError, with a message
+    for the user, for a start or a step that is not a whole number and for a step below 1."""
+    clip = session.clip
+    try:
+        start, step = operator.index(clip.start), operator.index(clip.step)
+    except TypeError:  # not whole numbers: refused like a step below 1
+        start = step = 0
+    if step < 1:
+        raise ValueError(f"The clip of this session has start frame {clip.start!r} and step {clip.step!r}: the start "
+                         "must be a whole frame number and the step a whole number of frames, 1 or more. Set the clip "
+                         "again, then export.")
+    return start, step
 
 
 def export_all(run_folder, overlay: bool = False, log: Callable[[str], object] = print) -> ExportReport:
@@ -159,14 +190,21 @@ def export_all(run_folder, overlay: bool = False, log: Callable[[str], object] =
 
     for track_id in data.unlisted:
         warn(f"{schema.RESULTS_NPZ} holds a track {track_id!r} that the session does not list: it is not exported.")
+    for track_id, rows in data.rows.items():
+        missing = np.setdiff1d(rows.frame, data.derived[track_id].frame)
+        if len(missing):
+            warn(f"{schema.RESULTS_NPZ} has no record of track {track_id} on {len(missing)} "
+                 f"frame{'' if len(missing) == 1 else 's'} of the clip between its first and its last (the first is "
+                 f"frame {int(missing[0])}): {schema.POSITIONS_CSV}, {schema.SHAPES_CSV} and "
+                 f"{model_folder.name}/{names[track_id]} show them as lost. Re-track from that frame to fill them.")
     write_text(schema.POSITIONS_CSV, schema.csv_text(
-        schema.POSITIONS, export_tables.table_rows(schema.POSITIONS, data.derived, data.flags)))
-    tracker_files, tracker_warnings = export_tables.write_tracker_folder(model_folder, data.derived, names, log)
+        schema.POSITIONS, export_tables.table_rows(schema.POSITIONS, data.rows, data.row_flags)))
+    tracker_files, tracker_warnings = export_tables.write_tracker_folder(model_folder, data.rows, names, log)
     files += tracker_files
     for text in tracker_warnings:
         warn(text)
     write_text(schema.SHAPES_CSV, schema.csv_text(
-        schema.SHAPES, export_tables.table_rows(schema.SHAPES, data.derived, data.flags)))
+        schema.SHAPES, export_tables.table_rows(schema.SHAPES, data.rows, data.row_flags)))
     write_text(schema.RADIAL_CSV, schema.csv_text(
         schema.RADIAL, export_tables.radial_rows(data.derived, data.shape_tracks)))
     outlines = export_tables.outline_arrays(data.derived, data.shape_tracks, session.processing.outline_points,
@@ -181,7 +219,7 @@ def export_all(run_folder, overlay: bool = False, log: Callable[[str], object] =
         outputs.append(f"{schema.OVERLAY_MP4}: not made by this export (it was not asked for)")
     outputs += [f"warning: {text}" for text in warnings]
     outputs.append(f"{schema.RUN_LOG}: this file")
-    block = export_log.export_block(session, data.arrays, summary_lines(data.flags, data.derived), outputs,
+    block = export_log.export_block(session, data.arrays, summary_lines(data.row_flags, data.rows), outputs,
                                     datetime.now().astimezone())
     log_path = run_folder / schema.RUN_LOG
     written = append_block(log_path, block)
