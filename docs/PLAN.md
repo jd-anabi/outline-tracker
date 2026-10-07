@@ -1195,6 +1195,8 @@ because derive and flags read the arrays the results store defines).
 ### ▶ GO/NO-GO 1 (Wed ~noon): J tests `from-tracker` on a real clip
 
 The agent posts the final commands in chat when Phase B is done, with the commit filled in.
+Posted Wed 07:45 for commit `fea7425` (green on both test machines). Every command below was rehearsed
+on last week's synthetic selftest clip with the real model: step 3 gave `OK: worst RMS 0.000 px (limit 0.01 px)`.
 Draft (Terminal, zsh). Paste one block at a time into the same Terminal tab, and wait for it to
 finish before the next. The blocks hold no `#` comments on purpose (section 3).
 
@@ -1304,7 +1306,8 @@ Conventions for every GUI task:
   color and wording where they apply to a Qt desktop app. The panel structure stays as §10 fixes
   it.
 
-- [ ] **C0 · GUI launcher and an empty window** (§10.2, §13.7)
+- [x] **C0 · GUI launcher and an empty window** (§10.2, §13.7)
+  - Done Wed 07:38 (commits 196483d, 4f21a8a). Verified offscreen on macOS: 2,088 fast tests pass, the window's own in `tests/gui/` (the window opens and closes; the nine numbered panels in order with their titles in a dock that scrolls vertically only; light and dark theme without a style-sheet warning; the launcher asks for torch before PySide6, checked on `app.main` itself in a fresh process; `outline-tracker` with no arguments runs the `gui` command; `gui PATH` refuses a missing file with one ERROR line). The code is in `outline_tracker/gui/` (`app.py`, `main_window.py`, `panel.py`, `theme.py`), `cli_gui.py` and `launch.py` (the script's entry point; `cli.main([])` still prints the list of commands). Uncertain: nobody has seen the window on a real screen yet, on macOS or Windows (start size and placement, the dark theme); the Linux and Windows test machines run these tests for the first time with this push; starting takes about 4 s because torch must load before Qt.
   - Files: `outline_tracker/gui/__init__.py`, `gui/app.py` (`main(argv)`: imports torch inside
     the function, then PySide6, then pyqtgraph; creates the application and an empty
     `MainWindow` with the nine numbered panels as placeholders in a scrollable dock), `cli.py`

@@ -36,3 +36,5 @@ repository (`vX.Y.Z`).
   on this computer.
 - README: how to install, how to check the installation, and what to do if the app does not
   open (last week's workflow with this week's files).
+- `outline-tracker` (no arguments) and `outline-tracker gui`: the window opens, so far empty,
+  with the nine numbered panels. The panels are filled in next.
