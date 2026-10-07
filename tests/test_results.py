@@ -1,26 +1,49 @@
-"""Tests of outline_tracker/results.py: the store in memory (SPEC 8.12, 6.6; X5, X15): `put`,
-`arrays` and `TrackArrays`, and the two corrections, `replace_from` and `truncate_after`.
-Saving and loading are in tests/test_results_file.py.
+"""Tests of outline_tracker/results.py: the store behind results.npz (SPEC 8.12, 6.6; X5, X15): `put`,
+`arrays` and `TrackArrays`, the two corrections `replace_from` and `truncate_after`, and saving
+and loading. What may go wrong with the file is in tests/test_results_file.py.
 
 Every expected array is written out from the records given to `put` (tests/results_helpers.py), and
 every expected mask crop is the boolean array the test made itself. The frames that `replace_from`
-and `truncate_after` leave are worked out here from the frame numbers. Nothing is copied from the
-output of the code under test.
+and `truncate_after` leave are worked out here from the frame numbers. The file is also read with
+numpy alone, key by key. Nothing is copied from the output of the code under test.
 
 Records are in image pixels, Tracker's convention: (u, v) from the top-left corner of the frame,
 pixel centers at +0.5; a mask crop is indexed [row, column] and its offset is (column, row) of its
 top-left pixel in the full frame. Frames are video frame numbers.
 """
 
+import builtins
+from pathlib import Path
+
 import numpy as np
 import pytest
-from results_helpers import DISK_ORIGIN, assert_holds, crop, disk_distance, lost, made_up, measured, same, two_tracks
+from results_helpers import (
+    DISK_ORIGIN,
+    assert_holds,
+    crop,
+    disk_distance,
+    expected_column,
+    lost,
+    made_up,
+    measured,
+    names,
+    names_number,
+    read_npz,
+    same,
+    two_tracks,
+    write_npz,
+)
 
 from outline_tracker import schema
 from outline_tracker.measure import PixelRecord
-from outline_tracker.results import ResultsStore
+from outline_tracker.results import ResultsStore, ResultsVersionError
 
 PER_FRAME = [key for key in schema.RESULTS_KEYS if key.name not in ("frames", "mask_bits")]
+
+
+def assert_same_arrays(a, b):
+    for key in schema.RESULTS_KEYS:
+        assert same(getattr(a, key.name), getattr(b, key.name)), key.name
 
 
 # --------------------------------------------------------------------------- put and arrays
@@ -246,3 +269,106 @@ def test_a_track_that_loses_every_frame_is_gone_and_may_be_asked_to_lose_them_ag
     store.replace_from("never there", 0)
     store.put("A", records["A"][0])      # a new run of A starts from nothing
     assert_holds(store.arrays("A"), records["A"][:1])
+
+
+# --------------------------------------------------------------------------- the file
+
+
+def test_save_and_load_give_equal_arrays_for_two_tracks(tmp_path):
+    store, records = two_tracks()
+    path = tmp_path / "vidéo test ü" / "results.npz"     # a folder that does not exist yet (review focus 1)
+    assert store.save(path) == path
+    assert names(path.parent) == ["results.npz"]
+    loaded = ResultsStore.load(path)
+    assert isinstance(loaded, ResultsStore) and loaded is not store
+    assert loaded.track_ids == ["A", "B"]
+    for track_id in ("A", "B"):
+        assert_same_arrays(loaded.arrays(track_id), store.arrays(track_id))
+        assert_holds(loaded.arrays(track_id), records[track_id])     # every array, and every mask crop
+    assert_holds(store.arrays("A"), records["A"])                    # saving changed nothing
+
+
+def test_the_file_holds_the_version_and_one_array_per_track_and_key(tmp_path):
+    store, records = two_tracks()
+    data = read_npz(store.save(tmp_path / "results.npz"))
+    assert sorted(data) == sorted(["version"] + [f"{track_id}__{key.name}" for track_id in ("A", "B")
+                                                  for key in schema.RESULTS_KEYS])
+    assert data["version"].shape == () and data["version"].dtype.kind == "i" and int(data["version"]) == 1
+    for track_id in ("A", "B"):
+        for key in schema.RESULTS_KEYS:
+            array = data[schema.npz_key(track_id, key.name)]
+            assert array.dtype == np.dtype(key.dtype), key.name
+            assert same(array, expected_column(records[track_id], key)), key.name
+    assert all(array.dtype != object for array in data.values())     # readable without pickle
+
+
+def test_a_store_that_was_loaded_can_be_changed_and_saved_again(tmp_path):
+    store, records = two_tracks()
+    path = store.save(tmp_path / "results.npz")
+    loaded = ResultsStore.load(path)
+    loaded.replace_from("A", 18)
+    loaded.truncate_after("B", 20)
+    loaded.put("A", made_up(18, 900))
+    loaded.put("C", lost(18, "fine"))
+    assert loaded.save(path) == path
+    again = ResultsStore.load(path)
+    assert again.track_ids == ["A", "B", "C"]
+    assert_holds(again.arrays("A"), records["A"][:4] + [made_up(18, 900)])
+    assert_holds(again.arrays("B"), records["B"][:4])
+    assert_holds(again.arrays("C"), [lost(18, "fine")])
+
+
+def test_an_empty_store_saves_and_loads(tmp_path):
+    path = ResultsStore().save(tmp_path / "results.npz")
+    assert list(read_npz(path)) == ["version"]
+    assert ResultsStore.load(path).track_ids == []
+
+
+def test_the_file_is_closed_when_load_returns(tmp_path, monkeypatch):
+    store, records = two_tracks()
+    path = store.save(tmp_path / "results.npz")
+    opened = []
+    real_open = builtins.open
+
+    def tracking_open(file, *args, **kwargs):
+        f = real_open(file, *args, **kwargs)
+        if isinstance(file, (str, Path)) and Path(file) == path:
+            opened.append(f)
+        return f
+
+    monkeypatch.setattr(builtins, "open", tracking_open)
+    loaded = ResultsStore.load(path)
+    monkeypatch.undo()
+    assert opened                         # the test saw the file being opened
+    assert all(f.closed for f in opened)
+    path.unlink()                         # the arrays are in memory: they do not need the file
+    assert_holds(loaded.arrays("A"), records["A"])
+    assert_holds(loaded.arrays("B"), records["B"])
+
+
+def test_the_file_can_be_saved_again_right_after_loading(tmp_path):
+    # Windows refuses to replace a file that a program holds open, this program too: if load left
+    # results.npz open, the next autosave would end up in results.new.npz after 5 s of retries.
+    store, records = two_tracks()
+    path = store.save(tmp_path / "results.npz")
+    loaded = ResultsStore.load(path)
+    loaded.put("A", made_up(24, 50))
+    assert loaded.save(path) == path
+    assert names(tmp_path) == ["results.npz"]
+    assert_holds(ResultsStore.load(path).arrays("A"), records["A"] + [made_up(24, 50)])
+
+
+@pytest.mark.parametrize("found", [0, 2, 99])
+def test_an_unknown_version_raises_a_clear_error(tmp_path, found):
+    store, _ = two_tracks()
+    data = read_npz(store.save(tmp_path / "results.npz"))
+    data["version"] = np.array(found)
+    path = write_npz(tmp_path / "other.npz", data)
+    with pytest.raises(ResultsVersionError) as err:
+        ResultsStore.load(path)
+    assert "other.npz" in str(err.value)
+    message = str(err.value).replace(str(path), "<the file>")   # a temp folder's name may hold any digit
+    assert names_number(message, found), message              # the file's version
+    assert names_number(message, 1), message                  # the version this tool reads
+    assert (err.value.found, err.value.supported) == (found, 1)
+    assert isinstance(err.value, ValueError)   # one "bad input" family for the command line to catch

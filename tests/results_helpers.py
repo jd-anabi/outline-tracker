@@ -1,16 +1,19 @@
-"""Records and checks shared by the tests of the results store (tests/test_results.py, the store in
-memory; tests/test_results_file.py, results.npz itself).
+"""Records and checks shared by the tests of the results store (tests/test_results.py: the store,
+saving and loading; tests/test_results_file.py: what may go wrong with the file).
 
 The store is a container, so the truth is what was put in. `made_up` gives a record with a
 different, known number in every field, `measured` and `lost` give what measure_mask really
 returns, and `assert_holds` checks arrays against a list of records: every expected array is
 written out here from the records (one row per record, in the dtype that `schema.RESULTS_KEYS`
-names), never taken from the store.
+names), never taken from the store. `read_npz` and `write_npz` read and make npz files with numpy
+alone.
 
 Records are in image pixels, Tracker's convention: (u, v) from the top-left corner of the frame,
 pixel centers at +0.5; a mask crop is indexed [row, column] and its offset is (column, row) of its
 top-left pixel in the full frame.
 """
+
+import re
 
 import analytic_shapes as shapes
 import numpy as np
@@ -115,3 +118,26 @@ def assert_holds(arrays, records):
         assert mask.dtype == bool and mask.shape == (rows, cols)
         assert np.array_equal(mask, np.unpackbits(record.mask_bits, count=rows * cols).reshape(rows, cols))
         assert offset == record.mask_offset and all(type(x) is int for x in offset)
+
+
+def read_npz(path):
+    """Every array of an npz file, by key, read with numpy alone; the file is closed again."""
+    with np.load(path) as z:
+        return {name: z[name] for name in z.files}
+
+
+def write_npz(path, data):
+    """Write the arrays `data` (key -> array) as an npz file at exactly `path`, and return `path`."""
+    with open(path, "wb") as f:
+        np.savez(f, **data)
+    return path
+
+
+def names(folder):
+    """The names of the files in `folder`, sorted."""
+    return sorted(p.name for p in folder.iterdir())
+
+
+def names_number(message, number):
+    """True when the text holds this whole number on its own, not as part of "0.1.0" or "12"."""
+    return re.search(rf"(?<![\d.]){number}(?!\d|\.\d)", message) is not None
