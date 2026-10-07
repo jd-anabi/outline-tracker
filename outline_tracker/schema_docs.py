@@ -1,34 +1,28 @@
 """The two texts that describe a run folder, built from the tables of `outline_tracker.schema`.
 
-`readme_text()` is README.txt (SPEC 8.11), written into every run folder. `outputs_markdown()` is
-docs/OUTPUTS.md (SPEC 8.1 and 16), the contract for the analysis template; the committed file is its
-output, and a test fails when it is stale. Regenerate it after a change of the schema with
-`uv run python -m outline_tracker.schema_docs docs/OUTPUTS.md`.
+`readme_text()` is README.txt (SPEC 8.11), written into every run folder. `outputs_markdown()` is docs/OUTPUTS.md (SPEC
+8.1 and 16), the contract for the analysis template; the committed file is its output, and a test fails when it is
+stale. Regenerate it after a change of the schema with `uv run python -m outline_tracker.schema_docs docs/OUTPUTS.md`.
 
-Both texts say the same things: the prose is written once below, with code marks (backticks) that the
-plain-text README drops. Every file, column, flag, key and number comes from the schema tables, so a new
-column or flag appears in both without editing prose. This module only builds text; it does no geometry
-and reads no file. It was split out of schema.py (SPEC 12: split past about 400 lines);
-`outline_tracker.schema.readme_text` is still importable and is the same function.
-
-Units and coordinates: the texts give every number with its unit as the schema tables do (_s seconds,
-_mm millimetres, _mm2 square millimetres, _rad radians, _px image pixels). Image coordinates (u, v)
-follow Tracker (pixel centers at +0.5, v down); world coordinates (x, y) are in mm in the user's axes
-with y up (SPEC 3).
+Both texts say the same things: the prose is written once below, with code marks (backticks) that the plain-text README
+drops. Every file, column, flag, key and number comes from the schema tables, so a new column or flag appears in both
+without editing prose. This module only builds text; it does no geometry and reads no file. It was split out of
+schema.py (SPEC 12: split past about 400 lines); `outline_tracker.schema.readme_text` is still importable and is the
+same function. Units: every number is given with its unit, and the Units convention lists each column whose name does
+not show it (SPEC 3).
 """
 
 from __future__ import annotations
 
 import sys
 import textwrap
-from collections.abc import Callable
 from pathlib import Path
 
 from outline_tracker.schema import (
     FILES, FLAG_INFO, OUTLINE_POINTS, OUTLINES_KEYS, OUTLINES_META_FIELDS, OUTLINES_META_KEY, OUTLINES_NPZ,
-    POSITION_FLAGS, POSITIONS, POSITIONS_CSV, PROBES, PROBES_CSV, RADIAL_CSV, README_TXT, RESULTS_KEYS,
-    RESULTS_NPZ, RESULTS_VERSION, RESULTS_VERSION_KEY, SHAPE_FLAGS, SHAPES, SHAPES_CSV, TRACKER_FILE,
-    ArrayKey, Column, FileSpec, npz_key,
+    POSITION_FLAGS, POSITIONS, POSITIONS_CSV, PROBES_CSV, RADIAL_CSV, README_TXT, RESULTS_KEYS, RESULTS_NPZ,
+    RESULTS_VERSION, RESULTS_VERSION_KEY, SHAPE_FLAGS, SHAPES, SHAPES_CSV, TRACKER_FILE, ArrayKey, Column,
+    FileSpec, npz_key,
 )
 
 # --------------------------------------------------------------------------- prose shared by both texts
@@ -59,12 +53,37 @@ _ROW_TEXT = {
 }
 
 
-def _names(columns: list[Column], keep: Callable[[Column], bool]) -> list[str]:
-    return [f"`{c.name}`" for c in columns if c.dtype == "float" and keep(c)]
-
-
 def _and(names: list[str]) -> str:
-    return ", ".join(names[:-1]) + " and " + names[-1]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def _radii_run(radii: list[Column]) -> str:  # `r_000`, `r_005`, ..., `r_355` (72 columns)
+    return f"`{radii[0].name}`, `{radii[1].name}`, ..., `{radii[-1].name}` ({len(radii)} columns)"
+
+
+# SPEC 3.4: the suffix that a column name carries for a unit, and the words for it ("" if no name shows it).
+_UNITS = {"s": ("_s", "seconds"), "mm": ("_mm", "millimetres"), "mm^2": ("_mm2", "square millimetres"),
+          "rad": ("_rad", "radians"), "px": ("_px", "image pixels"), "cells": ("", "model grid cells"),
+          "0-255": ("", "the 0-255 range of image brightness")}
+
+
+def _unit_not_in_name() -> str:
+    """Prose on the columns whose unit their names do not show, by file and unit, read from the tables."""
+    clauses = []
+    for spec in FILES:
+        groups: dict[str, list[Column]] = {}
+        for c in spec.columns or []:
+            suffix = _UNITS.get(c.unit, ("",))[0]
+            if c.unit and not (suffix and c.name.endswith(suffix)):
+                groups.setdefault(c.unit, []).append(c)
+        parts = []
+        for unit, cols in groups.items():
+            radii = _radii(cols)
+            names = [f"`{c.name}`" for c in cols if c not in radii] + ([_radii_run(radii)] if radii else [])
+            parts.append(f"{_and(names)} {'is' if len(cols) == 1 else 'are'} in {_UNITS.get(unit, ('', unit))[1]}")
+        if parts:
+            clauses.append(f"in `{spec.name}`, {_and(parts)}")
+    return "; ".join(clauses)
 
 
 def _decimals(*units: str) -> str:
@@ -76,13 +95,12 @@ def _decimals(*units: str) -> str:
 
 
 def _conventions() -> list[str]:
-    ratios = ", ".join(_names(SHAPES, lambda c: not c.unit))
-    means = _and(_names(PROBES, lambda c: c.unit == "0-255"))
-    counts = _and(_names(SHAPES, lambda c: c.unit in ("px", "cells") and not c.name.endswith("_px")))
+    ratios = ", ".join(f"`{c.name}`" for c in SHAPES if c.dtype == "float" and not c.unit)
+    suffixes = ", ".join(f"`{suffix}` {words}" for suffix, words in _UNITS.values() if suffix)
     return [
-        "Units: `_s` seconds, `_mm` millimetres, `_mm2` square millimetres, `_rad` radians, `_px` image pixels. Not "
-        f"every number has a unit in its column name: the probe means {means} are on the 0-255 scale of image "
-        f"brightness, ratios ({ratios}) have no unit, and {counts} count camera pixels and model grid cells.",
+        f"Units: {suffixes}. Not every number has its unit in its column name: ratios ({ratios}) have no unit, and "
+        f"these columns have a unit that their names do not show: {_unit_not_in_name()}. The description of every "
+        "column below gives its unit.",
         "Image coordinates (`u_px`, `v_px`; Tracker's `pixelx`, `pixely`): the origin is the top-left corner of the "
         "frame, u grows to the right, v downward, and the pixel in column c and row r has its center at "
         "`(c + 0.5, r + 0.5)`.",
@@ -201,8 +219,7 @@ def _columns_section() -> list[str]:
         radii = _radii(columns)
         lines += ["", spec.name, _para(rows, indent=2), ""] + [_entry(c) for c in columns if c not in radii]
         if radii:
-            lines.append(_entry(radii[0], f"{radii[0].name}, {radii[1].name}, ..., {radii[-1].name} "
-                                          f"({len(radii)} columns)"))
+            lines.append(_entry(radii[0], _radii_run(radii)))
             lines.append(_para("The columns, in order: " + " ".join(c.name for c in radii), indent=2, hang=4))
     return lines
 
@@ -236,17 +253,15 @@ def _git_section() -> list[str]:
 def readme_text() -> str:
     """The text of README.txt: ASCII, LF line ends, ending with one line end.
 
-    Describes every file and column (with units, decimals and meaning), the conventions of SPEC 3,
-    the flags of SPEC 9 and what goes into git; it names the units and coordinate frames of every
-    column. The file, column, flag and key lists are read from the schema tables, so a new column or
-    flag appears in it without editing prose.
+    Describes every file and column (with units, decimals and meaning), the conventions of SPEC 3 (units
+    and coordinate frames), the flags of SPEC 9 and what goes into git; the lists come from the tables.
     """
     out = [
         "OUTLINE TRACKER: what is in this folder",
         "",
         _para("This folder holds one run of Outline Tracker on one video. The tool writes this file; do not "
-              "edit it. The unit of a number is in its column name, except for the few numbers that Units, under "
-              "CONVENTIONS, lists."),
+              "edit it. In the CSV files the unit of a number is in its column name, except for the numbers that "
+              "Units, under CONVENTIONS, lists."),
     ]
 
     def section(title: str, lines: list[str]) -> None:
@@ -284,8 +299,7 @@ def _column_rows(columns: list[Column]) -> list[list[str]]:
     radii = _radii(columns)
     rows = [row(c) for c in columns if c not in radii]
     if radii:
-        names = f"`{radii[0].name}`, `{radii[1].name}`, ..., `{radii[-1].name}` ({len(radii)} columns)"
-        rows.append([names, *row(radii[0])[1:]])
+        rows.append([_radii_run(radii), *row(radii[0])[1:]])
     return rows
 
 

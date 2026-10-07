@@ -39,7 +39,13 @@ REPO = Path(__file__).resolve().parents[1]
 # read and shows those two lines only (14498 characters, 259 lines). Its refactor of the builder, to share the
 # prose with OUTPUTS.md, left the text unchanged: the value above was checked before that edit. Any later
 # change of the README text has to update this value on purpose.
-README_SHA256 = "662e5f73c9a1dd0331dba2cfc656c20c957bbde680a0f916cd2d6d379d5ba1df"
+# Fix round 1 (review of B6a) changed two places, and the diff of the old and the new text was read: the intro
+# now limits its claim to the CSV files, and the Units convention lists every column whose name does not show
+# its unit (the Tracker-format columns t, x, y, pixelx, pixely; px_along_major, cells_along_major; the 72
+# radius columns; the probe means), read from the tables. The text before this change had the hash
+# 662e5f73c9a1dd0331dba2cfc656c20c957bbde680a0f916cd2d6d379d5ba1df (14498 characters, 259 lines); the text
+# now has 14831 characters and 262 lines.
+README_SHA256 = "174e5877b06aea49446e8119a18822f08f475a051ef7885507b799ca6a1f94c0"
 
 # Every public name that schema.py had before the move (dir() of the unmodified module, without the
 # imported helpers). Other modules import these by name, so each must still be importable.
@@ -207,6 +213,72 @@ def test_the_readme_does_not_say_that_every_number_has_its_unit_in_its_name(read
     assert "ratio" in units and "no unit" in units
     for name in ("eccentricity", "core_frac", "solidity", "circularity", "largest_fraction"):
         assert has_word(units, name), name  # the ratios, which have no unit
+
+
+# SPEC 3.4: units appear in column names as these suffixes (the unit of the tables, then its suffix).
+UNIT_SUFFIX = {"s": "_s", "mm": "_mm", "mm^2": "_mm2", "px": "_px", "rad": "_rad"}
+# What the clause about a column must say of its unit.
+UNIT_WORD = {"s": "seconds", "mm": "millimetres", "px": "image pixels", "cells": "model grid cells",
+             "0-255": "0-255 range"}
+TRACKER_FILE = "<model>/<id>.csv"
+
+
+def unit_hidden(files: list[schema.FileSpec]) -> list[tuple[str, schema.Column]]:
+    """(file, column) of every table column that has a unit that its name does not show: the unit has no
+    suffix (cells, 0-255), or the name does not end with the suffix of its unit."""
+    return [(f.name, c) for f in files for c in f.columns or []
+            if c.unit and (c.unit not in UNIT_SUFFIX or not c.name.endswith(UNIT_SUFFIX[c.unit]))]
+
+
+def units_item(text: str) -> str:
+    """The Units item of the conventions, as plain text, from README.txt or from docs/OUTPUTS.md."""
+    if text.startswith("OUTLINE TRACKER"):
+        return convention(text, "Units")
+    [item] = [line[2:] for line in md_section(text, "## Conventions") if line.startswith("- Units:")]
+    return plain(item)
+
+
+def test_the_finder_of_hidden_units_sees_the_groups_that_the_spec_tables_show():
+    """SPEC 8.2 to 8.7 and 8.3: these columns carry a unit that their names do not show. Without them the
+    tests below would pass for the wrong reason."""
+    expected = {(TRACKER_FILE, "t"): "s", (TRACKER_FILE, "x"): "mm", (TRACKER_FILE, "y"): "mm",
+                (TRACKER_FILE, "pixelx"): "px", (TRACKER_FILE, "pixely"): "px",
+                ("shapes.csv", "px_along_major"): "px", ("shapes.csv", "cells_along_major"): "cells",
+                ("probes.csv", "r"): "0-255", ("probes.csv", "g"): "0-255", ("probes.csv", "b"): "0-255",
+                ("probes.csv", "gray"): "0-255", **{("radial.csv", name): "mm" for name in RADIAL_COLUMNS}}
+    found = {(f, c.name): c.unit for f, c in unit_hidden(schema.FILES)}
+    assert expected.items() <= found.items()
+    assert ("positions.csv", "x_mm") not in found and ("positions.csv", "t_s") not in found  # named by their unit
+
+
+@pytest.mark.parametrize("source", ["readme", "outputs"])
+def test_every_unit_that_a_column_name_does_not_show_is_given_under_units(source, readme, outputs):
+    """The README says that the unit of a number is in its column name except for what Units lists, so Units
+    must list every column whose unit is not in its name, with its unit, and name the file it belongs to."""
+    units = units_item(readme if source == "readme" else outputs)
+    for file, col in unit_hidden(schema.FILES):
+        radius = col.name in RADIAL_COLUMNS  # the 72 radius columns are named by the first and the last
+        name = RADIAL_COLUMNS[0] if radius else col.name
+        word = rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])"  # the name as a whole word
+        found = re.search(rf"{word}.*?\bin ([^,;.]*)", units)  # the first "in <unit words>" after it
+        assert found, f"Units does not mention {name} of {file}, whose unit {col.unit} its name does not show"
+        assert UNIT_WORD[col.unit] in found.group(1), f"Units gives {name} the unit {found.group(1)!r}, not {col.unit}"
+        assert file in units[: found.start()], f"Units does not name {file} before {name}"
+        if radius:
+            assert has_word(units, RADIAL_COLUMNS[-1]) and "(72 columns)" in units
+
+
+def test_a_new_column_with_a_hidden_unit_is_listed_under_units(schema_docs, monkeypatch):
+    """The exceptions are read from the tables: a column that this test adds, with a unit its name does not
+    show, appears in Units of both texts, and one with a unit that its name shows does not."""
+    odd = schema.Column("zz_odd", "float", "mm", ".6f", "a column that only this test adds")
+    shown = schema.Column("zz_shown_mm", "float", "mm", ".6f", "a column that only this test adds")
+    files = [dataclasses.replace(f, columns=[*f.columns, odd, shown]) if f.name == "shapes.csv" else f
+             for f in schema.FILES]
+    monkeypatch.setattr(schema_docs, "FILES", files)
+    for units in (units_item(schema_docs.readme_text()), units_item(schema_docs.outputs_markdown())):
+        assert re.search(r"in shapes\.csv, .*\bzz_odd is in millimetres", units), units
+        assert "zz_shown_mm" not in units
 
 
 def test_core_frac_is_described_for_the_fallback_case(readme):
