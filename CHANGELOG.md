@@ -18,3 +18,5 @@ repository (`vX.Y.Z`).
 - Exact frame access for the display: a jump to any frame shows exactly the frame the tracker
   sees, also in videos whose timestamps have gaps. `outline-tracker check VIDEO --seek` tests this
   on a file.
+- `docs/OUTPUTS.md`: every output file, column, unit and flag, generated from the same tables the
+  program writes its files from. It is the contract for analysis code.

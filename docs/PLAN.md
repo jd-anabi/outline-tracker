@@ -342,7 +342,8 @@ pyproject.toml  uv.lock  .gitignore  .python-version  LICENSE  README.md  CHANGE
 conftest.py  .gitattributes          offscreen Qt for every test run; LF line ends in git
 outline_tracker/
   __init__.py        __version__ = "0.1.0"
-  schema.py          columns, flags, file names, formats, README.txt text        (A05)
+  schema.py          columns, flags, file names, formats                         (A05)
+  schema_docs.py     README.txt and docs/OUTPUTS.md text, built from the schema    (B6)
   geometry.py        WorldFrame, stick, tape, circle, fps, grid, manifest        (A06)
   tracker_io.py      ported: read/write Tracker files, Calibration, make_plan    (A03)
   fileio.py          atomic writes with Windows lock retry                       (A07)
@@ -1087,6 +1088,7 @@ because derive and flags read the arrays the results store defines).
   - Check: `uv run pytest -m slow -q` (tens of minutes), or read docs/VALIDATION.md.
 
 - [ ] **B6 · Fallback instructions** (§14.1, §16)
+  - Part done Wed 03:20 (B6a, commits 032448c, f027d6a, 5345bb3, 3e06ad7): `docs/OUTPUTS.md` is generated from the schema (`uv run python -m outline_tracker.schema_docs docs/OUTPUTS.md`) and a test keeps it current; the README.txt and OUTPUTS.md text builders moved to `outline_tracker/schema_docs.py`, which also closes the size finding on `schema.py`. Still to do: the README fallback instructions, after B1.
   - Files: `README.md` (install from the repo, `selftest`, `from-tracker` next to last week's
     command, where the files land, how to load `<run>/edgetam` with last week's `load_tracks`),
     `docs/OUTPUTS.md` (generated from `schema.py`; a test checks it is up to date).
