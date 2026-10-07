@@ -9,3 +9,6 @@ repository (`vX.Y.Z`).
 
 - Project skeleton: the `outline-tracker` command with `--version`, dependencies pinned to tested
   versions, and automatic tests on Ubuntu and Windows.
+- `outline-tracker convert VIDEO...` and `outline-tracker check VIDEO...`: last week's
+  `shrimp.convert` and `shrimp.check_video`, with the same messages. A problem with a file is now
+  one `ERROR:` line instead of a traceback, and the next file is still processed.
