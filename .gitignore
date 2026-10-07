@@ -29,3 +29,6 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Parallel work lanes (git worktrees) during the build
+.worktrees/
