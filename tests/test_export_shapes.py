@@ -5,8 +5,9 @@
 Coarse tracks come from `tracking.run_job` with `ExactFake`, with the dish crop on and off; fine
 tracks are stored by `export_helpers.add_fine` (the fine runner is tested where it is written).
 Every expected value is the shape's own: 2a, 2b, the heading of the scene's path, 2 pi R, the exact
-crossing of a ray with the true ellipse. Scale K = 0.1 mm per px, axis angle 0, so an angle on
-screen is the same angle in the world.
+crossing of a ray with the true ellipse; the core's centroid is that of the true mask's core, worked
+out in export_helpers. Scale K = 0.1 mm per px, axis angle 0, so an angle on screen is the same
+angle in the world.
 
 On `closeup_scene` only the heading is asserted, on `dish_scene` only CONTACT and LOWRES: a body
 14 px long cannot meet 2 % and 1 degree.
@@ -30,6 +31,7 @@ from export_helpers import (
     load,
     ray_ellipse,
     table,
+    true_core_center,
     true_pose,
     world,
 )
@@ -100,10 +102,17 @@ def test_core_centers_and_wall_distances_are_in_the_users_axes(shapes_run, shape
     cu, cv, radius = shapes_clip.scene.dish
     for track_id in "AB":
         mine = shapes[shapes.track_id == track_id]
+        # In each of the three runs the model was shown the whole object, and `ExactFake` answers with
+        # the true mask. So the exported core is the core of the true mask, which export_helpers
+        # works out from SPEC 7.3 with scipy; the cells have 6 decimals. (The shape's own center is
+        # not the expected value, because a mask is whole pixels: on this clip the true mask's
+        # centroid is up to 0.11 px off the center, and its core's, whose two ends lose whole
+        # pixels to the opening, up to 0.22 px.)
+        core_u, core_v = np.array([true_core_center(shapes_clip, track_id, frame) for frame in GRID]).T
+        x, y = world(core_u, core_v)
+        np.testing.assert_allclose(mine.core_x_mm, x, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(mine.core_y_mm, y, rtol=0, atol=1e-6)
         u, v, _ = np.array([true_pose(shapes_clip, track_id, frame) for frame in GRID]).T
-        x, y = world(u, v)  # a symmetric shape: its core's centroid is its center, within SPEC 13.1's 0.5 px
-        np.testing.assert_allclose(mine.core_x_mm, x, rtol=0, atol=K * 0.5)
-        np.testing.assert_allclose(mine.core_y_mm, y, rtol=0, atol=K * 0.5)
         np.testing.assert_allclose(mine.wall_dist_centroid_mm, K * (radius - np.hypot(u - cu, v - cv)), rtol=0,
                                    atol=K * 0.1)
 

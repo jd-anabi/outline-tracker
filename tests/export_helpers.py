@@ -4,7 +4,9 @@ A run folder is made the way the tool makes one: coarse tracks by `tracking.run_
 (`coarse_run`), a fine track by `add_fine`, which stores what the fine runner stores: the scene's
 ground-truth mask and logits cut to a W x W window centered on the object, measured with
 `measure_mask(..., input_box=<that window>, mode="fine")`. Every session here has the same stick,
-so the scale is known: 300 px for 30 mm, K = 0.1 mm per px.
+so the scale is known: 300 px for 30 mm, K = 0.1 mm per px. What a record must hold beyond the
+scene's own numbers (the pieces of a true mask, its core) is worked out here with scipy.ndimage,
+from the true mask and the rule in the spec, never with the package's own functions.
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,
 row r) has its center at (c + 0.5, r + 0.5). World coordinates are mm, y up (SPEC 3.2); with the
@@ -19,6 +21,7 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 from overlay_helpers import make_run
+from scipy import ndimage
 from tracking_helpers import center, dish_circle, make_session, run, track
 
 from outline_tracker import schema
@@ -32,6 +35,7 @@ STICK = {"p1_px": [10.0, 20.0], "p2_px": [310.0, 20.0], "length_mm": 30.0}  # 30
 K = 0.1                  # mm per px with that stick
 ORIGIN = (100.5, 60.25)  # the origin of the axes, px (the axis angle stays 0)
 MODEL = "edgetam"        # `processing.model` of a new session: the name of the Tracker-format folder
+EIGHT = np.ones((3, 3), bool)  # for scipy: pixels that touch at a corner belong to one piece
 
 # the files `export_all` leaves in a run folder that was tracked, without probes and without the overlay
 RUN_FILES = {schema.SESSION_JSON, schema.RESULTS_NPZ, schema.POSITIONS_CSV, schema.SHAPES_CSV, schema.RADIAL_CSV,
@@ -149,6 +153,46 @@ def true_pose(clip, track_id, frame):
     counterclockwise on screen from the image's rightward direction."""
     (obj,) = [obj for obj in clip.scene.objects if obj.track_id == track_id]
     return obj.path.pose(frame)
+
+
+def true_pieces(clip, track_id, frame, box=None):
+    """How many pieces the true mask of a scene's object has on one frame, counted here with scipy:
+    pixels that touch along a side or at a corner belong to one piece (8-connected, the rule the
+    records are measured by). With `box` = (c0, r0, width, height) in px, only the part of the mask
+    inside that box is counted: what a model that is shown the box can see."""
+    mask = clip.mask(track_id, frame)
+    if box is not None:
+        c0, r0, width, height = box
+        mask = mask[r0:r0 + height, c0:c0 + width]
+    return int(ndimage.label(mask, structure=EIGHT)[1])
+
+
+def true_core_center(clip, track_id, frame, open_frac=0.1):
+    """The centroid (u, v), in px of the full frame, of the core of an object's true mask on one
+    frame, worked out here from SPEC 7.3 with scipy, not with the package's own code.
+
+    The core is the largest 8-connected piece of the mask's opening with the disk of pixels
+    x^2 + y^2 <= r^2, r = max(1, round(open_frac L1)) px, where L1 = 4 sqrt(lambda1) and lambda1
+    is the larger eigenvalue of the covariance of the mask's pixel centers; if the opening leaves
+    less than half of the mask's pixels, the core is the mask itself. A pixel (column c, row r)
+    has its center at (c + 0.5, r + 0.5)."""
+    rows, cols = np.nonzero(clip.mask(track_id, frame))
+    du, dv = cols - cols.mean(), rows - rows.mean()
+    uu, uv, vv = np.mean(du * du), np.mean(du * dv), np.mean(dv * dv)
+    major = 4.0 * math.sqrt((uu + vv) / 2.0 + math.hypot((uu - vv) / 2.0, uv))
+    radius = max(1, round(open_frac * major))
+    # the mask alone, with background around it wider than the disk (a whole frame takes scipy long)
+    c0, r0 = int(cols.min()) - radius - 1, int(rows.min()) - radius - 1
+    mask = np.zeros((int(rows.max()) - r0 + radius + 2, int(cols.max()) - c0 + radius + 2), bool)
+    mask[rows - r0, cols - c0] = True
+    y, x = np.mgrid[-radius:radius + 1, -radius:radius + 1]
+    opened = ndimage.binary_opening(mask, structure=x * x + y * y <= radius * radius)
+    if 2 * int(opened.sum()) < len(rows):
+        opened = mask
+    labels, count = ndimage.label(opened, structure=EIGHT)
+    largest = 1 + int(np.argmax(ndimage.sum_labels(opened, labels, range(1, count + 1))))
+    rows, cols = np.nonzero(labels == largest)
+    return float(cols.mean() + 0.5 + c0), float(rows.mean() + 0.5 + r0)
 
 
 def head_point(clip, track_id, frame, ahead_px):

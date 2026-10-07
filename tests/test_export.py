@@ -17,7 +17,7 @@ import sys
 
 import numpy as np
 import pytest
-from export_helpers import K, MODEL, RUN_FILES, cells, coarse_run, load, store_run, table, world
+from export_helpers import K, MODEL, RUN_FILES, cells, coarse_run, load, store_run, table, true_pieces, world
 from overlay_helpers import lost_record, record
 from tracking_helpers import DISH_BOX, box_truth
 
@@ -108,12 +108,19 @@ def test_positions_are_the_true_centroids_in_px_and_in_the_users_axes(run_folder
         assert set(mine.visible) == {1} and set(mine["mode"]) == {"coarse"}
 
 
-def test_shapes_has_the_rows_and_the_flags_of_positions(run_folder):
+def test_shapes_has_the_rows_and_the_flags_of_positions(run_folder, dish_clip):
     export.export_all(run_folder, log=silent)
     positions, shapes = table(run_folder / "positions.csv"), table(run_folder / "shapes.csv")
     for column in ("track_id", "frame", "t_s", "area_mm2", "flags"):
         assert list(positions[column]) == list(shapes[column]), column
     assert set(shapes[shapes.track_id != "A"].n_components) == {1}  # B and C are plain ellipses: one piece
+    # every track, frame by frame: the pieces of the true mask inside the dish crop, counted with scipy
+    pieces = {track_id: [true_pieces(dish_clip, track_id, frame, DISH_BOX) for frame in GRID] for track_id in "ABC"}
+    for track_id in "ABC":
+        assert list(shapes[shapes.track_id == track_id].n_components) == pieces[track_id], track_id
+    # A is not one piece on every frame: its antennae are thinner than a pixel, so on some frames
+    # the true mask itself is a body and a piece of antenna that does not touch it
+    assert dish_clip.scene.objects[0].shape.antenna_width_px < 1.0 and max(pieces["A"]) > 1
 
 
 def test_a_lost_frame_keeps_its_row_with_empty_cells_and_zero_counts(dish_clip, tmp_path):

@@ -137,6 +137,35 @@ def test_each_export_appends_a_block_and_keeps_what_was_there(run_folder):
     assert second.count("==== export, ") == 2 and second.count("==== probe, ") == 1
 
 
+@pytest.mark.parametrize("earlier", [
+    pytest.param(None, id="no log yet"),
+    pytest.param(b"", id="an empty log"),
+    pytest.param(b"==== probe, an earlier entry ====\nwrote: probes.csv\n", id="one entry"),
+    pytest.param(b"a log that ends without a line end", id="no line end"),
+    pytest.param("a note by Zoë\n\n".encode(), id="a blank line at the end, and UTF-8"),
+])
+def test_export_and_probe_add_to_run_log_in_one_way(tmp_path, earlier):
+    # two commands write this file: what one leaves, the other must leave, byte for byte
+    from outline_tracker import cli_probe, export_log
+
+    lines = ["==== an entry ====", "wrote: 12 um, by Zoë"]
+    entry = "==== an entry ====\nwrote: 12 um, by Zoë\n".encode()
+    kept = earlier or b""
+    if kept and not kept.endswith(b"\n"):
+        kept += b"\n"
+    expected = kept + (b"\n" if kept else b"") + entry  # what was there, a blank line, the entry
+    writers = {"export": lambda folder: export_log.append_block(folder / "run.log", lines),
+               "probe": lambda folder: cli_probe._append_run_log(folder, lines)}
+    for name, append in writers.items():
+        folder = tmp_path / name
+        folder.mkdir()
+        if earlier is not None:
+            (folder / "run.log").write_bytes(earlier)
+        assert append(folder) == folder / "run.log", name
+        assert (folder / "run.log").read_bytes() == expected, name
+        assert [path.name for path in folder.iterdir()] == ["run.log"], name
+
+
 def test_a_run_without_a_crop_and_a_fine_run_say_what_the_model_saw(shapes_clip, tmp_path):
     run_folder = tmp_path / "run"
     coarse_run(shapes_clip, run_folder, ["B"], dish_crop=False)

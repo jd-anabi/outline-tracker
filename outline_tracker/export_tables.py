@@ -171,7 +171,7 @@ def write_tracker_folder(folder: Path, derived_by_track: Mapping[str, DerivedTra
         try:
             tracker_io.write_tracker_file(tmp, track_id, derived.frame, derived.t_s, derived.x_mm, derived.y_mm,
                                           derived.u_px, derived.v_px)
-            path = _rename(tmp, target)
+            path = _replace_with_retry(tmp, target, target.with_name(target.name + _NEW))
         except BaseException:
             with contextlib.suppress(OSError):
                 tmp.unlink()
@@ -183,9 +183,16 @@ def write_tracker_folder(folder: Path, derived_by_track: Mapping[str, DerivedTra
     return written, warnings
 
 
-def _rename(tmp: Path, target: Path) -> Path:
-    """Rename `tmp` onto `target` as `fileio.atomic_write` does, with its waits while `target` is
-    locked; if it stays locked the data go to `<target name>.new`. Returns the path that holds them."""
+def _replace_with_retry(tmp: Path, target: Path, fallback: Path) -> Path:
+    """Rename `tmp` onto `target`; if `target` stays locked by another program, onto `fallback`.
+    Returns the one of the two that now holds the data. PermissionError when both are locked.
+
+    This is the rename inside `fileio.atomic_write` with the names given by the caller: the same
+    waits (`fileio.RETRY_DELAYS_S`, s), the same error that counts as locked, the same message.
+    `atomic_write` itself names its temporary file and its fallback with the target's suffix, here
+    .csv, which this folder must not hold. tests/test_export_tracker_folder.py runs both against
+    the same locks and compares what they do.
+    """
     for delay in (*fileio.RETRY_DELAYS_S, None):
         try:
             os.replace(tmp, target)
@@ -194,7 +201,6 @@ def _rename(tmp: Path, target: Path) -> Path:
             if delay is None:
                 break
             time.sleep(delay)
-    fallback = target.with_name(target.name + _NEW)
     try:
         os.replace(tmp, fallback)
     except PermissionError:

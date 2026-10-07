@@ -72,7 +72,10 @@ def export_block(session: Session, arrays_by_track: Mapping[str, TrackArrays], q
 def append_block(path: Path, lines: Sequence[str]) -> Path:
     """Add one block to run.log at `path` (UTF-8, LF line ends), after a blank line when the log has
     text already. What is there is kept as it is; the file is replaced in one step. Returns the path
-    written: `path`, or `<stem>.new<suffix>` next to it when `path` stayed locked by another program."""
+    written: `path`, or `<stem>.new<suffix>` next to it when `path` stayed locked by another program.
+
+    `probe` adds its entry to the same file (`cli_probe`); tests/test_export_log.py checks that the
+    two commands leave the same bytes."""
     earlier = path.read_bytes() if path.is_file() else b""
     if earlier and not earlier.endswith(b"\n"):
         earlier += b"\n"

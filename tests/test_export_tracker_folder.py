@@ -9,8 +9,10 @@ unmodified `shrimp.segment.read_tracker_export` (tests/reference).
 Coordinates: x, y in mm in the user's axes (y up), pixelx, pixely in px (Tracker's convention).
 """
 
+import errno
 import os
 import shutil
+import time
 
 import numpy as np
 import pytest
@@ -18,7 +20,7 @@ from export_helpers import MODEL, RUN_FILES, coarse_run, load, store_run, table
 from overlay_helpers import record
 from shrimp import segment as reference
 
-from outline_tracker import export, fileio, schema, tracker_io
+from outline_tracker import export, export_tables, fileio, schema, tracker_io
 
 GRID = list(range(0, 120, 2))
 
@@ -186,6 +188,72 @@ def _as_csv(path):
     target.parent.mkdir()
     shutil.copyfile(path, target)
     return target
+
+
+# One rule for a locked file. `fileio.atomic_write` cannot write into the Tracker-format folder (its
+# temporary file and its fallback end in .csv), so that folder has a rename of its own, which must
+# wait, give up and complain exactly as `atomic_write` does. Each case: the error of a rename onto
+# A.csv, how many times it comes, and whether the fallback is locked as well.
+ALWAYS = 10 ** 6
+LOCKS = [
+    pytest.param(PermissionError(13, "in use"), 0, False, id="free"),
+    pytest.param(PermissionError(13, "in use"), 1, False, id="locked at the first try"),
+    pytest.param(PermissionError(13, "in use"), len(fileio.RETRY_DELAYS_S), False, id="free at the last try"),
+    pytest.param(PermissionError(13, "in use"), ALWAYS, False, id="stays locked"),
+    pytest.param(PermissionError(13, "in use"), ALWAYS, True, id="the fallback is locked as well"),
+    pytest.param(OSError(errno.EBUSY, "busy"), ALWAYS, False, id="busy, which is not locked"),
+    pytest.param(BlockingIOError(errno.EAGAIN, "try again"), ALWAYS, False, id="try again, which is not locked"),
+    pytest.param(FileNotFoundError(errno.ENOENT, "no such folder"), ALWAYS, False, id="another error"),
+]
+
+
+def _what_happens(monkeypatch, folder, write, error, times, fallback_locked):
+    """Write A.csv in `folder`, where it exists already, with `write(folder)`, which returns the path
+    written. Returns what was done about the lock, in order: each rename tried, each wait in s, how
+    it ended, then what each file of the folder holds. The fallback's name and the folder's are left
+    out of the texts, since the two writers differ in them by design."""
+    folder.mkdir()
+    (folder / "A.csv").write_text("old")
+    events, fallback, real = [], [], os.replace
+
+    def replace(src, dst, **kwargs):
+        onto_file = os.path.basename(dst) == "A.csv"
+        events.append("rename onto A.csv" if onto_file else "rename onto the fallback")
+        if not onto_file:
+            fallback.append(os.path.basename(dst))
+            if fallback_locked:
+                raise PermissionError(13, "in use", str(dst))
+        elif events.count("rename onto A.csv") <= times:
+            raise type(error)(*error.args)
+        return real(src, dst, **kwargs)
+
+    def plain(text):
+        for name in fallback[:1]:
+            text = text.replace(name, "<fallback>")
+        return text.replace(str(folder), "<folder>")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "replace", replace)
+        patch.setattr(time, "sleep", lambda seconds: events.append(f"wait {seconds:g} s"))
+        try:
+            events.append(plain(f"returned {write(folder).name}"))
+        except OSError as err:
+            events.append(plain(f"{type(err).__name__}: {err}"))
+    events += [plain(f"{path.name} holds the {'old' if path.read_text() == 'old' else 'new'} data")
+               for path in sorted(folder.iterdir())]
+    return events
+
+
+@pytest.mark.parametrize(("error", "times", "fallback_locked"), LOCKS)
+def test_a_locked_tracker_file_is_handled_exactly_as_atomic_write_handles_one(tracked, tmp_path, monkeypatch, error,
+                                                                             times, fallback_locked):
+    track_a = export.derive_all(*load(tracked)).derived["A"]
+    ours = _what_happens(monkeypatch, tmp_path / MODEL, lambda folder: export_tables.write_tracker_folder(
+        folder, {"A": track_a}, {"A": "A.csv"}, silent)[0][0], error, times, fallback_locked)
+    theirs = _what_happens(monkeypatch, tmp_path / "plain", lambda folder: fileio.atomic_write(
+        folder / "A.csv", lambda tmp: tmp.write_text("new")), error, times, fallback_locked)
+    assert ours == theirs
+    assert ours[0] == "rename onto A.csv" and len(ours) >= 3  # a rename, an end, and A.csv itself
 
 
 # ---------------------------------------------------------------------------------------------
