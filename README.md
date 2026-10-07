@@ -4,7 +4,7 @@ Outline Tracker follows animals in a video. For each animal it finds the outline
 
 You need `uv` and `git`; you have both from last week. You do not need to install Python. It runs on Windows 11 and on Macs with an Apple chip. Intel Macs are not supported.
 
-The app with a window is coming. The commands on this page already work, and they are your fallback if the app does not open. On a Mac, use Terminal (zsh). On Windows, use PowerShell. The commands are the same on both.
+The tool is an app with a window: the [Quickstart](#quickstart) below takes you through it in ten steps. It also has commands without a window. They are your fallback if the app does not open. You type every command of this page in the terminal: on a Mac, use Terminal (zsh); on Windows, use PowerShell. The commands are the same on both.
 
 ## Install
 
@@ -58,6 +58,35 @@ Estimate for 10 s at step 2 (1,200 frames): one shrimp about 40 min; 10 shrimp t
 ```shell
 outline-tracker selftest --device cpu
 ```
+
+## Quickstart
+
+The window shows your video in the middle. At the right are nine numbered panels: work through them from top to bottom. Each panel has one line of text that says what to do next. To open the window, type this in the terminal:
+
+```shell
+outline-tracker
+```
+
+1. Start the app with the command outline-tracker, as shown above. The window opens after a few seconds, and the model loads while you do the first panels.
+2. In panel 1 (**Student and video**), type your name, then click **Open video** and choose the \_tracker.mp4 copy of your video. Your name is part of the name of the run folder, where all your files go.
+3. In panel 2 (**Time**), check the true frame rate (fps_true): the app reads it from your manifest if it finds one. If the field is empty, type the value, or measure it with **Stopwatch…**.
+4. In panel 3 (**Calibration**), click **Stick**, click the two ends of a known length on the ruler, and type the length. Zoom in with the mouse wheel before you click, and check the scale on two other ruler marks with **Tape**: the error must be under 1%.
+5. In panel 4 (**Dish and axes**), click **Circle** and click 6 or more points on the inner wall of the dish, spread around it. Then click **Origin to Center**, or place the origin yourself with **Axes**.
+6. In panel 6 (**Objects**), click **Add**, click on one animal, and check that the outline follows it: do this for each animal. If the antennae matter, click on each antenna too, because one click on the body leaves them out.
+7. In panel 7 (**Track**), read the estimated time, then click **Track**. You can look at other frames while it runs, and **Cancel** stops it and keeps the frames that are tracked.
+8. In panel 8 (**Review and fix**), look at the flags: each flag names a track and a frame where something may be wrong. Go to that frame, and if the outline is on the wrong animal, click on the right one and use Re-track from here.
+9. In panel 9 (**Export**), click Export all. It writes the CSV files, the overlay video, the log and README.txt to the run folder.
+10. Your files are in the run folder, next to your video: panel 1 shows its name. The parts "Where the files are" and "Load the tracks in your notebook" below say what each file holds and how to read the tracks.
+
+More about step 6:
+
+- Click well inside the animal. To add a point to an object, click its row in the table, then click **Positive**.
+- If an outline also takes in a neighbor, click on the neighbor with **Negative** (or with a right click). Keep that point away from your positive point: a negative point very near a positive one can empty the outline.
+- Ctrl+Z (Cmd+Z on a Mac) takes back the last point. **Remove** deletes the selected object. If it has tracked frames, the app asks first.
+- **Head** marks the head of the animal, so that the heading points the right way. It is optional.
+- **Fill**, above the video, paints each tracked outline in its color, so that you see what it covers.
+
+Your work is saved by itself in the run folder. To go on another day, start the app, click **Open session** and choose the file session.json in your run folder. If a run is slow, look at the estimate in panel 7 before you start: a smaller clip (the start frame and the end frame in panel 1) or a larger step takes less time.
 
 ## If the app does not open
 

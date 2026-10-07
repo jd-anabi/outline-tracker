@@ -11,7 +11,10 @@ These tests read it as data and hold it against the real tool:
 - the example output lines of the README are shaped like what the real commands print, here run on small
   made-up clips with a stand-in model (`...` and `path/to/...` stand for any text, numbers for any number);
 - the file names of the run folder are those of `outline_tracker/schema.py`; relative links resolve; no
-  `#` comment in a shell block (zsh pastes `#` as a command); American spelling.
+  `#` comment in a shell block (zsh pastes `#` as a command); American spelling;
+- the section "Quickstart" (task C8b) has ten numbered steps of one or two sentences each, in the order of
+  the window's panels, with the advice the real model needs; the buttons it names are held against the
+  window itself in tests/gui/test_finish.py.
 
 The helpers that find the problems are tested on small bad texts, so that a check that never fails would
 show up here. Paths in this file are repository paths; no units or coordinates.
@@ -95,6 +98,25 @@ def section(text: str, title: str) -> str:
     """The sentences and bullets of the `## title` section, up to the next `## ` heading (no code blocks)."""
     parts = [part.partition("\n") for part in re.split(r"^## ", prose(text), flags=re.MULTILINE)]
     return next((body for head, _, body in parts if head.strip() == title), "")
+
+
+def numbered_steps(text: str, title: str = "Quickstart") -> list[tuple[int, str]]:
+    """The numbered steps of the `## title` section, in order: (the number written, the step's text). A step
+    is a line that starts with a number and a full stop; lines that follow it without one belong to it."""
+    steps: list[tuple[int, str]] = []
+    for line in section(text, title).splitlines():
+        start = re.match(r"(\d+)\. +(.*)", line)
+        if start:
+            steps.append((int(start.group(1)), start.group(2).strip()))
+        elif steps and line.startswith(" ") and line.strip():
+            steps[-1] = (steps[-1][0], f"{steps[-1][1]} {line.strip()}")
+    return steps
+
+
+def sentences(step: str) -> list[str]:
+    """The sentences of a step: it is cut after a full stop, a question mark or a colon-free end mark that a
+    blank and a capital letter (or a bold word) follow. "fps_true (239.6)" and "README.txt to" stay whole."""
+    return [part for part in re.split(r"(?<=[.?!])\s+(?=[A-Z*])", step.strip()) if part]
 
 
 def printed(call, *args) -> str:
@@ -310,6 +332,68 @@ def test_the_version_line_is_the_one_of_this_version(text):
 def test_it_holds_no_email_address_and_only_american_spelling(text):
     assert re.findall(r"[\w.+-]+@[\w-]+\.[\w.-]+", text) == []
     assert BRITISH.findall(text) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# The Quickstart (task C8b)
+
+QUICKSTART = "Quickstart"
+# What each of the ten steps is about, in the order of the window's panels: a word every step must hold.
+STEP_WORDS = ["outline-tracker", "name", "fps_true", "Stick", "Circle", "Add", "Track", "flag", "Export all",
+              "run folder"]
+
+
+def test_the_quickstart_is_a_section_between_the_check_and_the_fallback(text):
+    titles = headings(text)
+    assert titles.count(QUICKSTART) == 1
+    assert titles.index("Check the installation") < titles.index(QUICKSTART) < titles.index(TITLES[0])
+    assert "is coming" not in text  # the window is there: the paragraph that announced it is gone
+
+
+def test_the_quickstart_has_ten_numbered_steps_of_one_or_two_sentences(text):
+    steps = numbered_steps(text)
+    assert [number for number, _ in steps] == list(range(1, 11))
+    assert [number for number, step in steps if not 1 <= len(sentences(step)) <= 2] == []
+
+
+def test_the_steps_follow_the_panels(text):
+    steps = dict(numbered_steps(text))
+    missing = [(number, word) for number, word in enumerate(STEP_WORDS, 1) if word not in steps.get(number, "")]
+    assert missing == []
+    for number, panel in ((2, 1), (3, 2), (4, 3), (5, 4), (6, 6), (7, 7), (8, 8), (9, 9)):
+        assert f"panel {panel}" in steps[number], (number, panel)
+
+
+def test_the_quickstart_starts_the_app_with_a_command_that_parses(text):
+    lines = text.splitlines()
+    start, fallback = lines.index(f"## {QUICKSTART}") + 1, lines.index(f"## {TITLES[0]}") + 1
+    blocks = [block for block in code_blocks(text) if start < block.number < fallback]
+    assert [(block.language in SHELLS, block.lines) for block in blocks] == [(True, ["outline-tracker"])]
+    parsed = parse_command("outline-tracker")  # no command: the window
+    assert parsed is not None and not isinstance(parsed, str)
+
+
+def test_the_quickstart_carries_what_the_real_model_needs(text):
+    steps, whole = dict(numbered_steps(text)), section(text, QUICKSTART)
+    assert "antenna" in steps[6] and "body" in steps[6]  # docs/VALIDATION.md 4.2: one click leaves the antennae out
+    assert "oom in" in steps[4]  # "Zoom in" for the stick
+    assert "egative" in whole and "empty" in whole  # docs/VALIDATION.md 2.1: a negative point near a positive one
+
+
+@pytest.mark.parametrize("bad, found", [
+    ("## Quickstart\n1. One.\n2. Two.\n4. Four.\n", [1, 2, 4]),
+    ("## Quickstart\n1. One.\n## Other\n2. Two.\n", [1]),
+    ("## Quickstart\n```text\n1. in a block\n```\n1. One.\n   Goes on.\n", [1]),
+], ids=["a number is skipped", "a step in another section", "a number in a code block"])
+def test_the_step_reader_reads_the_numbers_as_they_are_written(bad, found):
+    assert [number for number, _ in numbered_steps(bad)] == found
+
+
+def test_the_step_reader_joins_a_step_that_goes_on_and_counts_its_sentences():
+    (number, step), = numbered_steps("## Quickstart\n1. Click **Add**. Then click.\n   It goes on. And on.\n")
+    assert (number, step) == (1, "Click **Add**. Then click. It goes on. And on.") and len(sentences(step)) == 4
+    assert len(sentences("Type fps_true (239.6 fps). **Stopwatch…** measures it.")) == 2
+    assert len(sentences("It writes README.txt to the run folder.")) == 1
 
 
 # ---------------------------------------------------------------------------------------------

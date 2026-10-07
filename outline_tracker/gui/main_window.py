@@ -4,7 +4,7 @@ right a dock with the nine numbered panels in the order of the work.
 The window owns the parts and connects them: the `SessionController` (the open video and its
 session), the `VideoView`, the `NavigationBar`, and the nine `Panel`s. The controls of a panel are
 put in by its own module (outline_tracker/gui/panels). Until a video is open the video area says
-how to start; then it shows the view under a bar with the tool's line, Fit, 1:1 and the zoom.
+how to start; then it shows the view under a bar with the tool's line, Fill, Fit, 1:1 and the zoom.
 Lengths are Qt's device-independent px (Qt scales them on a 150% or 200% screen); frames are video
 frame numbers counted from 0; nothing here is in video px or mm.
 """
@@ -15,8 +15,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
-                               QScrollArea, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow,
+                               QPushButton, QScrollArea, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget)
 
 from outline_tracker.geometry import grid_frames
 from outline_tracker.gui import dialogs, panels
@@ -28,6 +28,7 @@ from outline_tracker.gui.session_controller import SessionController
 from outline_tracker.gui.status_bar import Readouts
 from outline_tracker.gui.video_view import VideoView
 from outline_tracker.gui.worker import worker_of
+from outline_tracker.gui.worker_jobs import jobs_of
 
 TITLE = "Outline Tracker"
 MINIMUM_SIZE = (960, 600)        # width, height of the window
@@ -35,7 +36,7 @@ START_SIZE = (1440, 900)         # of the window's content, on a screen with roo
 FRAME_ALLOWANCE = (16, 40)       # room for the system's frame around that: its edges, its title bar
 DOCK_WIDTHS = (340, 400, 520)    # smallest, at start, largest
 DOCK_MARGIN = 8                  # around the panels, and between two of them
-VIEW_BAR_HEIGHT = 32             # above the picture: the tool's line, Fit, 1:1, the zoom
+VIEW_BAR_HEIGHT = 32             # above the picture: the tool's line, Fill, Fit, 1:1, the zoom
 CONTROL_HEIGHT, PRIMARY_HEIGHT = 28, 32  # a button; the button of the next step
 
 START_TITLE = "Open a video to start."
@@ -86,8 +87,9 @@ class MainWindow(QMainWindow):
     video view), `navigation` (the bottom bar) and `panels` (the nine `Panel`s in order). Other
     parts: `video_area` (the start page, or the view under its bar), `bottom_bar` (the navigation),
     `dock`, `scroll` (the scroll area in the dock); on the start page `start_title`, `open_button`
-    and `start_hint`; in the bar above the picture `tool_text`, `fit_button`, `one_to_one_button`
-    and `zoom_label`; `menus` (the File and Help menus; `open_action` and `quit_action` are two of
+    and `start_hint`; in the bar above the picture `tool_text`, `fill_box` (the switch of the mask
+    fill, which gui/overlays.py draws and remembers), `fit_button`, `one_to_one_button` and
+    `zoom_label`; `menus` (the File and Help menus; `open_action` and `quit_action` are two of
     its items) and `readouts` (the status bar's read-outs of the cursor and the device).
 
     Keys of the whole window: those of the bottom bar, Esc (the view), and 1 to 9, which select the
@@ -165,6 +167,7 @@ class MainWindow(QMainWindow):
             key.activated.connect(lambda number=number: self.select_object(number))
         panels.build_bodies(self)  # after every part above: a panel's module finds them
         self.readouts.follow(worker_of(self))  # the worker a panel made, after the panels' own connections
+        self.menus.follow(jobs_of(self))       # Open video and Open session are off while a job runs
 
     def _start_page(self) -> QWidget:
         """What the video area shows until a video is open: how to start, around the button."""
@@ -184,11 +187,13 @@ class MainWindow(QMainWindow):
         return page
 
     def _picture_page_with_bar(self) -> QWidget:
-        """The view under its bar: the tool's line at the left; Fit, 1:1 and the zoom at the right."""
+        """The view under its bar: the tool's line at the left; Fill, Fit, 1:1 and the zoom at the right."""
         self.tool_text = QLabel(PAN_TEXT)
         # as wide as the room it gets, never wider: a long sentence must not push the dock
         self.tool_text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.tool_text.setToolTip(PAN_TEXT)
+        self.fill_box = QCheckBox("Fill")
+        self.fill_box.setToolTip("Fill each tracked outline with its color, so that you see what it covers")
         self.fit_button, self.one_to_one_button = QPushButton("Fit"), QPushButton("1:1")
         self.fit_button.setToolTip("Show the whole frame")
         self.one_to_one_button.setToolTip("One video pixel per screen pixel")
@@ -204,6 +209,7 @@ class MainWindow(QMainWindow):
         row.setContentsMargins(DOCK_MARGIN, 0, DOCK_MARGIN, 0)
         row.setSpacing(DOCK_MARGIN)
         row.addWidget(self.tool_text, 1)
+        row.addWidget(self.fill_box)
         for part in (self.fit_button, self.one_to_one_button):
             part.setFixedHeight(CONTROL_HEIGHT)
             row.addWidget(part)

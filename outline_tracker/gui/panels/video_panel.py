@@ -10,6 +10,11 @@ tells of a save that went wrong. Three small parts are shared with the other pan
 `Message` (a line of text in a tinted box), `ElidedLabel` (a file's name, cut in the middle when it
 is too long) and `guard_wheel` (a box that the mouse wheel changes only while it has the keyboard).
 
+The name is the controller's: one that code gave it (`set_student`, an opened session) shows in the
+field, and the field's text becomes the name only if it was changed since the two last agreed, so a
+field nobody touched never replaces a newer name. While a tracking job runs (`Jobs.running`) the name,
+the clip and the two Open buttons are off, with the reason as their tooltip.
+
 `video.check_video` reads about 120 frames of a long video (measured: 0.6 s for 10 s of 1080p at
 240 frames per second), so it runs in a thread of its own; its result comes back as a signal. A
 check that could not be made is said like a warning: the panel is never done for a video that was
@@ -32,6 +37,7 @@ from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPus
 from outline_tracker import video
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.navigation import LARGEST_FRAME
+from outline_tracker.gui.worker_jobs import RUNNING, jobs_of
 
 LABEL_WIDTH = 120     # the column of the field labels
 SPACING = 8           # between two rows, and between two buttons
@@ -206,6 +212,7 @@ class VideoPanel(QWidget):
         self._window, self._controller, self._panel = window, window.controller, window.panels[0]
         self._start_hint = self._panel.hint.text()
         self._clip_error: tuple[str, str] | None = None
+        self._name_shown = ""  # the name on which the field and the controller agreed last
         self.check, self.check_failed = None, False
         self.check_threads: list[CheckThread] = []
 
@@ -223,7 +230,8 @@ class VideoPanel(QWidget):
         self.warnings_label, self.clip_message, self.save_message = Message(), Message(), Message()
         self.start_box, self.end_box, self.step_box = QSpinBox(), QSpinBox(), QSpinBox()
         tips = ("First frame of the clip", "Last frame of the clip", "Every how many frames one is tracked")
-        for box, tip in zip((self.start_box, self.end_box, self.step_box), tips):
+        boxes = (self.start_box, self.end_box, self.step_box)
+        for box, tip in zip(boxes, tips):
             box.setRange(0, LARGEST_FRAME)  # a wide limit only: what cannot be used is said, never changed
             box.setKeyboardTracking(False)  # a typed number counts when it is complete (Enter, or leaving)
             box.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -266,6 +274,12 @@ class VideoPanel(QWidget):
         controller.saved.connect(self._show)
         controller.trouble.connect(lambda text: dialogs.message(window, "problem", f"{NOT_WRITTEN}\n{text}"))
         window.closing.connect(self._closing)
+        # the parts that are off while a tracking job runs, each with its own tooltip to put back after it
+        self._lockable = {part: part.toolTip() for part in (self.name_edit, self.open_video_button,
+                                                            self.open_session_button, *boxes)}
+        self._jobs = jobs_of(window)  # after `closing` was connected: the session is saved before the worker stops
+        self._jobs.started.connect(self._show)
+        self._jobs.finished.connect(self._show)
         self._show()
 
     def choose_session(self) -> None:
@@ -292,10 +306,13 @@ class VideoPanel(QWidget):
             thread.wait()
 
     def _name_typed(self) -> None:
+        """The field's text counts if it was changed since it last agreed with the controller's name."""
         name = self.name_edit.text().strip()
         if name != self.name_edit.text():
             self.name_edit.setText(name)
-        self._controller.set_student(name)
+        if name != self._name_shown and not self._jobs.running:
+            self._name_shown = name
+            self._controller.set_student(name)
         self._show()
 
     def _clip_typed(self) -> None:
@@ -313,7 +330,8 @@ class VideoPanel(QWidget):
 
     def _video_opened(self) -> None:
         controller = self._controller
-        if controller.student:  # an opened session's name, or the one typed before the video was opened
+        if controller.student:  # an opened session's name, or the one given before the video was opened
+            self._name_shown = controller.student
             self.name_edit.setText(controller.student)
         else:  # a name that is typed and not entered yet belongs to the new session
             self._name_typed()
@@ -330,12 +348,16 @@ class VideoPanel(QWidget):
             self.check, self.check_failed = check, check is None
             self._show()
 
-    def _show(self) -> None:
-        """Bring every part in line with the session, the check and the last save."""
-        controller, session = self._controller, self._controller.session
+    def _show(self, *_) -> None:
+        """Bring every part in line with the session, the check, the last save and a running job."""
+        controller, session, running = self._controller, self._controller.session, self._jobs.running
+        if controller.student != self._name_shown:  # given by code, or an opened session's: the newer one
+            self._name_shown = controller.student
+            self.name_edit.setText(controller.student)
         named, boxes = bool(controller.student), (self.start_box, self.end_box, self.step_box)
-        for box in boxes:
-            box.setEnabled(session is not None)
+        for part, tip in self._lockable.items():
+            part.setEnabled(not running and (session is not None or part not in boxes))
+            part.setToolTip(RUNNING if running else tip)
         self.video_part.setVisible(session is not None)
         self.name_message.show_text("problem", NAME_MISSING if session is not None and not named else "")
         folder = controller.run_folder

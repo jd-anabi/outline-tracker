@@ -1,6 +1,6 @@
 """Results on the picture (SPEC 6.3, 7.3, 10.1): for the frame the view shows, each track's stored
 outline, its centroid, its id and its head mark, in the track's colour; for a fine track also the
-square the model was shown.
+square the model was shown; and, when "Fill" is on, the stored mask as a translucent fill.
 
 What is drawn comes from results.npz as it is on disk, never from a job's memory. The file is read
 again (`reload`) when a job says that it was saved (after every autosave and at the end of a run),
@@ -20,6 +20,11 @@ the file in one step, so a read never meets half a file. Showing another frame r
   holds (256 grid cells); on the track's first record, around the centroid of that record, which
   is where the model found the object on that frame.
 
+- Fill (the box in the bar above the picture, `window.fill_box`; off at first): each track's stored
+  mask of the frame shown (`TrackArrays.mask`), one square per mask pixel in the track's colour at
+  alpha 64, under its outline. Only the masks of the frame shown are held, cut to their boxes. The
+  choice is remembered between sittings in the application's settings (`FILL_KEY`).
+
 Coordinates: (u, v) in px of the full video frame, Tracker's convention (u to the right, v
 downward, the pixel in column c and row r with its center at (c + 0.5, r + 0.5)); every item drawn
 is in these coordinates. A box is (c0, r0, width, height) in whole px of the full frame. Frames
@@ -32,18 +37,22 @@ from dataclasses import dataclass
 
 import numpy as np
 from PySide6.QtCore import QObject, Qt
+from PySide6.QtGui import QColor
 
 import pyqtgraph as pg
 
 from outline_tracker.derive_heading import track_headings
 from outline_tracker.geometry import WorldFrame
 from outline_tracker.gui.click_rules import ResultsOnDisk
+from outline_tracker.gui.panels.time_panel import settings
 from outline_tracker.gui.prompts import BLACK, CASING, LINE_WIDTHS, colour_of
 from outline_tracker.measure import GRID_CELLS
 from outline_tracker.results import ResultsStore, TrackArrays
 from outline_tracker.tracking_fine import crop_box
 
 DOT_SIZE, HEAD_SIZE = 6, 9   # the centroid's dot and the head's diamond, screen px
+FILL_ALPHA = 64              # of the mask fill, of 255: the animal shows through
+FILL_KEY = "fill_masks"      # in the settings: whether Fill was on when it was last switched
 PX_UP = WorldFrame(1.0, 0.0, 0.0, 0.0)  # px as they are, with y upward: the frame the head rule works in
 
 
@@ -53,8 +62,9 @@ class Shown:
     stored outline; center: the stored centroid (u, v); head: where the head mark is, None when
     the frame has no head direction; head_clicked: the head side was clicked (else it is a guess);
     box: the square a fine track's model was shown, (c0, r0, W, W), None for a coarse record. All
-    in px of the full frame. `casing` under `line` (the outline, closed), `label` (the id) and
-    `window` (the square, None without one) are the items in the view."""
+    in px of the full frame. `casing` under `line` (the outline, closed), `label` (the id),
+    `window` (the square, None without one) and `fill` (the mask's picture under them all, None
+    while Fill is off) are the items in the view."""
 
     outline: np.ndarray
     center: tuple[float, float]
@@ -65,10 +75,11 @@ class Shown:
     line: pg.PlotCurveItem
     label: pg.TextItem
     window: pg.PlotCurveItem | None = None
+    fill: pg.ImageItem | None = None
 
     def items(self) -> list:
         """The items of this track in the view, lowest first."""
-        return [item for item in (self.window, self.casing, self.line, self.label) if item is not None]
+        return [item for item in (self.fill, self.window, self.casing, self.line, self.label) if item is not None]
 
 
 def head_points(arrays: TrackArrays, head_px, start_frame: int) -> tuple[np.ndarray, bool]:
@@ -93,6 +104,19 @@ def head_points(arrays: TrackArrays, head_px, start_frame: int) -> tuple[np.ndar
     return points, bool(headings.headguess)
 
 
+def fill_item(arrays: TrackArrays, row: int, colour: str) -> pg.ImageItem:
+    """The stored mask of row `row` of a track's records (an index, not a frame number) as a
+    picture for the view: one square of `colour` (`#RRGGBB`) at alpha `FILL_ALPHA` per mask pixel,
+    clear elsewhere, lying where the mask's box is in the full frame (px, SPEC 3.1)."""
+    crop, (column0, row0) = arrays.mask(row)
+    picture = np.zeros((*crop.shape, 4), np.uint8)
+    picture[crop] = (*QColor(colour).getRgb()[:3], FILL_ALPHA)
+    item = pg.ImageItem(axisOrder="row-major")
+    item.setImage(picture, autoLevels=False)  # the colours as they are: nothing is stretched
+    item.setPos(column0, row0)
+    return item
+
+
 def fine_box(arrays: TrackArrays, row: int) -> tuple[int, int, int, int] | None:
     """The square the model was shown for row `row` of a track's records (an index, not a frame
     number): (c0, r0, W, W) in whole px of the full frame, or None for a coarse record (see the
@@ -110,8 +134,9 @@ class Overlays(QObject):
     """Draws the results of the run folder on the frame the window's view shows.
 
     `shown`: what is drawn now, by track id, in the session's order (`Shown`). `dots`, `heads`: the
-    items that draw every track's centroid dot and head mark. `jobs` (a `worker_jobs.Jobs`) says
-    when results.npz was written and whether a job runs.
+    items that draw every track's centroid dot and head mark. `fill`: whether the masks are filled
+    (`set_fill`, the window's `fill_box`). `jobs` (a `worker_jobs.Jobs`) says when results.npz was
+    written and whether a job runs.
     """
 
     def __init__(self, window, jobs):
@@ -121,6 +146,9 @@ class Overlays(QObject):
         self._store = ResultsStore()
         self._heads: dict[tuple, tuple[np.ndarray, bool]] = {}  # per track, until the results are read again
         self.shown: dict[str, Shown] = {}
+        self.fill = settings().value(FILL_KEY, False, type=bool)  # as the window before left it
+        window.fill_box.setChecked(self.fill)
+        window.fill_box.toggled.connect(self.set_fill)
         self.dots, self.heads = pg.ScatterPlotItem(pxMode=True), pg.ScatterPlotItem(pxMode=True)
         for z, item in ((8, self.dots), (9, self.heads)):  # under the clicks and the outline of a preview
             item.setZValue(z)
@@ -139,6 +167,13 @@ class Overlays(QObject):
         except ValueError:
             self._store = ResultsStore()
         self._heads = {}
+        self.refresh()
+
+    def set_fill(self, on: bool) -> None:
+        """Fill the masks of the frame shown, or stop filling them, and remember the choice for
+        the next window."""
+        self.fill = bool(on)
+        settings().setValue(FILL_KEY, self.fill)
         self.refresh()
 
     def _session_changed(self) -> None:
@@ -197,7 +232,9 @@ class Overlays(QObject):
             corners = np.array([(c0, r0), (c0 + side, r0), (c0 + side, r0 + side), (c0, r0 + side), (c0, r0)], float)
             drawn.window = pg.PlotCurveItem(corners[:, 0], corners[:, 1], antialias=True,
                                             pen=pg.mkPen(colour, width=line_width, style=Qt.PenStyle.DotLine))
-        for z, item in enumerate(drawn.items(), start=4):
+        if self.fill:
+            drawn.fill = fill_item(arrays, row, colour)
+        for z, item in enumerate(drawn.items(), start=4 - (drawn.fill is not None)):  # the fill under the rest
             item.setZValue(z)
             self._view.add_item(item)
         return drawn
