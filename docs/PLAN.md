@@ -1533,6 +1533,10 @@ Conventions for every GUI task:
 
 ### ▶ GO/NO-GO 2 (Wed evening): J runs the §14.3 checklist
 
+Posted Wed 15:20 for commit `ae870e2` (all nine panels; green on the Linux and Windows test machines),
+adapted to what J has at hand: no files of last week, so item 6's comparison with last week is left out and
+the synthetic clips stand in where no real clip is available. A follow-up (C9) and a small fix of the Fill
+switch came after that commit; a re-test of a failed item uses the newest commit the agent names.
 The agent posts the final commands and the commit in chat when Phase C is done. Draft. As at
 go/no-go 1, zsh blocks hold no `#` comments and are pasted one at a time.
 
