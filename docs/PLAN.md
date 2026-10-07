@@ -204,6 +204,12 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 14:45, C8b: one superseded test marked `xfail(strict=True)`, for J to confirm its
+  removal.** `tests/gui/test_menus.py::test_quickstart_opens_the_repositorys_readme_in_the_browser`
+  (from C8a) expects Help > Quickstart to open the README's top (`#readme`); the README now has
+  a Quickstart section and the item opens it (`#quickstart`). Successor:
+  `tests/gui/test_finish.py::test_help_quickstart_opens_the_quickstart_section_of_the_readme`.
+  Default: J says "delete it" and it goes.
 - **Wed 14:25, two more superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal.** (1) `tests/gui/test_menus.py::test_the_menu_bar_has_file_and_help_with_the_specs_items`
   (from C8a) lists five File items; Export is the sixth (SPEC 10.1). Successor:
@@ -1485,7 +1491,8 @@ Conventions for every GUI task:
   - Check: `uv run pytest tests/gui -q`; in the app, Export all, then Open folder shows the
     files and `overlay.mp4` plays.
 
-- [ ] **C7 · Review and fix** (§6.6, §9, panel 8)
+- [x] **C7 · Review and fix** (§6.6, §9, panel 8)
+  - Done Wed 14:55 (commits 06dfd9f, 9b5b9b1). Verified offscreen on macOS with the stand-in models, 35 tests on the synthetic dish clip: the table lists the `CONTACT` rows of the two objects that pass each other; a row shows its frame and selects its object; Next flag and Previous flag go round the selected object's flags; Re-track from here changes only that object's frames from the frame shown on; End track here and Continue as new track give `A` and `A2`; each asks first where results are removed; a refusal is shown in the function's own words. The code is in `gui/panels/review_panel.py` and `gui/review_table.py`. Decisions made here: the flags are listed off the GUI thread (4 to 5 s for 10 objects of 1,200 frames); the table lists position flags by default and a box adds `LOWRES`, `ORIENT` and `HEADGUESS`; Re-track asks only when the object has a positive click on the frame shown, otherwise it chooses the Positive tool and says what to click. Uncertain: not tried by hand on a real screen; on Windows a correction and a listing could meet on results.npz (a failed read is shown and repaired by the next listing; not exercised).
   - Files: `gui/panels/review_panel.py`, `tests/gui/test_review.py`.
   - Content: flags table (track, frame, t, code) whose rows jump to the frame; previous and next
     flag for the selected track; Re-track from here; End track here; Continue as new track.
@@ -1497,7 +1504,8 @@ Conventions for every GUI task:
     objects, then: jump to a flag, re-click the object, Re-track from here; end another track
     and continue it as A2.
 
-- [ ] **C8 · Finish the window; quickstart** (§10.1, §10.2, §13.7, §16)
+- [x] **C8 · Finish the window; quickstart** (§10.1, §10.2, §13.7, §16)
+  - Done Wed 14:45 (C8b, commits fb56f6d, da24826; C8a is the note below): during a run the name, the clip, opening files, and everything of panel 6 are off and say why; Remove asks first when the object has tracked frames; panel 7 has the model (EdgeTAM, SAM 2.1 tiny) and the device (auto, cpu, and mps or cuda); a Fill switch draws the stored masks; `gui/worker.py` is split; the README has a ten-step Quickstart whose button names are checked against the window; `docs/DEVELOPER.md` exists. 43 tests. Uncertain: changing between the two real models was tested with stand-ins only; nothing was seen on a real screen. A follow-up (C9) closes the joins between the panels: export without the model, one lock for runs and exports, the model box after results.
   - Part done Wed 13:25 (C8a, commits cd55802, 0b4b0af): the status bar (cursor in px and mm, gray value, device, model state), the File and Help menus, About with every version, play/pause on Space, the Stopwatch dialog, keys 1 to 9, Save session as, and the rule that a run folder with results keeps its place when the name changes; 94 tests. Also at the merge: `dialogs.confirm` (the question before something that cannot be undone) and the click points now follow the frame on the screen whoever changed it. Still to do (C8b): locking the panels during a run, the question before Remove, the model and device boxes, the mask-fill switch, File > Export, the README quickstart and docs/DEVELOPER.md.
   - Files: `gui/dialogs.py`, `gui/panels/*.py`, `tests/gui/test_finish.py`, `README.md`
     (10-step quickstart matching the panels), `docs/DEVELOPER.md`.

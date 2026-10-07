@@ -59,3 +59,9 @@ repository (`vX.Y.Z`).
 - Export in the window (panel 9, File > Export): Export all writes the CSV files, the
   overlay video, the log and README.txt to the run folder and lists them; Open folder shows
   them.
+- Review and fix in the window (panel 8): a table of the frames where the tracking may be
+  wrong; a click jumps there. Re-track from here, End track here and Continue as new track
+  repair a track without starting over.
+- Safer and more complete: the panels that a run depends on are locked while it runs; Remove
+  asks before it deletes tracked frames; the model and the device can be chosen in panel 7;
+  a Fill switch shows the masks. The README has a ten-step Quickstart.
