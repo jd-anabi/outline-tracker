@@ -1,9 +1,10 @@
 """Tests for outline_tracker.measure: the ported mask_center (SPEC 3.1, 7.1, 13.1 Centroid).
 
 The first test is the template's, unchanged but for its import line (tests/test_port_fidelity.py
-checks that). The others check the same convention from geometry: a mask's center is the mean of
-its pixel centers, and the pixel (column c, row r) has its center at (c + 0.5, r + 0.5), Tracker's
-rule. Equality with last week's function on random masks is in tests/test_port_equivalence.py.
+checks that); the second keeps the names it uses bound to the modules imported here. The others
+check the same convention from geometry: a mask's center is the mean of its pixel centers, and the
+pixel (column c, row r) has its center at (c + 0.5, r + 0.5), Tracker's rule. Equality with last
+week's function on random masks is in tests/test_port_equivalence.py.
 """
 
 import numpy as np
@@ -19,6 +20,14 @@ def test_mask_center_uses_trackers_pixel_convention():
     cx, cy, area = segment.mask_center(m)
     assert (cx, cy, area) == (pytest.approx(11.5), pytest.approx(21.0), 6)
     assert np.isnan(segment.mask_center(np.zeros((5, 5), bool))[0])
+
+
+def test_the_template_test_runs_with_the_modules_named_by_the_import_lines():
+    # tests/test_port_fidelity.py compares the text of the test above and this file's import lines.
+    # A name rebound further down (by an assignment, or by a module loaded by name) is in neither,
+    # and would change what that unchanged text does. Pytest runs this after the whole file has
+    # been executed, so it sees the three names exactly as the test above sees them.
+    assert (np.__name__, pytest.__name__, segment.__name__) == ("numpy", "pytest", "outline_tracker.measure")
 
 
 @pytest.mark.parametrize(
@@ -64,7 +73,9 @@ def test_the_empty_mask_is_nan_with_area_zero_and_a_found_mask_gives_plain_numbe
 # is the image the model saw, in full-frame pixels.
 #
 # tests/test_port_fidelity.py allows this file no top-level import line beyond the template's and
-# the one above, so the two modules the tests below need are loaded by name.
+# the one above, so the two modules the tests below need are loaded by name. That goes around the
+# check, which does not see these two lines; what the check is for (the template's test means what
+# it meant) is kept by test_the_template_test_runs_with_the_modules_named_by_the_import_lines.
 shapes = __import__("analytic_shapes")
 schema = __import__("outline_tracker.schema").schema
 
