@@ -73,7 +73,7 @@ def test_threshold_fake_gives_the_masks_of_the_templates_disk_finder_on_random_b
     from template_tests.test_segment import DiskFinder
 
     width, height, found, lost = 96, 72, 0, 0
-    for seed in range(40):
+    for seed in range(60):  # enough sequences for more than 100 masks of each kind (checked at the end)
         rng = np.random.default_rng(seed)
         n_blobs = int(rng.integers(2, 7))
         centers = rng.uniform((5, 5), (width - 5, height - 5), (n_blobs, 2))
@@ -94,7 +94,7 @@ def test_threshold_fake_gives_the_masks_of_the_templates_disk_finder_on_random_b
                 assert np.array_equal(mask_in_image(result, mask.shape), mask), f"seed {seed}, image {step}"
                 found, lost = found + bool(mask.any()), lost + (not mask.any())
             centers += rng.uniform(-6, 6, centers.shape)
-    assert found > 50 and lost > 50  # the inputs make both happen: neither comparison is empty
+    assert found > 100 and lost > 100  # the inputs make both happen: neither comparison is empty
 
 
 # ---------------------------------------------------------------------------------------------
