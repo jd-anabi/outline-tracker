@@ -587,11 +587,40 @@ out arrays that cannot be written to. The worker now gives the model a copy it m
 (task C5), and a test holds that. Click points of another frame stayed on the picture when a part
 other than the bottom bar changed the frame; they now follow the frame on the screen.
 
-### 6.3 Not covered by this section
+### 6.3 The whole flow with three small objects, and what fine mode does for a lost one (not a test)
+
+The same kind of script, on the synthetic dish clip (`outline-tracker synth dish`, 1920 × 1080 px,
+240 fps, 32.4 µm per px; three bodies about 14.5 px long), with the real EdgeTAM on the Apple GPU:
+name and fps_true typed into panels 1 and 2, a stick and a dish circle put into the session, three
+objects added with one positive click each on frame 0 at their true centers, Track with the clip
+ending at frame 119 (60 tracked frames at step 2, the model seeing the dish square), then the flags
+table of panel 8 and Export all in panel 9. All panels were on the merged main (commit `ae870e2`).
+
+| | all three coarse | B fine, A and C coarse |
+|---|---|---|
+| the run | complete, 14.5 s | complete, 18.3 s |
+| A (shrimp at the wall): found; max error against the true centers | 60 of 60; 2.54 px | 60 of 60; 2.54 px |
+| B (plain body): found; max error | **45 of 60** (`LOST` on 15 frames); 5.02 px | **60 of 60**; 0.38 px |
+| C (plain body): found; max error | 60 of 60; 0.56 px | 60 of 60; 0.56 px |
+| rows in the flags table of panel 8 (position flags) | 15, all `LOST` of B | 0 |
+| Export all | 10 files written, the panel listed them | the same |
+
+- B is the object the model also lost in section 4.3. In fine mode the model sees a small square
+  that follows the object, so a 14 px body covers many more of the model's cells: B was then found
+  on every frame, within 0.4 px. **Advice that follows: an object that coarse tracking loses
+  (`LOST` in panel 8) is worth switching to fine in panel 6 and tracking again.** Fine objects are
+  tracked one at a time, so the run takes longer (here 18 s against 15 s).
+- Every object keeps `LOWRES` and `HEADGUESS` on every frame in both columns: a 14.5 px body is
+  under the 20 px that shapes need, in any mode, and no head click was given.
+- Pictures of panels 8 and 9 after the run were looked at: the table, the three correction
+  buttons, the list of written files and Open folder are there. The label of the Fill switch in
+  the bar above the picture did not show (dark text on the dark bar); that is being fixed.
+
+### 6.4 Not covered by this section
 
 - A real screen, on macOS or on Windows: nobody has yet used the window by hand.
 - A real video of shrimp, and a long one (opening time, memory over minutes).
-- Export from the window, the corrections of panel 8, and fine mode in the window with the real
-  model: those panels were not merged when this was written.
+- The three corrections of panel 8 with the real model (they are tested with stand-in models),
+  and the real model's antennae outline in fine mode in the window.
 - Windows with the real model: the Windows test machine runs only the fast tests, with stand-in
   models.

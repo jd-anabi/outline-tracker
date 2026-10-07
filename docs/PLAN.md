@@ -204,6 +204,13 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 15:15, a finding worth telling the students: fine mode rescues a small object that
+  coarse tracking loses.** With the real model through the window on the synthetic dish clip
+  (three bodies about 14.5 px long), coarse tracking lost one body on 15 of 60 frames; with only
+  that object switched to fine in panel 6 it was found on all 60 frames, within 0.4 px of the
+  truth (docs/VALIDATION.md, section 6.3). Fine objects are tracked one at a time, so it costs
+  some time. Default: the README's Quickstart says so in the review step ("if an object is
+  lost, switch it to fine and track it again").
 - **Wed 14:45, C8b: one superseded test marked `xfail(strict=True)`, for J to confirm its
   removal.** `tests/gui/test_menus.py::test_quickstart_opens_the_repositorys_readme_in_the_browser`
   (from C8a) expects Help > Quickstart to open the README's top (`#readme`); the README now has
