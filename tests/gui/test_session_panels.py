@@ -16,7 +16,7 @@ from pathlib import Path
 import cv2
 import pytest
 from PySide6.QtCore import QPoint, QPointF, QSettings, Qt
-from PySide6.QtGui import QKeySequence, QWheelEvent
+from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QApplication, QLabel
 
 import helpers
@@ -389,37 +389,6 @@ def test_the_wheel_changes_no_clip_box_that_does_not_have_the_keyboard(window, q
         assert box.value() == before and not box.hasFocus()
     clip = window.controller.session.clip
     assert (clip.start, clip.end, clip.step) == (0, 119, 2)
-
-
-# ---------------------------------------------------------------------------------------------
-# Panel 1: its two buttons, and the File menu
-
-
-@pytest.mark.xfail(strict=True, reason="Task C8a: the File menu has Save session as now, between Save session and "
-                   "Quit (SPEC 10.1), so its items are no longer these four. Everything else here holds. The tests "
-                   "that follow this one are test_the_menu_bar_has_file_and_help_with_the_specs_items and "
-                   "test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons in "
-                   "tests/gui/test_menus.py. For J or the controller: delete this test.")
-def test_open_video_and_open_session_are_the_file_menus_actions(window, qtbot, monkeypatch, clip_in_odd_folder):
-    asked = record_dialogs(monkeypatch)
-    show(window, qtbot)
-    panel = body(window, 1)
-    assert (panel.open_video_button.text(), panel.open_session_button.text()) == ("Open video", "Open session")
-    (menu,) = [action.menu() for action in window.menuBar().actions() if action.text() == "File"]
-    entries = [action for action in menu.actions() if not action.isSeparator()]
-    assert [action.text() for action in entries] == ["Open video", "Open session", "Save session", "Quit"]
-    assert entries[1] is panel.open_session_action and entries[2] is panel.save_action
-    assert panel.save_action.shortcut() == QKeySequence(QKeySequence.StandardKey.Save)  # Ctrl+S, Cmd+S on a Mac
-
-    qtbot.mouseClick(panel.open_video_button, LEFT)
-    qtbot.mouseClick(panel.open_session_button, LEFT)
-    panel.open_session_action.trigger()
-    assert [(parent, title) for parent, title, _, _ in asked.files] == [
-        (window, "Open video"), (window, "Open session"), (window, "Open session")]
-    filters = asked.files[1][2]
-    assert "*.json" in filters[0] and filters[-1] == "All files (*)"
-    asked.files[0][3](clip_in_odd_folder.path)  # the file chosen for Open video
-    assert window.controller.video_path == clip_in_odd_folder.path
 
 
 # ---------------------------------------------------------------------------------------------

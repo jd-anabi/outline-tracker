@@ -28,7 +28,7 @@ from PySide6.QtCore import QCoreApplication
 
 from gui_helpers import picture, record_dialogs, show
 from helpers import click
-from last_controls_helpers import RUNNING, OnDevice, choose, let_run_end, parked, press_track
+from last_controls_helpers import OnDevice, choose
 from outline_tracker.gui.panels.track_panel import devices_for
 from outline_tracker.gui.worker import Worker
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
@@ -190,35 +190,6 @@ def test_a_model_that_cannot_be_loaded_gives_its_plain_reason_and_another_can_be
     qtbot.waitUntil(lambda: panel.worker.ready)
     assert factory.asked == [("edgetam", "auto"), ("sam2", "auto"), ("sam2", "auto"), ("edgetam", "auto")]
     assert window.controller.session.processing.model == "edgetam"
-
-
-@pytest.mark.xfail(strict=True, reason=(
-    "Written with task C8b. Its last lines expect the model box to be on again after the run. Task C9 (item 3): once "
-    "a track has stored frames the model box stays off, with its own sentence; the device box is on again. Its "
-    "successor is tests/gui/test_joins.py::test_during_a_run_both_boxes_are_off_and_after_it_the_device_box_is_on_"
-    "again. For J or the controller: delete this test."))
-def test_during_a_run_both_boxes_are_off_and_no_other_model_is_loaded(window, qtbot, clip_in_odd_folder):
-    clip, asked = clip_in_odd_folder, []
-    with Gate() as gate:
-        segmenter = parked(clip, gate)
-
-        def factory(model, device):
-            asked.append((model, device))
-            return segmenter
-
-        window.segmenter_factory = factory
-        panel, _ = ready_to_track(window, qtbot, clip, end=10)
-        assert panel.model_box.isEnabled() and panel.device_box.isEnabled()
-        press_track(qtbot, panel, gate)
-        assert not panel.model_box.isEnabled() and not panel.device_box.isEnabled()
-        assert panel.model_box.toolTip() == panel.device_box.toolTip() == RUNNING
-        panel.set_model("sam2")  # the function behind the box
-        panel.set_device("cpu")
-        processing = window.controller.session.processing
-        assert (processing.model, processing.device) == ("edgetam", "auto") and asked == [("edgetam", "auto")]
-        let_run_end(qtbot, panel, gate)
-    assert panel.model_box.isEnabled() and panel.device_box.isEnabled()
-    assert panel.jobs.status == "complete" and asked == [("edgetam", "auto")]  # the run ended with its own model
 
 
 def test_a_session_that_is_opened_loads_its_own_model_and_device(window, qtbot, clip_in_odd_folder, disk_clip,

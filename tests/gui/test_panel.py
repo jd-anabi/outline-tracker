@@ -6,9 +6,8 @@ values are the note's: the three states and their words, header row 32 px high, 
 """
 
 import pytest
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QLabel
 
 
 def shown(window, qtbot):
@@ -90,28 +89,6 @@ def test_a_collapsed_panel_is_its_header_row_only(window, qtbot):
     frame = panel.height() - panel.contentsRect().height()  # the border the style sheet draws, if any
     assert panel.header_row.height() == 32
     assert panel.height() == 32 + frame
-
-
-@pytest.mark.xfail(strict=True, reason="Task C2: panel 1 has its controls now, between the hint line and a row "
-                   "that is added later, so that row no longer follows the hint. The spacing and the padding are "
-                   "as they were. The test that follows this one is "
-                   "test_a_row_added_to_a_body_follows_what_is_there_with_the_notes_spacing in "
-                   "tests/gui/test_session_panels.py.")
-def test_rows_added_to_the_body_follow_the_hint_with_the_notes_spacing(window, qtbot):
-    shown(window, qtbot)
-    panel = window.panels[0]
-    row = QLabel("a row of a later task")
-    panel.body.addWidget(row)
-    qtbot.waitUntil(row.isVisible)
-    inside = panel.contentsRect()
-    hint_at, row_at = panel.hint.mapTo(panel, QPoint(0, 0)), row.mapTo(panel, QPoint(0, 0))
-    assert row_at.y() - (hint_at.y() + panel.hint.height()) == 8  # 8 px between rows
-    assert hint_at.x() - inside.left() == 12  # body padding: left, right, bottom
-    assert inside.left() + inside.width() - (hint_at.x() + panel.hint.width()) == 12
-    assert inside.top() + inside.height() - (row_at.y() + row.height()) == 12
-    assert hint_at.y() - inside.top() == 32  # right under the header row
-    panel.set_expanded(False)
-    assert not row.isVisible()
 
 
 def test_the_title_is_one_point_larger_than_the_base_font_and_demibold(window, qapp):

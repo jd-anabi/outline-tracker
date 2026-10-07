@@ -8,9 +8,6 @@ track's first and last record that has no record, written as the row of a frame 
 object was not found; the Tracker-format file (SPEC 8.3: one row per tracked frame), radial.csv and
 outlines.npz hold the frames with a record only; and a warning names the track.
 
-Two tests here are marked xfail: they were written before the review of the task and expect the
-lost rows in the Tracker-format file as well. Each is followed by the test that replaces it.
-
 The run folders are made by hand (`export_helpers.store_run`) from the ground truth of the dish
 clip: fps_true = 239.6 frames per s, so frame 4 is at 4 / 239.6 = 0.0166945 s and frame 6 at
 0.0250417 s. "As a lost frame is written" is checked against a second folder that has, on the
@@ -73,24 +70,6 @@ def test_a_gap_in_results_npz_is_written_as_lost_rows_in_positions_and_shapes(di
     assert "A: LOST in 2 of 6 frames (first at frame 4, t = 0.017 s)" in log_section(run_folder, "qc summary:")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "Written with task A18b, before its review. It expects the Tracker-format file edgetam/A.csv to get a lost row "
-    "for a frame that has no record, as positions.csv does. Review round 1 found that against the task: the lost "
-    "rows go into positions.csv and shapes.csv and no row goes elsewhere, and SPEC 8.3 gives that file one row per "
-    "tracked frame. The export now writes it from the stored frames. The test below, ..._is_a_lost_row_in_positions_"
-    "and_shapes_and_no_row_in_the_tracker_file, is this one with A.csv holding frames 0, 2, 8 and 10. For J or the "
-    "controller: delete this test, or say that the Tracker-format file should have the lost rows too."))
-def test_a_frame_without_a_record_is_written_as_a_lost_frame_is(dish_clip, tmp_path):
-    gap_run(dish_clip, tmp_path / "gap")
-    gap_run(dish_clip, tmp_path / "lost", lost=True)
-    for name in ("gap", "lost"):
-        export.export_all(tmp_path / name, log=silent)
-    assert (tmp_path / "lost" / MODEL / "A.csv").read_text().splitlines()[4:6] == ["0.0166945,4,,,,",
-                                                                                   "0.0250417,6,,,,"]
-    for name in ("positions.csv", "shapes.csv", f"{MODEL}/A.csv", f"{MODEL}/B.csv"):
-        assert (tmp_path / "gap" / name).read_bytes() == (tmp_path / "lost" / name).read_bytes(), name
-
-
 def test_a_frame_without_a_record_is_a_lost_row_in_positions_and_shapes_and_no_row_in_the_tracker_file(dish_clip,
                                                                                                       tmp_path):
     gap_run(dish_clip, tmp_path / "gap")
@@ -121,31 +100,6 @@ def test_a_frame_without_a_record_gets_no_row_in_radial_csv_and_outlines_npz(dis
     with np.load(run_folder / "outlines.npz") as outlines:
         assert list(outlines["A__frames"]) == [0, 2, 8, 10] and outlines["A__xy_mm"].shape == (4, 128, 2)
         assert np.isfinite(outlines["A__xy_mm"]).all() and list(outlines["B__frames"]) == [0, 2, 4, 6, 8, 10]
-
-
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "Written with task A18b, before its review. Its positions.csv and shapes.csv rows hold, but it also expects the "
-    "Tracker-format file edgetam/B.csv to have rows for frames 9 and 13, which have no record. Review round 1 found "
-    "that against the task (lost rows in positions.csv and shapes.csv, no row elsewhere; SPEC 8.3: one row per "
-    "tracked frame). The test below, test_the_lost_rows_are_on_the_clips_grid_and_the_tracker_file_has_the_frames_"
-    "with_a_record, is this one with B.csv holding frames 5, 10 and 17. For J or the controller: delete this test, "
-    "or say that the Tracker-format file should have the lost rows too."))
-def test_the_grid_of_the_lost_rows_is_the_clips_start_and_step(dish_clip, tmp_path):
-    run_folder = tmp_path / "run"
-    # records on frames 5, 10 and 17; the clip takes frames 1, 5, 9, 13, 17, ...: 9 and 13 have none
-    session = store_run(run_folder, {"B": [record(dish_clip, "B", frame) for frame in (5, 10, 17)]})
-    session.clip.start, session.clip.step, session.clip.end = 1, 4, 21
-    session.save(run_folder / "session.json")
-    report = export.export_all(run_folder, log=silent)
-    for name in ("positions.csv", "shapes.csv"):
-        _, rows = cells(run_folder / name)
-        # frame 10 is not a frame of the clip, but it has a record: its row stays
-        assert [(row["frame"], "LOST" in row["flags"]) for row in rows] == [
-            ("5", False), ("9", True), ("10", False), ("13", True), ("17", False)]
-    assert [line.split(",")[1] for line in (run_folder / MODEL / "B.csv").read_text().splitlines()[2:]] == [
-        "5", "9", "10", "13", "17"]
-    (warning,) = report.warnings
-    assert "track B" in warning and "frame 9" in warning and "2 frames" in warning
 
 
 def test_the_lost_rows_are_on_the_clips_grid_and_the_tracker_file_has_the_frames_with_a_record(dish_clip, tmp_path):

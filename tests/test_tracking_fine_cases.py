@@ -159,50 +159,6 @@ def test_a_lost_frame_keeps_the_last_crop_center_and_is_marked_lost(closeup_clip
     assert Session.load(tmp_path / "session.json").complete is True
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Written with task A16, before its review. It expects the 96 px that a window falls back to when the model "
-    "does not find the object on its start frame to be stored as the track's fine_window_px ([96, 96]). Review "
-    "round 1 found that wrong: nothing was measured, and a stored window is used as it is by every later run, so "
-    "a corrected click could never get the rule's window (SPEC 6.3 step 1). The code now stores only a window "
-    "measured on a found object. The test below, ..._that_is_not_stored_and_the_run_still_completes, is this one "
-    "with [96, None]. For J or the controller: delete this test."))
-def test_an_empty_preview_mask_gives_a_96_px_window_and_the_run_still_completes(disk_clip, tmp_path):
-    # D is a click on the light background of `disk_scene`: no disk comes within 80 px of (250.5, 200.5).
-    # A is a disk of radius 12 px at (60.3 + frame / 2, 200.5): 3 F = 72, so its window is 96 px too,
-    # and hangs over the frame's bottom border (rows up to 248 of 240).
-    tracks = [track(disk_clip, "A", mode="fine"), track_at("D", 0, [(250.5, 200.5)], [1], mode="fine")]
-    session = make_session(disk_clip, tmp_path, tracks)
-    segmenter = Watched(ThresholdFake())
-    status, seen = run(disk_clip, session, tmp_path, segmenter)
-    assert status == "complete" and seen.finished == ["complete"]
-
-    saved = Session.load(tmp_path / "session.json")
-    assert [a_track.fine_window_px for a_track in saved.tracks] == [96, 96]
-    assert len(segmenter.shapes) == 120 and set(segmenter.shapes) == {(96, 96, 3)}
-    assert [(r.tracks, r.mode, r.frames_done) for r in saved.runs] == [(["A"], "fine", 60), (["D"], "fine", 60)]
-    assert saved.complete is True
-    assert any("D" in line and "nothing" in line for line in seen.log)  # the log says the preview was empty
-
-    store = ResultsStore.load(tmp_path / "results.npz")
-    lost = store.arrays("D")
-    assert lost.frames.tolist() == GRID
-    assert not lost.visible.any() and not lost.edge.any() and (lost.area_px == 0).all()
-    assert np.isnan(lost.u).all() and np.isnan(lost.v).all() and np.isnan(lost.outline_px).all()
-    assert set(lost.mode.tolist()) == {"fine"}
-    np.testing.assert_allclose(lost.cell_px, 96 / 256)
-    # with no mask to center on, the window lies around the click: the click is at its middle, (48, 48)
-    (prompt,) = segmenter.starts[1][1]
-    assert prompt.obj_id == "D" and prompt.labels == [1]
-    np.testing.assert_allclose(prompt.points_px, [(48.0, 48.0)], rtol=0, atol=0.5)
-
-    # the disk next to it is followed, within the template's tolerance for this stand-in
-    found = store.arrays("A")
-    true = np.array([center(disk_clip, "A", frame) for frame in GRID])
-    assert found.visible.all() and not found.edge.any()
-    assert np.hypot(found.u - true[:, 0], found.v - true[:, 1]).max() < 0.25
-    assert (found.area_px > 300).all()  # pi 12^2 = 452 px
-
-
 def test_an_empty_preview_mask_gives_a_96_px_window_that_is_not_stored_and_the_run_still_completes(disk_clip,
                                                                                                    tmp_path):
     # D is a click on the light background of `disk_scene`: no disk comes within 80 px of (250.5, 200.5).

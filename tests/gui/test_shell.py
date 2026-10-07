@@ -8,8 +8,6 @@ Sizes are Qt's device-independent px. The window comes from the `window` fixture
 which closes it.
 """
 
-import sys
-
 import pytest
 from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QScreen
@@ -98,28 +96,6 @@ def test_at_start_only_the_first_panel_is_open(window, qtbot):
     assert all(panel.header.isVisible() and panel.badge.isVisible() for panel in window.panels)
 
 
-@pytest.mark.xfail(
-    sys.platform.startswith("linux"), strict=True,
-    reason="Linux only, seen on the test machine (CI run of commit f0c961e): 393 px, not 400. The window is shown "
-           "here at its smallest width, 960 px, which leaves 560 px beside a 400 px dock. Since the Play button "
-           "(task C8a) the bottom row with all its padding needs a little more than that in the wider font of the "
-           "Linux machine, and by C8a's rule the dock gives up width before a button gives up padding. In the fonts "
-           "of macOS and Windows the row fits and the dock is 400 px. The test below, "
-           "test_the_dock_stays_at_the_right_and_is_400_px_wide_where_the_window_has_room, makes the same checks "
-           "in a window of 1440 px, the width the application opens with. For J or the controller: delete this "
-           "test.")
-def test_the_dock_stays_at_the_right_and_is_400_px_wide(window, qtbot):
-    shown(window, qtbot)
-    dock = window.dock
-    assert window.dockWidgetArea(dock) == Qt.DockWidgetArea.RightDockWidgetArea
-    assert dock.allowedAreas() == Qt.DockWidgetArea.RightDockWidgetArea
-    assert dock.features() == QDockWidget.DockWidgetFeature.NoDockWidgetFeatures  # not closable, movable, floating
-    assert not dock.isFloating()
-    assert (dock.minimumWidth(), dock.maximumWidth()) == (340, 520)
-    assert dock.width() == 400
-    assert window.scroll.geometry().top() == 0  # no title bar above the panels
-
-
 def test_the_dock_stays_at_the_right_and_is_400_px_wide_where_the_window_has_room(window, qtbot):
     window.resize(1440, 900)  # the size the application opens with: room for the bottom row in any font
     shown(window, qtbot)
@@ -173,16 +149,6 @@ def test_the_video_area_is_above_the_bottom_bar_and_left_of_the_dock(window, qtb
     assert status.isVisible()
     assert status.geometry().top() >= central.geometry().top() + central.height()
     assert status.currentMessage() == ""
-
-
-@pytest.mark.xfail(strict=True, reason="Task C1: the video area is no longer one label. The two lines are now two "
-                   "labels around the Open video button; the test that follows this one is "
-                   "test_the_empty_video_area_says_how_to_start_and_offers_open_video in tests/gui/test_controller.py.")
-def test_the_video_area_says_how_to_start(window):
-    assert window.video_area.text().splitlines() == [
-        "Open a video to start.",
-        "Then follow panels 1 to 9 at the right.",
-    ]
 
 
 def test_the_window_keeps_the_segmenter_factory_for_the_worker(window):

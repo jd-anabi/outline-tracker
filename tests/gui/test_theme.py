@@ -92,9 +92,6 @@ def badge_fill(window, badge) -> str:
     return Counter(color for x, y, color in badge_pixels(window, badge) if inside_badge(x, y)).most_common(1)[0][0]
 
 
-# Why the tests that probe one pixel beside a badge's digit cannot pass on Windows (task C0b).
-
-
 # ---------------------------------------------------------------------------------------------
 # Tokens
 
@@ -203,36 +200,9 @@ def test_the_palette_gives_each_role_its_token(dark, qapp):
 
 
 @BOTH
-def test_the_theme_draws_the_window_without_a_qt_message(dark, window, qapp, qtbot, qt_messages, look):
-    colors = theme.tokens(dark)
-    theme.apply(qapp, dark)
-    assert qapp.palette().color(QPalette.ColorRole.Window).name().upper() == colors["window"]
-    for panel in window.panels:  # every part is drawn, so every rule of the sheet meets its widget
-        panel.set_expanded(True)
-    first, done, attention = window.panels[0], window.panels[1], window.panels[2]
-    done.set_state("done")
-    attention.set_state("attention")
-    with qtbot.waitExposed(window):
-        window.show()
-
-    column = window.scroll.widget()
-    assert color_at(window, first, QPoint(6, first.height() - 6)) == colors["panel"]  # the panel's surface
-    assert color_at(window, column, QPoint(50, first.geometry().top() + first.height() + 4)) == colors["window"]
-    assert color_at(window, first, QPoint(first.width() // 2, 0)) == colors["border"]  # the 1 px outline
-    assert color_at(window, attention, QPoint(attention.width() // 2, 0)) == colors["warning"]
-    # the badge is a 20 px circle: 4 px in from its left edge at mid height is inside it, beside the digit
-    assert color_at(window, first.badge, QPoint(4, 10)) == colors["panel"]  # outlined only
-    assert color_at(window, done.badge, QPoint(4, 10)) == colors["success"]  # filled
-    assert color_at(window, attention.badge, QPoint(4, 10)) == colors["warningBg"]
-    assert (first.badge.width(), first.badge.height()) == (20, 20)
-    assert color_at(window, window.video_area, QPoint(5, 5)) == colors["canvas"]
-    assert about_the_look(qt_messages) == []
-
-
-@BOTH
 def test_the_theme_draws_the_window_and_fills_the_badges_without_a_qt_message(dark, window, qapp, qtbot, qt_messages,
                                                                               look):
-    # the test above, with a badge's fill read as the most frequent colour inside its ring
+    # a badge's fill is read as the most frequent colour inside its ring
     colors = theme.tokens(dark)
     theme.apply(qapp, dark)
     assert qapp.palette().color(QPalette.ColorRole.Window).name().upper() == colors["window"]
@@ -272,21 +242,8 @@ def test_the_style_is_fusion_on_every_system(qapp, look):
     assert qapp.style().name() == "fusion"
 
 
-def test_a_state_change_is_drawn_at_once(window, qapp, qtbot, look):
-    theme.apply(qapp, False)
-    with qtbot.waitExposed(window):
-        window.show()
-    panel = window.panels[0]
-    assert color_at(window, panel, QPoint(panel.width() // 2, 0)) == theme.LIGHT["border"]
-    panel.set_state("attention")
-    assert color_at(window, panel, QPoint(panel.width() // 2, 0)) == theme.LIGHT["warning"]
-    panel.set_state("done")
-    assert color_at(window, panel, QPoint(panel.width() // 2, 0)) == theme.LIGHT["border"]
-    assert color_at(window, panel.badge, QPoint(4, 10)) == theme.LIGHT["success"]
-
-
 def test_a_state_change_is_drawn_at_once_on_the_edge_and_in_the_badge(window, qapp, qtbot, look):
-    # the test above, with the badge's fill read as the most frequent colour inside its ring
+    # the badge's fill is read as the most frequent colour inside its ring
     theme.apply(qapp, False)
     with qtbot.waitExposed(window):
         window.show()

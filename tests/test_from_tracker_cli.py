@@ -8,12 +8,11 @@ Coordinates: px in Tracker's convention (pixel centers at +0.5); frames are vide
 """
 
 import shutil
-import sys
 
 import numpy as np
 import pandas as pd
 import pytest
-from from_tracker_helpers import FPS, Loaded, mirrored_map, one_disk, read_track, session_json, track_text, two_disks
+from from_tracker_helpers import FPS, Loaded, mirrored_map, one_disk, read_track, session_json, two_disks
 from from_tracker_helpers import write_start_file
 
 from outline_tracker import cli, cli_from_tracker, from_tracker
@@ -113,46 +112,8 @@ def test_a_run_from_the_command_line(tmp_path, stand_in, capsys):
         assert np.allclose(got["pixely"], y0, atol=0.25)
 
 
-@pytest.mark.xfail(
-    sys.platform != "darwin", strict=True,
-    reason="Written with task B1 and passed on macOS only. Its last check before the default run folder asks "
-           "that a threshold stand-in finds the 14 x 6 px shrimp of the H.264 dish clip within 1 px; that limit was "
-           "not derived, and on the Linux and Windows test machines, whose ffmpeg encodes the clip a little "
-           "differently, two of ten frames are 1.1 and 1.3 px off in v (CI run 37620949387). The folder names, "
-           "which this test is about, were handled correctly there. The test below, "
-           "..._with_the_disk_clip, makes the same checks with the clip and the 0.25 px limit that the "
-           "stand-in is specified for. For J or the controller: delete this test.")
-def test_folders_with_spaces_and_other_alphabets(clip_in_odd_folder, stand_in, capsys):
-    # review focus 1: the video, the export, the student's name and the run folder all have such names
-    clip = clip_in_odd_folder
-    truth = clip.table[clip.table.track_id == "A"].set_index("frame")
-    frames = list(range(0, 20, 2))
-    export = clip.path.parent / "élève ü" / "mes exports" / "A.csv"
-    export.parent.mkdir(parents=True)
-    export.write_text(track_text([(f / FPS, f, truth.u_px[f], truth.v_px[f]) for f in frames], name="A"))
-    out = clip.path.parent / "résultats de Zoë"
-    assert command(clip.path, export, "--student", "Zoë Ünal", "--out", out) == 0
-    assert capsys.readouterr().err == ""
-    assert sorted(p.name for p in out.iterdir()) == sorted([
-        "README.txt", "outlines.npz", "overlay.mp4", "positions.csv", "radial.csv", "results.npz", "run.log",
-        "session.json", "shapes.csv", "edgetam"])
-    assert session_json(out)["student"] == "Zoë Ünal"
-    assert session_json(out)["video"]["relpath"] == "../dish_tracker.mp4"
-    positions = pd.read_csv(out / "positions.csv")
-    assert positions.frame.tolist() == frames
-    # the shrimp of the dish clip through H.264 and a threshold: within a pixel of where it was drawn
-    assert np.allclose(positions.u_px, truth.u_px[frames], atol=1.0)
-    assert np.allclose(positions.v_px, truth.v_px[frames], atol=1.0)
-
-    # and the default run folder, next to the video, from the export's own folder name
-    assert command(clip.path, export, "--no-overlay") == 0
-    default = clip.path.parent / "dish_tracker_outline_mes_exports"
-    assert session_json(default)["student"] == "mes exports"
-    assert read_track(default / "edgetam" / "A.csv")["frame"].tolist() == frames
-
-
 def test_folders_with_spaces_and_other_alphabets_with_the_disk_clip(tmp_path, stand_in, capsys):
-    # review focus 1, as the test above, with the clip the threshold stand-in is specified for (a dark
+    # review focus 1, with the clip the threshold stand-in is specified for (a dark
     # disk on a plain background, 0.25 px): the video, the export, the student's name and the run folder
     # all have names with spaces and letters outside ASCII
     frames = list(range(40, 61, 4))
