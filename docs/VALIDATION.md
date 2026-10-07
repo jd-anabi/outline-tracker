@@ -405,34 +405,68 @@ through `tracking.run_job`. The run is in a child process of its own, which read
 memory with `ps` after every tracked frame and its peak with `resource.getrusage` at the end.
 GB = 10⁹ bytes, MB = 10⁶ bytes. macOS and Linux only; skipped on Windows.
 
+**What is asserted.** The peak is under 3 GB, and memory grows by less than 50 MB from frame 40 to
+frame 100. Since the review of this task, the memory at a frame is the median of the ten readings
+that end with the one after that frame (frames 31 to 40, and frames 91 to 100). Before, it was the
+single reading after the frame; why that was changed is below. A second test in the file checks
+this estimator on series whose answer is known by arithmetic; it needs no model.
+
 **Command.**
 
 ```
 uv run pytest -m slow tests/slow/test_memory.py -q -rP
 ```
 
-**Result.** 1 passed, twice (236 s and 232 s).
+**Result.** Four runs, all passed. Runs 1 and 2 asserted the two single readings (1 passed, 236 s
+and 232 s); another job may have been running the model at the same time. Runs 3 and 4 assert the
+two medians (2 passed, 245 s and 238 s); no other job ran the model during them (other checkouts
+ran their fast test suites). The reading of every frame was kept for runs 3 and 4 only.
+Differences are taken before rounding.
 
-| | first run | second run | limit |
-|---|---|---|---|
-| peak resident memory | 1.43 GB | 1.44 GB | 3 GB |
-| resident memory after frame 40 | 1388 MB | 1403 MB | |
-| resident memory after frame 100 | 1398 MB | 1392 MB | |
-| growth from frame 40 to frame 100 | +10 MB | −10 MB | 50 MB |
-| growth of the peak from frame 40 to frame 100 | +32 MB | 0 MB | not asserted |
-| after frames 1, 20, 60, 80 | 1181, 1378, 1402, 1290 MB | 1181, 1318, 1405, 1400 MB | |
-| all readings from frame 40 on | up to 1430 MB | 1260 to 1407 MB | |
-| s per frame (10 objects) | 2.26 | 2.21 | |
-| object-frames without a mask | 112 of 1000 | 112 of 1000 | not asserted |
+| | run 1 | run 2 | run 3 | run 4 | limit |
+|---|---|---|---|---|---|
+| peak resident memory | 1.43 GB | 1.44 GB | 1.43 GB | 1.42 GB | 3 GB |
+| median of the ten readings after frames 31 to 40 | not kept | not kept | 1400 MB | 1393 MB | |
+| median of the ten readings after frames 91 to 100 | not kept | not kept | 1418 MB | 1394 MB | |
+| growth between the two medians | | | +18 MB | +1 MB | 50 MB (asserted in runs 3 and 4) |
+| single reading after frame 40 | 1388 MB | 1403 MB | 1274 MB | 1393 MB | |
+| single reading after frame 100 | 1398 MB | 1392 MB | 1418 MB | 1401 MB | |
+| growth between the two single readings | +10 MB | −10 MB | +144 MB | +9 MB | 50 MB (asserted in runs 1 and 2 only) |
+| growth of the peak from frame 40 to frame 100 | +32 MB | 0 MB | +8 MB | +22 MB | not asserted |
+| single readings after frames 1, 20, 60, 80 | 1181, 1378, 1402, 1290 MB | 1181, 1318, 1405, 1400 MB | 1177, 1407, 1404, 1426 MB | 1180, 1234, 1406, 1404 MB | |
+| all readings from frame 40 on | up to 1430 MB | 1260 to 1407 MB | 1253 to 1428 MB | 1179 to 1418 MB | |
+| low readings (more than 50 MB under those around them), frames 2 to 100 | | | 20 | 18 | |
+| most low readings among ten in a row, from frame 21 on | | | 3 | 3 | |
+| s per frame (10 objects) | 2.26 | 2.21 | 2.33 | 2.27 | |
+| object-frames without a mask | 112 of 1000 | 112 of 1000 | 112 of 1000 | 112 of 1000 | not asserted |
 
-- Last week 1.7 GB was measured for 10 objects; this run stays below that.
+- Last week 1.7 GB was measured for 10 objects; every run here stays below that.
+- **Why medians.** A reading of resident memory after one frame is not a steady number. In runs 3
+  and 4 about every fifth reading (20 and 18 of 99) is 57 to 214 MB below the readings around it,
+  for one frame; the next reading is back where it was. These low readings come about every 10 s
+  (every 4 or 5 frames at 2.3 s per frame). They came with no other job running the model, so
+  they belong to this process on this laptop; their cause was not looked for. In run 3 one of
+  them fell on frame 40: the two single readings differ by +144 MB, so the test as first written
+  would have failed there with no leak, and a low reading on frame 100 would have hidden a leak
+  of that size. Of the ten readings that end at frame 40 and of the ten that end at frame 100,
+  two or three were low; a median of ten is not moved by up to four. A steady leak shows in the
+  medians in full: the middles of the two groups are 60 frames apart, so a leak of 50 / 60 =
+  0.83 MB per frame or more fails the test.
 - **Can this test fail?** With the backend's pruning switched off (patched in memory for one run
   of the same child, no file changed): peak 3.06 GB, and resident memory 1181, 1638, 1980, 2343,
   2701, 3063 MB after frames 1, 20, 40, 60, 80, 100: +1083 MB from frame 40 to frame 100, 18 MB
-  per frame. Both limits are exceeded.
-- **Uncertain.** Single readings of resident memory move by tens of MB from frame to frame (the
-  first run read 1290 MB after frame 80 and 1398 MB after frame 100; the second run's readings
-  from frame 40 on span 1260 to 1407 MB), which is the size of the 50 MB limit. The test compares two single readings, as asked, so on a busy computer it could
-  fail without a leak, or pass by luck; the 18 MB per frame of a real leak is far outside this.
+  per frame. Both limits are exceeded. That run was made before the change; on its saved readings
+  the two medians differ by +1076 MB. The test of the estimator was written first and failed with
+  the single readings: +108 MB for a flat series with one low reading on frame 40, where 0 is
+  right. It also holds a leak of 1.7 MB per frame that a low reading on frame 100 hides from the
+  single readings (−6 MB); the medians give +100 MB.
+- **Uncertain.** The level between the low readings moves too, in steps and without a trend: from
+  frame 21 on between 1389 and 1428 MB in run 3 and between 1375 and 1418 MB in run 4. The
+  medians of ten readings in a row span 37 MB in run 3 and 20 MB in run 4, with no leak, and the
+  limit is 50 MB. So the test can still fail without a leak, if such a step exceeds 50 MB, or if
+  five of ten readings in a row are low (a median then moves by about half the depth of a low
+  reading; if they come every 10 s on other computers too, that needs about 5 s per frame).
+  Neither was seen in these two runs. With 100 frames the limit of 3 GB catches the run without
+  pruning only just (3.06 GB); the growth is what shows it clearly.
 - The model lost about a tenth of the object-frames on this clip (a plain background, objects of
   16 × 6 px). That is tracking quality, not memory, and is not asserted here.
