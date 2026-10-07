@@ -139,6 +139,13 @@ def test_the_picture_stays_fitted_when_the_view_changes_its_size(window, qtbot, 
     assert seen.bottom == pytest.approx(top + 40 * scale, abs=1)
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Task C3: with a video open, the axes of SPEC 4.5 are drawn at the origin, which starts at the frame's "
+    "center (160, 120). The y arrow goes up from there through the block this test marks (columns 150 to 169, "
+    "rows 110 to 119), so the block is no longer one solid colour. The test that follows this one is "
+    "test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_beside_the_axes in tests/gui/test_tools.py: this "
+    "test with the block at columns 190 to 209 and rows 140 to 149, clear of the axes. For J or the controller: "
+    "delete this test."))
 def test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_and_fit_goes_back(window, qtbot, disk_clip):
     view = picture(window, qtbot, disk_clip, StandInSource((320, 240), marked=(150, 110, 170, 120)))
     assert [window.fit_button.text(), window.one_to_one_button.text()] == ["Fit", "1:1"]
