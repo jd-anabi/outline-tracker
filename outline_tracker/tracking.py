@@ -7,8 +7,9 @@ to the segmenter, measured (`measure.measure_mask`) and discarded. The fine runn
 the coarse one.
 
 Who writes what: `run_job` works on a copy of the job's session and writes only results.npz.
-Every change it makes to the session (a run's record, whether the results are complete) is handed
-to `Callbacks.save_session` as a `SessionChanges`, so that session.json has one writer.
+Every change it makes to the session (a run's record, whether the results are complete, a frame
+hash made anew on this computer) is handed to `Callbacks.save_session` as a `SessionChanges`, so
+that session.json has one writer.
 
 Units and coordinates (SPEC 3.1): records are in px in the full frame, Tracker's convention, the
 pixel in column c and row r with its center at (c + 0.5, r + 0.5); a box is
@@ -36,12 +37,12 @@ from outline_tracker.results import ResultsStore
 from outline_tracker.schema import RESULTS_NPZ, SESSION_JSON
 from outline_tracker.segmenter.base import ObjectPrompt, Segmenter
 from outline_tracker.session import RunRecord, Session
-from outline_tracker.tracking_guard import FrameHashMismatch, check_start_frames
-from outline_tracker.tracking_plan import RunPlan, dish_box, plan_runs, run_prompts
+from outline_tracker.tracking_guard import FrameHashMismatch, FrameHashUpdate, check_start_frames
+from outline_tracker.tracking_plan import RunPlan, dish_box, partial_tracks, plan_runs, run_prompts
 from outline_tracker.video import iter_rgb_frames
 
-__all__ = ["AUTOSAVE_EVERY", "Callbacks", "FrameHashMismatch", "Job", "RunPlan", "SessionChanges", "dish_box",
-           "plan_runs", "run_job"]
+__all__ = ["AUTOSAVE_EVERY", "Callbacks", "FrameHashMismatch", "FrameHashUpdate", "Job", "RunPlan", "SessionChanges",
+           "dish_box", "partial_tracks", "plan_runs", "run_job"]
 
 AUTOSAVE_EVERY = 200  # results and session are saved after every this many tracked frames (SPEC 6.4)
 COMPLETE, CANCELLED, FAILED = "complete", "cancelled", "failed"  # what `run_job` returns
@@ -66,23 +67,30 @@ class Job:
 class SessionChanges:
     """What a job changed in the session, to be applied by the session's one writer.
 
-    complete: False while results are partial (SPEC 6.4). run: the record of the run the change is
-    about, as it is now (a copy: the receiver's own), and run_index: its place in `session.runs`.
+    complete: False while results are partial (SPEC 6.4): while a job runs, and after it when a
+    track's results stop early, have a gap or are still to come (`partial_tracks`). run: the record
+    of the run the change is about, as it is now (a copy: the receiver's own), and run_index: its
+    place in `session.runs`. frame_hashes: the hashes of start frames made anew on this computer
+    for clicks that came from another one (X8); they go with the first change of a job.
     """
 
     complete: bool
     run_index: int
     run: RunRecord
+    frame_hashes: tuple[FrameHashUpdate, ...] = ()
 
     def apply(self, session: Session) -> None:
         """Make the changes in `session`: the run's record replaces the one at `run_index`, or is
-        added when the session has no such run yet. No quantities, so no units."""
+        added when the session has no such run yet, and each new frame hash is stored in the
+        prompts it is for (`FrameHashUpdate.apply`). No quantities, so no units."""
         session.complete = self.complete
         record = copy.deepcopy(self.run)
         if self.run_index < len(session.runs):
             session.runs[self.run_index] = record
         else:
             session.runs.append(record)
+        for new_hash in self.frame_hashes:
+            new_hash.apply(session)
 
 
 @dataclass
@@ -127,8 +135,16 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
     starts (the session only), after every 200 tracked frames, and when a run ends. Returns
     "complete"; "cancelled" when `should_cancel` said so or the user pressed Ctrl+C; "failed" when
     the model or the video raised an error during a run, which is logged. In all three cases what
-    was tracked is saved, and the session's `complete` is True only after "complete". A video that
-    ends before the clip does is tracked to its last frame, which is logged, and is "complete".
+    was tracked is saved. A video that ends before the clip does is tracked to its last frame,
+    which is logged, and is "complete".
+
+    The session's `complete` describes the results, not this job: it is True only after "complete",
+    and then only if no track of the session is left partial (`partial_tracks`): one that an
+    earlier job left before its end, one with a gap, one that has clicks and still waits.
+
+    Clicks whose frame hash another computer's decoder made cannot be compared here; this
+    computer's hash of their start frame goes to the session with the first change (X8), and is
+    compared from then on.
     """
     session = copy.deepcopy(job.session)
     _check_settings(session)
@@ -144,13 +160,14 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
         raise NotImplementedError(f"Fine tracking is not available yet (fine objects: {', '.join(fine)}). Set them "
                                   "to coarse, or track the other objects by name.")
     prompts = [run_prompts(session, plan) for plan in plans]
-    check_start_frames(job.video_path, session, plans, callbacks.log)
+    new_hashes = check_start_frames(job.video_path, session, plans, callbacks.log)
 
     segmenter = job.make_segmenter()
     own_log = getattr(segmenter, "log", None)
     if own_log is not None:  # so that a switch from the Apple GPU to the processor reaches the log
         segmenter.log = callbacks.log
-    runner = _Runner(job, session, store, callbacks, segmenter, total=sum(len(plan.frames) for plan in plans))
+    runner = _Runner(job, session, store, callbacks, segmenter, total=sum(len(plan.frames) for plan in plans),
+                     new_hashes=new_hashes)
     status = COMPLETE
     try:
         for number, (plan, run_prompt) in enumerate(zip(plans, prompts), start=1):
@@ -201,13 +218,16 @@ def _now() -> str:
 class _Runner:
     """One job while it runs: its session copy, results, segmenter and frame counts."""
 
-    def __init__(self, job: Job, session: Session, store: ResultsStore, callbacks: Callbacks, segmenter, total: int):
+    def __init__(self, job: Job, session: Session, store: ResultsStore, callbacks: Callbacks, segmenter, total: int,
+                 new_hashes: Sequence[FrameHashUpdate] = ()):
         self.session, self.store, self.callbacks, self.segmenter = session, store, callbacks, segmenter
         self.video_path = Path(job.video_path)
         self.results_path = Path(job.run_folder) / RESULTS_NPZ
         self.save_session = callbacks.save_session or _save_to_run_folder(job, callbacks.log)
         self.total, self.done = total, 0  # frames to track and frames tracked, over all runs of the job
         self.began = time.perf_counter()
+        self.new_hashes = tuple(new_hashes)  # frame hashes made anew (X8), until they are handed over
+        self.reached = -1  # the video frame on which a completed run of this job ended; -1 before one did
 
     def coarse(self, plan: RunPlan, prompts: list[ObjectPrompt], number: int, count: int) -> str:
         """Track one coarse run (SPEC 6.2): every frame of `plan.frames` is cut to `plan.input_box`,
@@ -269,10 +289,21 @@ class _Runner:
                 f"were tracked (the clip asks for frames up to {frames[-1]}).")
             self._progress()
         record.finished = _now()
-        self._save(record, index, tracked, began, complete=status == COMPLETE and number == count)
+        self._save(record, index, tracked, began, complete=self._whole(status, frames, tracked))
         log(f"  {tracked} frames in {time.perf_counter() - began:.1f} s ({record.seconds_per_frame:.2f} s per frame)"
             + (f" on {record.device}." if record.device else "."))
         return status
+
+    def _whole(self, status: str, frames: range, tracked: int) -> bool:
+        """What the session's `complete` is when a run has ended (SPEC 6.4): False after a run that
+        did not complete; else it is about the results, not about this job: True only if no track
+        of the session is partial (`partial_tracks`). So it stays False while the job has runs to
+        come, whose tracks still wait. `frames`: the run's video frames, of which the first
+        `tracked` were tracked."""
+        if status != COMPLETE:
+            return False
+        self.reached = max(self.reached, frames[tracked - 1])  # the clip's last frame, or the video's
+        return not partial_tracks(self.session, self.store, self.reached)
 
     def _progress(self) -> None:
         s_per_frame = (time.perf_counter() - self.began) / self.done
@@ -294,7 +325,9 @@ class _Runner:
         record.device = str(getattr(self.segmenter, "device", None) or "")
         record.model_id = getattr(self.segmenter, "model_id", None)
         record.weights_sha256 = getattr(self.segmenter, "weights_sha256", None)
-        self.save_session(SessionChanges(complete=complete, run_index=index, run=copy.deepcopy(record)))
+        new_hashes, self.new_hashes = self.new_hashes, ()  # with the first change of the job only
+        self.save_session(SessionChanges(complete=complete, run_index=index, run=copy.deepcopy(record),
+                                         frame_hashes=new_hashes))
 
 
 def _save_to_run_folder(job: Job, log: Callable[[str], None]) -> Callable[[SessionChanges], None]:

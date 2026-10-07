@@ -1,5 +1,6 @@
 """Planning the runs of a tracking job (SPEC 6.1, 6.2): which objects are tracked together, on which
-frames, what part of the frame the model is shown, and the clicks as the model gets them.
+frames, what part of the frame the model is shown, and the clicks as the model gets them. Also
+what is left when jobs have run: the tracks whose results are partial (`partial_tracks`, SPEC 6.4).
 
 A run is a set of tracks plus a start frame: coarse objects with the same start frame share one
 streaming session of the model, a fine object has a session of its own. A run covers the frames of
@@ -133,6 +134,38 @@ def plan_runs(session: Session, store: ResultsStore) -> list[RunPlan]:
     plans = [RunPlan(tuple(ids), start, "coarse", grid[grid.index(start):], box) for start, ids in coarse.items()]
     plans += [RunPlan((track_id,), start, "fine", grid[grid.index(start):], box) for start, track_id in fine]
     return sorted(plans, key=lambda plan: (plan.start_frame, plan.mode != "coarse"))
+
+
+def partial_tracks(session: Session, store: ResultsStore, last_frame: int | None = None) -> list[str]:
+    """The tracks whose results are partial (SPEC 6.4), in the order of the session. The session's
+    `complete` is true only when there is none.
+
+    A track is partial when it has clicks but no record in `store` (the results so far); when it
+    has clicks that are not tracked yet (`plan_runs` would start a run for it); when its records
+    stop before its last frame; or when a frame of the clip's grid is missing between its first
+    and its last record. Its last frame is the last frame of the clip's grid, or the last grid
+    frame up to `track.ended_at` for a track that was ended. `last_frame` is the last video frame
+    number tracking can reach when the video ends before the clip does; None for the clip's end.
+    A track without clicks and without records is not partial. Raises ValueError for a clip
+    without frames (`geometry.grid_frames`).
+    """
+    clip = session.clip
+    grid = grid_frames(clip.start, clip.end, clip.step)
+    reach = grid[-1] if last_frame is None else min(grid[-1], int(last_frame))
+    partial = []
+    for track in session.tracks:
+        if track.id not in store.track_ids:
+            if track.prompts:  # clicked on, never tracked
+                partial.append(track.id)
+            continue
+        frames = store.arrays(track.id).frames
+        first, last = int(frames[0]), int(frames[-1])
+        end = reach if track.ended_at is None else min(reach, track.ended_at)
+        end = grid.start + (end - grid.start) // grid.step * grid.step  # the last grid frame at or before it
+        gap = (last - first) // grid.step + 1 > len(frames)
+        if _start_frame(track, store) is not None or last < end or gap:
+            partial.append(track.id)
+    return partial
 
 
 def run_prompts(session: Session, plan: RunPlan) -> list[ObjectPrompt]:
