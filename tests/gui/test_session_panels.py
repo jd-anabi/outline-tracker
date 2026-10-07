@@ -395,6 +395,11 @@ def test_the_wheel_changes_no_clip_box_that_does_not_have_the_keyboard(window, q
 # Panel 1: its two buttons, and the File menu
 
 
+@pytest.mark.xfail(strict=True, reason="Task C8a: the File menu has Save session as now, between Save session and "
+                   "Quit (SPEC 10.1), so its items are no longer these four. Everything else here holds. The tests "
+                   "that follow this one are test_the_menu_bar_has_file_and_help_with_the_specs_items and "
+                   "test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons in "
+                   "tests/gui/test_menus.py. For J or the controller: delete this test.")
 def test_open_video_and_open_session_are_the_file_menus_actions(window, qtbot, monkeypatch, clip_in_odd_folder):
     asked = record_dialogs(monkeypatch)
     show(window, qtbot)

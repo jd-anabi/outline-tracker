@@ -5,12 +5,14 @@ this object holds both and says when they change. A panel reads `controller.sess
 and calls `touch()`; whoever shows something of the session listens to `session_changed`.
 
 The session is kept on disk as `session.json` in the run folder, which is SPEC 8.1's default for
-the video and the student's name (`run_folder.default_run_folder`), or the folder a session was
-opened from. It is written 0.75 s after the last change, and at once by `save_now()` (the Save
-key, closing the window, before a run, on export). Nothing is written while the name is empty, and
-a `session.json` that the open session was neither opened from nor wrote is never written over:
-Open video starts a new session, which owns no file yet, also when the same video was open before.
-Every write happens in the thread this object lives in, the GUI thread.
+the video and the student's name (`run_folder.default_run_folder`), the folder a session was
+opened from, or the folder chosen with `save_as`. It is written 0.75 s after the last change, and
+at once by `save_now()` (the Save key, closing the window, before a run, on export). Nothing is
+written while there is no run folder (no name yet), and a `session.json` that the open session was
+neither opened from nor wrote is never written over: Open video starts a new session, which owns
+no file yet, also when the same video was open before. A run folder that holds results
+(`results.npz`) is not left when the name changes, and `save_as` takes the results along. Every
+write happens in the thread this object lives in, the GUI thread.
 
 Units and coordinates are the session's (SPEC 3): px in Tracker's image coordinates (origin at the
 top-left corner of the frame, u to the right, v downward, pixel centers at +0.5), frames as video
@@ -19,16 +21,18 @@ frame numbers counted from 0, fps_true in frames per second. No measurement is d
 
 from __future__ import annotations
 
+import contextlib
 import os
+import shutil
 from pathlib import Path
 
 import cv2
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from outline_tracker import schema
-from outline_tracker.fileio import new_name, sha256_first_64mib
+from outline_tracker.fileio import atomic_write, new_name, sha256_first_64mib
 from outline_tracker.frame_source import FrameSource
-from outline_tracker.run_folder import default_run_folder
+from outline_tracker.run_folder import default_run_folder, folder_has_foreign_tables
 from outline_tracker.session import Clip, Session, SessionVersionError, VideoNotFoundError, VideoRef, WrongVideoError
 
 SAVE_DELAY_MS = 750  # session.json is written this long after the last change
@@ -50,6 +54,12 @@ NOT_WRITTEN = ("{name} could not be written to the folder {folder}. Check that t
                "that the disk is not full. Nothing is saved until this works.")
 LOCKED = ("{name} is open in another program. Close it there. Until then the session is saved as {beside} in "
           "the run folder.")
+# Why the session does not go on in the folder chosen with Save session as.
+HELD_AS = "The folder {folder} holds a session already. Choose another folder, or open that session with Open session."
+TRACKER_FILES = ("The folder {folder} holds other .csv or .txt files. It looks like a folder of Tracker files, and "
+                 "the run's files are not written into one. Choose another folder.")
+NOT_COPIED = ("{name} could not be copied to the folder {folder}. Check that the folder is not read-only and "
+              "that the disk is not full. The session stays in the run folder {kept}.")
 
 
 def same_file(one: Path, other: Path) -> bool:
@@ -79,7 +89,7 @@ class SessionController(QObject):
     session was changed (`touch`), `about_to_save` when `save_now` is called, before it looks at the
     session (a panel then puts in what is typed and not entered yet), `saved` after every save
     that was tried, and `trouble(text)` when a save has something to tell the user (`save_problem`):
-    once for the same text in a row.
+    once for the same text in a row; also each time `save_as` could not go on in the chosen folder.
     """
 
     video_opened = Signal()
@@ -222,12 +232,14 @@ class SessionController(QObject):
         """Say that `session` was changed: emit `session_changed`. Call it after changing a value of
         the session, so that every part that shows the session shows the new value. The run folder
         follows the student's name (a new name is a new folder beside the video and the folder of
-        the old name is left as it is; no name, no folder), and the session is saved 0.75 s after
-        the last call."""
+        the old name is left as it is; no name, no folder) until it holds results: from then on a
+        new name changes the session and the folder stays, so that the results are not left
+        behind. The session is saved 0.75 s after the last call."""
         if self.session.student != self.student:
             self.student = self.session.student
-            self.run_folder = self._default_folder()
-            self.save_problem = None  # it was about the folder that is left
+            if not self._holds_results():
+                self.run_folder = self._default_folder()
+                self.save_problem = None  # it was about the folder that is left
         self.session_changed.emit()
         if self.run_folder is None:
             self.save_timer.stop()
@@ -277,6 +289,54 @@ class SessionController(QObject):
             self.trouble.emit(problem)
         self._told = problem
         self.saved.emit()
+        return written
+
+    def _holds_results(self) -> bool:
+        """Whether the run folder holds the results of a run (`results.npz`)."""
+        return self.run_folder is not None and (self.run_folder / schema.RESULTS_NPZ).is_file()
+
+    def save_as(self, folder) -> Path | None:
+        """Go on in another run folder (Save session as): `folder` (a path; it is made if it is
+        not there) becomes the run folder, and the session is saved there now, in the calling
+        thread (the GUI thread), as `save_now` saves it. `results.npz` of the run folder that is
+        left is copied there first, so that the new folder is a complete run folder; the folder
+        that is left stays as it is. Returns the file written, as `save_now` does; the run folder
+        itself as `folder` is a plain save.
+
+        Nothing is written and None is returned without a video or while the student's name is
+        empty. A folder that holds a session or results already, or other .csv or .txt files (a
+        folder of Tracker files), is not written into, and when `results.npz` cannot be copied the
+        new folder is given up: in each of these cases nothing changes, `trouble(text)` says why,
+        and None is returned. Nothing is raised."""
+        self.about_to_save.emit()
+        if self.session is None or not self.student.strip():
+            return None
+        folder, kept = Path(os.path.abspath(folder)), self.run_folder
+        if kept is not None and (folder == kept or same_file(folder, kept)):
+            return self._save()
+        results = None if kept is None else kept / schema.RESULTS_NPZ
+        names = {"folder": folder.name, "name": schema.RESULTS_NPZ, "kept": "" if kept is None else kept.name}
+        problem, was_there = None, folder.exists()
+        if (folder / schema.SESSION_JSON).exists() or (folder / schema.RESULTS_NPZ).exists():
+            problem = HELD_AS.format(**names)
+        elif folder_has_foreign_tables(folder):
+            problem = TRACKER_FILES.format(**names)
+        elif results is not None and results.is_file():
+            try:
+                atomic_write(folder / schema.RESULTS_NPZ, lambda tmp: shutil.copyfile(results, tmp))
+            except OSError:
+                problem = NOT_COPIED.format(**names)
+                if not was_there:
+                    with contextlib.suppress(OSError):
+                        folder.rmdir()  # made for the copy, and empty
+        if problem is not None:
+            self.trouble.emit(problem)
+            return None
+        self.run_folder = folder
+        written = self._save()
+        if written is None:  # the new folder did not take the session (`trouble` said why): stay where it was
+            self.run_folder = kept
+            self._save()
         return written
 
     def _is_own(self, target: Path) -> bool:

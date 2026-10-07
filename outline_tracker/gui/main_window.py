@@ -14,16 +14,20 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QRect, Qt, Signal
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QScrollArea, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget)
 
 from outline_tracker.geometry import grid_frames
 from outline_tracker.gui import dialogs, panels
+from outline_tracker.gui.menus import Menus
 from outline_tracker.gui.navigation import NavigationBar
 from outline_tracker.gui.panel import Panel
+from outline_tracker.gui.prompts import Prompts
 from outline_tracker.gui.session_controller import SessionController
+from outline_tracker.gui.status_bar import Readouts
 from outline_tracker.gui.video_view import VideoView
+from outline_tracker.gui.worker import worker_of
 
 TITLE = "Outline Tracker"
 MINIMUM_SIZE = (960, 600)        # width, height of the window
@@ -83,7 +87,11 @@ class MainWindow(QMainWindow):
     parts: `video_area` (the start page, or the view under its bar), `bottom_bar` (the navigation),
     `dock`, `scroll` (the scroll area in the dock); on the start page `start_title`, `open_button`
     and `start_hint`; in the bar above the picture `tool_text`, `fit_button`, `one_to_one_button`
-    and `zoom_label`; in the File menu `open_action` and `quit_action`."""
+    and `zoom_label`; `menus` (the File and Help menus; `open_action` and `quit_action` are two of
+    its items) and `readouts` (the status bar's read-outs of the cursor and the device).
+
+    Keys of the whole window: those of the bottom bar, Esc (the view), and 1 to 9, which select the
+    first nine objects of panel 6. A field that is being typed in keeps them for its text."""
 
     closing = Signal()  # the window is about to close; the session and the video are still open
 
@@ -141,26 +149,22 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock)
         self.resizeDocks([self.dock], [at_start], Qt.Orientation.Horizontal)
 
-        self.statusBar()  # made here, so that it shows from the start; empty until there is a message
-
-        file_menu = self.menuBar().addMenu("File")
-        self.open_action = QAction("Open video", self)
-        self.open_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Open))
-        self.open_action.triggered.connect(self.choose_video)
-        self.quit_action = QAction("Quit", self)
-        self.quit_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Quit))
-        self.quit_action.setMenuRole(QAction.MenuRole.QuitRole)
-        self.quit_action.triggered.connect(self.close)
-        file_menu.addAction(self.open_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self.quit_action)
+        # the status bar is made here, so that it shows from the start; its message is empty until there is one
+        self.readouts = Readouts(self)
+        self.menus = Menus(self)
+        self.open_action, self.quit_action = self.menus.open_action, self.menus.quit_action
 
         self.controller.video_opened.connect(self._video_opened)
         self.controller.session_changed.connect(self._session_changed)
         self.navigation.frame_requested.connect(self.show_frame)
         self.view.zoom_changed.connect(lambda zoom: self.zoom_label.setText(f"{round(100 * zoom)}%"))
         self.view.tool_changed.connect(self._tool_changed)
-        panels.build_bodies(self)  # last: a panel's module finds every part above
+        for number in range(1, 10):
+            key = QShortcut(QKeySequence(str(number)), self)
+            key.setContext(Qt.ShortcutContext.WindowShortcut)
+            key.activated.connect(lambda number=number: self.select_object(number))
+        panels.build_bodies(self)  # after every part above: a panel's module finds them
+        self.readouts.follow(worker_of(self))  # the worker a panel made, after the panels' own connections
 
     def _start_page(self) -> QWidget:
         """What the video area shows until a video is open: how to start, around the button."""
@@ -257,6 +261,13 @@ class MainWindow(QMainWindow):
         if self.view.frame is not None:
             self.navigation.set_frame(self.view.frame)
 
+    def select_object(self, number: int) -> None:
+        """Select the object in row `number` of panel 6's table, counted from 1 (the keys 1 to 9):
+        it gets the next point. A number without an object changes nothing."""
+        session, prompts = self.controller.session, self.findChild(Prompts)
+        if session is not None and prompts is not None and 1 <= number <= len(session.tracks):
+            prompts.select(session.tracks[number - 1].id)
+
     def _video_opened(self) -> None:
         """Show the new video from its first frame, wherever the bar was in the video before it."""
         self.view.set_source(self.controller.source)
@@ -274,6 +285,7 @@ class MainWindow(QMainWindow):
             self.show_frame(self.navigation.frame)
 
     def _tool_changed(self) -> None:
+        self.navigation.pause()  # a tool is used: the picture stands still for the click
         tool = self.view.tool
         self.tool_text.setText(PAN_TEXT if tool is None else getattr(tool, "text", ""))
         self.tool_text.setToolTip(self.tool_text.text())  # the whole sentence, where the line is cut
@@ -285,6 +297,8 @@ class MainWindow(QMainWindow):
         if not self._closed:
             self._closed = True
             self.closing.emit()
+        # no frame is asked for from here on: a number left in the frame box is entered as the window goes
+        self.navigation.set_grid([])
         self.controller.close()
         super().closeEvent(event)
 

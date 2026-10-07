@@ -4,11 +4,11 @@ the clip (start, end, step), and where the session is saved.
 
 `build(window)` makes the panel's controls and connects them to the window's `SessionController`:
 a value typed here goes into the session (`controller.touch()` then tells everyone), and whatever
-changes the session is shown here. It also gives the window what belongs to saving: the File menu's
-Open session and Save session, the save when the window closes, and the one dialog that tells of a
-save that went wrong. Three small parts are shared with the other panels of this task: `Message`
-(a line of text in a tinted box), `ElidedLabel` (a file's name, cut in the middle when it is too
-long) and `guard_wheel` (a box that the mouse wheel changes only while it has the keyboard).
+changes the session is shown here. It also gives the window what belongs to saving: what the File
+menu's Open session and Save session do, the save when the window closes, and the one dialog that
+tells of a save that went wrong. Three small parts are shared with the other panels of this task:
+`Message` (a line of text in a tinted box), `ElidedLabel` (a file's name, cut in the middle when it
+is too long) and `guard_wheel` (a box that the mouse wheel changes only while it has the keyboard).
 
 `video.check_video` reads about 120 frames of a long video (measured: 0.6 s for 10 s of 1080p at
 240 frames per second), so it runs in a thread of its own; its result comes back as a signal. A
@@ -26,7 +26,6 @@ from pathlib import Path
 
 import cv2
 from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal
-from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QSpinBox,
                                QVBoxLayout, QWidget)
 
@@ -194,9 +193,10 @@ class VideoPanel(QWidget):
     """The controls of panel 1. Parts: `name_edit`, `name_message`, `open_video_button`,
     `open_session_button`, `file_label`, `size_label`, `frame_size_label`, `frames_label`,
     `file_fps_word` and `file_fps_label` (the frame rate the file states), `warnings_label`,
-    `start_box`, `end_box`, `step_box`, `clip_message`, `folder_label` (the run folder's name),
-    `save_message`; `video_part`, which holds everything from `file_label` on and is hidden until
-    a video is open; the File menu's `open_session_action` and `save_action`. `check` is the
+    `start_box`, `end_box`, `step_box`, `clip_message`, `folder_label` (the run folder's name:
+    where the files are; its tooltip is the whole path), `save_message`; `video_part`, which holds
+    everything from `file_label` on and is hidden until a video is open; the File menu's
+    `open_session_action` and `save_action` (made by gui/menus.py, connected here). `check` is the
     `VideoCheck` of the open video, None until its check is over and when it could not be made;
     `check_failed` says that it could not be made (`warnings_label` then says so, and the panel
     needs attention); `check_threads` are the checks that were started and may still run."""
@@ -251,13 +251,8 @@ class VideoPanel(QWidget):
             ("Start frame", self.start_box), ("End frame", self.end_box), ("Step", self.step_box),
             (None, self.clip_message), ("Run folder", self.folder_label), (None, self.save_message))))
 
-        self.open_session_action, self.save_action = QAction("Open session", window), QAction("Save session", window)
-        self.save_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Save))
-        (menu,) = [menu for menu in (entry.menu() for entry in window.menuBar().actions())
-                   if menu is not None and window.open_action in menu.actions()]
-        entries = menu.actions()
-        after_open_video = entries[entries.index(window.open_action) + 1]
-        menu.insertActions(after_open_video, [self.open_session_action, self.save_action])
+        # the File menu's two items that this panel has the functions for (gui/menus.py made them)
+        self.open_session_action, self.save_action = window.menus.open_session_action, window.menus.save_action
 
         controller = self._controller
         self.name_edit.editingFinished.connect(self._name_typed)
