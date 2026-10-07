@@ -31,3 +31,8 @@ repository (`vX.Y.Z`).
   saved session and results, for example after a corrected scale or frame rate. No tracking,
   no model.
 - `outline-tracker --version` and every `run.log` entry name the commit the tool was built from.
+- `outline-tracker selftest`: last week's check of the installation, through this week's
+  pipeline: it tracks a made-up shrimp, says OK or PROBLEM, and estimates the time a run takes
+  on this computer.
+- README: how to install, how to check the installation, and what to do if the app does not
+  open (last week's workflow with this week's files).

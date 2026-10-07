@@ -1069,7 +1069,8 @@ because derive and flags read the arrays the results store defines).
   - Check: `uv run pytest tests/test_from_tracker.py -q`, and
     `uv run outline-tracker from-tracker --help` lists the options above.
 
-- [ ] **B2 · `selftest`** (§11, §13.4)
+- [x] **B2 · `selftest`** (§11, §13.4)
+  - Done Wed 06:35 (commit f62f41a). Verified: 19 fast tests with the stand-in (last week's test with its assertions unchanged; the OK and PROBLEM lines in last week's wording; exit codes) and two runs with the real EdgeTAM through the whole pipeline: max error 0.461 px on the processor and on the Apple GPU (limit 3 px), 0.38 and 0.14 s per frame (docs/VALIDATION.md, section 5). The code is in `selftest.py` and `cli_selftest.py`. Decisions made here: the test's run folder is `<temporary folder>/selftest_tracker_outline_selftest/`; a run that is stopped before its last frame gives one ERROR line and no verdict. Uncertain: not run on Windows yet (go/no-go 2, item 1), not with `--model sam2`, and not with a first-time download.
   - Files: `cli.py` (or `selftest.py`), `tests/test_selftest.py`.
   - The template's selftest, ported: the same made-up 1080p clip, the same OK / PROBLEM line and
     time estimate, run through `from_tracker`. `selftest [--model M] [--device D]`.
@@ -1140,7 +1141,8 @@ because derive and flags read the arrays the results store defines).
     failing test is reported there with numbers and images and listed under "Questions for J".
   - Check: `uv run pytest -m slow -q` (tens of minutes), or read docs/VALIDATION.md.
 
-- [ ] **B6 · Fallback instructions** (§14.1, §16)
+- [x] **B6 · Fallback instructions** (§14.1, §16)
+  - Done Wed 06:35 (B6b, commits 40b5d7e, a7d15b4, 6c68836): README.md has the install, the selftest, "If the app does not open" (`from-tracker` next to last week's command, the run folder, `load_tracks` on `<run folder>/edgetam`, `export` after a corrected scale or frame rate), check and convert, "Troubleshooting" and "Getting the original video off your phone". 38 tests keep it honest: every `outline-tracker` line in a code block is parsed by the real command line, every link resolves, the file names are the schema's. Uncertain: the install line has no tag and no `--python 3.12` yet (Phase E, when J tags); no student has read it yet.
   - Part done Wed 03:20 (B6a, commits 032448c, f027d6a, 5345bb3, 3e06ad7): `docs/OUTPUTS.md` is generated from the schema (`uv run python -m outline_tracker.schema_docs docs/OUTPUTS.md`) and a test keeps it current; the README.txt and OUTPUTS.md text builders moved to `outline_tracker/schema_docs.py`, which also closes the size finding on `schema.py`. Still to do: the README fallback instructions, after B1.
   - Files: `README.md` (install from the repo, `selftest`, `from-tracker` next to last week's
     command, where the files land, how to load `<run>/edgetam` with last week's `load_tracks`),

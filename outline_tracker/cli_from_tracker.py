@@ -14,7 +14,7 @@ import argparse
 import sys
 
 EXAMPLE = """\
-Usage (the first run downloads the model, a few hundred MB):
+Usage (the first run downloads the model, about 56 MB for edgetam):
     outline-tracker from-tracker "path/to/your video_tracker.mp4" "data/tracks/your video/ana/extra/start.csv"
     outline-tracker from-tracker VIDEO EXPORT --seconds 2 --fps 239.6 --fine A,C
 
