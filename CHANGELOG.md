@@ -50,3 +50,9 @@ repository (`vX.Y.Z`).
 - Panels 1 and 2 of the window: your name, the video's facts and warnings, the clip's start,
   end and step, and fps_true from the manifest or typed. Everything you set is saved in the
   run folder and is back after a restart (Open session, or `outline-tracker gui SESSION.json`).
+- Track in the window (panel 7): an estimate of the time, then progress, seconds per frame and
+  the time left; Cancel keeps what was tracked. The tracked outlines are drawn on the video as
+  you step through it.
+- Around the panels: the cursor's position in px and mm and the gray value in the status bar,
+  File and Help menus, About, play and pause with Space, a Stopwatch dialog for fps_true, and
+  the keys 1 to 9 to select an object.

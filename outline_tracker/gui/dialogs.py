@@ -1,8 +1,8 @@
-"""The three dialogs of the window (SPEC 10.2): a message, the choice of a file to open, and the
-choice of a folder.
+"""The dialogs of the window (SPEC 10.2): a message, a question before something that cannot be
+undone, the choice of a file to open, and the choice of a folder.
 
-Every module of the window asks through `message`, `open_file` and `choose_folder`, so that there is
-one place for how a dialog looks and behaves, and one set of functions for a test to replace. Each
+Every module of the window asks through `message`, `confirm`, `open_file` and `choose_folder`, so that
+there is one place for how a dialog looks and behaves, and one set of functions for a test to replace. Each
 shows its dialog with `open()`: the call returns at once and the window's event loop goes on. None
 uses `exec()`, which would start a second event loop inside the call.
 
@@ -43,6 +43,29 @@ def message(parent: QWidget, kind: str, text: str) -> None:
     close = box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
     box.setDefaultButton(close)
     box.setEscapeButton(close)
+    box.open()
+
+
+def confirm(parent: QWidget, text: str, action: str, on_confirmed) -> None:
+    """Ask, in a dialog over `parent`, before something that cannot be undone, and return at once.
+
+    The first line of `text` is the question and is shown as the heading; the lines after it say
+    what will be lost. Two buttons: `action`, named after what it does (for example "Remove"),
+    and "Cancel", which is the default button and the one Esc presses. `on_confirmed()` is called
+    only when the user chooses `action`; Cancel, Esc and closing the dialog call nothing.
+    """
+    heading, _, rest = text.partition("\n")
+    box = QMessageBox(parent)
+    box.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+    box.setWindowTitle(WINDOW_TITLE)
+    box.setIcon(QMessageBox.Icon.Warning)
+    box.setText(heading)
+    box.setInformativeText(rest.strip())
+    do_it = box.addButton(action, QMessageBox.ButtonRole.AcceptRole)
+    cancel = box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+    box.setDefaultButton(cancel)
+    box.setEscapeButton(cancel)
+    do_it.clicked.connect(lambda: on_confirmed())
     box.open()
 
 

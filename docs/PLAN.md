@@ -204,6 +204,15 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 13:25, C8a: two superseded tests marked `xfail(strict=True)`, for J to confirm their
+  removal.** (1) `tests/gui/test_navigation.py::test_the_bar_is_laid_out_as_the_design_note_says`
+  listed the six step buttons in a row; the Play button now sits between −1 and +1 (SPEC 10.1).
+  Successor: `tests/gui/test_play.py::test_the_row_has_play_between_the_steps_back_and_the_steps_forward`.
+  (2) `tests/gui/test_session_panels.py::test_open_video_and_open_session_are_the_file_menus_actions`
+  listed four File items; Save session as is now the fifth. Successors:
+  `tests/gui/test_menus.py::test_the_menu_bar_has_file_and_help_with_the_specs_items` and
+  `::test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons`.
+  Default: J says "delete them" and they go.
 - **Wed 12:00, C2: two superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal, and one choice to confirm.** (1) `tests/gui/test_controller.py::test_a_session_file_is_only_named_until_sessions_can_be_opened`
   pinned C1's stand-in behavior for a `.json` (only its name in the status bar); sessions open
@@ -1430,7 +1439,8 @@ Conventions for every GUI task:
   - Check: `uv run outline-tracker gui ~/closeup_tracker.mp4`, then: click the shrimp: an outline
     appears within a second or two; right-click beside it: the outline changes; Cmd+Z undoes it.
 
-- [ ] **C5 · Track in the background** (§6.3, §6.4, panel 7)
+- [x] **C5 · Track in the background** (§6.3, §6.4, panel 7)
+  - Done Wed 13:20 (commits 998581d, 18b0440). Verified offscreen on macOS with the stand-in models, 70 tests: a run completes and reports progress while the window stays responsive; Cancel keeps exactly the frames tracked so far and leaves `"complete": false`; closing the window during a run ends the thread cleanly; the estimate shows before the run; the outline drawn on frame k is the stored outline of frame k; a fine object runs through the fine runner and its window square is drawn; a failure shows a plain sentence and its trace goes to run.log. With the real EdgeTAM through the window's worker on the 20-frame selftest clip: max error 0.460 px on the processor (0.42 s per frame) and on the Apple GPU (0.12 s per frame). Controller's own run through the window on the synthetic close-up clip: one click, Track, 60 frames in about 9 s, the stored outline follows the animal with both antennae (screenshot looked at). The code is in `gui/worker_jobs.py`, `gui/panels/track_panel.py`, `gui/overlays.py` and `gui/worker.py`. Decisions made here: Track is off, with the reason as its hint, without a name, without fps_true, while the model loads, during a run and when nothing is left to track; after a cancelled or failed run the tracks continue with Re-track from here (panel 8); a lost frame draws nothing. Uncertain: during a run the other panels are not yet locked (in work now); the model and device boxes of panel 7 are not built yet; not tried by hand on a real video.
   - Files: `gui/worker.py`, `gui/panels/track_panel.py`, `gui/overlays.py`,
     `tests/gui/test_tracking_panel.py`, `tests/slow/test_gui_worker_real_model.py`.
   - Content: the worker runs previews and jobs one at a time; the estimated time before the run
@@ -1477,6 +1487,7 @@ Conventions for every GUI task:
     and continue it as A2.
 
 - [ ] **C8 · Finish the window; quickstart** (§10.1, §10.2, §13.7, §16)
+  - Part done Wed 13:25 (C8a, commits cd55802, 0b4b0af): the status bar (cursor in px and mm, gray value, device, model state), the File and Help menus, About with every version, play/pause on Space, the Stopwatch dialog, keys 1 to 9, Save session as, and the rule that a run folder with results keeps its place when the name changes; 94 tests. Also at the merge: `dialogs.confirm` (the question before something that cannot be undone) and the click points now follow the frame on the screen whoever changed it. Still to do (C8b): locking the panels during a run, the question before Remove, the model and device boxes, the mask-fill switch, File > Export, the README quickstart and docs/DEVELOPER.md.
   - Files: `gui/dialogs.py`, `gui/panels/*.py`, `tests/gui/test_finish.py`, `README.md`
     (10-step quickstart matching the panels), `docs/DEVELOPER.md`.
   - Content, most important first: error dialogs that say what to do next in plain words, with

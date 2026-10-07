@@ -126,7 +126,7 @@ class Prompts(QObject):
         undo.activated.connect(self.undo)
         self._controller.video_opened.connect(self._video_opened)
         self._controller.session_changed.connect(self.refresh)
-        window.navigation.frame_requested.connect(self._frame_requested)
+        self._view.frame_changed.connect(self._frame_requested)  # whoever put the frame on the screen
         self._view.tool_changed.connect(self._tool_changed)
         worker.preview_done.connect(self.show_preview)
         worker.preview_failed.connect(self._preview_failed)
