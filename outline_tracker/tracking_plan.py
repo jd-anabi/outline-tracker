@@ -1,6 +1,7 @@
 """Planning the runs of a tracking job (SPEC 6.1, 6.2): which objects are tracked together, on which
 frames, what part of the frame the model is shown, and the clicks as the model gets them. Also
-what is left when jobs have run: the tracks whose results are partial (`partial_tracks`, SPEC 6.4).
+what is left when jobs have run: the tracks whose results are partial (`partial_tracks`, SPEC 6.4),
+and the frame up to which a track's next run may start (`check_no_gap`, SPEC 8.2).
 
 A run is a set of tracks plus a start frame: coarse objects with the same start frame share one
 streaming session of the model, a fine object has a session of its own. A run covers the frames of
@@ -109,6 +110,26 @@ def _last_grid_frame(grid: range, limit: int) -> int:
     """The last frame of the clip's grid at or before video frame `limit`; a frame before the grid's
     first one when `limit` is."""
     return grid.start + (min(limit, grid[-1]) - grid.start) // grid.step * grid.step
+
+
+def check_no_gap(session: Session, track: Track, store: ResultsStore, frame: int) -> None:
+    """Refuse a run of `track` from video frame `frame` that would leave a gap inside the track.
+
+    A track has every frame of the clip's grid from its first to its last (SPEC 8.2), so its next
+    run starts no later than the first grid frame after its last record in `store`, the results so
+    far. `frame` is a frame of the clip's grid. A track without records is not checked: its first
+    clicks set its start. Raises ValueError, which names the track, its last frame with results
+    and the latest frame that is allowed, and as `geometry.grid_frames` does.
+    """
+    if track.id not in store.track_ids:
+        return
+    clip = session.clip
+    grid = grid_frames(clip.start, clip.end, clip.step)
+    last = int(store.arrays(track.id).frames[-1])
+    latest = max(grid[0], _last_grid_frame(grid, last) + grid.step)
+    if frame > latest:
+        raise ValueError(f"Track {track.id} has results up to frame {last} only: tracking it from frame {frame} on "
+                         f"would leave the frames between without results. Go to frame {latest} or an earlier one.")
 
 
 def plan_runs(session: Session, store: ResultsStore) -> list[RunPlan]:

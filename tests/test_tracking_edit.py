@@ -187,6 +187,27 @@ def test_add_prompt_refuses_what_it_cannot_use_and_changes_nothing(tracked, trac
     assert session.to_json() == before
 
 
+@pytest.mark.parametrize("point, label, message", [
+    ((30.5,), 1, "two numbers"),
+    ("ab", 1, "two numbers"),
+    (("30.5", "40.5"), 1, "two numbers"),
+    ((float("nan"), 40.5), 1, "two numbers"),
+    ((30.5, float("inf")), 1, "two numbers"),
+    (None, 1, "two numbers"),
+    ((30.5, 40.5), 2, "1 .positive. or 0 .negative."),
+], ids=["one number", "text", "numbers as text", "NaN", "infinite", "no point", "label 2"])
+def test_add_prompt_checks_the_click_before_it_changes_the_session(dish_clip, tmp_path, point, label, message):
+    # the first click of an object sets its start frame and opens the clicks of that frame: a click
+    # that is refused must do neither
+    session, store, name = one_object(dish_clip, tmp_path)
+    before = session.to_json()
+    with pytest.raises(ValueError, match=message):
+        add_prompt(session, store, name, 6, point, label, "sha256:six", "here")
+    assert session.to_json() == before
+    assert (session.tracks[0].start_frame, session.tracks[0].prompts) == (0, [])
+    assert session.complete is True and pending_runs(session, store) == []
+
+
 def test_undo_prompt_removes_the_newest_click_and_keeps_the_earlier_frames(tracked, dish_clip):
     folder, session, store = tracked
     start = session.tracks[0].prompts[0]
