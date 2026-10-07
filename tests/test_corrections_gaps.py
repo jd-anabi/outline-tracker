@@ -8,6 +8,8 @@ are in tests/test_corrections.py):
   it is now, and the `Edit` carries the store that was saved;
 - a correction in the session whose results are not in results.npz. When that file stays locked,
   `retrack_from`, `end_track` and `remove_object` raise RuntimeError and change nothing;
+- results that a job had to put in results.new.npz, replaced or removed. While that file is in the
+  run folder, the three raise RuntimeError and change nothing, that file least of all;
 - clicks nobody knows of: the clicks of two re-tracks from the same frame add up.
 
 Expected values: the ground truth of `dish_clip` (120 frames; the sessions take every 2nd, so the
@@ -45,6 +47,7 @@ from outline_tracker.tracking_edit import (
 
 GRID = list(range(0, 120, 2))  # `dish_clip` has 120 frames; the sessions here take every 2nd
 K = 40                         # the frame of a re-track: row 20 of every track
+NEW_NPZ = "results.new.npz"    # where a save goes while results.npz stays locked (`fileio.new_name`)
 
 
 @pytest.fixture(scope="module")
@@ -64,9 +67,9 @@ def tracked(tracked_folder, tmp_path):
     return folder, Session.load(folder / SESSION_JSON), ResultsStore.load(folder / RESULTS_NPZ)
 
 
-def frames_on_disk(folder):
-    """The frames of every track of results.npz, by track id."""
-    store = ResultsStore.load(folder / RESULTS_NPZ)
+def frames_on_disk(folder, name=RESULTS_NPZ):
+    """The frames of every track of results.npz (or of the file `name`) of a run folder, by track id."""
+    store = ResultsStore.load(folder / name)
     return {track_id: store.arrays(track_id).frames.tolist() for track_id in store.track_ids}
 
 
@@ -74,10 +77,10 @@ def files_of(folder):
     return sorted(path.name for path in folder.iterdir())
 
 
-def assert_follows_the_animal(clip, folder, track_id, frames):
-    """results.npz has the track on exactly these frames, at the centroids of the clip's ground
-    truth (within 0.01 px) and with its areas."""
-    arrays = ResultsStore.load(folder / RESULTS_NPZ).arrays(track_id)
+def assert_follows_the_animal(clip, folder, track_id, frames, name=RESULTS_NPZ):
+    """results.npz (or the file `name`) has the track on exactly these frames, at the centroids of
+    the clip's ground truth (within 0.01 px) and with its areas."""
+    arrays = ResultsStore.load(folder / name).arrays(track_id)
     assert arrays.frames.tolist() == list(frames)
     u, v, area = table_truth(clip, track_id, frames)
     assert np.abs(arrays.u - u).max() <= 0.01 and np.abs(arrays.v - v).max() <= 0.01
@@ -290,6 +293,80 @@ def test_an_edit_whose_save_does_not_land_raises_and_changes_nothing(tracked, di
     edit(session, store if given else None, dish_clip, folder)
     assert frames_on_disk(folder) == left and files_of(folder) == files
     assert session.to_json() != before
+
+
+@pytest.fixture
+def left_aside(tracked, dish_clip, monkeypatch):
+    """A run folder in which a job could not write results.npz: (run folder, session, store).
+    Track A was re-tracked from frame 40 while another program held results.npz open, so the job
+    left its results in results.new.npz (A, B and C on every grid frame), and results.npz still
+    has A on frames 0 to 38 only, as `store` does. That program still holds results.npz."""
+    folder, session, store = tracked
+    retrack_a(session, store, dish_clip, folder, K)
+    lock(monkeypatch, folder / RESULTS_NPZ)
+    status, seen = run(dish_clip, session, folder, ExactFake(dish_clip))
+    assert status == "complete" and any(NEW_NPZ in line for line in seen.log)
+    assert frames_on_disk(folder) == {"A": GRID[:20], "B": GRID, "C": GRID}
+    assert frames_on_disk(folder, NEW_NPZ) == dict.fromkeys("ABC", GRID)
+    return folder, session, store
+
+
+def assert_says_how_to_go_on(message):
+    """The refusal names both files and what the user does: close the program that holds
+    results.npz, rename results.new.npz, try again."""
+    assert re.search(rf"\b{re.escape(NEW_NPZ)}\b", message) and re.search(rf"\b{re.escape(RESULTS_NPZ)}\b", message)
+    assert re.search(r"\b[Cc]lose\b", message) and re.search(r"\brename\b", message) and "try again" in message
+
+
+@pytest.mark.parametrize("held", [True, False], ids=["results.npz still locked", "results.npz free again"])
+@pytest.mark.parametrize("given", [True, False], ids=["a store given", "store=None"])
+@pytest.mark.parametrize("name", EDITS)
+def test_an_edit_keeps_the_results_a_job_left_in_results_new_npz(left_aside, dish_clip, monkeypatch, name, given, held):
+    # Each of these edits has records to remove. Its own save would go to results.new.npz while results.npz is
+    # locked, and to results.npz, which lacks what the job tracked, when it is free: neither may happen.
+    folder, session, store = left_aside
+    if not held:
+        monkeypatch.undo()
+    edit, left = EDITS[name]
+    before, files = session.to_json(), files_of(folder)
+    results, aside = (folder / RESULTS_NPZ).read_bytes(), (folder / NEW_NPZ).read_bytes()
+
+    with pytest.raises(RuntimeError) as refused:
+        edit(session, store if given else None, dish_clip, folder)
+    assert files_of(folder) == files and (folder / NEW_NPZ).read_bytes() == aside  # the job's only copy
+    assert_follows_the_animal(dish_clip, folder, "A", GRID, NEW_NPZ)
+    assert session.to_json() == before and (folder / RESULTS_NPZ).read_bytes() == results
+    assert [store.arrays(a_track).frames.tolist() for a_track in "ABC"] == [GRID[:20], GRID, GRID]
+    assert_says_how_to_go_on(str(refused.value))
+
+    monkeypatch.undo()  # the user does what the message says: closes that program, renames the file
+    os.replace(folder / NEW_NPZ, folder / RESULTS_NPZ)
+    edit(session, ResultsStore.load(folder / RESULTS_NPZ) if given else None, dish_clip, folder)
+    assert frames_on_disk(folder) == left and NEW_NPZ not in files_of(folder)
+    assert_follows_the_animal(dish_clip, folder, "A", GRID)  # frames 40 to 118 of A are the job's records
+    assert session.to_json() != before
+
+
+@pytest.mark.parametrize("given", [True, False], ids=["a store given", "store=None"])
+def test_an_edit_with_nothing_to_remove_is_refused_too_while_results_new_npz_is_there(left_aside, dish_clip,
+                                                                                      monkeypatch, given):
+    # results.npz has A up to frame 38, so "End track here" on frame 50 finds nothing to remove in it. The job's
+    # records of A up to frame 118 are in results.new.npz: they would outlast the end that the session records.
+    folder, session, store = left_aside
+    before, files = session.to_json(), files_of(folder)
+    results, aside = (folder / RESULTS_NPZ).read_bytes(), (folder / NEW_NPZ).read_bytes()
+
+    with pytest.raises(RuntimeError) as refused:
+        end_track(session, store if given else None, "A", 50, folder)
+    assert files_of(folder) == files and (folder / NEW_NPZ).read_bytes() == aside
+    assert session.to_json() == before and (folder / RESULTS_NPZ).read_bytes() == results
+    assert_says_how_to_go_on(str(refused.value))
+
+    monkeypatch.undo()  # the file is renamed: the same call ends the track in the job's results
+    os.replace(folder / NEW_NPZ, folder / RESULTS_NPZ)
+    done = end_track(session, None, "A", 50, folder)
+    assert done.results_file == folder / RESULTS_NPZ
+    assert frames_on_disk(folder) == {"A": GRID[:26], "B": GRID, "C": GRID} and session.tracks[0].ended_at == 50
 
 
 # ---------------------------------------------------------------------------------------------

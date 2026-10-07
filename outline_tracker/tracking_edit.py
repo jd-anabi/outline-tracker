@@ -19,7 +19,10 @@ they then read results.npz as it is now, so that nothing a job tracked since is 
 loaded before that job would replace it), and `retrack_from` and `end_track` hand back the store
 that was saved (`Edit.store`), the one to go on with. When results.npz stays locked by another
 program, they raise RuntimeError and change nothing: no correction is recorded without its
-results. `session.complete` follows the results (`tracking_plan.partial_tracks`).
+results. They do the same while the run folder holds a results.new.npz, where a job leaves its
+results when it cannot write results.npz: that file is never replaced or removed here, the user
+renames or removes it first. `session.complete` follows the results
+(`tracking_plan.partial_tracks`).
 
 "Re-track from here", the whole sequence:
 
@@ -51,6 +54,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from outline_tracker.fileio import new_name
 from outline_tracker.geometry import grid_frames, snap_to_grid
 from outline_tracker.measure import MODES
 from outline_tracker.results import ResultsStore
@@ -88,9 +92,27 @@ class Edit:
 
 # --------------------------------------------------------------------------- the results of the run folder
 
+def _refuse_results_left_aside(run_folder) -> None:
+    """Raise RuntimeError when the run folder holds a results.new.npz: results that were saved
+    there because results.npz was locked (`fileio.atomic_write`), by a job as a rule. Then
+    results.npz may lack what that job tracked, and a save of an edit could replace that file,
+    so the user settles it first. Nothing is read or written here."""
+    target = Path(run_folder) / RESULTS_NPZ
+    aside = new_name(target)
+    if aside.exists():
+        raise RuntimeError(
+            f"{aside.name} in {target.parent} holds results that were saved while {target.name} was open in another "
+            f"program, so the change was not made, and nothing was changed. Close that program. If {aside.name} is "
+            f"the newer of the two files, it holds results that are not in {target.name}: rename it to {target.name}, "
+            "replacing that file. If it is the older one, remove it. Then try again.")
+
+
 def _results(store: ResultsStore | None, run_folder) -> ResultsStore:
     """The results an edit starts from: `store`, or for None what results.npz of the run folder
-    holds now (no records when there is no such file yet)."""
+    holds now (no records when there is no such file yet). Raises RuntimeError while the folder
+    holds a results.new.npz (`_refuse_results_left_aside`), also for an edit that saves nothing:
+    the records it is about may be in that file."""
+    _refuse_results_left_aside(run_folder)
     if store is not None:
         return store
     path = Path(run_folder) / RESULTS_NPZ
@@ -101,9 +123,12 @@ def _save(results: ResultsStore, given: bool, run_folder, remove: Callable[[Resu
     """Take records out of the results and save them to results.npz of the run folder, which is
     returned. `remove` takes them out of the store it is called with. The file itself must take
     them, since a job reads it: when it stays locked by another program, the results.new.npz
-    written instead is removed and RuntimeError is raised. `given`: `results` is the caller's
-    store; it is changed only when the save has landed (a copy is saved first)."""
+    written instead is removed and RuntimeError is raised. A results.new.npz that is there already
+    is not this save's to replace or remove: RuntimeError before anything is written. `given`:
+    `results` is the caller's store; it is changed only when the save has landed (a copy is saved
+    first)."""
     target = Path(run_folder) / RESULTS_NPZ
+    _refuse_results_left_aside(run_folder)
     work = copy.deepcopy(results) if given else results
     remove(work)
     try:
@@ -149,7 +174,8 @@ def remove_object(session: Session, store: ResultsStore | None, track_id: str, r
     results.npz of `run_folder` as it is now (the module's text); load that file afterwards for
     the store to go on with. Returns the file the results were saved to (results.npz), None when
     the object had no records. `session.complete` follows what is left. Raises ValueError for an
-    unknown track, and RuntimeError, changing nothing, when results.npz stays locked. No units."""
+    unknown track, and RuntimeError, changing nothing, when results.npz stays locked or the run
+    folder holds a results.new.npz (the module's text). No units."""
     track = _track(session, track_id)
     results = _results(store, run_folder)
     reach = _reach(session, results)
@@ -354,7 +380,8 @@ def retrack_from(session: Session, store: ResultsStore | None, track_ids: Sequen
     on k, a k after the end of a track that was ended, a k after the frame of clicks that still
     wait to be tracked, and a k later than the first grid frame after a track's last record: the
     frames between would have no results (`tracking_plan.check_no_gap`). Raises RuntimeError,
-    changing nothing, when results.npz stays locked by another program.
+    changing nothing, when results.npz stays locked by another program, or the run folder holds a
+    results.new.npz (the module's text).
     """
     names = list(dict.fromkeys(track_ids))
     if not names:
@@ -410,7 +437,8 @@ def end_track(session: Session, store: ResultsStore | None, track_id: str, frame
     `run_folder` (`Edit.results_file`). The correction is recorded and `session.complete` follows
     the results: a track that stops at its end is whole. Raises ValueError, changing nothing, for
     an unknown track and a frame before the track's start frame, and RuntimeError, changing
-    nothing, when results.npz stays locked by another program.
+    nothing, when results.npz stays locked by another program, or the run folder holds a
+    results.new.npz (the module's text).
     """
     track = _track(session, track_id)
     frame = operator.index(frame_k)
