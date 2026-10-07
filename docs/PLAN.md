@@ -1014,7 +1014,8 @@ because derive and flags read the arrays the results store defines).
 
 ### Phase B: commands (Tue night → Wed morning)
 
-- [ ] **B1 · `from-tracker`: the fallback** [CP] (§11, §14.1; X3, X9)
+- [x] **B1 · `from-tracker`: the fallback** [CP] (§11, §14.1; X3, X9)
+  - Done Wed 05:25 (commit 286500a, merged in 4794700). Verified: 46 tests with the stand-in (last week's two end-to-end tests with their position assertions unchanged; Tracker-format files identical in text to last week's script given the same stand-in; `--fine`; the fps sources in their order; the full file set; Ctrl+C exports what was tracked; the refusal for a folder of Tracker files; odd folder names). The code is in `from_tracker.py`, `from_tracker_session.py` and `cli_from_tracker.py`. Full check: `uv run pytest tests/test_from_tracker*.py -q`. Decisions made here: a second run into the same folder replaces the first, as last week (a folder whose session was made in the app or has corrections is refused); a manifest row for the video with no usable `fps_true` is passed over with a NOTE and the fps then comes from the export; a run that fails on a frame exports the frames before it and exits with 1; after Ctrl+C the exit code is 0, as last week; `--model` offers `edgetam` and `sam2`. Uncertain: the real model has not yet run through this command (B5 does that); nothing ran on Windows yet except in CI.
   - Files: `from_tracker.py`, `cli.py`, `tests/test_from_tracker.py`.
   - Command: `outline-tracker from-tracker VIDEO EXPORT [--fine IDS] [--step K] [--seconds S]
     [--fps F] [--out DIR] [--student NAME] [--model edgetam|sam2] [--device D] [--no-overlay]`
@@ -1066,7 +1067,8 @@ because derive and flags read the arrays the results store defines).
   - Check: `uv run outline-tracker selftest` ends with `OK: edgetam followed the test shrimp
     within … pixels (should be under 3).` (about a minute; the first run downloads the model).
 
-- [ ] **B3 · `export` and `compare-tracks`** [CP: `compare-tracks`] (§11; X10)
+- [x] **B3 · `export` and `compare-tracks`** [CP: `compare-tracks`] (§11; X10)
+  - Done Wed 05:22 (B3b, commits f1515ea, 6c72485): `outline-tracker export SESSION.json [--overlay]`, 65 tests (rescaling after an edited stick length in a subprocess that loads neither torch nor Qt; no video: every CSV is written and the overlay is reported as skipped; a partial session; another schema version; a hand-edited session with a value of the wrong kind gives one ERROR line). The code is in `cli_export.py`. Decisions made here: the argument must be the `session.json` of a run folder; warnings (a locked file, an overlay that was skipped) leave the exit code at 0. Uncertain: `Session.load` accepts some wrong kinds of value and the message for them is not always plain (hardening noted for Phase E).
   - Part done Wed 03:25 (B3a, commit 931b56a): `compare-tracks` with `--limit` and `--by-position`, 34 tests. Still to do: the `export` command, after A18.
   - Files: `cli.py`, `tracker_io.py` (`compare_tracks(new_dir, old_dir, by_position=False) ->
     DataFrame`), `tests/test_cli_export.py`.

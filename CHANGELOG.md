@@ -22,3 +22,12 @@ repository (`vX.Y.Z`).
   program writes its files from. It is the contract for analysis code.
 - `outline-tracker probe VIDEO --rect NAME:u0,v0,u1,v1` (or `probe SESSION.json`): the mean red,
   green, blue and gray inside named boxes for every frame, written to `probes.csv`. No model.
+- `outline-tracker from-tracker VIDEO EXPORT`: last week's way to start (calibration and one
+  click per animal from a Tracker export), this week's files: `positions.csv`, `shapes.csv`,
+  the Tracker-format folder that last week's loaders read, `overlay.mp4`, `run.log` and the
+  rest, in one run folder next to the video. `--fine A,B` tracks the named animals in a
+  close-up crop for their shapes.
+- `outline-tracker export SESSION.json [--overlay]`: writes every output file again from the
+  saved session and results, for example after a corrected scale or frame rate. No tracking,
+  no model.
+- `outline-tracker --version` and every `run.log` entry name the commit the tool was built from.
