@@ -236,6 +236,17 @@ as section 1; `cpu` with 8 torch threads unless a row says `mps`. Only short syn
 used. Another job may have been running the model on the same laptop at the same time, so every
 time given in this section is an upper bound.
 
+| what | device | s per frame |
+|---|---|---|
+| coarse, 1 object, whole 1080p frame (4.1) | cpu | 0.38 |
+| coarse, 3 objects, whole 1080p frame (4.1) | cpu | 0.76 |
+| coarse, 3 objects, dish square (4.3) | cpu | 0.76 to 0.81 |
+| coarse, 10 objects, whole 1080p frame (4.4) | cpu | 2.2 to 2.3 |
+| fine, 1 object, 189 px window (4.2) | cpu | 0.38 to 0.40 |
+| fine, 1 object, 189 px window (4.2) | mps | 0.11 to 0.12 |
+
+Each value includes decoding, measuring the masks and saving.
+
 ### 4.1 Regression through the pipeline (SPEC 13.3): the files of `from-tracker` against last week's
 
 **What was compared.** `from_tracker.from_tracker` (coarse, the whole frame, no overlay) and last
@@ -279,3 +290,149 @@ at the level of the segmenter.
 the fast tests with a stand-in model (`tests/test_from_tracker_port.py`). A real video was not run:
 that is the owner's go/no-go check.
 
+### 4.2 Fine mode on the close-up shrimp (SPEC 13.4): two of three criteria FAIL
+
+**What was run.** `synthetic.closeup_scene()` as it stands: 1080p, 480 frames at 240 fps (2 s),
+0.010 mm per px; object A is a 47 × 20 px body with two antennae 30 px long and 3 px wide that beat
+at 9 Hz. A was tracked in fine mode on every frame (step 1) from **one positive click on the
+center of its body**, through `tracking.run_job` (which chose the window from the preview mask) and
+`export.export_all`. The true solidity is the ground-truth table's: area of the analytic outline
+over the area of its convex hull (the definition of SPEC 7.7), per frame.
+
+**Command.** One run per device, three tests on each (`-k cpu` or `-k mps` runs one device):
+
+```
+uv run pytest -m slow tests/slow/test_fine_mode.py -q -rP
+```
+
+**Result.** On each device 1 passed and 2 failed; the two are marked `xfail(strict=True)` with these
+numbers. cpu: 200 s; mps: 73 s. Nothing was tuned.
+
+| | cpu | mps | SPEC 13.4 |
+|---|---|---|---|
+| `shape_ok` = 1 | 480 of 480 frames | 480 of 480 frames | **passes** |
+| peak of the solidity spectrum (mean removed) | 0.56 Hz | 0.56 Hz | **fails** (9 ± 0.5 Hz) |
+| RMS difference from the true solidity | 0.4293 | 0.4293 | **fails** (< 0.02) |
+| measured solidity | 0.990 to 0.999, mean 0.996 | the same | true: 0.507 to 0.711, mean 0.572, peak at 9.00 Hz |
+| mask area | 740 to 926 px, median 814 | 743 to 922 px | body alone 738 px; true mask 863 to 888 px |
+| window chosen | 189 px | 189 px | |
+| `px_along_major` / `cells_along_major` | 46.2 to 49.8 / 62.6 to 67.4 | 46.2 to 49.8 / 62.6 to 67.5 | both ≥ 20 |
+| lost frames; flags | 0; `HEADGUESS` on all (no head click) | the same | |
+| s per frame | 0.38 to 0.40 | 0.11 to 0.12 | |
+| device at the end | cpu | mps (no fall back) | |
+
+**What the model does.** From one click on the body it outlines the body and leaves the antennae
+out, on every frame. Pictures of frames 0, 20 and 60 (saved outside the repository): the model's
+outline is the body's ellipse, a convex shape that lies on the true outline around the body and
+cuts straight across the base of both antennae; on frame 0 it has a small bump there. The antennae
+are clearly in the picture (3 px wide, as dark as the body), and the window gives them 4 grid
+cells of width, so this is the model's choice of object, not a lack of resolution. The pipeline
+measured that mask correctly: its solidity is that of an ellipse, and it does not beat. The RMS
+difference from the solidity of the true pixel mask as scikit-image defines it is 0.4384, so the
+choice of the truth does not matter here.
+
+**One more measurement, not a test and not asserted.** The same run with two more positive clicks
+on frame 0, one on the middle of each antenna (clicks at (1393.7, 465.9), (1375.3, 446.4) and
+(1395.2, 439.2) px), once, 480 frames on mps:
+
+| | three positive clicks |
+|---|---|
+| peak of the solidity spectrum | 9.00 Hz (would pass) |
+| RMS difference from the true solidity | 0.0526 (would fail the limit of 0.02) |
+| of that, a constant offset | +0.0522 (measured mean 0.625, true mean 0.572) |
+| RMS after removing the offset; correlation with the truth | 0.0068; 0.995 |
+| measured solidity | 0.542 to 0.776 |
+| mean mask area | 1004 px (true mask 863 to 888 px) |
+| `shape_ok`; lost frames; window | 1 on all 480; 0; 190 px |
+
+In the pictures of this run the outline follows the body and both antennae on frames 0, 20 and 60,
+a little outside the true outline along the antennae: the mask draws them about 1 px wider on each
+side (it has 1004 px on average), which is the offset. The first 40 frames on cpu gave similar
+numbers (RMS 0.044, window 191 px).
+
+**For J.**
+- With the real model, fine mode measures antennae only if the clicks say that the antennae belong
+  to the object. Students who want the stroke need a positive click on each antenna and must judge
+  the preview; one click on the body gives a clean body outline (good for position and heading,
+  useless for solidity). This belongs in the how-to.
+- The absolute solidity is then about 0.05 too high, while its variation is right (9.00 Hz,
+  correlation 0.995). The limit of 0.02 on the absolute value is not met by this one try either.
+  Whether the criterion should be the variation, or whether the clicks should be different, is J's
+  decision; the tests still ask what SPEC 13.4 asks.
+- Not tried: other click positions, a negative click, SAM 2.1, a real close-up clip.
+
+### 4.3 Coarse mode at dish scale flags `LOWRES` (SPEC 13.4): A and C pass, B FAILS on one frame
+
+**What was run.** `synthetic.dish_scene()` as it stands (1080p, 0.0324 mm per px, bodies 14.5 px
+long), its three objects tracked coarse from one click each on frames 0, 2, …, 58 with the scene's
+dish circle, so the model saw the dish square, 1002 × 1002 px (a grid cell of 3.9 px, a body of
+3.7 cells). `cpu`. Asserted per object: found at its click, and every frame with a mask has
+`shape_ok` = 0 and `LOWRES`.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_coarse_lowres.py -q -rP
+```
+
+**Result.** 2 passed, 1 failed (marked `xfail(strict=True)` with these numbers) in 36 s, the same
+numbers on both runs.
+
+| object | frames with a mask | `px_along_major` | `cells_along_major` | `LOWRES` | max error against the true centers |
+|---|---|---|---|---|---|
+| A (shrimp, at the wall) | 30 of 30 | 16.5 to 24.4 px | 4.2 to 6.2 | 30 of 30: **passes** | 2.25 px |
+| B (plain body) | 15 of 30 | 15.0 to 16.0 px on 14 frames; 134.8 px on frame 36 | 3.8 to 4.1; 34.4 on frame 36 | 14 of 15: **fails** | 0.71 px on the 14 frames; 5.0 px on frame 36 |
+| C (plain body) | 30 of 30 | 14.9 to 16.7 px | 3.8 to 4.3 | 30 of 30: **passes** | 0.48 px |
+
+- The model lost B on frames 6 to 34 (flag `LOST`), although nothing is near it: B and C are more
+  than 200 px apart on these frames.
+- On frame 36 B came back with a mask of 99 px in two pieces: the body, and 2 px far from it
+  (about 240 px, from the second moments). `px_along_major` comes from the second moments of the
+  whole mask (SPEC 7.8), so two stray pixels make it 134.8 px, `shape_ok` becomes 1 and the frame
+  is not `LOWRES`. It is flagged `ORIENT`; `MULTI` needs a second piece of at least 10%. From
+  frame 38 on the mask is the body again and `LOWRES`.
+- So the flag works wherever the mask is the object, and the rule was applied as the spec states
+  it. **For J:** should `px_along_major` and `cells_along_major` be taken from the largest piece of
+  the mask, so that a few stray pixels cannot switch `shape_ok` on? That is a change of SPEC 7.8,
+  not made here.
+- 0.76 to 0.81 s per frame for three objects on the dish square.
+
+### 4.4 Memory (SPEC 6.5): 10 coarse objects at 1080p
+
+**What was run.** A 1080p clip of 100 frames with ten dark ellipses (semi-axes 8 and 3 px, more
+than 250 px apart), all ten tracked in one coarse run on the whole frame, every frame, on `cpu`,
+through `tracking.run_job`. The run is in a child process of its own, which reads its resident
+memory with `ps` after every tracked frame and its peak with `resource.getrusage` at the end.
+GB = 10⁹ bytes, MB = 10⁶ bytes. macOS and Linux only; skipped on Windows.
+
+**Command.**
+
+```
+uv run pytest -m slow tests/slow/test_memory.py -q -rP
+```
+
+**Result.** 1 passed, twice (236 s and 232 s).
+
+| | first run | second run | limit |
+|---|---|---|---|
+| peak resident memory | 1.43 GB | 1.44 GB | 3 GB |
+| resident memory after frame 40 | 1388 MB | 1403 MB | |
+| resident memory after frame 100 | 1398 MB | 1392 MB | |
+| growth from frame 40 to frame 100 | +10 MB | −10 MB | 50 MB |
+| growth of the peak from frame 40 to frame 100 | +32 MB | 0 MB | not asserted |
+| after frames 1, 20, 60, 80 | 1181, 1378, 1402, 1290 MB | 1181, 1318, 1405, 1400 MB | |
+| all readings from frame 40 on | up to 1430 MB | 1260 to 1407 MB | |
+| s per frame (10 objects) | 2.26 | 2.21 | |
+| object-frames without a mask | 112 of 1000 | 112 of 1000 | not asserted |
+
+- Last week 1.7 GB was measured for 10 objects; this run stays below that.
+- **Can this test fail?** With the backend's pruning switched off (patched in memory for one run
+  of the same child, no file changed): peak 3.06 GB, and resident memory 1181, 1638, 1980, 2343,
+  2701, 3063 MB after frames 1, 20, 40, 60, 80, 100: +1083 MB from frame 40 to frame 100, 18 MB
+  per frame. Both limits are exceeded.
+- **Uncertain.** Single readings of resident memory move by tens of MB from frame to frame (the
+  first run read 1290 MB after frame 80 and 1398 MB after frame 100; the second run's readings
+  from frame 40 on span 1260 to 1407 MB), which is the size of the 50 MB limit. The test compares two single readings, as asked, so on a busy computer it could
+  fail without a leak, or pass by luck; the 18 MB per frame of a real leak is far outside this.
+- The model lost about a tenth of the object-frames on this clip (a plain background, objects of
+  16 × 6 px). That is tracking quality, not memory, and is not asserted here.
