@@ -1394,7 +1394,8 @@ Conventions for every GUI task:
   - Check: `uv run outline-tracker gui ~/closeup_tracker.mp4`, then: place the stick, the tape,
     the circle; the numbers appear and survive a restart.
 
-- [ ] **C4 · Objects, prompts, preview** (§5, panel 6, §10.2)
+- [x] **C4 · Objects, prompts, preview** (§5, panel 6, §10.2)
+  - Done Wed 11:55 (commits 8657d52, 2c94cbb). Verified offscreen on macOS with the stand-in models, 73 tests: a left click adds a positive point at the clicked (u, v) on the grid frame with its frame hash; the rule for a negative click in every case on both platforms; a head click is stored and not given to the model; undo; clicks off the grid move forward with a note; of two preview requests made while the model is busy only the later one is shown, and the window stays responsive meanwhile; the worker thread stops when the window closes. Once with the real EdgeTAM through the window, on the synthetic close-up clip: the model was ready 8 s after start and the outline came 0.7 s after the click (screenshot looked at). The code is in `gui/panels/objects_panel.py`, `gui/prompts.py`, `gui/click_rules.py` and `gui/worker.py`. Decisions made here: undo removes the newest point of the selected object; the preview shows the model what tracking would show it (the dish square when a circle exists and the crop is on); the mode of an object that already has results cannot be changed (remove and add it). Uncertain: Remove deletes an object's results without asking first (a confirmation is planned with the dialogs of C8); closing the window while the model is still loading waits for the load; a failure in the worker is kept with its trace in memory and on stderr, not yet in run.log; keys 1 to 9 are not built yet.
   - Files: `gui/panels/objects_panel.py`, `gui/prompts.py`, `gui/worker.py` (model loading and
     preview), `tests/gui/test_prompts.py`.
   - Content: the object table (id, color, mode, fine window, start frame, status), Add, Remove;

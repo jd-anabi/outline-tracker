@@ -44,3 +44,6 @@ repository (`vX.Y.Z`).
 - Calibration in the window (panels 3 and 4): click the two ends of a known length for the
   scale, check it with a second length, click points on the dish wall for the circle, and
   place the axes. The numbers appear as you click.
+- Objects in the window (panel 6): add an object, click on the animal, and the model's outline
+  appears within a second or two, before any tracking. Right click (or Alt-click) marks what
+  does not belong; Head marks the front end.
