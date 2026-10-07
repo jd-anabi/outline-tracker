@@ -204,6 +204,11 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Tue 23:50, A07: one review finding parked.** `session.py` is 488 lines; SPEC §12 says to split
+  a file past about 400. Splitting needs a new module, which the parallel work lane was not
+  allowed to create. Ruling: accepted for now and listed for a tidy-up after the core is built
+  (also `schema.py`, 591 lines). No behavior depends on it.
+
 - **Tue 23:15, A04b: how negative clicks behave with the real model (for J and the README).**
   The §13.4 test passes (0.0% of the neighbor, limit 5%), but in that scene the positive click
   alone already gives 0.0%, so the test only shows that the label matters (both clicks positive:
@@ -550,7 +555,8 @@ because derive and flags read the arrays the results store defines).
   - Check: `uv run pytest tests/test_hf_helpers.py -q`, and
     `uv run pytest -m slow tests/slow/test_real_model.py -q` (a few minutes).
 
-- [ ] **A05 · Schema: one source of truth** [CP] (§8, §9, §13.1 Schema)
+- [x] **A05 · Schema: one source of truth** [CP] (§8, §9, §13.1 Schema)
+  - Done Tue 22:35 (commit d413ce2). Verified: 53 schema tests (column names and order from §8, formats, lost rows keep integer columns, README names every column, flag and file). Uncertain: `schema.py` is 591 lines; splitting off the README text is noted for a tidy-up.
   - Files: `schema.py`, `tests/test_schema.py`.
   - Produces: `POSITIONS`, `SHAPES`, `RADIAL`, `PROBES` (lists of
     `Column(name, dtype, unit, fmt, meaning)`), `FLAGS` (ordered: LOST, JUMP, SIZE, CONTACT, EDGE,
@@ -565,8 +571,9 @@ because derive and flags read the arrays the results store defines).
     reads back with integer columns still integer.
   - Check: `uv run pytest tests/test_schema.py -q`
 
-- [ ] **A06 · Geometry** [CP: the transform] (§3.2, §3.4, §4.1–4.5, §13.1 Transform / Stick, tape, fps / Circle fit /
+- [x] **A06 · Geometry** [CP: the transform] (§3.2, §3.4, §4.1–4.5, §13.1 Transform / Stick, tape, fps / Circle fit /
   Grid snapping)
+  - Done Tue 23:05 (commit 3e996b0). Verified: 126 geometry tests (round trips, equality with last week's `Calibration` and `tracker_map`, stick, tape, stopwatch, circle fit, grid snapping forward, bad input refused). Uncertain: `find_manifest` returns the first manifest that lists the video, not merely the first that exists.
   - Files: `geometry.py`, `tests/test_geometry.py`.
   - Produces: `WorldFrame(k_mm_per_px, alpha_rad, u0, v0)` with `.J`, `.to_world(u, v)`,
     `.to_px(x, y)`, `.cov_to_world(cov_px)`; `world_frame_from_calibration(cal)` (raises
@@ -601,7 +608,8 @@ because derive and flags read the arrays the results store defines).
       end before start each raise `ValueError` with a plain message.
   - Check: `uv run pytest tests/test_geometry.py -q`
 
-- [ ] **A07 · Session file and atomic writes** [CP] (§8.1, §8.10, §13.1 Session)
+- [x] **A07 · Session file and atomic writes** [CP] (§8.1, §8.10, §13.1 Session)
+  - Done Tue 23:45 (commit 795567a). Verified: 106 tests for atomic writes and the session file (lossless round trip of the §8.10 example, version errors, moved folders, wrong video refused, write retries and the `.new` fallback). Uncertain: the Windows-only locked-file test first runs in CI after this merge; `session.py` is 488 lines (finding parked, see "Raised during the work").
   - Files: `fileio.py`, `session.py`, `tests/test_fileio.py`, `tests/test_session.py`.
   - Produces: `atomic_write(path, write_fn) -> Path` (temporary file in the same folder, closed,
     then `os.replace`; on `PermissionError` retry for about 5 s; then keep the data as
