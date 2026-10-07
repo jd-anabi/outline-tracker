@@ -204,6 +204,20 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 04:42, A16: two more superseded tests marked `xfail(strict=True)`, for J to confirm
+  their removal.** (1) `tests/test_tracking_job.py::test_a_fine_object_is_not_tracked_yet` was
+  A15's placeholder: it asserts that a fine object is refused as "not built yet"; A16 built it.
+  (2) `tests/test_tracking_fine_cases.py::test_an_empty_preview_mask_gives_a_96_px_window_and_the_run_still_completes`
+  pinned that the 96 px fallback window is stored in the session; the review found that wrong
+  (a window chosen because nothing was found must not be kept), and its successor in the same
+  file checks the corrected behavior. Default: J says "delete them" and they go.
+- **Wed 04:42, A16: a design point for J (default in use).** After a fine run that found the
+  object, the window the program chose is stored in the track (`fine_window_px`) and every later
+  run of that track reuses it, also a re-track from the start frame. That keeps the object's
+  scale the same across a track's runs (§6.3), but the session can then no longer tell "auto"
+  from "set by hand". Default: keep it; the GUI's object table gets a way to set the window back
+  to auto.
+
 - **Wed 03:30, A15: one test marked `xfail(strict=True)`, for J to confirm its removal.**
   `tests/test_tracking_guard.py::test_hashes_made_by_another_decoder_are_not_compared_but_logged`
   asserts that a frame hash made on another computer is only logged. That was my own wording in
@@ -875,7 +889,8 @@ because derive and flags read the arrays the results store defines).
       and the run still completes; review focus 1: the clip in an odd folder name tracks.
   - Check: `uv run pytest tests/test_tracking_coarse.py -q`
 
-- [ ] **A16 · Tracking: fine mode** (§6.3, §13.2)
+- [x] **A16 · Tracking: fine mode** (§6.3, §13.2)
+  - Done Wed 04:38 (commits a252e3f, d630a76, 7b4e975). Verified: 64 tests with the exact stand-in on the close-up scene (positions within 0.01 px with the dish crop on and off; window 139–144 px for the 47 × 20 px body; fixed crop size at the frame border; `EDGE` at the crop and frame borders; a lost frame keeps the crop center; an empty preview gives a 96 px window that is not stored). The runner is in `outline_tracker/tracking_fine.py`. Full check: `uv run pytest tests/test_tracking_fine*.py -q`. Uncertain: the real model has not run on fine crops yet (B5).
   - Files: `tracking.py`, `tests/test_tracking_fine.py`.
   - Produces: `fine_window_px(feret_px, factor=3.0) -> int` (clip(⌈3F⌉, 96, 512));
     `fine_window(preview_result) -> int` (F = the maximum Feret diameter of the outline, the same
