@@ -51,12 +51,14 @@ class VideoView(pg.GraphicsView):
 
     `frame`: the number of the frame shown (video frame number, counted from 0), None while none
     is. `tool`: the tool that gets the clicks, None for Pan. `zoom`: screen px per video px.
-    `zoom_changed(zoom)` and `tool_changed()` say when these change. `view_box` and `image_item`
+    `zoom_changed(zoom)` and `tool_changed()` say when these change; `frame_changed(frame)` comes each
+    time a frame has been put on the screen, whoever asked for it. `view_box` and `image_item`
     are pyqtgraph's parts. Esc returns to Pan, wherever the focus is in the view's window.
     """
 
     zoom_changed = Signal(float)
     tool_changed = Signal()
+    frame_changed = Signal(int)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent, background=theme.LIGHT["canvas"])  # the same colour in both themes
@@ -95,6 +97,7 @@ class VideoView(pg.GraphicsView):
         image = self.source.get(frame)
         self.image_item.setImage(image, autoLevels=False)
         self.frame = int(frame)
+        self.frame_changed.emit(self.frame)
 
     # ------------------------------------------------------------------ zoom
 
