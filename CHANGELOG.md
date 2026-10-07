@@ -20,3 +20,5 @@ repository (`vX.Y.Z`).
   on a file.
 - `docs/OUTPUTS.md`: every output file, column, unit and flag, generated from the same tables the
   program writes its files from. It is the contract for analysis code.
+- `outline-tracker probe VIDEO --rect NAME:u0,v0,u1,v1` (or `probe SESSION.json`): the mean red,
+  green, blue and gray inside named boxes for every frame, written to `probes.csv`. No model.

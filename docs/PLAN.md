@@ -368,6 +368,8 @@ outline_tracker/
   export.py          every file of §8 except the overlay                         (A18)
   overlay.py         overlay.mp4                                                 (A19)
   probes.py          brightness probes                                           (A20)
+  run_folder.py      default run folder; guard against folders of Tracker files   (B4)
+  cli_probe.py       the probe command                                           (B4)
   from_tracker.py    Tracker export -> session -> run -> export                  (B1)
   cli.py             entry point and subcommands                                 (A01, B1-B4)
   gui/               app.py, main_window.py, video_view.py, worker.py, panels/   (Phase C)
@@ -962,7 +964,8 @@ because derive and flags read the arrays the results store defines).
       gives an overlay up to the last decodable frame.
   - Check: `uv run pytest tests/test_overlay.py -q`
 
-- [ ] **A20 · Brightness probes** (§4.6, §8.7, §13.2)
+- [x] **A20 · Brightness probes** (§4.6, §8.7, §13.2)
+  - Done Wed 02:40 (commit 7962632). Verified: 38 tests (LED onset on the exact frame, box corners as array slices, two boxes, bad input refused, a clip that ends early stops cleanly and says so). Uncertain: no progress or cancel during a probe pass (about 1.3 ms per 1080p frame).
   - Files: `probes.py`, `tests/test_probes.py`.
   - Produces: `measure_probes(video_path, boxes, start, end, fps_true) -> DataFrame` with the §8.7
     columns: every frame from start to end inclusive (step 1), mean R, G, B and
@@ -1029,6 +1032,7 @@ because derive and flags read the arrays the results store defines).
     within … pixels (should be under 3).` (about a minute; the first run downloads the model).
 
 - [ ] **B3 · `export` and `compare-tracks`** [CP: `compare-tracks`] (§11; X10)
+  - Part done Wed 03:25 (B3a, commit 931b56a): `compare-tracks` with `--limit` and `--by-position`, 34 tests. Still to do: the `export` command, after A18.
   - Files: `cli.py`, `tracker_io.py` (`compare_tracks(new_dir, old_dir, by_position=False) ->
     DataFrame`), `tests/test_cli_export.py`.
   - `export SESSION.json [--overlay]` regenerates every output from `results.npz` and the session;
@@ -1050,7 +1054,8 @@ because derive and flags read the arrays the results store defines).
     prints no `OK`.
   - Check: `uv run pytest tests/test_cli_export.py -q`
 
-- [ ] **B4 · `probe`** (§4.6, §11)
+- [x] **B4 · `probe`** (§4.6, §11)
+  - Done Wed 03:05 (commit ac77885). Verified: 139 tests for `probe VIDEO --rect …`, `probe SESSION.json`, the fps_true lookup order, the default run folder (`outline_tracker/run_folder.py`) and the refusal to write into a folder of Tracker files. Uncertain: printing paths with unusual characters to a redirected Windows console is not handled yet (all commands).
   - Files: `cli.py`, `tests/test_cli_probe.py`.
   - `probe VIDEO --rect NAME:u0,v0,u1,v1 [...] [--start F] [--end F] [--fps F] [--out DIR]
     [--student NAME]` and `probe SESSION.json`. Defaults: start 0, end = last frame, both
