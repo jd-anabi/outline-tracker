@@ -711,8 +711,9 @@ because derive and flags read the arrays the results store defines).
     right offset; an invisible object gives an empty `MaskResult`.
   - Check: `uv run pytest tests/test_fakes.py -q`
 
-- [ ] **A11 · Measure: mask to pixel-space record** [CP: area and centroid] (§7.1–7.4, §7.8,
+- [x] **A11 · Measure: mask to pixel-space record** [CP: area and centroid] (§7.1–7.4, §7.8,
   §8.12, §13.1 Moments / Core)
+  - Done Wed 00:30 (commits b7f4753, 77954da, ca3b1b8). Verified: 162 measure tests (moments, core, outline from signed-distance logits, border-cut masks, components, degenerate masks). The new tests live in `tests/test_measure_mask.py`, `test_measure_core.py`, `test_measure_outline.py` and `test_measure_port_guard.py`; `tests/test_measure.py` stays the ported file. Full check: `uv run pytest tests/test_measure*.py -q`. Uncertain: the opening is slow on masks hundreds of px across (only if a mask covers the dish).
   - Files: `measure.py`, `tests/test_measure.py`.
   - Produces: `PixelRecord` (frame, visible, area_px, u, v, cov_full[3], cov_core[3], core_u,
     core_v, core_frac, core_fallback, core_r_px, outline_px[256, 2], n_components,
@@ -747,7 +748,8 @@ because derive and flags read the arrays the results store defines).
       `visible = False`, NaN floats, zero counts; the others give finite area and centroid.
   - Check: `uv run pytest tests/test_measure.py -q`
 
-- [ ] **A14 · Results store** [CP] (§8.12)
+- [x] **A14 · Results store** [CP] (§8.12)
+  - Done Wed 01:25 (commits d844097, 4ce97fe, 4011877). Verified: 59 results-store tests (round trip with mask crops, replace from a frame, truncate, version errors, failed and locked saves). `results.npz` is written uncompressed, about 2.7 MB per 1,200-frame track. Uncertain: none.
   - Files: `results.py`, `tests/test_results.py`.
   - Produces: `ResultsStore` with `put(track_id, record)`, `arrays(track_id) -> TrackArrays`,
     `track_ids`, `replace_from(track_id, frame_k)`, `truncate_after(track_id, frame_k)`,
