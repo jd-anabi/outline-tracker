@@ -50,10 +50,11 @@ N_FRAMES = 480  # 2 s, step 1
 
 BODY_ONLY = (
     "Measured on 2026-10-07 with EdgeTAM, the same on cpu and on mps: from one positive click on the body the model "
-    "outlines the body without the antennae, a convex shape, on all 480 frames (mask area 740 to 926 px, median "
-    "814; the body alone is 738 px, the true mask with antennae 863 to 888 px). So the measured solidity is 0.990 "
-    "to 0.999 while the true one swings between 0.507 and 0.711: the spectrum peaks at 0.56 Hz, not at 9 Hz, and "
-    "the RMS difference is 0.4293 (limit 0.02). shape_ok = 1 on every frame, no frame lost. Nothing was tuned. For "
+    "outlines the body without the antennae, a convex shape, on all 480 frames (mask area on cpu 740 to 926 px, "
+    "on mps 743 to 922; the body alone is 738 px, the true mask with antennae 863 to 888 px). So the measured "
+    "solidity is 0.990 to 0.999 while the true one swings between 0.507 and 0.711: the spectrum peaks at 0.56 Hz, "
+    "not at 9 Hz, and the RMS difference is 0.4293 (limit 0.02). shape_ok = 1 on every frame, no frame lost. "
+    "Nothing was tuned. For "
     "J (docs/VALIDATION.md 4.2): the clicks decide what the model takes as the object; with two more positive "
     "clicks, one on each antenna, the same run gave a peak at 9.00 Hz and an RMS difference of 0.0526, of which "
     "0.052 is a constant offset."
