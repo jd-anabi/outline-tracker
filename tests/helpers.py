@@ -138,10 +138,12 @@ def stand_in_segmenter(model, device):
 @pytest.fixture
 def window(qtbot):
     """A `MainWindow` made with `stand_in_segmenter`, not shown yet. It is closed after the test,
-    whatever happened in it: every GUI test gets its window from here."""
+    whatever happened in it, and the video it had open is released (Windows cannot delete a file
+    that is open): every GUI test gets its window from here."""
     from outline_tracker.gui.main_window import MainWindow
 
     made = MainWindow(segmenter_factory=stand_in_segmenter)
     qtbot.addWidget(made)
     yield made
     made.close()
+    made.controller.close()

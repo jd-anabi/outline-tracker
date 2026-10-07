@@ -43,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     application = QtWidgets.QApplication(["outline-tracker"])
     theme.follow_system(application)
     window = MainWindow(segmenter_factory=load_segmenter)
-    if argv:
-        window.open_path(Path(argv[0]))
     window.show_at_start()
+    if argv:
+        window.open_path(Path(argv[0]))  # after the window shows: a message about the file belongs over it
     return application.exec()
