@@ -96,26 +96,27 @@ Answer in chat. Each has the default the agent uses if there is no answer.
    (`UV_PROJECT_ENVIRONMENT=~/.venvs/outline-tracker`), and re-clone if git reports a conflict copy.
 2. **Power and prompts**: the two actions in section 0.
 
-### Can wait (defaults in use)
+### Not blocking: defaults J can overrule
 
-3. **Go/no-go 1 inputs (by Wed noon).** No real `_tracker.mp4`, `extra/start.csv` or last week's
+None of these stops the overnight work. The date says when a different answer is still cheap.
+
+3. **Go/no-go 1 inputs (Wed noon).** No real `_tracker.mp4`, `extra/start.csv` or last week's
    `edgetam/` folder was found on this Mac. You need local copies (not cloud placeholders) of one
    day-1 clip, the start file exported from its `.trk`, the `edgetam/` CSVs made from that start
    file, and fps_true. Default: the commands use shell variables you fill in. If a real
    `_tracker.mp4` is on this Mac tonight and you name it, the agent runs decode-only checks on
    it (frame exactness, timestamp gaps; no model); otherwise that check is part of go/no-go 1.
-4. **Students on macOS 13?** torch 2.14.1 has wheels only for macOS 14 and later; an exact pin
+4. **Students on macOS 13? (Thu morning)** torch 2.14.1 has wheels only for macOS 14 and later; an exact pin
    `torch==2.14.1` (§15) cannot install on macOS 13. Default: `torch>=2.11.0,<=2.14.1` and the
    matching torchvision range. Windows and macOS 14+ then get exactly 2.14.1; a macOS 13 laptop
    gets 2.11.0, which is what `--with torch` gave it last week. Say "macOS 14 only" for exact pins.
-5. **`flags` in positions.csv.** §8.2 and §8.4 both say "QC codes (§9)". Taken literally, every
-   row of a coarse dish-scale track reads `LOWRES;HEADGUESS` (the body is about 14 px, under the
-   20 px limit, and `from-tracker` has no head click). A template that keeps only rows with empty
-   flags would then keep nothing. Default: the same string in both files, and README.txt says
-   which codes concern positions (LOST, JUMP, SIZE, CONTACT, EDGE) and which only shapes. The
-   alternative, position codes only in positions.csv, is a one-line change: tell me which the
-   analysis template expects.
-6. **`from-tracker` output folder and name.** §11 gives it no student name, and §8.1 needs one.
+5. **Note for the analysis template (no answer needed): `flags` in positions.csv.** §8.2 and
+   §8.4 give both files the same §9 codes, so every row of a coarse dish-scale track reads
+   `LOWRES;HEADGUESS` (the body is about 14 px, under the 20 px limit, and `from-tracker` has no
+   head click). The template should filter on specific codes, not on "flags is empty".
+   README.txt says which codes concern positions (LOST, JUMP, SIZE, CONTACT, EDGE) and which
+   only shapes.
+6. **`from-tracker` output folder and name (before go/no-go 1).** §11 gives it no student name, and §8.1 needs one.
    Default: an optional `--student NAME`; without it, the name of the export's home folder (last
    week's per-student folder, e.g. `ana`); the run folder is `--out`, else
    `<video folder>/<video stem>_outline_<student>/`. It never writes into a folder that already
@@ -130,7 +131,7 @@ Answer in chat. Each has the default the agent uses if there is no answer.
    PySide6-Essentials 6.11.2, pyqtgraph 0.14.0, scikit-image 0.26.0, imageio-ffmpeg 0.6.0).
    Thursday's step becomes "confirm the pins". Note: §10.2 describes the Windows import bug for
    torch 2.9.x; with 2.14.1 it is untested until the Windows CI job runs. The import order stays.
-9. **Run last week's selftest before the port?** It would fetch the model (56 MB from Hugging
+9. **Run last week's selftest before the port? (tonight, optional)** It would fetch the model (56 MB from Hugging
    Face, public) and give baseline numbers on cpu and on the Apple GPU within minutes of approval.
    The kickoff allows slow tests "once the Hugging Face segmenter is ported". Default: wait for
    A04 (first two hours).
