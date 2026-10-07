@@ -5,7 +5,8 @@ need them, so `--version`, `export` and `probe` start at once. The commands that
 videos (`convert`, `check`, `probe`, `synth`) import OpenCV only when they run. `probe` itself is in
 outline_tracker/cli_probe.py; its parser is here with the others. `export` is in
 outline_tracker/cli_export.py and `from-tracker` in outline_tracker/cli_from_tracker.py, each with
-its parser. `selftest` is in outline_tracker/cli_selftest.py, with its parser too.
+its parser. `selftest` is in outline_tracker/cli_selftest.py, with its parser too. `gui` (the window)
+is in outline_tracker/cli_gui.py, with its parser.
 
 `synth` is a hidden command (not listed in `--help`): it writes one of the synthetic test clips of
 outline_tracker/synthetic.py, for checking an installation by hand. `compare-tracks` is the other
@@ -25,7 +26,7 @@ import math
 import sys
 from pathlib import Path
 
-from outline_tracker import cli_export, cli_from_tracker, cli_probe, cli_selftest
+from outline_tracker import cli_export, cli_from_tracker, cli_gui, cli_probe, cli_selftest
 
 CONVERT_EXAMPLE = """\
 Usage (from the repository folder):
@@ -62,6 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action=_Version, nargs=0, help="show the tool's version and commit and exit")
     commands = parser.add_subparsers(title="commands", dest="command", metavar="COMMAND")
+    cli_gui.add_parser(commands)
 
     convert = commands.add_parser(
         "convert",

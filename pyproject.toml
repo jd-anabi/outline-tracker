@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-outline-tracker = "outline_tracker.cli:main"
+outline-tracker = "outline_tracker.launch:main"
 
 [dependency-groups]
 dev = ["pytest==9.1.1", "pytest-qt==4.5.0"]

@@ -120,3 +120,28 @@ def assert_empty_result(result):
     assert result.mask.shape == (0, 0) and result.mask.dtype == bool
     assert result.logits.shape == (0, 0) and result.logits.dtype == np.float32
     assert result.offset == (0, 0) and result.score is None
+
+
+# ---------------------------------------------------------------------------------------------
+# The main window (tests/gui/)
+
+
+def stand_in_segmenter(model, device):
+    """What a GUI test gives the window in place of the real model's factory: a `ThresholdFake`, whatever
+    the model key and the device are (images and prompts in px of the image given, segmenter/base.py).
+    No torch is loaded."""
+    from outline_tracker.segmenter.fake import ThresholdFake
+
+    return ThresholdFake()
+
+
+@pytest.fixture
+def window(qtbot):
+    """A `MainWindow` made with `stand_in_segmenter`, not shown yet. It is closed after the test,
+    whatever happened in it: every GUI test gets its window from here."""
+    from outline_tracker.gui.main_window import MainWindow
+
+    made = MainWindow(segmenter_factory=stand_in_segmenter)
+    qtbot.addWidget(made)
+    yield made
+    made.close()
