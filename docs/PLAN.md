@@ -932,7 +932,8 @@ because derive and flags read the arrays the results store defines).
     - review focus 1: export into an odd folder name.
   - Check: `uv run pytest tests/test_export.py tests/test_provenance.py -q`
 
-- [ ] **A19 · Overlay video** [CP] (§8.8 P0 content, §13.2)
+- [x] **A19 · Overlay video** [CP] (§8.8 P0 content, §13.2)
+  - Done Wed 02:43 (commit 66960fa). Verified: 30 tests (one frame per tracked frame, 960 px wide, H.264 yuv420p, outline and dot drawn in the track color on the array, replaced records show the new outline, odd folder names, a clip that ends early). The "after re-track" test replaces records in the store directly, since the corrections module comes later. Uncertain: playback in PowerPoint and Google Slides needs a person (go/no-go 2, item 9); no progress or cancel while the overlay is written (about 5 ms per 1080p frame).
   - Files: `overlay.py`, `tests/test_overlay.py`.
   - Produces: `draw_overlay_frame(rgb, items, frame, t_s, width=960) -> RGB uint8 array` (pure
     drawing: resize, then per track the stored outline, centroid dot and id in the track color,
@@ -946,9 +947,10 @@ because derive and flags read the arrays the results store defines).
     - the drawing, on the array from `draw_overlay_frame`, compared with the same frame drawn with
       no tracks: for at least 90% of the stored outline points (scaled to the overlay) a pixel
       within 1 px has changed and is nearer the track's color than the undrawn pixel was;
-    - after `retrack_from` with a click on a different object at least 60 overlay pixels away,
-      the same check holds for the new outline, and every pixel within 3 px of the old outline
-      equals the undrawn frame;
+    - after the track's records from a frame k on are replaced in the results store by records
+      of a different object at least 60 overlay pixels away (what Re-track from here does to the
+      store), the same check holds for the new outline, and every pixel within 3 px of the old
+      outline equals the undrawn frame;
     - review focus 1 and 2: it runs on the clip in an odd folder name; a clip that ends early
       gives an overlay up to the last decodable frame.
   - Check: `uv run pytest tests/test_overlay.py -q`
