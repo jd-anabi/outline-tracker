@@ -342,6 +342,9 @@ def test_render_refuses_what_it_cannot_encode(tmp_path):
         synthetic.render(one_object_scene(disk, path, size=(97, 64)), tmp_path / "odd.mp4")
     with pytest.raises(FileNotFoundError, match="missing"):
         synthetic.render(one_object_scene(disk, path, size=(96, 64)), tmp_path / "missing" / "clip.mp4")
+    for skip_before in [(0,), (2, 4)]:  # a gap before frame 0 is no gap; the scene has frames 0 to 3
+        with pytest.raises(ValueError, match="skip_before"):
+            synthetic.render(one_object_scene(disk, path, size=(96, 64)), tmp_path / "gap.mp4", skip_before=skip_before)
     assert list(tmp_path.iterdir()) == []
 
 

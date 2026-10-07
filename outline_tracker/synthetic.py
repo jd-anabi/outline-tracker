@@ -238,12 +238,15 @@ class GroundTruth:
         return _table(self.scene).copy()
 
 
-def render(scene: Scene, path, crf: int = 23) -> GroundTruth:
+def render(scene: Scene, path, crf: int = 23, skip_before: tuple[int, ...] = ()) -> GroundTruth:
     """Write the scene as an H.264 clip at `path` and return its ground truth.
 
     Encoded by the bundled ffmpeg with libx264, GOP 24, B-frames and yuv420p at quality `crf`
     (lower is closer to the drawn frames; `disk_scene` needs 10). The frame size, in px, must be
     even in both directions, and the folder must exist.
+    `skip_before` lists frame numbers (1 to n_frames - 1) before which the timestamps skip one frame
+    duration (twice the same number: two), as when a phone drops a frame. The frames and their
+    numbers stay as they are; frame k is stamped (k + skips up to k) / fps s.
     """
     path = Path(path)
     width, height = scene.size
@@ -251,8 +254,12 @@ def render(scene: Scene, path, crf: int = 23) -> GroundTruth:
         raise ValueError(f"yuv420p needs an even width and height, not {width} x {height} px.")
     if not path.parent.is_dir():
         raise FileNotFoundError(f"No such folder: {path.parent}")
+    if any(not 1 <= before < scene.n_frames for before in skip_before):
+        raise ValueError(f"skip_before must name frames 1 to {scene.n_frames - 1}, not {tuple(skip_before)}.")
+    steps = "".join(f"+gte(N,{before})" for before in skip_before)  # N: frame number; TB: time base in s
+    timing = ["-vf", f"setpts='(N{steps})/({scene.fps:g}*TB)'", "-fps_mode", "passthrough"] if steps else []
     command = [ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
-               "-s", f"{width}x{height}", "-r", f"{scene.fps:g}", "-i", "-", "-c:v", "libx264",
+               "-s", f"{width}x{height}", "-r", f"{scene.fps:g}", "-i", "-", *timing, "-c:v", "libx264",
                "-preset", "veryfast", "-crf", str(crf), "-g", "24", "-bf", "2", "-b_strategy", "0",
                "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart", str(path)]
     encoder = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)

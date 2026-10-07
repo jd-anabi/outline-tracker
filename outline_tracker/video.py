@@ -1,8 +1,9 @@
 """Reading phone videos safely. Ported from the course's shrimp.video (unchanged behavior).
 
-The functions below are last week's, moved over unchanged and checked against the reference copy
-by tests/test_port_fidelity.py. Coordinates: frames are arrays indexed [row, column], so x is the
-column and y is the row counted downward (pixel units; see SPEC 3.1 for the pixel-center rule).
+The functions down to `check_video` are last week's, moved over unchanged and checked against the
+reference copy by tests/test_port_fidelity.py; so is `iter_rgb_frames`, from last week's
+shrimp.segment. Coordinates: frames are arrays indexed [row, column], so x is the column and y is
+the row counted downward (pixel units; see SPEC 3.1 for the pixel-center rule).
 
 Two rules this module exists to enforce:
 
@@ -15,12 +16,23 @@ Two rules this module exists to enforce:
    (fps_true in data/manifest.csv). check_video() only warns when a file looks wrong.
 
 Note (SPEC 3.5): iter_frames(start > 0), read_frame and frame_changes seek with OpenCV, which is
-not guaranteed to deliver the frame asked for. They stay as last week's, for check_video and for
+not guaranteed to deliver the frame asked for (measured: one or two frames off, early or late,
+when the file's timestamps have gaps). They stay as last week's, for check_video and for
 occasional access; do not use them to display a frame or to sample a probe.
+
+Frame numbers (SPEC 3.5): frame n is the n-th frame, counted from 0, of the sequential decode from
+the start of the file, which is `iter_rgb_frames`. Tracking reads the video with it. A single
+frame by number comes from `FrameSource` (outline_tracker/frame_source.py), which uses
+`frame_timestamps` to make sure of the frame it delivers. `frame_hash` and `decoder_tag` let a
+session store which frame the user saw (decision X8).
 """
 
 from __future__ import annotations
 
+import hashlib
+import platform
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
@@ -208,3 +220,97 @@ def check_video(path, min_slowmo_fps: float = 100.0, min_side_px: int = 720) -> 
         "Real time comes from your stopwatch clip (fps_true in data/manifest.csv), not from this file."
     )
     return check
+
+
+# ---------------------------------------------------------------------------------------------
+# The sequential decode that defines frame numbers (last week's, from shrimp.segment, unchanged)
+
+
+def iter_rgb_frames(path, frames):
+    """Yield (frame number, RGB image) for the requested frame numbers (increasing), reading the video
+    from the start so the numbering is exactly the decoding order Tracker uses."""
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise IOError(f"Cannot open {path}. Use the ..._tracker.mp4 copy made by shrimp.convert.")
+    wanted = list(frames)
+    i, k = 0, 0
+    try:
+        while k < len(wanted):
+            if i < wanted[k]:
+                if not cap.grab():
+                    break
+            else:
+                ok, bgr = cap.read()
+                if not ok:
+                    break
+                yield i, cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                k += 1
+            i += 1
+    finally:
+        cap.release()
+
+
+# ---------------------------------------------------------------------------------------------
+# Frame identity: the time stamped on every frame, and a hash of a decoded frame
+
+
+def frame_timestamps(path) -> np.ndarray | None:
+    """Time stamped on every frame of the file's first video stream, read without decoding.
+
+    Returns a float64 array in s of file time (not real time), sorted, frame 0 at 0: entry k
+    belongs to frame k of the sequential decode (a file with B-frames stores its frames in another
+    order). None if the bundled ffmpeg cannot list the file's packets.
+    """
+    try:
+        import imageio_ffmpeg  # imported here, as convert.ffmpeg_exe does
+
+        command = [imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-i", str(path),
+                   "-map", "0:v:0", "-c", "copy", "-f", "framecrc", "-"]
+        # CREATE_NO_WINDOW exists on Windows only: no console window flashes up under the GUI.
+        done = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, RuntimeError):
+        return None
+    if done.returncode != 0:
+        return None
+    time_base, stamps = None, []
+    try:
+        for line in done.stdout.splitlines():
+            if line.startswith("#tb"):  # "#tb 0: 1/15360": s per timestamp unit
+                numerator, denominator = line.split(":")[1].split("/")
+                time_base = int(numerator) / int(denominator)
+            elif line and not line.startswith("#"):  # "stream, dts, pts, duration, size, checksum"
+                stamps.append(int(line.split(",")[2]))
+    except (ValueError, IndexError, ZeroDivisionError):
+        return None
+    if time_base is None or not stamps:
+        return None
+    stamps = np.sort(np.asarray(stamps, dtype=np.int64))
+    return (stamps - stamps[0]) * time_base
+
+
+def count_timestamp_gaps(times_s) -> int:
+    """Number of gaps in a table of frame times (s, sorted, as `frame_timestamps` returns it).
+
+    A gap is a step from one frame to the next that is longer than 1.5 times the median step: what
+    a dropped frame leaves behind. An evenly timed file has none.
+    """
+    steps = np.diff(np.asarray(times_s, dtype=float))
+    if steps.size == 0:
+        return 0
+    return int(np.count_nonzero(steps > 1.5 * np.median(steps)))
+
+
+def frame_hash(rgb: np.ndarray) -> str:
+    """Identity of a decoded frame: "sha256:" followed by the SHA-256 (hex) of its bytes, row by row.
+
+    `rgb` is the full frame as `iter_rgb_frames` and `FrameSource.get` return it: a uint8 array
+    [row, column, 3], before any crop. Frames that differ in one pixel have different hashes.
+    """
+    return "sha256:" + hashlib.sha256(np.ascontiguousarray(rgb)).hexdigest()
+
+
+def decoder_tag() -> str:
+    """What decodes the frames on this computer: OpenCV's version, the platform and the machine,
+    for example "opencv-5.0.0/darwin/arm64". Frame hashes compare only under the same tag (X8)."""
+    return f"opencv-{cv2.__version__}/{sys.platform}/{platform.machine()}"

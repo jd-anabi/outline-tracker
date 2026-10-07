@@ -45,6 +45,8 @@ VERBATIM: list[tuple[str, str, tuple[str, ...]]] = [
         ("VideoInfo", "VideoCheck", "_open", "_to_gray", "probe", "iter_frames", "read_frame",
          "frame_changes", "_ramp_ratio"),
     ),
+    # The sequential decode that defines frame numbers (SPEC 3.5); tracking and FrameSource's tests use it.
+    ("outline_tracker.video", "shrimp.segment", ("iter_rgb_frames",)),
     ("outline_tracker.convert", "shrimp.convert", ("ffmpeg_exe", "convert_for_tracker")),
     (
         "outline_tracker.tracker_io",

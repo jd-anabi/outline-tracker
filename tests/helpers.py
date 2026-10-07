@@ -62,3 +62,30 @@ def clip_in_odd_folder(tmp_path, dish_clip):
     path = folder / dish_clip.path.name
     shutil.copyfile(dish_clip.path, path)
     return replace(dish_clip, path=path)
+
+
+# ---------------------------------------------------------------------------------------------
+# A clip whose timestamps have gaps (tests/test_frame_source.py), as a phone video with dropped
+# frames has: there, plain OpenCV seeking delivers a neighbor of the frame asked for.
+
+# Frame numbers before which one frame duration is skipped (72 twice: two durations). Three gaps.
+GAPS_BEFORE = (30, 72, 72, 101)
+
+
+@pytest.fixture(scope="session")
+def gapped_clip(tmp_path_factory):
+    """The frames of `disk_clip` (320 x 240 px, 120 frames, crf 10, B-frames) with three gaps in the
+    timestamps, before frames 30, 72 and 101: frame k is shown at (k + gaps so far) / 240 s."""
+    from outline_tracker import synthetic
+
+    path = tmp_path_factory.mktemp("gapped") / "gapped_tracker.mp4"
+    return synthetic.render(synthetic.disk_scene(), path, crf=10, skip_before=GAPS_BEFORE)
+
+
+def frame_times(skip_before=(), n_frames=120, fps=240.0):
+    """The time stamped on every frame of a clip written by `synthetic.render`, in s, frame 0 at 0:
+    one frame duration (1 / fps) each, plus one more for every entry of `skip_before` up to the frame."""
+    import numpy as np
+
+    frames = np.arange(n_frames)
+    return (frames + sum((frames >= before).astype(int) for before in skip_before)) / fps

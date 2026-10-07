@@ -5,7 +5,8 @@ need them, so `--version`, `export` and `probe` start at once. The commands that
 videos (`convert`, `check`, `synth`) import OpenCV only when they run.
 
 `synth` is a hidden command (not listed in `--help`): it writes one of the synthetic test clips of
-outline_tracker/synthetic.py, for checking an installation by hand.
+outline_tracker/synthetic.py, for checking an installation by hand. `check VIDEO --seek` is a
+hidden option: it also checks that jumping to a frame gives the frame the tracker would read.
 
 Every command returns the process exit code: 0 = success, 1 = an error or "do not use this file",
 2 = a mistake in the command line itself (argparse). A problem the user can fix is one
@@ -69,6 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     check.add_argument("videos", nargs="+", metavar="VIDEO", help="the video file(s) to check")
+    check.add_argument("--seek", action="store_true", help=argparse.SUPPRESS)  # hidden (decision X19)
     check.set_defaults(run=run_check)
 
     # Hidden: a subcommand added without `help=` is not listed in `outline-tracker --help`.
@@ -118,14 +120,20 @@ def run_convert(args: argparse.Namespace) -> int:
 
 
 def run_check(args: argparse.Namespace) -> int:
-    """`check VIDEO...`: print what each file says about itself, and any warnings.
+    """`check VIDEO... [--seek]`: print what each file says about itself, and any warnings.
 
     Frame sizes are in pixels, frame rates in frames per second of file time, durations in seconds
     of file time (not real time). Goes on with the next video after an error; returns 1 if any
     video has a warning or failed, else 0.
+
+    With `--seek`, 20 random frames of each video are read by jumping to them (`FrameSource`) and
+    compared with the same frames of the sequential decode that tracking uses. Two more lines are
+    printed, the second one last: the number of gaps in the file's timestamps, and
+    `seek: N of 20 frames exact`. Fewer than all exact also returns 1.
     """
     import cv2  # imported here so that the other commands start without OpenCV
 
+    from outline_tracker.frame_source import check_seek
     from outline_tracker.video import check_video
 
     status = 0
@@ -149,6 +157,20 @@ def run_check(args: argparse.Namespace) -> int:
             print("  OK: no problems found. Now measure fps_true from your stopwatch clip.")
         else:
             status = 1
+        if args.seek:
+            try:
+                seek = check_seek(path)
+            except (OSError, RuntimeError, ValueError, cv2.error) as error:
+                _report_error(error)
+                status = 1
+                continue
+            if seek.gaps is None:
+                print("  timestamps: no usable table; jumps decode from the start of the file (slower)")
+            else:
+                print(f"  timestamps: {seek.gaps} gap{'' if seek.gaps == 1 else 's'} in {seek.n_frames} frames")
+            print(f"  seek: {seek.exact} of {seek.tested} frames exact")
+            if seek.exact < seek.tested:
+                status = 1
     return status
 
 
