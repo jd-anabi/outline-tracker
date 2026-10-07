@@ -18,7 +18,8 @@ from outline_tracker.gui.panel import Panel
 
 TITLE = "Outline Tracker"
 MINIMUM_SIZE = (960, 600)        # width, height of the window
-START_SIZE = (1440, 900)         # on a screen that offers at least this much; else maximized
+START_SIZE = (1440, 900)         # of the window's content, on a screen with room for it; else maximized
+FRAME_ALLOWANCE = (16, 40)       # room for the system's frame around that: its edges, its title bar
 DOCK_WIDTHS = (340, 400, 520)    # smallest, at start, largest
 DOCK_MARGIN = 8                  # around the panels, and between two of them
 BOTTOM_BAR_HEIGHT = 76           # slider, flag strip and button row of the frame navigation
@@ -42,10 +43,16 @@ OPTIONAL_PANELS = {5}  # "Optional" in place of "Not started"
 
 
 def start_geometry(available: QRect) -> QRect | None:
-    """Where the window opens on a screen whose usable area is `available` (device-independent px,
-    in the desktop's coordinates): 1440 x 900 in the middle of it, or None, which means maximized,
-    when the area is less than 1440 wide or less than 900 high."""
-    width, height = START_SIZE
+    """The room for the window on a screen whose usable area is `available` (device-independent px,
+    in the desktop's coordinates), or None, which means maximized.
+
+    The room is the content's 1440 x 900 plus `FRAME_ALLOWANCE` for the frame the system draws around
+    it (Windows 11: 8 px at the left, at the right and below, and a title bar of 31 px; macOS: a title
+    bar of 28 px), in the middle of `available`. The frame's top left corner goes to the room's top
+    left corner. An area with less than this room in width or in height gets None: a window put
+    there would have its title bar, with the close and maximize buttons, partly above the screen.
+    """
+    width, height = (size + frame for size, frame in zip(START_SIZE, FRAME_ALLOWANCE))
     if available.width() < width or available.height() < height:
         return None
     return QRect(available.left() + (available.width() - width) // 2,
@@ -117,11 +124,13 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(Path(path).name)
 
     def show_at_start(self) -> None:
-        """Show the window as it opens for the user: 1440 x 900 px in the middle of its screen, or
-        maximized on a smaller screen (`start_geometry`)."""
-        place = start_geometry(self.screen().availableGeometry())
-        if place is None:
+        """Show the window as it opens for the user: its content 1440 x 900 px, in the middle of its
+        screen with the title bar inside the screen's usable area, or maximized where the screen has
+        no room for that (`start_geometry`)."""
+        room = start_geometry(self.screen().availableGeometry())
+        if room is None:
             self.showMaximized()
         else:
-            self.setGeometry(place)
+            self.resize(*START_SIZE)
+            self.move(room.topLeft())  # move() places the frame; setGeometry() would place the content
             self.show()

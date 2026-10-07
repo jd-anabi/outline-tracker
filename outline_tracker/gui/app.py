@@ -4,8 +4,9 @@ Import order is the reason this module exists as it is. With PyTorch on Windows,
 after PySide6 fails (WinError 1114, c10.dll), so torch is imported first, in the main thread, before
 anything of Qt, on every system; pyqtgraph comes after PySide6, so it uses that binding. The three
 imports are in `import_in_order`, and nothing is imported from them at the top of this file:
-importing this module loads no library (tests/gui/test_import_order.py checks both). This is the
-only place outside outline_tracker/segmenter that imports torch.
+importing this module loads no library (tests/gui/test_import_order.py checks both, and that `main`
+takes this step before anything of Qt). This is the only place outside outline_tracker/segmenter
+that imports torch. tests/gui/test_app.py runs `main` in a fresh process.
 """
 
 from __future__ import annotations

@@ -2,7 +2,11 @@
 
 - The launcher asks for torch before anything of PySide6, and for pyqtgraph after PySide6. A
   recording import hook serves empty stand-ins for the three, so no real torch is needed here (the
-  real libraries in this order are a step of the Windows CI job).
+  real libraries in this order are a step of the Windows CI job). This is checked twice: for the
+  import step alone (`app.import_in_order`), and for the entry point itself (`app.main`), which
+  must take that step before it touches anything of Qt. With empty stand-ins `main` cannot build
+  a window (it ends with an error where the window's code first uses a Qt class); what it builds
+  with the real PySide6 is in tests/gui/test_app.py.
 - Importing the launcher's module asks for none of them: the imports are inside its functions.
 - Every module of `outline_tracker.gui` imports without torch, creates no application, leaves no Qt
   object in a module or in a class body, and makes Qt say nothing.
@@ -17,7 +21,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-_ORDER_PROBE = """
+_RECORDER = """
 import importlib.abc, importlib.machinery, json, sys
 
 STAND_INS = ("torch", "PySide6", "pyqtgraph")
@@ -42,8 +46,22 @@ sys.meta_path.insert(0, Recorder())
 from outline_tracker.gui import app
 
 at_import = list(asked)
+"""
+
+_ORDER_PROBE = _RECORDER + """
 app.import_in_order()
 print(json.dumps({"at_import": at_import, "asked": asked}))
+"""
+
+# The entry point itself. A stand-in is an empty package that serves every name asked of it as one
+# more empty module, so `main` imports its way to the first use of a Qt class (a class with a Qt
+# base) and ends there with an error. What was asked for until then is the order of its imports.
+_MAIN_PROBE = _RECORDER + """
+try:
+    ended = "returned %r" % (app.main([]),)
+except Exception as error:
+    ended = type(error).__name__ + ": " + str(error)
+print(json.dumps({"at_import": at_import, "asked": asked, "ended": ended}))
 """
 
 _PACKAGE_PROBE = """
@@ -93,6 +111,16 @@ def test_the_launcher_asks_for_torch_before_pyside6_and_for_pyqtgraph_last():
     assert tops.index("torch") < tops.index("PySide6") < tops.index("pyqtgraph")
     last_pyside = max(i for i, top in enumerate(tops) if top == "PySide6")
     assert last_pyside < tops.index("pyqtgraph")  # pyqtgraph finds the binding already loaded
+
+
+def test_the_entry_point_asks_for_torch_before_it_touches_anything_of_qt():
+    seen = _probe(_MAIN_PROBE)
+    assert seen["at_import"] == []
+    tops = [name.split(".")[0] for name in seen["asked"]]
+    assert tops[:1] == ["torch"], seen  # the first of the three that `main` asks for: nothing of Qt before it
+    assert "PySide6" in tops and "pyqtgraph" in tops, seen
+    assert tops.index("PySide6") < tops.index("pyqtgraph")
+    assert not seen["ended"].startswith("returned"), seen  # empty stand-ins cannot make a window
 
 
 def test_the_gui_package_imports_without_torch_and_creates_no_qt_object():

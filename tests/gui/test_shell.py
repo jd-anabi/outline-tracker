@@ -2,13 +2,15 @@
 
 The expected values are the spec's (the order and the titles of the nine panels, SPEC 10.1) and the
 design note's layout numbers: minimum window 960 x 600, dock 400 wide (340 to 520), 8 px around and
-between the panels, bottom bar 76 high, and the hint each panel shows while nothing is done. Sizes
-are Qt's device-independent px. The window comes from the `window` fixture (tests/helpers.py), which
-closes it.
+between the panels, bottom bar 76 high, the hint each panel shows while nothing is done, and the
+window's start (1440 x 900 in the middle of the screen with its title bar inside, else maximized).
+Sizes are Qt's device-independent px. The window comes from the `window` fixture (tests/helpers.py),
+which closes it.
 """
 
 import pytest
-from PySide6.QtCore import QRect, QSize, Qt
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
+from PySide6.QtGui import QScreen
 from PySide6.QtWidgets import QApplication, QDockWidget, QWidget
 
 import helpers
@@ -167,14 +169,31 @@ def test_a_path_given_at_start_is_named_in_the_status_bar_without_its_folder(win
     assert helpers.ODD_FOLDER not in message and str(tmp_path) not in message
 
 
+# The window at the start (the design note's window row). Its content is 1440 x 900, and the system
+# draws a frame around that: on Windows 11 a title bar of 31 px and 8 px at the left, at the right
+# and below; on macOS a title bar of 28 px (the systems' usual sizes at 100%, not measured in a test
+# run). The room kept for the window is therefore 1440 + 16 by 900 + 40 = 1456 x 940, in the middle
+# of what the screen offers. A screen that offers less in either direction gets a maximized window:
+# a window placed there would have its title bar, with the close and maximize buttons, partly or
+# wholly above the screen.
 @pytest.mark.parametrize(
     "available, expected",
     [
-        # 1440 x 900 in the middle of what the screen offers: (1920 - 1440) / 2 = 240, (1080 - 900) / 2 = 90
-        (QRect(0, 0, 1920, 1080), QRect(240, 90, 1440, 900)),
-        # a menu bar of 24 px above: 24 + (1416 - 900) / 2 = 282; (2560 - 1440) / 2 = 560
-        (QRect(0, 24, 2560, 1416), QRect(560, 282, 1440, 900)),
-        (QRect(0, 0, 1440, 900), QRect(0, 0, 1440, 900)),
+        # 1456 x 940 in the middle of what the screen offers: (1920 - 1456) / 2 = 232, (1080 - 940) / 2 = 70
+        (QRect(0, 0, 1920, 1080), QRect(232, 70, 1456, 940)),
+        # a menu bar of 24 px above: 24 + (1416 - 940) / 2 = 262; (2560 - 1456) / 2 = 552
+        (QRect(0, 24, 2560, 1416), QRect(552, 262, 1456, 940)),
+        # a second screen at the left of the main one: -1920 + 232 = -1688
+        (QRect(-1920, 0, 1920, 1080), QRect(-1688, 70, 1456, 940)),
+        # exactly the room: the frame's corner is the area's corner
+        (QRect(0, 0, 1456, 940), QRect(0, 0, 1456, 940)),
+        # room for the content but not for its frame: maximized
+        (QRect(0, 0, 1440, 900), None),
+        (QRect(0, 0, 1455, 940), None),
+        (QRect(0, 0, 1456, 939), None),
+        # 1920 x 1200 at 125% and 2560 x 1440 at 150%: 960 high in Qt's px, 912 above the Windows 11 taskbar (48)
+        (QRect(0, 0, 1536, 912), None),
+        (QRect(0, 0, 1707, 912), None),
         # under 1440 x 900 in either direction: maximized
         (QRect(0, 0, 1280, 720), None),
         (QRect(0, 0, 1438, 900), None),
@@ -186,11 +205,56 @@ def test_the_window_starts_at_1440_by_900_centered_or_maximized_on_a_small_scree
     assert main_window.start_geometry(available) == expected
 
 
+def on_a_screen_that_offers(monkeypatch, available):
+    """Make every screen report `available` as its usable area (the offscreen screen is 800 x 800)."""
+    monkeypatch.setattr(QScreen, "availableGeometry", lambda screen: QRect(available))
+
+
 def test_show_at_start_places_the_window_on_its_screen(window, qtbot):
+    available = window.screen().availableGeometry()  # the screen of this test run, whatever it is
     with qtbot.waitExposed(window):
         window.show_at_start()
-    wanted = main_window.start_geometry(window.screen().availableGeometry())
-    if wanted is None:
-        assert window.isMaximized()
-    else:
-        assert not window.isMaximized() and window.geometry() == wanted
+    assert window.isVisible()
+    room = available.width() >= 1456 and available.height() >= 940
+    assert window.isMaximized() == (not room)
+    if room:
+        assert window.size() == QSize(1440, 900) and available.contains(window.frameGeometry())
+
+
+@pytest.mark.parametrize(
+    "available, corner",
+    [
+        (QRect(0, 24, 2560, 1416), QPoint(552, 262)),  # 24 + (1416 - 940) / 2 = 262; (2560 - 1456) / 2 = 552
+        (QRect(0, 0, 1920, 1080), QPoint(232, 70)),    # (1920 - 1456) / 2 = 232; (1080 - 940) / 2 = 70
+        (QRect(100, 50, 1456, 940), QPoint(100, 50)),  # exactly the room: the frame starts in the area's corner
+    ],
+)
+def test_with_room_the_window_is_placed_with_its_title_bar_inside_the_screen(
+        window, qtbot, monkeypatch, available, corner):
+    on_a_screen_that_offers(monkeypatch, available)
+    with qtbot.waitExposed(window):
+        window.show_at_start()
+    # The offscreen platform draws a frame too (2 px), so the corner of the frame and the corner of
+    # the content can be told apart here. Wait until Qt knows that frame (this fails if there is none).
+    qtbot.waitUntil(lambda: window.frameGeometry().top() < window.geometry().top())
+    frame, content = window.frameGeometry(), window.geometry()
+    assert frame.left() < content.left()
+    assert not window.isMaximized()
+    assert content.size() == QSize(1440, 900)
+    assert frame.topLeft() == corner  # the frame is what is placed: the title bar starts here
+    assert available.contains(frame)  # nothing of the window, frame included, is outside the area
+
+
+@pytest.mark.parametrize(
+    "available",
+    [
+        QRect(0, 0, 1440, 900),   # room for the content, none for the title bar
+        QRect(0, 0, 1707, 912),   # 2560 x 1440 at 150%, above the Windows 11 taskbar
+        QRect(0, 0, 1280, 720),
+    ],
+)
+def test_without_room_for_the_frame_the_window_is_maximized(window, qtbot, monkeypatch, available):
+    on_a_screen_that_offers(monkeypatch, available)
+    with qtbot.waitExposed(window):
+        window.show_at_start()
+    assert window.isVisible() and window.isMaximized()
