@@ -1,11 +1,12 @@
 """Fine mode (SPEC 6.3) where it gets hard: a mask that touches the window, a window set by hand,
-the settings, frames on which the model finds nothing (review focus 4), and clicks outside the
-window. The window rule and the positions are in tests/test_tracking_fine.py, the frame's border in
+the settings, frames on which the model finds nothing (review focus 4), an object that is not
+found on its start frame and is clicked again, and clicks outside the window. The window rule and
+the positions are in tests/test_tracking_fine.py, the frame's border in
 tests/test_tracking_fine_border.py.
 
-Expected values come from the scenes' stated paths, worked out in the comments, and from the
-ground truth of outline_tracker/synthetic.py: what a model can see of an object in a window is the
-part of its true mask inside that window and inside the frame (`truth_in_box`).
+Expected values come from the scenes' stated paths and sizes, worked out in the comments, and from
+the ground truth of outline_tracker/synthetic.py: what a model can see of an object in a window is
+the part of its true mask inside that window and inside the frame (`truth_in_box`).
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,
 row r) has its center at (c + 0.5, r + 0.5). A box is (c0, r0, width, height) in whole px of the
@@ -26,10 +27,12 @@ from tracking_helpers import (
     truth_in_box,
 )
 
+from outline_tracker import synthetic
 from outline_tracker.results import ResultsStore
 from outline_tracker.segmenter.base import MaskResult
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from outline_tracker.session import Session
+from outline_tracker.synthetic_shapes import Disk, Straight
 
 GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions here take every 2nd
 
@@ -156,6 +159,13 @@ def test_a_lost_frame_keeps_the_last_crop_center_and_is_marked_lost(closeup_clip
     assert Session.load(tmp_path / "session.json").complete is True
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task A16, before its review. It expects the 96 px that a window falls back to when the model "
+    "does not find the object on its start frame to be stored as the track's fine_window_px ([96, 96]). Review "
+    "round 1 found that wrong: nothing was measured, and a stored window is used as it is by every later run, so "
+    "a corrected click could never get the rule's window (SPEC 6.3 step 1). The code now stores only a window "
+    "measured on a found object. The test below, ..._that_is_not_stored_and_the_run_still_completes, is this one "
+    "with [96, None]. For J or the controller: delete this test."))
 def test_an_empty_preview_mask_gives_a_96_px_window_and_the_run_still_completes(disk_clip, tmp_path):
     # D is a click on the light background of `disk_scene`: no disk comes within 80 px of (250.5, 200.5).
     # A is a disk of radius 12 px at (60.3 + frame / 2, 200.5): 3 F = 72, so its window is 96 px too,
@@ -191,6 +201,125 @@ def test_an_empty_preview_mask_gives_a_96_px_window_and_the_run_still_completes(
     assert found.visible.all() and not found.edge.any()
     assert np.hypot(found.u - true[:, 0], found.v - true[:, 1]).max() < 0.25
     assert (found.area_px > 300).all()  # pi 12^2 = 452 px
+
+
+def test_an_empty_preview_mask_gives_a_96_px_window_that_is_not_stored_and_the_run_still_completes(disk_clip,
+                                                                                                   tmp_path):
+    # D is a click on the light background of `disk_scene`: no disk comes within 80 px of (250.5, 200.5).
+    # A is a disk of radius 12 px at (60.3 + frame / 2, 200.5): 3 F = 72, so its window is 96 px too,
+    # and hangs over the frame's bottom border (rows up to 248 of 240).
+    tracks = [track(disk_clip, "A", mode="fine"), track_at("D", 0, [(250.5, 200.5)], [1], mode="fine")]
+    session = make_session(disk_clip, tmp_path, tracks)
+    segmenter = Watched(ThresholdFake())
+    status, seen = run(disk_clip, session, tmp_path, segmenter)
+    assert status == "complete" and seen.finished == ["complete"]
+
+    # A's 96 px come from its mask and are stored, for its later runs. D's 96 px come from no mask at
+    # all: they are for this run, and D stays automatic, so that a later run, with a click the model
+    # finds, takes its window from the object (SPEC 6.3 step 1).
+    saved = Session.load(tmp_path / "session.json")
+    assert [a_track.fine_window_px for a_track in saved.tracks] == [96, None]
+    assert [a_track.fine_window_px for a_track in session.tracks] == [96, None]  # the caller's session too
+    assert len(segmenter.shapes) == 120 and set(segmenter.shapes) == {(96, 96, 3)}
+    assert [(r.tracks, r.mode, r.frames_done) for r in saved.runs] == [(["A"], "fine", 60), (["D"], "fine", 60)]
+    assert saved.complete is True
+    assert any("D" in line and "nothing" in line for line in seen.log)  # the log says the preview was empty
+
+    store = ResultsStore.load(tmp_path / "results.npz")
+    lost = store.arrays("D")
+    assert lost.frames.tolist() == GRID
+    assert not lost.visible.any() and not lost.edge.any() and (lost.area_px == 0).all()
+    assert np.isnan(lost.u).all() and np.isnan(lost.v).all() and np.isnan(lost.outline_px).all()
+    assert set(lost.mode.tolist()) == {"fine"}
+    np.testing.assert_allclose(lost.cell_px, 96 / 256)
+    # with no mask to center on, the window lies around the click: the click is at its middle, (48, 48)
+    (prompt,) = segmenter.starts[1][1]
+    assert prompt.obj_id == "D" and prompt.labels == [1]
+    np.testing.assert_allclose(prompt.points_px, [(48.0, 48.0)], rtol=0, atol=0.5)
+
+    # the disk next to it is followed, within the template's tolerance for this stand-in
+    found = store.arrays("A")
+    true = np.array([center(disk_clip, "A", frame) for frame in GRID])
+    assert found.visible.all() and not found.edge.any()
+    assert np.hypot(found.u - true[:, 0], found.v - true[:, 1]).max() < 0.25
+    assert (found.area_px > 300).all()  # pi 12^2 = 452 px
+
+
+@pytest.fixture(scope="module")
+def two_disk_clip(tmp_path_factory):
+    """Two dark disks on a light background, for `ThresholdFake` (320 x 240 px, 120 frames, crf 10
+    as for `disk_clip`), both too large for the smallest fine window to be the rule's choice:
+    - A, radius 20 px: its center starts at (60.3, 180.5) and moves 0.25 px per frame to the right;
+    - B, radius 30 px: its center starts at (200.4, 80.6) and moves (0.3, 0.2) px per frame, so on
+      frame 119 it is at (236.1, 104.4).
+    Around (250.5, 200.5) there is only background: B's center comes no nearer than 97 px (on
+    frame 119), its rim 67 px; A is further away still."""
+    moves = [("A", 20.0, (60.3, 180.5), (0.25, 0.0)), ("B", 30.0, (200.4, 80.6), (0.3, 0.2))]
+    objects = tuple(synthetic.SceneObject(name, Disk(radius), Straight(start, step), gray=40)
+                    for name, radius, start, step in moves)
+    scene = synthetic.Scene((320, 240), synthetic.FPS, 120, objects, mm_per_px=0.0324, background=220)
+    return synthetic.render(scene, tmp_path_factory.mktemp("two_disks") / "two_disks_tracker.mp4", crf=10)
+
+
+def test_after_an_empty_preview_a_later_run_with_a_click_on_the_object_takes_the_rules_window(two_disk_clip,
+                                                                                              tmp_path):
+    # The largest diameter F is 40 px for A and 60 px for B. What a threshold sees of a disk through
+    # H.264 ends within a pixel of its rim on each side, so F is within 2 px of that: the rule's
+    # window, ceil(3 F), is 114 to 126 px for A and 174 to 186 px for B.
+    clip = two_disk_clip
+    # D is meant for disk B, but the click went onto the background
+    tracks = [track(clip, "A", mode="fine"), track_at("D", 0, [(250.5, 200.5)], [1], mode="fine")]
+    session = make_session(clip, tmp_path, tracks)
+    first = Watched(ThresholdFake())
+    status, _ = run(clip, session, tmp_path, first)
+    assert status == "complete"
+
+    saved = Session.load(tmp_path / "session.json")
+    window_a = saved.tracks[0].fine_window_px
+    assert 114 <= window_a <= 126           # measured on A's mask, and stored
+    assert saved.tracks[1].fine_window_px is None  # nothing was measured for D: no window to keep
+    assert set(first.shapes[:60]) == {(window_a, window_a, 3)} and set(first.shapes[60:]) == {(96, 96, 3)}
+    store = ResultsStore.load(tmp_path / "results.npz")
+    assert store.arrays("D").frames.tolist() == GRID and not store.arrays("D").visible.any()
+    a_before = store.arrays("A")
+    true_a = np.array([center(clip, "A", frame) for frame in GRID])
+    assert np.hypot(a_before.u - true_a[:, 0], a_before.v - true_a[:, 1]).max() < 0.25
+
+    # The user sees the lost rows and clicks again, now on the disk. This is what "Re-track from
+    # here" on the start frame does (SPEC 6.6): new clicks there, and the track's rows from that
+    # frame on make room for the new run.
+    saved.tracks[1].prompts = track_at("D", 0, [center(clip, "B", 0)], [1]).prompts
+    store.replace_from("D", 0)
+    store.save(tmp_path / "results.npz")
+    second = Watched(ThresholdFake())
+    status, seen = run(clip, saved, tmp_path, second)
+    assert status == "complete" and seen.finished == ["complete"]
+
+    # Only D is tracked again. The preview finds the disk now, so the window is the rule's for a
+    # 60 px disk, not the 96 px of the run that found nothing.
+    assert second.calls == ["preview", "start", *["step"] * 59, "close"]
+    again = Session.load(tmp_path / "session.json")
+    window_d = again.tracks[1].fine_window_px
+    assert type(window_d) is int and 174 <= window_d <= 186
+    assert set(second.shapes) == {(window_d, window_d, 3)}
+    assert any(f"{window_d} x {window_d}" in line for line in seen.log)
+    assert again.tracks[0].fine_window_px == window_a
+    assert [(r.tracks, r.start_frame, r.mode, r.frames_done) for r in again.runs] == [
+        (["A"], 0, "fine", 60), (["D"], 0, "fine", 60), (["D"], 0, "fine", 60)]
+    assert again.complete is True
+
+    store = ResultsStore.load(tmp_path / "results.npz")
+    found = store.arrays("D")
+    true_b = np.array([center(clip, "B", frame) for frame in GRID])
+    assert found.frames.tolist() == GRID
+    # in a window three times its size the disk reaches neither the window's border nor the frame's
+    assert found.visible.all() and not found.edge.any()
+    assert np.hypot(found.u - true_b[:, 0], found.v - true_b[:, 1]).max() < 0.25
+    assert (found.area_px > 2600).all()  # pi 30^2 = 2827 px; a pixel all along the 188 px rim would be 188 less
+    np.testing.assert_allclose(found.cell_px, window_d / 256)
+    a_after = store.arrays("A")  # A was not touched
+    np.testing.assert_array_equal(a_after.u, a_before.u)
+    np.testing.assert_array_equal(a_after.v, a_before.v)
 
 
 # ---------------------------------------------------------------------------------------------

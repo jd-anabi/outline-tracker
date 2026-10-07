@@ -74,9 +74,10 @@ class SessionChanges:
     of the run the change is about, as it is now (a copy: the receiver's own), and run_index: its
     place in `session.runs`. frame_hashes: the hashes of start frames made anew on this computer
     for clicks that came from another one (X8); they go with the first change of a job.
-    fine_windows: (track id, window in px) for each fine window the job chose (SPEC 6.3); it goes
-    with the change that starts the track's run, and becomes the track's `fine_window_px`, so
-    that a later run of the track shows the model the object at the same scale.
+    fine_windows: (track id, window in px) for each fine window the job chose from the object's
+    mask on its start frame (SPEC 6.3); it goes with the change that starts the track's run, and
+    becomes the track's `fine_window_px`, so that a later run of the track shows the model the
+    object at the same scale. The 96 px of an object that was not found there are not stored.
     """
 
     complete: bool
@@ -147,7 +148,8 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
 
     Then each run is tracked, frame by frame: a coarse run on the part of the frame that
     `plan.input_box` names, a fine run on a window that follows its object (SPEC 6.3). A fine
-    window the job chose goes to the session when the object's run starts (`SessionChanges`).
+    window the job chose from the object's mask goes to the session when the object's run starts
+    (`SessionChanges`); the 96 px of an object the model did not find are for that run only.
     Records are in px in the full frame, frames are video frame numbers. results.npz and, through
     `save_session`, the session are saved when a run starts (the session only), after every 200
     tracked frames, and when a run ends. Returns "complete"; "cancelled" when `should_cancel` said
@@ -293,7 +295,7 @@ class _Runner:
             if not fine.found:
                 log(f"  The model found nothing at the clicks of {plan.track_ids[0]} on frame {plan.start_frame}: "
                     "the window starts around the first click.")
-            if fine.chosen:  # so that a later run of the track shows the object at the same scale
+            if fine.chosen and fine.found:  # measured on the object: a later run shows it at the same scale
                 windows = ((plan.track_ids[0], fine.crop.window),)
 
         record = RunRecord(tracks=list(plan.track_ids), start_frame=plan.start_frame, mode=plan.mode, started=_now())

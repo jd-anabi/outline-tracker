@@ -187,8 +187,10 @@ class FollowCrop:
 class FineStart:
     """How one fine run starts. crop: the window and its first center. prompts: the object's clicks
     on the start frame, in px of the first crop (one prompt). chosen: the window was chosen by the
-    rule (the track had none) and is to be stored in the session. found: the model found the
-    object on the start frame; if not, the window lies around the first positive click."""
+    rule (the track had none). found: the model found the object on the start frame; if not, the
+    window lies around the first positive click. A chosen window is stored in the session only
+    when the object was found (`tracking.run_job`): the 96 px chosen without a mask were measured
+    on nothing, and a stored window is used as it is by every later run of the track."""
 
     crop: FollowCrop
     prompts: list[ObjectPrompt]
@@ -197,9 +199,9 @@ class FineStart:
 
 
 def user_window(track: Track) -> int | None:
-    """The fine window a track was given by hand: `track.fine_window_px`, in px, or None for
-    automatic. It is used as it is, also below 96 or above 512 px. Raises ValueError unless it is
-    a whole number of at least 1."""
+    """The fine window a track has: `track.fine_window_px`, in px, set by hand or stored by an
+    earlier job that chose it from the object's mask; None for automatic. It is used as it is,
+    also below 96 or above 512 px. Raises ValueError unless it is a whole number of at least 1."""
     window = track.fine_window_px
     if window is None:
         return None
