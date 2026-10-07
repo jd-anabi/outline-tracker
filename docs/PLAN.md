@@ -1195,6 +1195,11 @@ because derive and flags read the arrays the results store defines).
 ### ▶ GO/NO-GO 1 (Wed ~noon): J tests `from-tracker` on a real clip
 
 The agent posts the final commands in chat when Phase B is done, with the commit filled in.
+Outcome, Wed 09:45: J does not have last week's videos and Tracker files at hand, so steps 2 to 4 on a
+real clip were skipped at J's word ("we don't need it to test it"). What stands in for them: the same
+commands on last week's synthetic selftest clip with the real model (step 3: 0.000 px) and section 4.1 of
+docs/VALIDATION.md. Not covered by anything yet: the real model on a real video of shrimp. The work goes
+on with the window.
 Posted Wed 07:45 for commit `fea7425` (green on both test machines). Every command below was rehearsed
 on last week's synthetic selftest clip with the real model: step 3 gave `OK: worst RMS 0.000 px (limit 0.01 px)`.
 Draft (Terminal, zsh). Paste one block at a time into the same Terminal tab, and wait for it to
