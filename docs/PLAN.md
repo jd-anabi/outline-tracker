@@ -359,6 +359,8 @@ outline_tracker/
   segmenter/fake.py  ThresholdFake, ExactFake                                    (A10)
   measure.py         mask (+ logits) -> PixelRecord                              (A03, A11)
   derive.py          PixelRecords + calibration -> world quantities              (A12)
+  derive_heading.py  heading and its reference rule                              (A12)
+  derive_outline.py  outline resampling, radial profile, hull, Feret             (A12)
   qc.py              flags                                                       (A13)
   results.py         results.npz store                                           (A14)
   tracking.py        runs, coarse and fine runners, corrections, hash guard      (A15-A17)
@@ -767,8 +769,9 @@ because derive and flags read the arrays the results store defines).
     after loading.
   - Check: `uv run pytest tests/test_results.py -q`
 
-- [ ] **A12 · Derive: world quantities** (§7.2–7.9, §13.1 Moments / Head continuity / Outline
+- [x] **A12 · Derive: world quantities** (§7.2–7.9, §13.1 Moments / Head continuity / Outline
   geometry / Radial profile / Solidity and wall distance / Resolution)
+  - Done Wed 02:40 (commits de454c7, bcd2005). Verified: 79 tests (world-frame axis angle with a rotated calibration, heading continuity through a full turn and through a round stretch, outline of 128 points counterclockwise from the head point, radial profile of circle and ellipse, solidity of disk and L-shape, Feret, `shape_ok`, wall distances); a 1,200-frame track derives in 0.34 s. Split into `derive.py`, `derive_heading.py`, `derive_outline.py`. Uncertain: none.
   - Files: `derive.py`, `tests/test_derive.py`.
   - Produces: `derive_track(arrays, track, world_frame, fps_true, circle, processing) ->
     DerivedTrack` with per-frame columns for positions.csv and shapes.csv, `outline_xy_mm[n, N, 2]`,
@@ -804,7 +807,8 @@ because derive and flags read the arrays the results store defines).
     - wall distances for points at known radii, NaN without a circle; negative outside.
   - Check: `uv run pytest tests/test_derive.py -q`
 
-- [ ] **A13 · Quality flags** (§9, §13.1 Flags)
+- [x] **A13 · Quality flags** (§9, §13.1 Flags)
+  - Done Wed 03:00 (commit 14a16c3). Verified: 66 tests (each of the nine codes on exactly the expected frames; `JUMP` and `SIZE` as last week; `CONTACT` from polygon distances, checked against OpenCV on 400 random pairs). Uncertain: `CONTACT` sees only the stored outline (the largest piece of a mask); a contact lasting a whole 1,200-frame clip adds about 1.4 s to an export.
   - Files: `qc.py`, `tests/test_qc.py`.
   - Produces: `compute_flags(derived_by_track, arrays_by_track, world_frame, processing) ->
     dict[track_id, list[str]]` (one `;`-joined string per row, codes in §9 order; the same string
@@ -923,8 +927,10 @@ because derive and flags read the arrays the results store defines).
     - `outlines.npz` keys `<id>__frames`, `<id>__xy_mm`, `<id>__xieta_mm`, `meta` with N = 128;
     - with `processing.shape_files_for_coarse = true`, coarse tracks get rows in radial.csv and
       keys in outlines.npz; with the default (false) they do not;
-    - after `retrack_from` only the rows of that track at frames ≥ k differ in positions.csv;
-      after `end_track` and `new_piece` the export has both `A` and `A2`;
+    - after `retrack_from` only the rows of that track at frames ≥ k differ in the position
+      columns (u, v, x, y, area, visible) of positions.csv (the `flags` column may also change on
+      earlier rows and on other tracks: `SIZE` uses the whole track's median and `CONTACT`
+      involves two tracks); after `end_track` and `new_piece` the export has both `A` and `A2`;
     - run.log has each §8.9 block; the version line and `--version` print
       `outline-tracker 0.1.0 (commit abc1234)`: from `direct_url.json` for a git install, from
       `git rev-parse --short HEAD` when the source folder is a git checkout, else
