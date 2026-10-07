@@ -9,6 +9,8 @@ What is checked, with a stand-in segmenter and no torch:
 - the model is made in the worker thread, after the window is shown, and until it reports ready
   nothing is `ready`; a model that cannot be loaded, or that fails on a frame, is reported in one
   plain line;
+- the trace of such a failure is not shown, but it is written to the log when it happens and
+  kept in `Worker.traces` (SPEC 10.2), also when nobody waits for the result any more;
 - closing the window stops the thread.
 A gate is a `threading.Event` (tests/gui/prompt_helpers.py): no test waits with a delay.
 
@@ -30,8 +32,10 @@ from outline_tracker.gui.prompts import Prompts
 from outline_tracker.gui.worker import Worker, before_load_for, worker_of
 from outline_tracker.measure import mask_center
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
-from prompt_helpers import Gate, Watched, clicked_object, gui_thread, objects_panel, panel_with, this_thread
+from prompt_helpers import Gate, Watched, clicked_object, gui_thread, logged, objects_panel, panel_with, this_thread
 from tracking_helpers import DISH_BOX, center, dish_circle
+
+LOG = "outline_tracker.gui.worker"  # the logger the worker writes the trace of a failure to
 
 
 class Receiver(QObject):
@@ -314,6 +318,63 @@ def test_the_model_is_shown_the_part_of_the_frame_that_tracking_shows_it(window,
     inside_v = ((y + np.roll(y, -1)) * cross).sum() / (3 * cross.sum())
     true_u, true_v, _ = mask_center(dish_clip.mask("A", 0))
     assert abs(inside_u - true_u) < 0.75 and abs(inside_v - true_v) < 0.75
+
+
+# ---------------------------------------------------------------------------------------------
+# The trace of a failure: not shown, but written to the log at once and kept (SPEC 10.2)
+
+
+def test_a_model_that_cannot_be_loaded_leaves_its_trace_in_the_log_and_with_the_worker(worker, qtbot, caplog):
+    def broken_factory(model, device):
+        raise OSError("The model files could not be downloaded.")
+
+    worker.start(broken_factory, "sam2", "mps")
+    qtbot.waitUntil(lambda: worker.state == "failed")
+    assert worker.heard.states[-1] == ("failed", "The model files could not be downloaded.")  # what is shown
+    (trace,) = worker.traces
+    first, *_, last = trace.splitlines()
+    assert "sam2" in first and "mps" in first  # what was being loaded, and for which device
+    assert "Traceback (most recent call last):" in trace and "in broken_factory" in trace  # where it failed
+    assert last == "OSError: The model files could not be downloaded."
+    assert logged(caplog, LOG) == [trace]  # the same text was written when it happened
+
+
+def test_a_model_that_fails_on_frames_leaves_a_trace_each_time_and_the_newest_are_kept(worker, qtbot, frame_0,
+                                                                                    monkeypatch, caplog):
+    class Broken(ThresholdFake):
+        def preview(self, image, prompts):
+            raise RuntimeError(f"No memory for {prompts[0].obj_id}.")
+
+    monkeypatch.setattr("outline_tracker.gui.worker.TRACES_KEPT", 2)
+    worker.start(lambda model, device: Broken(), "edgetam", "cpu")
+    qtbot.waitUntil(lambda: worker.ready)
+    assert worker.traces == [] and logged(caplog, LOG) == []  # a model that loads leaves none
+    for frame, name in ((0, "A"), (2, "B"), (4, "C")):
+        worker.request_preview(frame, frame_0, (0, 0), [helpers.click(name, 10.5, 10.5)])
+        qtbot.waitUntil(lambda: not worker.busy)
+    assert [reason for _, reason in worker.heard.failures] == [f"No memory for {name}." for name in "ABC"]
+    assert [trace.splitlines()[-1] for trace in worker.traces] == [f"RuntimeError: No memory for {name}."
+                                                                   for name in "BC"]
+    first = worker.traces[-1].splitlines()[0]
+    assert "object C" in first and "frame 4" in first and "in preview" in worker.traces[-1]
+    assert logged(caplog, LOG)[1:] == worker.traces and len(logged(caplog, LOG)) == 3  # the log has all three
+
+
+def test_a_failure_nobody_waits_for_any_more_is_not_reported_but_its_trace_is_kept(worker, qtbot, frame_0):
+    with Gate() as gate:
+        class Broken(ThresholdFake):
+            def preview(self, image, prompts):
+                gate.park()
+                raise RuntimeError("Too late.")
+
+        worker.start(lambda model, device: Broken(), "edgetam", "cpu")
+        qtbot.waitUntil(lambda: worker.ready)
+        worker.request_preview(0, frame_0, (0, 0), [helpers.click("A", 10.5, 10.5)])
+        qtbot.waitUntil(gate.parked.is_set)
+        worker.cancel_preview()
+        gate.open()
+        qtbot.waitUntil(lambda: len(worker.traces) == 1)
+    assert worker.heard.failures == [] and worker.traces[0].splitlines()[-1] == "RuntimeError: Too late."
 
 
 # ---------------------------------------------------------------------------------------------

@@ -101,6 +101,16 @@ def gui_thread() -> int:
     return threading.main_thread().ident
 
 
+def logged(caplog, name: str) -> list[str]:
+    """What the logger `name` wrote during the test (pytest's `caplog`), in any thread, as a program
+    that set up no logging gets it on stderr: the records from WARNING up, each as its message
+    with, under it, the trace of the error it was logged with."""
+    import logging
+
+    return [logging.Formatter().format(record) for record in caplog.records
+            if record.name == name and record.levelno >= logging.WARNING]
+
+
 def objects_panel(window):
     """The controls of panel 6 (Objects) in the window: its `ObjectsPanel`."""
     from outline_tracker.gui.panels.objects_panel import ObjectsPanel
