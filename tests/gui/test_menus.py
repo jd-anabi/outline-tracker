@@ -33,6 +33,11 @@ def save_items(window):
 # What is in the menus
 
 
+@pytest.mark.xfail(strict=True, reason="Task C6: the File menu has Export now, between Save session as and Quit "
+                   "(SPEC 10.1), so its items are no longer these five. Everything else here holds. The test that "
+                   "follows this one is test_the_file_menu_has_export_between_save_session_as_and_quit in "
+                   "tests/gui/test_export_panel.py: this test with six items. For J or the controller: delete "
+                   "this test.")
 def test_the_menu_bar_has_file_and_help_with_the_specs_items(window):
     assert menu_texts(window) == {"File": ["Open video", "Open session", "Save session", "Save session as", "Quit"],
                                   "Help": ["Quickstart", "About"]}
