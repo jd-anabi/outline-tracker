@@ -15,7 +15,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QCheckBox, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow,
+from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow,
                                QPushButton, QScrollArea, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget)
 
 from outline_tracker.geometry import grid_frames
@@ -192,7 +192,8 @@ class MainWindow(QMainWindow):
         # as wide as the room it gets, never wider: a long sentence must not push the dock
         self.tool_text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.tool_text.setToolTip(PAN_TEXT)
-        self.fill_box = QCheckBox("Fill")
+        self.fill_box = QPushButton("Fill")  # a button that stays down while it is on, like a tool's button
+        self.fill_box.setCheckable(True)
         self.fill_box.setToolTip("Fill each tracked outline with its color, so that you see what it covers")
         self.fit_button, self.one_to_one_button = QPushButton("Fit"), QPushButton("1:1")
         self.fit_button.setToolTip("Show the whole frame")
@@ -209,8 +210,7 @@ class MainWindow(QMainWindow):
         row.setContentsMargins(DOCK_MARGIN, 0, DOCK_MARGIN, 0)
         row.setSpacing(DOCK_MARGIN)
         row.addWidget(self.tool_text, 1)
-        row.addWidget(self.fill_box)
-        for part in (self.fit_button, self.one_to_one_button):
+        for part in (self.fill_box, self.fit_button, self.one_to_one_button):
             part.setFixedHeight(CONTROL_HEIGHT)
             row.addWidget(part)
         row.addWidget(self.zoom_label)
