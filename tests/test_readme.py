@@ -47,7 +47,8 @@ TITLES = ["If the app does not open", "Troubleshooting", "Getting the original v
 SHELLS = {"zsh", "bash", "sh", "powershell", "pwsh", "shell"}  # `shell`: the same on macOS and on Windows
 LANGUAGES = SHELLS | {"text", "python"}  # `text` is what a command prints
 COMMANDS = ["selftest", "from-tracker", "export", "check", "convert"]  # the README must show each of them
-UV_OPTIONS = {"--force", "--with"}  # of `uv`, not of this tool: `uv tool install --force`, last week's `uv run --with`
+UV_OPTIONS = {"--force", "--python", "--with"}  # of `uv`, not of this tool: `uv tool install --force --python 3.12`
+# (SPEC 15: the install line names the Python version), and last week's `uv run --with`
 COMMIT = re.compile(r"commit (?:[0-9a-f]{7}|unknown)")
 BRITISH = re.compile(r"\b(?:colours?|centres?|centimetres?|millimetres?|metres?|analys(?:ed|ing)|behaviours?|greys?|"
                      r"licences?|organis\w*|programmes?|recognis\w*|normalis\w*|labelled|travelled)\b", re.IGNORECASE)

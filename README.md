@@ -9,10 +9,10 @@ The tool is an app with a window: the [Quickstart](#quickstart) below takes you 
 ## Install
 
 ```shell
-uv tool install git+https://github.com/jd-anabi/outline-tracker
+uv tool install git+https://github.com/jd-anabi/outline-tracker@refs/tags/v0.1.0 --python 3.12
 ```
 
-The first install takes a few minutes. Then check that it worked:
+This installs version 0.1.0 with Python 3.12, which uv downloads if it is not there. The first install takes a few minutes. Then check that it worked:
 
 ```shell
 outline-tracker --version
@@ -24,10 +24,10 @@ You see one line like this. The commit is different on your computer:
 outline-tracker 0.1.0 (commit 4a1c9e7)
 ```
 
-To get a newer version, install again with `--force`:
+To install again, or to get a newer version when one is announced, add `--force` and put the new version's name in place of `v0.1.0`:
 
 ```shell
-uv tool install --force git+https://github.com/jd-anabi/outline-tracker
+uv tool install --force git+https://github.com/jd-anabi/outline-tracker@refs/tags/v0.1.0 --python 3.12
 ```
 
 To remove the tool:
