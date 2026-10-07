@@ -10,6 +10,11 @@ reference module and the names moved unchanged. A name whose text had to change 
 named last week's command, say) goes into `ADAPTED` instead, with the exact text replacements,
 each of which must occur once in the reference source. Names that exist in both modules and are
 listed in neither table fail `test_no_ported_name_is_left_unchecked`.
+
+A ported test file goes into `PORTED_TESTS` when it is one file of the template (only its import
+line may differ), or into `SPLIT_TESTS` when the template's file was shared out among several new
+files (each listed definition must equal the template's; the three tests that were not shared out
+are named in `NOT_PORTED_HERE`).
 """
 
 from __future__ import annotations
@@ -34,6 +39,13 @@ VERBATIM: list[tuple[str, str, tuple[str, ...]]] = [
          "frame_changes", "_ramp_ratio"),
     ),
     ("outline_tracker.convert", "shrimp.convert", ("ffmpeg_exe", "convert_for_tracker")),
+    (
+        "outline_tracker.tracker_io",
+        "shrimp.segment",
+        ("_cells", "read_tracker_export", "Calibration", "fit_calibration", "write_tracker_file",
+         "_fps_from_export", "_fps_from_manifest", "Plan", "make_plan"),
+    ),
+    ("outline_tracker.measure", "shrimp.segment", ("mask_center",)),
 ]
 
 # (new module, reference module, name, ((old text, new text), ...)). The new source must equal the
@@ -56,6 +68,45 @@ PORTED_TESTS: list[tuple[str, str, tuple[str, str]]] = [
     ("test_convert.py", "test_convert.py",
      ("from shrimp import convert, video", "from outline_tracker import convert, video")),
 ]
+
+# The template's test_segment.py went to several new files, as the plan's table (section 8) says.
+# Each row: (new file, the import line that replaces the template's `from shrimp import segment`,
+# the top-level definitions and assignments taken over, whether the file holds nothing else).
+# Each taken-over name must have the same source text as in the template; the alias keeps the
+# bodies of the tests unchanged. The three end-to-end tests are not here: they go through
+# from_tracker and selftest (tasks B1 and B2), where their assertions are kept.
+SPLIT_REFERENCE = "test_segment.py"
+SPLIT_REFERENCE_IMPORT = "from shrimp import segment"
+SPLIT_TESTS: list[tuple[str, str, tuple[str, ...], bool]] = [
+    (
+        "test_tracker_io.py",
+        "from outline_tracker import tracker_io as segment",
+        ("MM_PER_PX", "W, H", "tracker_map", "export_text",
+         "test_read_one_point_mass_named_after_the_file",
+         "test_read_several_point_masses_exported_together",
+         "test_read_needs_the_pixel_columns",
+         "test_calibration_recovers_trackers_map",
+         "test_calibration_from_a_straight_track",
+         "test_two_points_give_trackers_flipped_map",
+         "test_calibration_needs_two_points",
+         "test_written_file_reads_like_a_tracker_export",
+         "test_plan_follows_the_tracker_track",
+         "test_plan_for_many_shrimp_needs_fps_true",
+         "test_every_shrimp_must_start_on_the_same_frame"),
+        True,
+    ),
+    (
+        "test_measure.py",
+        "from outline_tracker import measure as segment",
+        ("test_mask_center_uses_trackers_pixel_convention",),
+        False,  # this file adds tests of its own below the template's
+    ),
+]
+NOT_PORTED_HERE = (
+    "test_whole_run_with_a_stand_in_model",
+    "test_many_shrimp_from_a_start_file_in_extra",
+    "test_selftest_runs_and_reports_the_time",
+)
 
 
 def _source(module_name: str, name: str) -> str:
@@ -85,6 +136,40 @@ def _unchecked(new_file: Path, reference_file: Path, checked: set[str]) -> list[
 
 def _module_file(module_name: str) -> Path:
     return Path(inspect.getsourcefile(importlib.import_module(module_name)))
+
+
+def _target_name(target: ast.expr) -> str:
+    """The name an assignment binds, as written: `W` or, for a tuple target, `W, H`."""
+    if isinstance(target, ast.Tuple):
+        return ", ".join(ast.unparse(element) for element in target.elts)
+    return ast.unparse(target)
+
+
+def _statement_sources(path: Path) -> dict[str, str]:
+    """The top-level functions, classes and assignments of a Python file, as {name: source text}.
+
+    The text runs from the first decorator (or the first line) to the last line of the statement.
+    """
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    found = {}
+    for node in ast.parse(text).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            name = node.name
+            first = min([d.lineno for d in node.decorator_list] + [node.lineno])
+        elif isinstance(node, ast.Assign):
+            name = ", ".join(_target_name(t) for t in node.targets)
+            first = node.lineno
+        else:
+            continue
+        found[name] = "\n".join(lines[first - 1:node.end_lineno])
+    return found
+
+
+def _import_lines(path: Path) -> list[str]:
+    """The lines of a Python file that start with `import` or `from` (the top-level imports)."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [line for line in lines if line.startswith(("import ", "from "))]
 
 
 VERBATIM_CASES = [(new, ref, name) for new, ref, names in VERBATIM for name in names]
@@ -119,6 +204,37 @@ def test_ported_tests_differ_only_in_the_import_line(new_name, reference_name, c
     assert [new_line if line == old_line else line for line in reference] == new
 
 
+@pytest.mark.parametrize("new_name, new_import, names, exact", SPLIT_TESTS, ids=[t[0] for t in SPLIT_TESTS])
+def test_split_ported_tests_equal_the_templates(new_name, new_import, names, exact):
+    new_file, reference_file = TESTS / new_name, REFERENCE_TESTS / SPLIT_REFERENCE
+    new, reference = _statement_sources(new_file), _statement_sources(reference_file)
+    for name in names:
+        assert name in new, f"{new_name} lost {name}"
+        assert new[name] == reference[name], f"{new_name}: {name} differs from the template"
+    if exact:
+        assert sorted(new) == sorted(names), "this file holds only what the template had"
+        assert ast.get_docstring(ast.parse(new_file.read_text(encoding="utf-8"))) == ast.get_docstring(
+            ast.parse(reference_file.read_text(encoding="utf-8")))
+
+
+@pytest.mark.parametrize("new_name, new_import, names, exact", SPLIT_TESTS, ids=[t[0] for t in SPLIT_TESTS])
+def test_split_ported_tests_differ_only_in_the_import_line(new_name, new_import, names, exact):
+    new = _import_lines(TESTS / new_name)
+    reference = _import_lines(REFERENCE_TESTS / SPLIT_REFERENCE)
+    assert reference.count(SPLIT_REFERENCE_IMPORT) == 1
+    assert new.count(new_import) == 1
+    # Nothing but the changed line is new; a template import the file no longer needs may be gone.
+    assert set(new) - {new_import} <= set(reference) - {SPLIT_REFERENCE_IMPORT}
+
+
+def test_every_template_test_of_test_segment_has_a_home():
+    reference = _statement_sources(REFERENCE_TESTS / SPLIT_REFERENCE)
+    template_tests = {name for name in reference if name.startswith("test_")}
+    homes = {name for _, _, names, _ in SPLIT_TESTS for name in names if name.startswith("test_")}
+    assert template_tests == homes | set(NOT_PORTED_HERE)
+    assert not homes & set(NOT_PORTED_HERE)
+
+
 # ---------------------------------------------------------------------------------------------
 # The checks above must be able to fail: try them on small made-up files.
 
@@ -139,3 +255,25 @@ def test_unchecked_finds_same_named_definitions_that_nobody_compares(tmp_path):
     # `fresh` exists only in the new module; `main` only in the reference: neither needs a row.
     assert _unchecked(new, reference, set()) == ["Info", "probe"]
     assert _unchecked(new, reference, {"Info", "probe"}) == []
+
+
+def test_statement_sources_reads_decorators_tuples_and_trailing_comments(tmp_path):
+    source = tmp_path / "sample.py"
+    source.write_text(
+        "import os\n"
+        "W, H = 320, 240  # frame\n"
+        "LIMIT = 3\n"
+        "\n\n"
+        "@decorated(1,\n"
+        "           2)\n"
+        "def f(x):\n"
+        "    return x\n"
+        "\n\n"
+        "class C:\n"
+        "    pass\n"
+    )
+    found = _statement_sources(source)
+    assert sorted(found) == ["C", "LIMIT", "W, H", "f"]
+    assert found["W, H"] == "W, H = 320, 240  # frame"
+    assert found["f"] == "@decorated(1,\n           2)\ndef f(x):\n    return x"
+    assert _import_lines(source) == ["import os"]
