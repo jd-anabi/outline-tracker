@@ -8,38 +8,62 @@ middle, and the rest of the circle shows the state's fill, which is a theme toke
 
 The badge is read from the drawn window (`grab`, offscreen), never from the style sheet's text.
 Lengths are Qt's device-independent px, x to the right and y down from the badge's top left
-corner; the device pixel (column, row) covers [column, column + 1) x [row, row + 1), divided by
-the image's device pixel ratio.
+corner.
 """
 
 import math
 import os
-import subprocess
 import sys
-import warnings
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QPoint
 from PySide6.QtGui import QFont, QFontDatabase, QFontInfo, QGuiApplication
 
 from outline_tracker.gui import theme
-from test_theme import look  # noqa: F401  the fixture that puts the application's look back
+from test_theme import badge_pixels, inside_badge, look  # noqa: F401  `look` is a fixture
 
 SIZE = 20           # the badge: a circle this many px across
 MIDDLE = SIZE / 2   # its centre, px from its left and from its top edge; also the circle's radius
-RING = 1            # the outline ring's width, px
 MARGIN = 2          # from the digit's bounding box to the circle's edge: at least this, px
 OFF_CENTRE = 1.5    # from the digit's middle to the badge's middle: at most this, px, in x and in y
-# A pixel whose centre is nearer to the badge's centre than this lies wholly inside the ring: the
-# ring's inner edge is 9 px from the centre, and half the diagonal of a device pixel is 0.71 px.
-INSIDE = MIDDLE - RING - 0.75
 
 STATES = ("todo", "done", "attention")
 # state -> the tokens of the fill and of the digit (the design note's three badge rules)
 TOKENS = {"todo": ("panel", "text"), "done": ("success", "panel"), "attention": ("warningBg", "warning")}
+
+# What a Windows screen gives the application: Segoe UI at 9 points, which is 12 px. The files are
+# the regular cut and the semibold one, which the badge's weight of 600 asks for.
+WINDOWS_FONT = ("Segoe UI", 9, ("segoeui.ttf", "seguisb.ttf"))
+
+
+@pytest.fixture
+def text_font(qapp):
+    """A font for the text of this test where the platform has none; taken away again afterwards.
+
+    Measured on the Windows test machine (task C0b): the offscreen platform looks for font files in
+    a folder of Qt's own that PySide6 does not have, knows 0 font families, and draws an empty square
+    of 8 x 8 px in place of every character. There the application gets the font it has on a Windows
+    screen (`WINDOWS_FONT`), from Windows' font folder; with it the offscreen platform drew the digits
+    1 and 9 within 1 px of the boxes that the Windows platform drew. On macOS and Linux the offscreen
+    platform has the system's fonts and nothing is done.
+    """
+    if sys.platform != "win32" or QFontDatabase.families():
+        yield
+        return
+    family, points, files = WINDOWS_FONT
+    folder = Path(os.environ["WINDIR"]) / "Fonts"
+    loaded = [QFontDatabase.addApplicationFont(str(folder / name)) for name in files]
+    before = qapp.font()
+    qapp.setFont(QFont(family, points))
+    yield
+    qapp.setFont(before)
+    for font in loaded:
+        QFontDatabase.removeApplicationFont(font)
+    # Taking a font away makes Qt forget its list of fonts; it reads the list again when text is next
+    # drawn, and says once more that it found no font folder. Have that said here, not in a later test.
+    QFontDatabase.families()
 
 
 @dataclass
@@ -68,31 +92,25 @@ def read(window, badge, fill: str, digit: str) -> Reading:
     """Read `badge` as `window` draws it, given its state's `fill` colour and its `digit` colour
     (`#RRGGBB`). A pixel of the digit is one inside the ring whose colour is nearer to `digit` than
     to `fill`; lengths in the result are px from the badge's top left corner."""
-    image = window.grab().toImage()
-    ratio = image.devicePixelRatio()
-    corner = badge.mapTo(window, QPoint(0, 0)) * ratio
-    side = round(SIZE * ratio)
-    columns, rows, others, picture = [], [], Counter(), []
-    for row in range(side):
-        line = ""
-        for column in range(side):
-            color = image.pixelColor(corner.x() + column, corner.y() + row).name().upper()
-            x, y = (column + 0.5) / ratio, (row + 0.5) / ratio  # the pixel's centre
-            like_digit = nearer(color, digit, fill)
-            if math.hypot(x - MIDDLE, y - MIDDLE) >= INSIDE:
-                line += "+" if like_digit else " "
-            elif like_digit:
-                columns.append(column)
-                rows.append(row)
-                line += "#"
-            else:
-                others[color] += 1
-                line += "." if color == fill else ":"
-        picture.append(line)
+    drawn = badge_pixels(window, badge)
+    half = drawn[0][0]  # the first pixel's centre is half a device pixel from the badge's left edge
+    of_digit, others, rows = [], Counter(), {}
+    for x, y, color in drawn:
+        like_digit = nearer(color, digit, fill)
+        if not inside_badge(x, y):
+            mark = "+" if like_digit else " "
+        elif like_digit:
+            of_digit.append((x, y))
+            mark = "#"
+        else:
+            others[color] += 1
+            mark = "." if color == fill else ":"
+        rows[y] = rows.get(y, "") + mark
     box = None
-    if columns:
-        box = (min(columns) / ratio, min(rows) / ratio, (max(columns) + 1) / ratio, (max(rows) + 1) / ratio)
-    return Reading(box, others.most_common(1)[0][0], "\n".join(picture))
+    if of_digit:
+        across, down = zip(*of_digit)
+        box = (min(across) - half, min(down) - half, max(across) + half, max(down) + half)
+    return Reading(box, others.most_common(1)[0][0], "\n".join(rows.values()))
 
 
 def faults(seen: Reading, fill: str) -> list[str]:
@@ -132,7 +150,8 @@ def described(badge, seen: Reading) -> str:
 
 @pytest.mark.parametrize("number", [1, 9])
 @pytest.mark.parametrize("state", STATES)
-def test_the_digit_is_in_the_middle_of_a_circle_of_the_states_fill(state, number, window, qapp, qtbot, look):  # noqa: F811
+def test_the_digit_is_in_the_middle_of_a_circle_of_the_states_fill(state, number, text_font, window, qapp, qtbot,
+                                                                   look):  # noqa: F811
     theme.apply(qapp, False)
     panel = window.panels[number - 1]
     assert panel.badge.text() == str(number)
@@ -144,64 +163,4 @@ def test_the_digit_is_in_the_middle_of_a_circle_of_the_states_fill(state, number
 
     seen = read(window, panel.badge, fill, digit)
 
-    facts = described(panel.badge, seen)
-    print(facts)
-    warnings.warn(facts, stacklevel=1)  # C0b step 1 only: a passing run on the test machines shows the numbers
-    assert faults(seen, fill) == [], facts
-
-
-# ---------------------------------------------------------------------------------------------
-# C0b step 1 only (taken out again with the fix): the same reading in fresh processes, to learn
-# what the Windows test machine draws when text has a font. No window is shown by any of them.
-
-PROBE = "import sys; sys.path.insert(0, sys.argv[1]); import test_badge; test_badge.probe(sys.argv[2])"
-
-
-def probe(variant: str) -> None:
-    """Print the facts of the six badges (three states, numbers 1 and 9) of windows that are made
-    and read but never shown, in this process's platform; `variant` "segoe" first loads Windows'
-    own interface font from its font folder."""
-    from PySide6.QtWidgets import QApplication
-
-    from outline_tracker.gui.main_window import MainWindow
-
-    app = QApplication([])
-    if variant == "segoe":
-        folder = Path(os.environ["WINDIR"]) / "Fonts"
-        ids = [QFontDatabase.addApplicationFont(str(folder / name)) for name in ("segoeui.ttf", "seguisb.ttf", "segoeuib.ttf")]
-        print("added fonts:", [(i, QFontDatabase.applicationFontFamilies(i)) for i in ids])
-        app.setFont(QFont("Segoe UI", 9))
-    theme.apply(app, False)
-    print(f"application font: {app.font().family()!r} {app.font().pointSizeF():g} pt -> "
-          f"{QFontInfo(app.font()).family()!r} {QFontInfo(app.font()).pixelSize()} px")
-    for state in STATES:
-        for number in (1, 9):
-            window = MainWindow()
-            panel = window.panels[number - 1]
-            panel.set_state(state)
-            fill, digit = (theme.LIGHT[token] for token in TOKENS[state])
-            seen = read(window, panel.badge, fill, digit)
-            print(f"faults: {faults(seen, fill)}\n{described(panel.badge, seen)}")
-            window.close()
-
-
-def test_facts_from_fresh_processes():
-    fonts = str(Path(os.environ.get("WINDIR", "")) / "Fonts")
-    variants = {"offscreen": {"QT_QPA_PLATFORM": "offscreen"}}
-    if sys.platform == "win32":
-        variants |= {
-            "offscreen, QT_QPA_FONTDIR": {"QT_QPA_PLATFORM": "offscreen", "QT_QPA_FONTDIR": fonts},
-            "segoe": {"QT_QPA_PLATFORM": "offscreen"},
-            "native": {"QT_QPA_PLATFORM": "windows"},
-            "native, 125 %": {"QT_QPA_PLATFORM": "windows", "QT_SCALE_FACTOR": "1.25"},
-            "native, 150 %": {"QT_QPA_PLATFORM": "windows", "QT_SCALE_FACTOR": "1.5"},
-        }
-    for name, settings in variants.items():
-        try:
-            done = subprocess.run(
-                [sys.executable, "-c", PROBE, str(Path(__file__).parent), name], capture_output=True, timeout=120,
-                encoding="utf-8", errors="replace", env={**os.environ, "PYTHONIOENCODING": "utf-8", **settings})
-            told = f"exit code {done.returncode}\n{done.stdout}\nstderr:\n{done.stderr}"
-        except Exception as error:  # a probe never fails the run: it only tells
-            told = repr(error)
-        warnings.warn(f"PROBE {name} {settings}\n{told[:30000]}", stacklevel=1)
+    assert faults(seen, fill) == [], described(panel.badge, seen)

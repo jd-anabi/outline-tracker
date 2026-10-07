@@ -8,7 +8,10 @@ collected by the `qt_messages` fixture: a rule Qt cannot read is a message (one 
 such a message does arrive there).
 """
 
+import math
 import re
+import sys
+from collections import Counter
 
 import pytest
 from PySide6.QtCore import QPoint, Qt, qInstallMessageHandler
@@ -63,6 +66,43 @@ def color_at(window, widget, point: QPoint) -> str:
     image = window.grab().toImage()
     at = widget.mapTo(window, point) * image.devicePixelRatio()
     return image.pixelColor(at).name().upper()
+
+
+def badge_pixels(window, badge) -> list[tuple[float, float, str]]:
+    """Every device pixel that `window` draws in `badge`'s square, row by row: (x, y, colour). x and y
+    are the pixel's centre in px from the badge's top left corner (x right, y down); the colour is
+    `#RRGGBB` in capitals."""
+    image = window.grab().toImage()
+    ratio = image.devicePixelRatio()
+    corner = badge.mapTo(window, QPoint(0, 0)) * ratio
+    return [((column + 0.5) / ratio, (row + 0.5) / ratio,
+             image.pixelColor(corner.x() + column, corner.y() + row).name().upper())
+            for row in range(round(badge.height() * ratio)) for column in range(round(badge.width() * ratio))]
+
+
+def inside_badge(x: float, y: float) -> bool:
+    """True for a pixel with its centre at (x, y), px from the top left corner of a badge, that lies
+    wholly inside the badge's outline ring. The badge is a circle 20 px across, so its centre is at
+    (10, 10) and the 1 px ring's inner edge 9 px from it; half the diagonal of a pixel is 0.71 px."""
+    return math.hypot(x - 10, y - 10) < 9 - 0.75
+
+
+def badge_fill(window, badge) -> str:
+    """The most frequent colour inside `badge`'s outline ring, as `#RRGGBB` in capitals: the fill,
+    whatever the font of the digit is and wherever the digit is drawn (it covers the smaller part)."""
+    return Counter(color for x, y, color in badge_pixels(window, badge) if inside_badge(x, y)).most_common(1)[0][0]
+
+
+# Why the tests that probe one pixel beside a badge's digit cannot pass on Windows (task C0b).
+NO_FONT_OFFSCREEN_ON_WINDOWS = (
+    "Windows only, measured on the test machine (task C0b, CI run 37655575335): the offscreen platform "
+    "knows no font there (0 font families: Qt looks for font files in PySide6/lib/fonts, which does not "
+    "exist) and draws an empty square of 8 x 8 px, from (4, 4) to (12, 12) px of the 20 px badge, in place "
+    "of every character. The probe at (4, 10) is on the square's left side and reads the digit's colour. "
+    "The badge itself is drawn well: on the Windows platform, at a scale of 100 %, the digit is Segoe UI "
+    "at 12 px, inside x 6 to 12 and y 6 to 15 px (tests/gui/test_badge.py checks it with that font). "
+    "Superseded by the test below this one, which reads the fill as the most frequent colour inside the ring."
+)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -172,6 +212,7 @@ def test_the_palette_gives_each_role_its_token(dark, qapp):
 # On the window
 
 
+@pytest.mark.xfail(sys.platform == "win32", strict=True, reason=NO_FONT_OFFSCREEN_ON_WINDOWS)
 @BOTH
 def test_the_theme_draws_the_window_without_a_qt_message(dark, window, qapp, qtbot, qt_messages, look):
     colors = theme.tokens(dark)
@@ -199,6 +240,34 @@ def test_the_theme_draws_the_window_without_a_qt_message(dark, window, qapp, qtb
     assert about_the_look(qt_messages) == []
 
 
+@BOTH
+def test_the_theme_draws_the_window_and_fills_the_badges_without_a_qt_message(dark, window, qapp, qtbot, qt_messages,
+                                                                              look):
+    # the test above, with a badge's fill read as the most frequent colour inside its ring
+    colors = theme.tokens(dark)
+    theme.apply(qapp, dark)
+    assert qapp.palette().color(QPalette.ColorRole.Window).name().upper() == colors["window"]
+    for panel in window.panels:  # every part is drawn, so every rule of the sheet meets its widget
+        panel.set_expanded(True)
+    first, done, attention = window.panels[0], window.panels[1], window.panels[2]
+    done.set_state("done")
+    attention.set_state("attention")
+    with qtbot.waitExposed(window):
+        window.show()
+
+    column = window.scroll.widget()
+    assert color_at(window, first, QPoint(6, first.height() - 6)) == colors["panel"]  # the panel's surface
+    assert color_at(window, column, QPoint(50, first.geometry().top() + first.height() + 4)) == colors["window"]
+    assert color_at(window, first, QPoint(first.width() // 2, 0)) == colors["border"]  # the 1 px outline
+    assert color_at(window, attention, QPoint(attention.width() // 2, 0)) == colors["warning"]
+    assert badge_fill(window, first.badge) == colors["panel"]  # outlined only
+    assert badge_fill(window, done.badge) == colors["success"]  # filled
+    assert badge_fill(window, attention.badge) == colors["warningBg"]
+    assert (first.badge.width(), first.badge.height()) == (20, 20)
+    assert color_at(window, window.video_area, QPoint(5, 5)) == colors["canvas"]
+    assert about_the_look(qt_messages) == []
+
+
 def test_a_rule_qt_cannot_read_is_a_message(window, qapp, qtbot, qt_messages, look, monkeypatch):
     # the check above is worth something only if such a message reaches `qt_messages`
     monkeypatch.setattr(theme, "STYLE", theme.STYLE + 'QLabel[role="hint"] { colr: red; }\n')
@@ -214,6 +283,7 @@ def test_the_style_is_fusion_on_every_system(qapp, look):
     assert qapp.style().name() == "fusion"
 
 
+@pytest.mark.xfail(sys.platform == "win32", strict=True, reason=NO_FONT_OFFSCREEN_ON_WINDOWS)
 def test_a_state_change_is_drawn_at_once(window, qapp, qtbot, look):
     theme.apply(qapp, False)
     with qtbot.waitExposed(window):
@@ -225,6 +295,20 @@ def test_a_state_change_is_drawn_at_once(window, qapp, qtbot, look):
     panel.set_state("done")
     assert color_at(window, panel, QPoint(panel.width() // 2, 0)) == theme.LIGHT["border"]
     assert color_at(window, panel.badge, QPoint(4, 10)) == theme.LIGHT["success"]
+
+
+def test_a_state_change_is_drawn_at_once_on_the_edge_and_in_the_badge(window, qapp, qtbot, look):
+    # the test above, with the badge's fill read as the most frequent colour inside its ring
+    theme.apply(qapp, False)
+    with qtbot.waitExposed(window):
+        window.show()
+    panel = window.panels[0]
+    assert color_at(window, panel, QPoint(panel.width() // 2, 0)) == theme.LIGHT["border"]
+    panel.set_state("attention")
+    assert color_at(window, panel, QPoint(panel.width() // 2, 0)) == theme.LIGHT["warning"]
+    panel.set_state("done")
+    assert color_at(window, panel, QPoint(panel.width() // 2, 0)) == theme.LIGHT["border"]
+    assert badge_fill(window, panel.badge) == theme.LIGHT["success"]
 
 
 def test_the_title_keeps_its_font_under_the_style_sheet(window, qapp, qtbot, look):
