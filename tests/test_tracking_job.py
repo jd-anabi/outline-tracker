@@ -266,6 +266,11 @@ def test_an_fps_true_that_is_not_a_positive_number_is_refused_before_the_run(dis
     assert segmenter.made == 0 and list(tmp_path.iterdir()) == []
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "Written with task A15, when run_job had no fine runner and refused a fine object. Task A16 added the runner "
+    "(SPEC 6.3), so a job with a fine object now tracks it: see "
+    "tests/test_tracking_fine.py::test_a_fine_object_is_not_also_tracked_in_coarse_mode. For J or the controller: "
+    "delete this test."))
 def test_a_fine_object_is_not_tracked_yet(dish_clip, tmp_path):
     session = make_session(dish_clip, tmp_path, [track(dish_clip, "A"), track(dish_clip, "B", mode="fine")])
     segmenter = Watched(ExactFake(dish_clip))

@@ -89,14 +89,16 @@ class Recorder:
 class Watched:
     """A stand-in segmenter that writes down how the runner used it.
 
-    starts: (image shape, prompts) of every `start`. calls: "start", "step" and "close" in order.
-    views: (frame, offset, size) of every `set_view`, which exists only if the stand-in has it.
-    made: how often `make` (the job's factory) was called. Any other attribute is the stand-in's.
+    starts: (image shape, prompts) of every `start`; previews: the same of every `preview`.
+    calls: "preview", "start", "step" and "close" in order. shapes: the shape of every image given
+    to `start` or `step`. views: (frame, offset, size) of every `set_view`, which exists only if
+    the stand-in has it. made: how often `make` (the job's factory) was called. Any other attribute
+    is the stand-in's.
     """
 
     def __init__(self, inner):
         self.inner = inner
-        self.starts, self.calls, self.views, self.made = [], [], [], 0
+        self.starts, self.previews, self.calls, self.shapes, self.views, self.made = [], [], [], [], [], 0
 
     def make(self):
         self.made += 1
@@ -115,14 +117,18 @@ class Watched:
 
     def start(self, image, prompts):
         self.starts.append((image.shape, prompts))
+        self.shapes.append(image.shape)
         self.calls.append("start")
         return self.inner.start(image, prompts)
 
     def step(self, image):
+        self.shapes.append(image.shape)
         self.calls.append("step")
         return self.inner.step(image)
 
     def preview(self, image, prompts):
+        self.previews.append((image.shape, prompts))
+        self.calls.append("preview")
         return self.inner.preview(image, prompts)
 
     def close(self):
@@ -150,9 +156,13 @@ def truth_in_box(clip, track_id, frame, box):
     """What a model that is shown only `box` can see of an object's true mask in one frame:
     (u, v, area, edge). u, v: centroid of the part of the true mask inside the box, px in the full
     frame (NaN if nothing is inside); area: its pixels; edge: it has a pixel on the first or last
-    row or column of the box."""
+    row or column of the box. A box that hangs over the frame (a fine crop, SPEC 6.3) shows nothing
+    of the object out there: it counts as ending at the frame's border."""
     c0, r0, width, height = box
-    part = clip.mask(track_id, frame)[r0:r0 + height, c0:c0 + width]
+    frame_width, frame_height = clip.scene.size
+    c1, r1 = min(c0 + width, frame_width), min(r0 + height, frame_height)
+    c0, r0 = max(c0, 0), max(r0, 0)
+    part = clip.mask(track_id, frame)[r0:r1, c0:c1]
     u, v, area = mask_center(part)
     edge = bool(part[0].any() or part[-1].any() or part[:, 0].any() or part[:, -1].any())
     return u + c0, v + r0, area, edge
@@ -162,3 +172,15 @@ def box_truth(clip, track_id, frames, box):
     """`truth_in_box` for several frames, as four arrays: u, v, area, edge."""
     u, v, area, edge = zip(*(truth_in_box(clip, track_id, frame, box) for frame in frames))
     return np.array(u), np.array(v), np.array(area), np.array(edge)
+
+
+def assert_centered(view, window, center, slack=0.01):
+    """A fine crop, as the runner named it to the stand-in (`view` = (frame, offset, size)), is
+    `window` px wide and high, has a whole-pixel corner, and is centered on `center` = (u, v), px
+    in the full frame, to within half a pixel: the corner is rounded (SPEC 6.3). `slack`, px, is
+    what the center itself may be off by (0.01 px for a centroid of the ground truth)."""
+    _, (c0, r0), size = view
+    assert size == (window, window)
+    assert type(c0) is int and type(r0) is int
+    assert abs(c0 + window / 2 - center[0]) <= 0.5 + slack
+    assert abs(r0 + window / 2 - center[1]) <= 0.5 + slack
