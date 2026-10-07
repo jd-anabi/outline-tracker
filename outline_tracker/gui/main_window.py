@@ -213,21 +213,32 @@ class MainWindow(QMainWindow):
         """Ask which video to open; the chosen file goes to `open_path`."""
         dialogs.open_file(self, "Open video", VIDEO_FILTERS, self.open_path)
 
-    def open_path(self, path: Path) -> None:
-        """Open the video at `path`: it replaces the video that was open, and its first frame shows.
-        A file that is no video the tracker can read gives a message that says what to do, and what
-        was open stays. The status bar names the file (never its folder). A session file
-        (`.json`) is only named there for now: a later task opens sessions."""
+    def open_path(self, path: Path, video: Path | None = None) -> None:
+        """Open the video at `path`, or the session whose file (`.json`) is at `path` with its video:
+        it replaces what was open, and the first frame of the clip shows. A file that cannot be
+        opened gives a message that says what to do, and what was open stays. The status bar names
+        the file (never its folder).
+
+        A session's video that is at none of the places the session knows is asked for; the answer
+        comes back here as `video`. A file that is not the session's video (another size, or other
+        content) is refused with a message."""
         path = Path(path)
-        if path.suffix.lower() == ".json":
-            self.statusBar().showMessage(path.name)
-            return
+        is_session = path.suffix.lower() == ".json"
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)  # a long video takes a moment to open
         try:
-            self.controller.open_video(path)
+            if is_session:
+                self.controller.open_session(path, video)
+            else:
+                self.controller.open_video(path)
+        except FileNotFoundError as missing:  # the session's video is not where the session says
+            self.statusBar().showMessage(str(missing))
+            dialogs.open_file(self, "Find the video of this session", VIDEO_FILTERS,
+                              lambda chosen: self.open_path(path, chosen))
+            return
         except ValueError as refused:
-            self.statusBar().showMessage(f"{path.name} could not be read.")
-            dialogs.message(self, "problem", f"{NOT_OPENED}\n{refused}")
+            self.statusBar().showMessage(f"{path.name} could not be {'opened' if is_session else 'read'}.")
+            heading = "The session could not be opened" if is_session else NOT_OPENED
+            dialogs.message(self, "problem", f"{heading}\n{refused}")
             return
         finally:
             QApplication.restoreOverrideCursor()

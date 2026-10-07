@@ -102,6 +102,12 @@ QPushButton[kind="primary"]:focus { border: 2px solid @text; }
 QPushButton:disabled, QPushButton[kind]:disabled { background: @window; border-color: @border; color: @disabled; }
 QFrame#BottomBar QPushButton { padding: 0 6px; }
 QFrame#BottomBar QPushButton:focus { padding: 0 5px; }
+/* Task C2: a message under the control it is about, and a field whose value cannot be used or should be checked */
+QLabel[role="msg"] { border: 1px solid @border; border-radius: 4px; padding: 6px 8px; background: @window; color: @text; }
+QLabel[role="msg"][kind="warning"] { background: @warningBg; border-color: @warning; }
+QLabel[role="msg"][kind="problem"] { background: @problemBg; border-color: @problem; }
+QAbstractSpinBox[check="error"], QLineEdit[check="error"] { background-color: @problemBg; }
+QAbstractSpinBox[check="warn"], QLineEdit[check="warn"] { background-color: @warningBg; }
 """
 
 

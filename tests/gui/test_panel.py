@@ -92,6 +92,11 @@ def test_a_collapsed_panel_is_its_header_row_only(window, qtbot):
     assert panel.height() == 32 + frame
 
 
+@pytest.mark.xfail(strict=True, reason="Task C2: panel 1 has its controls now, between the hint line and a row "
+                   "that is added later, so that row no longer follows the hint. The spacing and the padding are "
+                   "as they were. The test that follows this one is "
+                   "test_a_row_added_to_a_body_follows_what_is_there_with_the_notes_spacing in "
+                   "tests/gui/test_session_panels.py.")
 def test_rows_added_to_the_body_follow_the_hint_with_the_notes_spacing(window, qtbot):
     shown(window, qtbot)
     panel = window.panels[0]
