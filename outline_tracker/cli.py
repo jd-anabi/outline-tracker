@@ -2,7 +2,8 @@
 
 Nothing heavy is imported here: torch, transformers and Qt are loaded only by the commands that
 need them, so `--version`, `export` and `probe` start at once. The commands that read or write
-videos (`convert`, `check`, `synth`) import OpenCV only when they run.
+videos (`convert`, `check`, `probe`, `synth`) import OpenCV only when they run. `probe` itself is in
+outline_tracker/cli_probe.py; its parser is here with the others.
 
 `synth` is a hidden command (not listed in `--help`): it writes one of the synthetic test clips of
 outline_tracker/synthetic.py, for checking an installation by hand. `check VIDEO --seek` is a
@@ -20,7 +21,7 @@ import math
 import sys
 from pathlib import Path
 
-from outline_tracker import __version__
+from outline_tracker import __version__, cli_probe
 
 CONVERT_EXAMPLE = """\
 Usage (from the repository folder):
@@ -72,6 +73,32 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("videos", nargs="+", metavar="VIDEO", help="the video file(s) to check")
     check.add_argument("--seek", action="store_true", help=argparse.SUPPRESS)  # hidden (decision X19)
     check.set_defaults(run=run_check)
+
+    probe = commands.add_parser(
+        "probe",
+        help="measure the brightness inside rectangles (an LED) on every frame",
+        description=(
+            "Measure the mean red, green, blue and gray inside named rectangles on every frame of a video, "
+            "for example to time a stimulus LED (Tracker's RGB Region). No model is loaded. Writes probes.csv."
+        ),
+        usage=cli_probe.USAGE,
+        epilog=cli_probe.EXAMPLE,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    probe.add_argument("source", metavar="VIDEO|SESSION.json",
+                       help="the video to measure, or the session.json of a run folder")
+    probe.add_argument("--rect", action="append", type=cli_probe.parse_rect, metavar="NAME:u0,v0,u1,v1",
+                       help="a rectangle: a name and two opposite corners in image px; repeat it for more")
+    probe.add_argument("--start", type=int, metavar="F", help="first frame to measure (default: 0)")
+    probe.add_argument("--end", type=int, metavar="F",
+                       help="last frame to measure, included (default: the last frame of the video)")
+    probe.add_argument("--fps", type=float, metavar="F",
+                       help="fps_true, the real frame rate in frames per second (default: from data/manifest.csv; "
+                            "the frame rate written in the file is never used)")
+    probe.add_argument("--student", metavar="NAME",
+                       help="your name: probes.csv goes to <video folder>/<video stem>_outline_NAME/")
+    probe.add_argument("--out", metavar="DIR", help="the folder for probes.csv, instead of the one --student gives")
+    probe.set_defaults(run=run_probe)
 
     # Hidden: a subcommand added without `help=` is not listed in `outline-tracker --help`.
     synth = commands.add_parser(
@@ -172,6 +199,23 @@ def run_check(args: argparse.Namespace) -> int:
             if seek.exact < seek.tested:
                 status = 1
     return status
+
+
+def run_probe(args: argparse.Namespace) -> int:
+    """`probe VIDEO --rect NAME:u0,v0,u1,v1 ...` or `probe SESSION.json`: write probes.csv, no model.
+
+    Rectangles are two opposite corners in image px (u to the right, v down, pixel centers at +0.5);
+    `--start` and `--end` are video frame numbers counted from 0, both included; `--fps` is fps_true in
+    frames per second. The work is `cli_probe.run`. Returns 0, or 1 with an `ERROR:` line when
+    something is missing or wrong; nothing is written then.
+    """
+    import cv2  # imported here so that the other commands start without OpenCV
+
+    try:
+        return cli_probe.run(args)
+    except (OSError, RuntimeError, ValueError, cv2.error) as error:
+        _report_error(error)
+        return 1
 
 
 def run_synth(args: argparse.Namespace) -> int:
