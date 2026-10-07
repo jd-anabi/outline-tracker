@@ -147,3 +147,29 @@ def pixel_result(mask: np.ndarray, offset: tuple[int, int] = (0, 0), *, logits: 
     mask = np.asarray(mask, bool)
     values = np.where(mask, 1.0, -1.0).astype(np.float32) if logits else None
     return MaskResult(obj_id, (int(offset[0]), int(offset[1])), mask.copy(), values, score)
+
+
+def box(u: np.ndarray, v: np.ndarray, center: tuple[float, float], half_length: float, half_width: float,
+        angle: float) -> np.ndarray:
+    """Exact signed distance (px, positive inside) to a rectangle around `center` (u, v), in px:
+    2 `half_length` long along `direction(angle)` and 2 `half_width` wide across it."""
+    e = direction(angle)
+    du, dv = u - center[0], v - center[1]
+    x = np.abs(du * e[0] + dv * e[1]) - half_length
+    y = np.abs(-du * e[1] + dv * e[0]) - half_width
+    return -(np.hypot(np.maximum(x, 0.0), np.maximum(y, 0.0)) + np.minimum(np.maximum(x, y), 0.0))
+
+
+def l_shape(u: np.ndarray, v: np.ndarray, corner: tuple[float, float], size: float, arm: float,
+            angle: float) -> np.ndarray:
+    """Signed distance (px, positive inside) to an L: two arms `size` px long and `arm` px wide that
+    share the square at the outer corner `corner` (u, v). One arm runs along p = `direction(angle)`,
+    the other along q = `direction(angle + pi / 2)`. Its boundary is exact (the union of two exact
+    rectangles); its area is size^2 - (size - arm)^2 px^2, and its convex hull, which closes the
+    notch with one straight edge, has size^2 - (size - arm)^2 / 2 px^2.
+    """
+    p, q = direction(angle), direction(angle + np.pi / 2)
+    half, thin = size / 2.0, arm / 2.0
+    along_p = (corner[0] + half * p[0] + thin * q[0], corner[1] + half * p[1] + thin * q[1])
+    along_q = (corner[0] + thin * p[0] + half * q[0], corner[1] + thin * p[1] + half * q[1])
+    return union(box(u, v, along_p, half, thin, angle), box(u, v, along_q, thin, half, angle))
