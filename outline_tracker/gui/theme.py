@@ -110,6 +110,13 @@ QFrame[role="msg"][kind="warning"] { background: @warningBg; border-color: @warn
 QFrame[role="msg"][kind="problem"] { background: @problemBg; border-color: @problem; }
 QFrame[role="msg"] QLabel { background: transparent; border: none; color: @text; }
 QAbstractSpinBox[check="error"] { background-color: @problemBg; }
+/* Task C4 (objects and click prompts): the Remove button, a checked or Remove button that is off, a message in a panel */
+QPushButton[kind="destructive"] { border-color: @problem; color: @problem; }
+QPushButton[kind="destructive"]:hover { background: @problemBg; }
+QPushButton:checked:disabled, QPushButton[kind="destructive"]:disabled { background: @window; border: 1px solid @border; padding: 0 12px; color: @disabled; }
+QLabel[role="msg"] { border-radius: 4px; border: 1px solid @border; background: @window; color: @text; padding: 6px 8px; }
+QLabel[role="msg"][kind="warning"] { background: @warningBg; border-color: @warning; }
+QLabel[role="msg"][kind="problem"] { background: @problemBg; border-color: @problem; }
 """
 
 
