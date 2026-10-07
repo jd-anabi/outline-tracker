@@ -1,15 +1,16 @@
 """The single source of truth for every output file of SPEC 8: columns, flags, file names, formats.
 
-Everything that writes or describes an output file reads it from here: the CSV column tables
-(SPEC 8.2, 8.4, 8.5, 8.7), the Tracker-format columns of 8.3, the quality flags of 9, the file list
-of 8.1, the key lists of results.npz (8.12) and outlines.npz (8.6) and the versions. The text of
-README.txt (8.11) is built from these tables in schema_docs.py (`readme_text` is importable from here).
+Everything that writes or describes an output file reads it from here: the CSV column tables (SPEC 8.2,
+8.4, 8.5, 8.7), the Tracker-format columns of 8.3, the quality flags of 9, the file list of 8.1, the key
+lists of results.npz (8.12) and outlines.npz (8.6) and the versions. The texts of README.txt (8.11) and
+docs/OUTPUTS.md are built from these tables in schema_docs.py (`readme_text` is importable from here).
 
-Units and coordinates: the unit of every column is in its name (_s seconds, _mm millimetres, _mm2
-square millimetres, _rad radians, _px image pixels). Image coordinates (u, v) follow Tracker: origin
-at the top-left corner of the frame, u to the right, v down, the center of the pixel in column c and
-row r at (c + 0.5, r + 0.5). World coordinates (x, y) are in mm in the user's axes, y pointing up
-(SPEC 3). This module does no geometry; it only names and formats numbers.
+Units and coordinates: the unit of a column is in its name where it has one (_s seconds, _mm millimetres,
+_mm2 square millimetres, _rad radians, _px image pixels; ratios have none, probe means use the 0-255
+scale). Image coordinates (u, v) follow Tracker: origin at the top-left corner of the frame, u to the
+right, v down, the center of the pixel in column c and row r at (c + 0.5, r + 0.5). World coordinates
+(x, y) are in mm in the user's axes, y pointing up (SPEC 3). This module does no geometry; it only names
+and formats numbers.
 
 Text rules of the new CSV files (X11): UTF-8, LF line ends on every platform, no quoting unless a
 cell holds a comma, a quote or a line break, a missing number is an empty cell, integers are written
@@ -103,7 +104,10 @@ SHAPES: list[Column] = [
            "in your axes, unwrapped so that it is continuous (it may leave -pi..pi)"),
     _float("core_x_mm", "mm", 6, "x of the core's centroid: the body without thin appendages, the 'body center'"),
     _float("core_y_mm", "mm", 6, "y of the core's centroid"),
-    _float("core_frac", "", 6, "core area / full mask area"),
+    _float("core_frac", "", 6, "area of the core / area of the full mask (the core is the body without thin parts such "
+           "as antennae, found by a morphological opening); if the core fallback was used (the opening removed more "
+           "than half the area, so the full mask serves as the core) it is still the fraction the opening kept: "
+           "below 0.5, not 1"),
     _float("solidity", "", 6, "outline polygon area / convex hull area"),
     _float("circularity", "", 6, "4 pi polygon area / perimeter^2 (1 for a circle)"),
     _float("feret_max_mm", "mm", 6, "largest distance between two points of the outline"),
@@ -130,8 +134,7 @@ RADIAL: list[Column] = [_TRACK_ID, _FRAME, _T_S] + [
 ]
 
 PROBES: list[Column] = [
-    _FRAME,
-    _T_S,
+    _FRAME, _T_S,
     _str("probe", "name of the probe rectangle (default LED1)"),
     _float("r", "0-255", 3, "mean red inside the rectangle, on the 0-255 scale"),
     _float("g", "0-255", 3, "mean green inside the rectangle, on the 0-255 scale"),
@@ -139,8 +142,7 @@ PROBES: list[Column] = [
     _float("gray", "0-255", 3, "0.299 r + 0.587 g + 0.114 b of the three means"),
 ]
 
-# The files <model>/<id>.csv are written by the ported write_tracker_file (SPEC 8.3); the columns
-# are listed here so that README.txt and the tests describe them from one place.
+# <model>/<id>.csv is written by the ported write_tracker_file (SPEC 8.3); its columns are listed here for the docs.
 TRACKER_COLUMNS: list[Column] = [
     _float("t", "s", 7, "time, frame / fps_true"),
     _int("frame", "video frame number"),
@@ -272,7 +274,8 @@ RESULTS_KEYS: list[ArrayKey] = [
     ArrayKey("cov_core", "float64", ("n", 3), "px^2", "the same for the core mask"),
     ArrayKey("core_u", "float64", _N, "px", "core centroid, image u"),
     ArrayKey("core_v", "float64", _N, "px", "core centroid, image v"),
-    ArrayKey("core_frac", "float64", _N, "", "core area / mask area"),
+    ArrayKey("core_frac", "float64", _N, "", "area of the core / area of the mask; with the core fallback it is "
+             "the fraction the opening kept, below 0.5, not 1"),
     ArrayKey("core_fallback", "bool", _N, "", "the opening removed more than half the area, so the full mask "
              "was used as the core"),
     ArrayKey("core_r_px", "int32", _N, "px", "radius of the opening disk that made the core; 0 if not visible"),
@@ -407,11 +410,9 @@ def _whole_number(col: Column, value: object) -> int:
 
 
 def __getattr__(name: str) -> object:
-    """`readme_text` is built in `outline_tracker.schema_docs`, which reads the tables above; it is
-    handed out from here, so that existing imports keep working, and imported on first use because
-    schema_docs itself imports this module."""
-    if name == "readme_text":
-        from outline_tracker.schema_docs import readme_text
+    """`readme_text` is built in schema_docs, which imports this module: handed out from here on first use."""
+    if name != "readme_text":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from outline_tracker.schema_docs import readme_text
 
-        return readme_text
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return readme_text

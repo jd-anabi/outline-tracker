@@ -23,9 +23,11 @@ from outline_tracker.schema import (
     OUTLINES_META_KEY,
     POSITION_FLAGS,
     POSITIONS_CSV,
+    PROBES,
     PROBES_CSV,
     RADIAL_CSV,
     SHAPE_FLAGS,
+    SHAPES,
     SHAPES_CSV,
     TRACKER_FILE,
     Column,
@@ -54,8 +56,23 @@ _ROW_TEXT = {
                   "row per tracked frame; written exactly as last week's files were",
 }
 
+
+def _and(names: list[str]) -> str:
+    """'a, b and c' from a list of names (text only)."""
+    return ", ".join(names[:-1]) + " and " + names[-1]
+
+
+# The numbers whose unit is not spelled in their column name (SPEC 8.4, 8.7): ratios, the 0-255 probe
+# means, and the two counts of camera pixels and grid cells.
+_RATIOS = [c.name for c in SHAPES if c.dtype == "float" and not c.unit]
+_MEANS = [c.name for c in PROBES if c.unit == "0-255"]
+_COUNTS = [c.name for c in SHAPES if c.unit in ("px", "cells") and not c.name.endswith("_px")]
+
 _CONVENTIONS = [
-    "Units: _s seconds, _mm millimetres, _mm2 square millimetres, _rad radians, _px image pixels.",
+    "Units: _s seconds, _mm millimetres, _mm2 square millimetres, _rad radians, _px image pixels. Not every "
+    f"number has a unit in its column name: the probe means {_and(_MEANS)} are on the 0-255 scale of image "
+    f"brightness, ratios ({', '.join(_RATIOS)}) have no unit, and {_and(_COUNTS)} count camera pixels and "
+    "model grid cells.",
     "Image coordinates (u_px, v_px; Tracker's pixelx, pixely): the origin is the top-left corner of the "
     "frame, u grows to the right, v downward, and the pixel in column c and row r has its center at "
     "(c + 0.5, r + 0.5).",
@@ -68,8 +85,9 @@ _CONVENTIONS = [
     "Frames: counted from 0 in a sequential decode of the file, as Tracker counts. The tracked frames are "
     "the grid start + n * step, so all tracks share frames.",
     "Rows: for each track, every grid frame from its first to its last, sorted by track_id (text order) "
-    "and frame. A lost frame keeps its row: every number is an empty cell, except visible = 0, "
-    "n_components = 0 and shape_ok = 0 (integers stay integers), and flags holds LOST.",
+    "and frame. A lost frame keeps its row, with its track_id, frame and t_s: the measured numbers are empty "
+    "cells, except visible = 0, n_components = 0 and shape_ok = 0 (integers stay integers), and flags holds "
+    "LOST.",
     "Numbers: written with 7 decimals for seconds (_s), 6 decimals for _mm, _mm2, _rad and ratios, and "
     "3 decimals for _px, pixel and cell counts and probe means. A number that does not exist is an empty "
     "cell, never the text nan.",
@@ -184,7 +202,8 @@ def readme_text() -> str:
         "OUTLINE TRACKER: what is in this folder",
         "",
         _para("This folder holds one run of Outline Tracker on one video. The tool writes this file; do not "
-              "edit it. The unit of every number is in its column name."),
+              "edit it. The unit of a number is in its column name, except for the few numbers that Units, under "
+              "CONVENTIONS, lists."),
     ]
 
     def section(title: str, lines: list[str]) -> None:

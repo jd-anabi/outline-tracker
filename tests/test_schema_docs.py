@@ -8,6 +8,7 @@ the specification or computed from the schema tables, never copied from the outp
 
 import hashlib
 import importlib
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -18,12 +19,17 @@ from outline_tracker import schema
 
 REPO = Path(__file__).resolve().parents[1]
 
-# SHA-256 of the UTF-8 bytes of readme_text(), computed BEFORE the builders moved out of schema.py:
-# the unmodified schema.py of commit e49a088 (the base of task B6a), with
+# SHA-256 of the UTF-8 bytes of readme_text(), computed with
 #   uv run python -c "import hashlib; from outline_tracker import schema; \
 #       print(hashlib.sha256(schema.readme_text().encode('utf-8')).hexdigest())"
-# The text has 13751 characters in 249 lines. The move must give the same text, character for character.
-README_SHA256_BEFORE_THE_MOVE = "9cede8f4c9ba9cc98f4ee3ebbdb1907aa992700e9bde43c2013131705109b57b"
+# Commit 1 of task B6a moved the builders out of schema.py without changing a character. Its pinned value
+# was computed from the unmodified schema.py of commit e49a088, before the move:
+#   9cede8f4c9ba9cc98f4ee3ebbdb1907aa992700e9bde43c2013131705109b57b   (13751 characters, 249 lines)
+# Commit 2 changed the wording of four places (the intro, Units, Rows and the core_frac entry, see the
+# tests below). The value pinned now was computed after that change, and the diff between the two texts was
+# read: those four places and nothing else differ (14468 characters, 258 lines). Any later change of the
+# README text has to update this value on purpose.
+README_SHA256 = "154a055faef113bdedafa9ed9e77b13f6a66f25a610170db164ade19795ae7ae"
 
 # Every public name that schema.py had before the move (dir() of the unmodified module, without the
 # imported helpers). Other modules import these by name, so each must still be importable.
@@ -58,13 +64,13 @@ def python(code: str) -> subprocess.CompletedProcess:
 # ---------------------------------------------------------------------------------------------
 # The move: same text, same names, smaller modules
 
-def test_readme_text_is_still_the_text_computed_before_the_move():
+def test_readme_text_is_the_pinned_text():
     text = schema.readme_text()  # through the old import path, as every existing caller uses it
-    assert hashlib.sha256(text.encode("utf-8")).hexdigest() == README_SHA256_BEFORE_THE_MOVE
+    assert hashlib.sha256(text.encode("utf-8")).hexdigest() == README_SHA256
 
 
-def test_readme_text_from_schema_docs_is_the_same_text(schema_docs):
-    assert hashlib.sha256(schema_docs.readme_text().encode("utf-8")).hexdigest() == README_SHA256_BEFORE_THE_MOVE
+def test_readme_text_from_schema_docs_is_the_pinned_text(schema_docs):
+    assert hashlib.sha256(schema_docs.readme_text().encode("utf-8")).hexdigest() == README_SHA256
 
 
 def test_schema_re_exports_readme_text(schema_docs):
@@ -120,3 +126,87 @@ def test_import_order_does_not_matter(imports):
     done = python(f"{imports}; assert s.readme_text is d.readme_text; print('ok')")
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "ok"
+
+
+# ---------------------------------------------------------------------------------------------
+# Wording slips that the review of A05 noted in the README text (fixed in the second commit of B6a)
+
+NAN = float("nan")
+
+
+@pytest.fixture(scope="module")
+def readme(schema_docs) -> str:
+    return schema_docs.readme_text()
+
+
+def normalized(text: str) -> str:
+    """Whitespace collapsed to single spaces, so a wrapped paragraph can be searched."""
+    return " ".join(text.split())
+
+
+def convention(readme: str, label: str) -> str:
+    """The item of the CONVENTIONS section that starts with `label:`, wrapped lines joined."""
+    lines = readme.splitlines()
+    start = lines.index("== CONVENTIONS ==") + 1
+    end = next(i for i in range(start, len(lines)) if lines[i].startswith("== ") and i > start)
+    items: list[str] = []
+    for line in lines[start:end]:
+        if line.startswith("  ") and not line.startswith("    "):  # an item starts at two spaces
+            items.append(line.strip())
+        elif line.strip() and items:
+            items[-1] += " " + line.strip()
+    [item] = [i for i in items if i.startswith(f"{label}:")]
+    return item
+
+
+def has_word(text: str, word: str) -> bool:
+    return re.search(rf"(?<![A-Za-z0-9_]){re.escape(word)}(?![A-Za-z0-9_])", text) is not None
+
+
+def lost_row(columns: list[schema.Column]) -> dict:
+    """A lost frame, built by hand as SPEC 8.2 and 8.4 describe it: floats empty (NaN), integers 0."""
+    row: dict = {c.name: NAN for c in columns if c.dtype == "float"}
+    row.update({c.name: 0 for c in columns if c.dtype == "int"})
+    row.update(track_id="B", frame=40, t_s=0.1666667, mode="coarse", flags="LOST")
+    return row
+
+
+def test_the_readme_says_that_a_lost_row_keeps_frame_and_t_s(readme):
+    """The numbers that a lost row keeps are found from the real cells, not typed: format_row writes the
+    row and the cells that are not empty are the kept ones. The Rows convention must name each one."""
+    rows = convention(readme, "Rows")
+    kept_somewhere = set()
+    for columns in (schema.POSITIONS, schema.SHAPES):
+        cells = dict(zip((c.name for c in columns), schema.format_row(columns, lost_row(columns)).split(",")))
+        kept = [c.name for c in columns if c.dtype in ("int", "float") and cells[c.name] != ""]
+        assert {"frame", "t_s"} <= set(kept)  # SPEC 8.2: a lost frame keeps its row
+        for name in kept:
+            assert has_word(rows, name), f"{name} stays filled in a lost row but Rows does not say so"
+        kept_somewhere.update(kept)
+    assert kept_somewhere == {"frame", "t_s", "visible", "n_components", "shape_ok"}
+    assert "every number is an empty cell" not in normalized(readme)
+
+
+def test_the_readme_does_not_say_that_every_number_has_its_unit_in_its_name(readme):
+    flat = normalized(readme)
+    assert "The unit of every number is in its column name" not in flat
+    units = convention(readme, "Units")
+    for name in ("r", "g", "b", "gray"):  # SPEC 8.7: probe means on the 0-255 scale
+        assert has_word(units, name), name
+    assert "0-255" in units
+    assert "ratio" in units and "no unit" in units
+    for name in ("eccentricity", "core_frac", "solidity", "circularity", "largest_fraction"):
+        assert has_word(units, name), name  # the ratios, which have no unit
+
+
+def test_core_frac_is_described_for_the_fallback_case(readme):
+    """SPEC 7.3: if the opening removes more than half the area the full mask is the core, and the stored
+    core_frac stays the fraction the opening left (tests/test_measure_core.py), so it is below 0.5."""
+    shapes = {c.name: c.meaning for c in schema.SHAPES}["core_frac"]
+    stored = {k.name: k.meaning for k in schema.RESULTS_KEYS}["core_frac"]
+    for meaning in (shapes, stored):
+        text = normalized(meaning)
+        assert "fallback" in text and "0.5" in text and "not 1" in text, text
+    assert normalized(shapes) != "core area / full mask area"
+    assert normalized(stored) != "core area / mask area"
+    assert normalized(shapes) in normalized(readme)  # the README is built from the table
