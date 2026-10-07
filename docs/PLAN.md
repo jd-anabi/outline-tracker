@@ -204,6 +204,32 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 06:45, B5: what the real model does in fine mode, for J (two tests are `xfail(strict=True)`).**
+  On the synthetic close-up shrimp (body 47 × 20 px, two antennae 3 px wide beating at 9 Hz),
+  from one click on the body, EdgeTAM outlines the body and leaves the antennae out on every
+  frame. The pipeline measures that outline correctly, so the solidity is that of an ellipse
+  (0.99) and does not beat: the spectrum peaks at 0.56 Hz instead of 9 Hz, and the RMS difference
+  from the true solidity is 0.43 (limit 0.02). Same on the processor and on the Apple GPU.
+  Tried once, not as a test: with one more positive click on each antenna the beat is measured
+  (peak at 9.00 Hz, correlation with the truth 0.995), but the solidity is 0.05 too high
+  throughout, because the mask draws the antennae about 1 px wider on each side; that is over
+  the limit of 0.02 too. Consequences: (1) students who want the antenna stroke must click each
+  antenna and judge the preview; the how-to will say so. (2) Question: is the 0.02 of SPEC 13.4
+  meant for the absolute solidity or for its variation? Default: the tests keep asking what the
+  spec says and stay marked; nothing is tuned. Tests:
+  `tests/slow/test_fine_mode.py::test_solidity_spectrum_peaks_within_half_a_hz_of_9_hz` and
+  `::test_solidity_is_within_0_02_rms_of_the_true_solidity`, each on cpu and mps.
+- **Wed 06:45, B5: small objects at dish scale with the real model, for J (one test is
+  `xfail(strict=True)`).** On the synthetic dish clip (bodies 14.5 px long, tracked coarse in the
+  dish square) the model lost the plain body B on 15 of 30 frames with nothing near it; these
+  frames are flagged `LOST`. In a clip of ten such bodies it lost 112 of 1,000 object-frames. A
+  and C of the dish clip were found on every frame, within 2.3 and 0.5 px. Whether real shrimp
+  are lost like this will show in go/no-go 1 on the real clip. On one frame B came back with two
+  stray pixels far from the body in its mask; `px_along_major` is taken from the whole mask
+  (SPEC 7.8), so it read 135 px, `shape_ok` became 1 and that frame is not `LOWRES` (it is
+  flagged `ORIENT`). Question: should the two size checks use the largest piece of the mask, so
+  that stray pixels cannot switch `shape_ok` on? That would change SPEC 7.8. Default: no change.
+  Test: `tests/slow/test_coarse_lowres.py::test_every_frame_with_a_mask_is_flagged_lowres[B]`.
 - **Wed 05:40, B1: one more test marked `xfail(strict=True)`, on Linux and Windows only, for J
   to confirm its removal.** `tests/test_from_tracker_cli.py::test_folders_with_spaces_and_other_alphabets`
   runs `from-tracker` with the video, the export, the student name and the run folder all in
@@ -1116,7 +1142,8 @@ because derive and flags read the arrays the results store defines).
     uses the session's boxes and clip.
   - Check: `uv run pytest tests/test_cli_probe.py -q`
 
-- [ ] **B5 · Real-model tests of the full pipeline** (§13.3, §13.4, §6.5)
+- [x] **B5 · Real-model tests of the full pipeline** (§13.3, §13.4, §6.5)
+  - Done Wed 06:45 (commits 34af1ec, 3581a06, 4ddb4b6, 27cbbfa; numbers in docs/VALIDATION.md, section 4). Verified with the real EdgeTAM on short synthetic clips: `from-tracker` against last week's script on the processor, 0.0000 px on the selftest clip and on a three-object clip, the four files equal byte for byte (§13.3 passes); memory with 10 objects at 1080p peaks at 1.43 GB and does not grow (§6.5 passes); fine mode finds the object on all 480 frames with `shape_ok` = 1. Three criteria fail with the real model and are marked `xfail(strict=True)` with their numbers, nothing was tuned: the two solidity criteria of fine mode (from one click on the body the model outlines the body without the antennae) and `LOWRES` on one frame of one object at dish scale (two stray mask pixels). Both are under "Raised during the work". The selftest runs moved to B2. Full check: each file of `tests/slow/` by itself, for example `uv run pytest -m slow tests/slow/test_regression_pipeline.py -q -rP` (about a minute). Uncertain: no real video was run (that is go/no-go 1); the strict xfails carry this laptop's numbers.
   - Files: `tests/slow/test_regression_pipeline.py`, `tests/slow/test_fine_mode.py`,
     `tests/slow/test_coarse_lowres.py`, `tests/slow/test_memory.py`, `docs/VALIDATION.md`.
   - Tests first (slow; `cpu`; the fine test and the selftest also once on `mps`):
