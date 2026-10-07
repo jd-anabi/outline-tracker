@@ -3,7 +3,8 @@
 Nothing heavy is imported here: torch, transformers and Qt are loaded only by the commands that
 need them, so `--version`, `export` and `probe` start at once. The commands that read or write
 videos (`convert`, `check`, `probe`, `synth`) import OpenCV only when they run. `probe` itself is in
-outline_tracker/cli_probe.py; its parser is here with the others.
+outline_tracker/cli_probe.py; its parser is here with the others. `export` is in outline_tracker/cli_export.py,
+which also builds its parser.
 
 `synth` is a hidden command (not listed in `--help`): it writes one of the synthetic test clips of
 outline_tracker/synthetic.py, for checking an installation by hand. `compare-tracks` is the other
@@ -23,7 +24,7 @@ import math
 import sys
 from pathlib import Path
 
-from outline_tracker import cli_probe
+from outline_tracker import cli_export, cli_probe
 
 CONVERT_EXAMPLE = """\
 Usage (from the repository folder):
@@ -86,6 +87,8 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("videos", nargs="+", metavar="VIDEO", help="the video file(s) to check")
     check.add_argument("--seek", action="store_true", help=argparse.SUPPRESS)  # hidden (decision X19)
     check.set_defaults(run=run_check)
+
+    cli_export.add_parser(commands)
 
     probe = commands.add_parser(
         "probe",
