@@ -89,3 +89,34 @@ def frame_times(skip_before=(), n_frames=120, fps=240.0):
 
     frames = np.arange(n_frames)
     return (frames + sum((frames >= before).astype(int) for before in skip_before)) / fps
+
+
+# ---------------------------------------------------------------------------------------------
+# Segmenter results (tests/test_fakes.py, tests/test_fakes_threshold.py)
+
+
+def click(obj_id, u=1.0, v=1.0):
+    """A prompt with one positive point at (u, v), px in the pixel frame of the image given with it."""
+    from outline_tracker.segmenter.base import ObjectPrompt
+
+    return ObjectPrompt(obj_id, [(u, v)], [1])
+
+
+def mask_in_image(result, shape):
+    """A `MaskResult`'s mask put back where it was cut out: a bool array of `shape` = (rows, columns),
+    the size of the image the segmenter was given; the result's offset is (column, row) in px of it."""
+    import numpy as np
+
+    mask = np.zeros(shape, bool)
+    (col0, row0), (rows, cols) = result.offset, result.mask.shape
+    mask[row0:row0 + rows, col0:col0 + cols] = result.mask
+    return mask
+
+
+def assert_empty_result(result):
+    """The `MaskResult` of an object that was not found: nothing in it, as segmenter/base.py describes."""
+    import numpy as np
+
+    assert result.mask.shape == (0, 0) and result.mask.dtype == bool
+    assert result.logits.shape == (0, 0) and result.logits.dtype == np.float32
+    assert result.offset == (0, 0) and result.score is None
