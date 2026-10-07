@@ -923,7 +923,8 @@ because derive and flags read the arrays the results store defines).
     `^[A-Z]+[0-9]*$`; `add_prompt` stores the frame hash and `undo_prompt` removes the last one.
   - Check: `uv run pytest tests/test_corrections.py -q`
 
-- [ ] **A18 · Export: CSVs, outlines, log, README.txt** [CP: positions, Tracker format, log] (§8.1–8.6, §8.9, §8.11, §8.13, §13.2)
+- [x] **A18 · Export: CSVs, outlines, log, README.txt** [CP: positions, Tracker format, log] (§8.1–8.6, §8.9, §8.11, §8.13, §13.2)
+  - Done Wed 04:55 (commits 7370bf1, 9bd13c4, b8b076e). Verified: 67 tests of the export and the version line, all with the exact stand-in (29/30 rescaling with no tracking call; Tracker-format files read by last week's reader; descriptors on the shapes scene coarse and fine; `CONTACT` on the dish scene; locked files simulated). The code is in `export.py`, `export_tables.py`, `export_log.py` and `provenance.py`; the tests in `tests/test_export*.py`. Full check: `uv run pytest tests/test_export*.py tests/test_provenance.py -q`. Decisions made here: rows are the frames `results.npz` holds; on a lost row every number except `t_s` is an empty cell; a session with `radial_step_deg` other than 5 is refused before anything is written; in the Tracker-format folder the temporary and locked-file names are `<id>.csv.tmp` and `<id>.csv.new`. Uncertain: fine tracks and corrections are tested at store level only (A18b repeats them through the real runner); real Windows file locks are first met in CI and at go/no-go 2.
   - Files: `export.py`, `provenance.py` (tool version and commit, machine facts), `cli.py`
     (`--version` gains the commit), `tests/test_export.py`, `tests/test_provenance.py`.
   - Produces: `export_all(run_folder, overlay=False, log=print) -> ExportReport(files, warnings)`;
