@@ -1,5 +1,5 @@
 """The menus of the window (SPEC 10.1): File with Open video, Open session, Save session, Save
-session as and Quit; Help with Quickstart and About.
+session as, Export and Quit; Help with Quickstart and About.
 
 An item does what its button or key does elsewhere, through the same function: Open video is the
 window's `choose_video`; Open session and Save session are connected by panel 1, which has their
@@ -8,8 +8,9 @@ functions and buttons; Save session as asks for a folder and hands it to the con
 name. The Save key belongs to Save session; while that item is off the key still calls its
 function, which then says in the status bar what is missing.
 
-File > Export is added by the export panel. No quantities here, so no units and no coordinate
-frame.
+Export is made here and is off; panel 9 (gui/panels/export_panel.py) has its function, Export all,
+and switches the item on and off with its button. No quantities here, so no units and no
+coordinate frame.
 """
 
 from __future__ import annotations
@@ -26,8 +27,8 @@ QUICKSTART_URL = "https://github.com/jd-anabi/outline-tracker#readme"  # the rep
 
 class Menus(QObject):
     """The menu bar of `window` (a `MainWindow`). The items: `open_action`, `open_session_action`,
-    `save_action`, `save_as_action` and `quit_action` in File; `quickstart_action` and
-    `about_action` in Help. `save_key` is the Save key while Save session is off."""
+    `save_action`, `save_as_action`, `export_action` and `quit_action` in File; `quickstart_action`
+    and `about_action` in Help. `save_key` is the Save key while Save session is off."""
 
     def __init__(self, window):
         super().__init__(window)
@@ -39,6 +40,8 @@ class Menus(QObject):
         self.save_action = QAction("Save session", window)
         self.save_action.setShortcut(QKeySequence(standard.Save))
         self.save_as_action = QAction("Save session as", window)
+        self.export_action = QAction("Export", window)
+        self.export_action.setEnabled(False)  # until panel 9, which connects it, has something to export
         self.quit_action = QAction("Quit", window)
         self.quit_action.setShortcut(QKeySequence(standard.Quit))
         self.quit_action.setMenuRole(QAction.MenuRole.QuitRole)
@@ -47,7 +50,8 @@ class Menus(QObject):
         self.about_action.setMenuRole(QAction.MenuRole.NoRole)  # in Help on every system, as the spec lists it
 
         file_menu = window.menuBar().addMenu("File")
-        file_menu.addActions([self.open_action, self.open_session_action, self.save_action, self.save_as_action])
+        file_menu.addActions([self.open_action, self.open_session_action, self.save_action, self.save_as_action,
+                              self.export_action])
         file_menu.addSeparator()
         file_menu.addAction(self.quit_action)
         help_menu = window.menuBar().addMenu("Help")
