@@ -90,7 +90,7 @@ POSITIONS: list[Column] = [
     _float("area_mm2", "mm^2", 6, "mask area"),
     _int("visible", "1 if the mask is non-empty, else 0"),
     _str("mode", "coarse (the model saw the whole frame or dish) or fine (a crop that follows the object)"),
-    _str("flags", "quality codes, separated by ';' (see FLAGS); empty if none"),
+    _str("flags", "quality codes, separated by ';' (see the quality flags); empty if none"),
 ]
 
 SHAPES: list[Column] = [
@@ -121,7 +121,7 @@ SHAPES: list[Column] = [
            "empty without a dish circle; negative = outside the circle"),
     _float("wall_dist_min_mm", "mm", 6, "dish radius minus the outline's largest distance from the dish center "
            "(how close the outline comes to the wall); empty without a dish circle"),
-    _str("flags", "quality codes, separated by ';' (see FLAGS); the same text as in positions.csv"),
+    _str("flags", "quality codes, separated by ';' (see the quality flags); the same text as in positions.csv"),
 ]
 
 _RADIAL_MEANING = (
