@@ -204,6 +204,18 @@ None of these stops the overnight work. The date says when a different answer is
 
 _(the agent adds disputed tests, cut decisions and steps left for J here, newest first)_
 
+- **Wed 06:50, export of a results file with a gap: two tests marked `xfail(strict=True)`, for J
+  to confirm their removal.** The tool itself cannot make a gap inside a track any more (an edit
+  that would leave one is refused). For a results.npz that has one all the same (made by hand or
+  by an older version), the export now writes a lost row for each missing frame in
+  positions.csv and shapes.csv, as SPEC 8.2 asks, and warns. My hand-over of that task said in
+  one place that the Tracker-format file should get these rows too and in another that it should
+  not; the first two tests were written to the first reading. The review held to SPEC 8.3 (one
+  row per tracked frame), so the Tracker-format file keeps only the frames that have a record,
+  and the two tests are marked, each with its successor next to it:
+  `tests/test_export_pipeline_gaps.py::test_a_frame_without_a_record_is_written_as_a_lost_frame_is`
+  and `::test_the_grid_of_the_lost_rows_is_the_clips_start_and_step`. Default: J says "delete
+  them" and they go; or J says the Tracker-format file should carry the lost rows too.
 - **Wed 06:45, B5: what the real model does in fine mode, for J (two tests are `xfail(strict=True)`).**
   On the synthetic close-up shrimp (body 47 × 20 px, two antennae 3 px wide beating at 9 Hz),
   from one click on the body, EdgeTAM outlines the body and leaves the antennae out on every
@@ -950,6 +962,7 @@ because derive and flags read the arrays the results store defines).
 
 - [x] **A17 · Corrections and the edit API** (§5, §6.6, §13.2)
   - Done Wed 05:33 (commits 3077c65, 8f66961). Verified: 77 tests with the exact stand-in (after a re-track of A from frame k only A's frames from k on changed, in the store and in the derived positions; an ended track stops at its end and is never extended by a later run; a new piece `A2` is tracked from m; frames off the grid move forward with a note; ids never repeat; every correction is recorded). The code is in `tracking_edit.py`, `tracking_ids.py` and `tracking_flags.py`, and every name is importable from `outline_tracker.tracking`. The interface as built differs from the Produces line below: `retrack_from(session, store, track_ids, frame_k, prompts, run_folder)`, `end_track(session, store, track_id, frame_k, run_folder)` and `remove_object(session, store, track_id, run_folder)` take the run folder, because they save results.npz at once (a tracking job reads that file); `new_piece(session, parent_id, frame_m, prompts=None)` returns an `Edit` (the new id is `edit.track_ids[0]`), so that a frame moved onto the grid can be reported; `add_prompt` and `undo_prompt` take the store. Full check: `uv run pytest tests/test_corrections.py tests/test_tracking_edit.py tests/test_tracking_api.py -q`. Uncertain: two points from the review are being closed in a follow-up (an edit could leave a gap inside a track; a results.npz that stays locked on Windows); on a video that ends before its clip, `complete` can stay false after an edit although nothing is missing.
+  - Follow-up done Wed 06:50 (A17b, commits 018c4e2, b3708cf): `retrack_from` and `add_prompt` refuse a frame that would leave a gap inside a track, with the session and the results unchanged; `retrack_from`, `end_track` and `remove_object` take `store=None` (load results.npz from the run folder; the app calls them this way) and raise a plain error, changing nothing, when results.npz cannot be replaced or an unrenamed results.new.npz is in the way; `add_prompt` checks its point and label before it changes anything. Uncertain: `tracking_edit.py` is at 487 lines and waits for a split; a tracking job on Windows can still leave an out-of-date results.new.npz behind when results.npz was locked for a moment.
   - Files: `tracking.py`, `tests/test_corrections.py`.
   - Produces: `retrack_from(session, store, track_ids, frame_k, prompts)`,
     `end_track(session, store, track_id, frame_k)`,
@@ -969,6 +982,7 @@ because derive and flags read the arrays the results store defines).
 
 - [x] **A18 · Export: CSVs, outlines, log, README.txt** [CP: positions, Tracker format, log] (§8.1–8.6, §8.9, §8.11, §8.13, §13.2)
   - Done Wed 04:55 (commits 7370bf1, 9bd13c4, b8b076e). Verified: 67 tests of the export and the version line, all with the exact stand-in (29/30 rescaling with no tracking call; Tracker-format files read by last week's reader; descriptors on the shapes scene coarse and fine; `CONTACT` on the dish scene; locked files simulated). The code is in `export.py`, `export_tables.py`, `export_log.py` and `provenance.py`; the tests in `tests/test_export*.py`. Full check: `uv run pytest tests/test_export*.py tests/test_provenance.py -q`. Decisions made here: rows are the frames `results.npz` holds; on a lost row every number except `t_s` is an empty cell; a session with `radial_step_deg` other than 5 is refused before anything is written; in the Tracker-format folder the temporary and locked-file names are `<id>.csv.tmp` and `<id>.csv.new`. Uncertain: fine tracks and corrections are tested at store level only (A18b repeats them through the real runner); real Windows file locks are first met in CI and at go/no-go 2.
+  - Follow-up done Wed 06:50 (A18b, commits 3e54bfa, 0f1f3b0): the fine-track and correction checks now also run through the real fine runner and the real correction functions (`tests/test_export_pipeline.py`: shapes, radial profiles and outlines of fine tracks; the window named in run.log; after a re-track only that track's rows from k on differ and the other tracks' Tracker-format files are identical byte for byte; after End track and Continue as A2 the export has A, A2 and B). A results file with a gap gets lost rows in positions.csv and shapes.csv and a warning. Full check: `uv run pytest tests/test_export_pipeline*.py -q`.
   - Files: `export.py`, `provenance.py` (tool version and commit, machine facts), `cli.py`
     (`--version` gains the commit), `tests/test_export.py`, `tests/test_provenance.py`.
   - Produces: `export_all(run_folder, overlay=False, log=print) -> ExportReport(files, warnings)`;
