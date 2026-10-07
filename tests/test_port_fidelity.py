@@ -8,8 +8,11 @@ copy with the reference copy. An unattended "improvement" of ported code makes a
 To add a port (every port task does): add one row to `VERBATIM`, with the new module, the
 reference module and the names moved unchanged. A name whose text had to change (a message that
 named last week's command, say) goes into `ADAPTED` instead, with the exact text replacements,
-each of which must occur once in the reference source. Names that exist in both modules and are
-listed in neither table fail `test_no_ported_name_is_left_unchecked`.
+each of which must occur once in the reference source. Module-level constants go into `CONSTANTS`
+and are compared by value (for a dict, also the order of its items). Methods moved unchanged into
+a class with a new name go into `VERBATIM_METHODS`; the methods of the same name that were
+rewritten are named in the same row, so none is forgotten. Names that exist in both modules and
+are listed in no table fail `test_no_ported_name_is_left_unchecked`.
 
 A ported test file goes into `PORTED_TESTS` when it is one file of the template (only its import
 line may differ), or into `SPLIT_TESTS` when the template's file was shared out among several new
@@ -46,6 +49,11 @@ VERBATIM: list[tuple[str, str, tuple[str, ...]]] = [
          "_fps_from_export", "_fps_from_manifest", "Plan", "make_plan"),
     ),
     ("outline_tracker.measure", "shrimp.segment", ("mask_center",)),
+    (
+        "outline_tracker.segmenter.edgetam_convert",
+        "shrimp._edgetam",
+        ("_renumber", "convert_state_dict", "edgetam_config", "load_edgetam"),
+    ),
 ]
 
 # (new module, reference module, name, ((old text, new text), ...)). The new source must equal the
@@ -57,6 +65,38 @@ ADAPTED: list[tuple[str, str, str, tuple[tuple[str, str], ...]]] = [
         "check_video",
         # The note names last week's module, which students no longer have.
         (("through shrimp.video so all coordinates", "with Outline Tracker so all coordinates"),),
+    ),
+    (
+        "outline_tracker.segmenter.hf",
+        "shrimp.segment",
+        "load_model",
+        (
+            # An OSError while loading becomes "the first run needs internet once".
+            ("def load_model(", "@needs_internet_once\ndef load_model("),
+            # The package never imports the reference copy.
+            ("from shrimp._edgetam import load_edgetam",
+             "from outline_tracker.segmenter.edgetam_convert import load_edgetam"),
+        ),
+    ),
+]
+
+# (new module, reference module, names of module-level constants). Compared by value; for a dict
+# also the order of its items (the EdgeTAM key renaming applies its entries one after another).
+CONSTANTS: list[tuple[str, str, tuple[str, ...]]] = [
+    ("outline_tracker.segmenter.edgetam_convert", "shrimp._edgetam", ("KEYS_TO_MODIFY_MAPPING", "PERCEIVER")),
+    ("outline_tracker.segmenter.hf", "shrimp.segment", ("KEEP_FRAMES", "MODELS")),
+]
+
+# (new module, new class, reference module, reference class, methods moved verbatim, methods of
+# the same name that were rewritten). Every method name the two classes share is in one of the two.
+VERBATIM_METHODS: list[tuple[str, str, str, str, tuple[str, ...], tuple[str, ...]]] = [
+    (
+        "outline_tracker.segmenter.hf", "HFSegmenter", "shrimp.segment", "TransformersSegmenter",
+        ("_pick_device", "_prune"),
+        # __init__ also records model_id and weights_sha256; _forward adds the prompts with one
+        # call per object and returns cropped results with logits; start and step take and return
+        # the records of segmenter/base.py.
+        ("__init__", "_forward", "start", "step"),
     ),
 ]
 
@@ -110,8 +150,24 @@ NOT_PORTED_HERE = (
 
 
 def _source(module_name: str, name: str) -> str:
-    """The source text of a function or class of an importable module."""
-    return inspect.getsource(getattr(importlib.import_module(module_name), name))
+    """The source text of a function or class of an importable module (`Class.method` for a method)."""
+    found = importlib.import_module(module_name)
+    for part in name.split("."):
+        found = getattr(found, part)
+    return inspect.getsource(found)
+
+
+def _same_constant(new: object, reference: object) -> bool:
+    """Equal values of the same type; two dicts must also list their items in the same order."""
+    if type(new) is not type(reference) or new != reference:
+        return False
+    return not isinstance(new, dict) or list(new.items()) == list(reference.items())
+
+
+def _method_names(module_name: str, class_name: str) -> set[str]:
+    """Names of the functions defined in the body of a class."""
+    cls = getattr(importlib.import_module(module_name), class_name)
+    return {name for name, value in vars(cls).items() if inspect.isfunction(value)}
 
 
 def _adapted(source: str, replacements: tuple[tuple[str, str], ...]) -> str:
@@ -123,10 +179,16 @@ def _adapted(source: str, replacements: tuple[tuple[str, str], ...]) -> str:
 
 
 def _top_level_names(path: Path) -> set[str]:
-    """Names of the functions and classes defined at the top level of a Python file."""
+    """Names of the functions, classes and constants defined at the top level of a Python file."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     kinds = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-    return {node.name for node in tree.body if isinstance(node, kinds)}
+    names = {node.name for node in tree.body if isinstance(node, kinds)}
+    for node in tree.body:  # NAME = value, also NAME: type = value and A, B = values
+        targets = node.targets if isinstance(node, ast.Assign) else (
+            [node.target] if isinstance(node, ast.AnnAssign) else [])
+        for target in targets:
+            names |= {n.id for n in ast.walk(target) if isinstance(n, ast.Name)}
+    return names
 
 
 def _unchecked(new_file: Path, reference_file: Path, checked: set[str]) -> list[str]:
@@ -175,6 +237,13 @@ def _import_lines(path: Path) -> list[str]:
 VERBATIM_CASES = [(new, ref, name) for new, ref, names in VERBATIM for name in names]
 VERBATIM_IDS = [f"{new}.{name}" for new, _, name in VERBATIM_CASES]
 ADAPTED_IDS = [f"{new}.{name}" for new, _, name, _ in ADAPTED]
+CONSTANT_CASES = [(new, ref, name) for new, ref, names in CONSTANTS for name in names]
+CONSTANT_IDS = [f"{new}.{name}" for new, _, name in CONSTANT_CASES]
+METHOD_CASES = [(new, cls, ref, ref_cls, name)
+                for new, cls, ref, ref_cls, names, _ in VERBATIM_METHODS for name in names]
+METHOD_IDS = [f"{new}.{cls}.{name}" for new, cls, _, _, name in METHOD_CASES]
+MODULE_PAIRS = sorted({(row[0], row[1]) for row in [*VERBATIM, *ADAPTED, *CONSTANTS]}
+                      | {(row[0], row[2]) for row in VERBATIM_METHODS})
 
 
 @pytest.mark.parametrize("new_module, reference_module, name", VERBATIM_CASES, ids=VERBATIM_IDS)
@@ -188,9 +257,31 @@ def test_adapted_differs_only_by_the_listed_replacements(new_module, reference_m
     assert _source(new_module, name) == expected
 
 
-@pytest.mark.parametrize("new_module, reference_module", sorted({(n, r) for n, r, _ in VERBATIM}))
+@pytest.mark.parametrize("new_module, reference_module, name", CONSTANT_CASES, ids=CONSTANT_IDS)
+def test_constant_has_the_reference_value(new_module, reference_module, name):
+    new = getattr(importlib.import_module(new_module), name)
+    reference = getattr(importlib.import_module(reference_module), name)
+    assert _same_constant(new, reference)
+
+
+@pytest.mark.parametrize("new_module, new_class, reference_module, reference_class, name", METHOD_CASES,
+                         ids=METHOD_IDS)
+def test_method_moved_verbatim(new_module, new_class, reference_module, reference_class, name):
+    assert _source(new_module, f"{new_class}.{name}") == _source(reference_module, f"{reference_class}.{name}")
+
+
+@pytest.mark.parametrize("new_module, new_class, reference_module, reference_class, verbatim, rewritten",
+                         VERBATIM_METHODS, ids=[f"{row[0]}.{row[1]}" for row in VERBATIM_METHODS])
+def test_no_ported_method_is_left_unchecked(new_module, new_class, reference_module, reference_class,
+                                            verbatim, rewritten):
+    shared = _method_names(new_module, new_class) & _method_names(reference_module, reference_class)
+    assert not set(verbatim) & set(rewritten)
+    assert shared == set(verbatim) | set(rewritten)
+
+
+@pytest.mark.parametrize("new_module, reference_module", MODULE_PAIRS)
 def test_no_ported_name_is_left_unchecked(new_module, reference_module):
-    checked = {name for n, _, names in VERBATIM if n == new_module for name in names}
+    checked = {name for n, _, names in [*VERBATIM, *CONSTANTS] if n == new_module for name in names}
     checked |= {name for n, _, name, _ in ADAPTED if n == new_module}
     assert _unchecked(_module_file(new_module), _module_file(reference_module), checked) == []
 
@@ -255,6 +346,40 @@ def test_unchecked_finds_same_named_definitions_that_nobody_compares(tmp_path):
     # `fresh` exists only in the new module; `main` only in the reference: neither needs a row.
     assert _unchecked(new, reference, set()) == ["Info", "probe"]
     assert _unchecked(new, reference, {"Info", "probe"}) == []
+
+
+def test_unchecked_finds_constants_too(tmp_path):
+    reference = tmp_path / "reference.py"
+    reference.write_text("KEEP = 20\nW, H = 320, 240\nLIMIT: float = 3.0\nOLD = 1\n\n\ndef f():\n    KEEP = 1\n")
+    new = tmp_path / "new.py"
+    new.write_text("KEEP = 21\nW, H = 320, 240\nLIMIT: float = 3.0\nFRESH = 2\n")
+    # `OLD` exists only in the reference, `FRESH` only in the new module; a name bound inside a
+    # function is not a module constant.
+    assert _unchecked(new, reference, set()) == ["H", "KEEP", "LIMIT", "W"]
+    assert _unchecked(new, reference, {"H", "KEEP", "LIMIT", "W"}) == []
+
+
+def test_same_constant_compares_value_type_and_dict_order():
+    assert _same_constant(20, 20)
+    assert not _same_constant(21, 20)
+    assert not _same_constant(20.0, 20)  # another type
+    assert _same_constant({"a": 1, "ab": 2}, {"a": 1, "ab": 2})
+    assert not _same_constant({"a": 1, "ab": 3}, {"a": 1, "ab": 2})
+    # Equal as dicts, but applied one after another in a different order.
+    assert {"ab": 2, "a": 1} == {"a": 1, "ab": 2}
+    assert not _same_constant({"ab": 2, "a": 1}, {"a": 1, "ab": 2})
+
+
+def test_source_reads_a_method_through_its_class():
+    assert _source(__name__, "_Sample.twice") == "    def twice(self, x):\n        return 2 * x\n"
+    assert _method_names(__name__, "_Sample") == {"twice"}
+
+
+class _Sample:
+    limit = 3
+
+    def twice(self, x):
+        return 2 * x
 
 
 def test_statement_sources_reads_decorators_tuples_and_trailing_comments(tmp_path):
