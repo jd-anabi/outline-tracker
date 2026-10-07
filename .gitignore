@@ -1,0 +1,31 @@
+# Videos, results and model weights never go into git (SPEC 8.13, CLAUDE.md).
+*.mov
+*.MOV
+*.mp4
+*.MP4
+*.m4v
+*.avi
+*.mkv
+*.hevc
+*.npy
+*.npz
+*.pt
+*.safetensors
+
+# The owner's private project notes (never part of this repo).
+outline-tracker-spec.md
+
+# Python and tools
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.superpowers/
+
+# Operating systems
+.DS_Store
+Thumbs.db
+desktop.ini
