@@ -36,7 +36,7 @@ import numpy as np
 
 from outline_tracker import export_log, export_tables, provenance, schema, schema_docs
 from outline_tracker.derive import DerivedTrack, derive_track
-from outline_tracker.fileio import atomic_write, new_name
+from outline_tracker.fileio import append_block, atomic_write, new_name
 from outline_tracker.overlay import write_overlay
 from outline_tracker.qc import compute_flags, summary_lines
 from outline_tracker.results import ResultsStore, TrackArrays
@@ -184,7 +184,7 @@ def export_all(run_folder, overlay: bool = False, log: Callable[[str], object] =
     block = export_log.export_block(session, data.arrays, summary_lines(data.flags, data.derived), outputs,
                                     datetime.now().astimezone())
     log_path = run_folder / schema.RUN_LOG
-    written = export_log.append_block(log_path, block)
+    written = append_block(log_path, block)
     files.append(written)
     if written != log_path:
         warn(f"{schema.RUN_LOG} is open in another program: the log with this export is in {written.name} next to "

@@ -191,9 +191,10 @@ def _as_csv(path):
 
 
 # One rule for a locked file. `fileio.atomic_write` cannot write into the Tracker-format folder (its
-# temporary file and its fallback end in .csv), so that folder has a rename of its own, which must
-# wait, give up and complain exactly as `atomic_write` does. Each case: the error of a rename onto
-# A.csv, how many times it comes, and whether the fallback is locked as well.
+# temporary file and its fallback end in .csv), so that folder names its own two files and renames
+# with `fileio.replace_with_retry`, as `atomic_write` does: it must wait, give up and complain
+# exactly as `atomic_write`. Each case: the error of a rename onto A.csv, how many times it comes,
+# and whether the fallback is locked as well.
 ALWAYS = 10 ** 6
 LOCKS = [
     pytest.param(PermissionError(13, "in use"), 0, False, id="free"),

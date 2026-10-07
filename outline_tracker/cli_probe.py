@@ -28,7 +28,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from outline_tracker import __version__
+from outline_tracker import provenance
 
 if TYPE_CHECKING:  # for the annotations only: video loads OpenCV
     from outline_tracker.video import VideoInfo
@@ -128,7 +128,7 @@ def run(args: argparse.Namespace) -> int:
     print(f"wrote {written}: {len(table)} rows ({n_frames} frame{'' if n_frames == 1 else 's'} x {n_boxes})")
     first, last = int(table["frame"].iloc[0]), int(table["frame"].iloc[-1])
     entry = _log_entry(job, first, last, n_frames, f"{written.name} ({len(table)} rows)", notes)
-    log = _append_run_log(job.out, entry)
+    log = fileio.append_block(job.out / schema.RUN_LOG, entry)
     for path, name in ((written, schema.PROBES_CSV), (log, schema.RUN_LOG)):
         if path.name != name:  # atomic_write's way out when the target stays locked
             print(f"NOTE: {name} is open in another program, so this went to {path.name}. Close {name}, "
@@ -256,7 +256,7 @@ def _log_entry(job: _Job, first: int, last: int, n_frames: int, wrote: str, note
                       for name, box in job.boxes.items())
     when = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
     return [
-        f"==== probe, {when}, outline-tracker {__version__} ====",
+        f"==== probe, {when}, {provenance.tool_version()} ====",
         f"video: {os.path.abspath(job.video)} ({info.width} x {info.height} px; the file says {info.n_frames} "
         f"frames, {info.fps_container:.2f} fps)",
         f"fps_true: {job.fps_true!r} (source: {job.fps_source})",
@@ -266,17 +266,3 @@ def _log_entry(job: _Job, first: int, last: int, n_frames: int, wrote: str, note
         *(f"note: {note}" for note in notes),
         f"wrote: {wrote}",
     ]
-
-
-def _append_run_log(folder: Path, lines: list[str]) -> Path:
-    """Add one entry to `<folder>/run.log` (UTF-8, LF line ends), after a blank line when the log has
-    entries already. What is there is kept as it is; the file is replaced in one step, as every output
-    file is (`fileio.atomic_write`). Returns the path written."""
-    from outline_tracker import fileio, schema
-
-    path = folder / schema.RUN_LOG
-    earlier = path.read_bytes() if path.is_file() else b""
-    if earlier and not earlier.endswith(b"\n"):
-        earlier += b"\n"
-    entry = ("\n".join(lines) + "\n").encode("utf-8")
-    return fileio.atomic_write(path, lambda tmp: tmp.write_bytes(earlier + (b"\n" if earlier else b"") + entry))

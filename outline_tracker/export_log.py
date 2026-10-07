@@ -1,4 +1,4 @@
-"""The block that an export appends to run.log (SPEC 8.9), and the appending itself.
+"""The block that an export appends to run.log (SPEC 8.9).
 
 One block per export, in this order: software and machine, device, model, video, time, calibration,
 runs, corrections, the QC summary, the files written. Everything is read from the session, the
@@ -8,8 +8,7 @@ What a run's model saw is read from the records themselves (their grid cell is 1
 longer side of the model's image), since a setting may have changed after the run.
 
 The text is plain ASCII apart from names the user gave (um, mm^2, deg), UTF-8, LF line ends.
-run.log is appended to, never rewritten: the earlier text is kept byte for byte and the file is
-replaced in one step (`fileio.atomic_write`).
+run.log is appended to, never rewritten (`fileio.append_block`).
 
 Units: px in Tracker's image coordinates (pixel centers at +0.5), mm, um, s, degrees, as each line
 says. Frames are video frame numbers. No Qt, no torch.
@@ -19,9 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from pathlib import Path
 
-from outline_tracker import fileio, provenance
+from outline_tracker import provenance
 from outline_tracker.geometry import stick_scale, tape_check
 from outline_tracker.measure import GRID_CELLS
 from outline_tracker.results import TrackArrays
@@ -67,20 +65,6 @@ def export_block(session: Session, arrays_by_track: Mapping[str, TrackArrays], q
     lines += ["qc summary:", *(f"  {line}" for line in qc_lines or ["no tracks"])]
     lines += ["outputs:", *(f"  {line}" for line in outputs)]
     return lines
-
-
-def append_block(path: Path, lines: Sequence[str]) -> Path:
-    """Add one block to run.log at `path` (UTF-8, LF line ends), after a blank line when the log has
-    text already. What is there is kept as it is; the file is replaced in one step. Returns the path
-    written: `path`, or `<stem>.new<suffix>` next to it when `path` stayed locked by another program.
-
-    `probe` adds its entry to the same file (`cli_probe`); tests/test_export_log.py checks that the
-    two commands leave the same bytes."""
-    earlier = path.read_bytes() if path.is_file() else b""
-    if earlier and not earlier.endswith(b"\n"):
-        earlier += b"\n"
-    block = ("\n".join(lines) + "\n").encode("utf-8")
-    return fileio.atomic_write(path, lambda tmp: tmp.write_bytes(earlier + (b"\n" if earlier else b"") + block))
 
 
 def _model_line(session: Session) -> str:

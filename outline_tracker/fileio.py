@@ -8,6 +8,12 @@ one. On Windows a rename fails while another program holds the target open (a CS
 spreadsheet program, a file being synced): the rename is retried for about 5 s, and if the target
 stays locked the data are kept next to it as `<stem>.new<suffix>`.
 
+That rename is `replace_with_retry`, the one place that says what counts as locked, how long to
+wait and what to tell the user. A folder that cannot take `atomic_write`'s names calls it with names
+of its own: the Tracker-format folder, where students' loaders read every .csv file as a track
+(`export_tables.write_tracker_folder`). `append_block` adds an entry to run.log; every command that
+writes to that file uses it.
+
 No units or coordinates here: paths and bytes only. No Qt, no torch.
 """
 
@@ -18,7 +24,7 @@ import hashlib
 import os
 import secrets
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 RETRY_DELAYS_S = (0.1, 0.2, 0.4, 0.8, 1.0, 1.0, 1.5)  # waits between tries at a locked target: 5 s in all
@@ -57,27 +63,53 @@ def atomic_write(path, write_fn: Callable[[Path], object]) -> Path:
     tmp = path.with_name(f"{path.stem}-{secrets.token_hex(4)}-tmp{path.suffix}")
     try:
         write_fn(tmp)
-        for delay in (*RETRY_DELAYS_S, None):
-            try:
-                os.replace(tmp, path)
-                return path
-            except PermissionError:
-                if delay is None:
-                    break
-                time.sleep(delay)
-        fallback = new_name(path)
-        try:
-            os.replace(tmp, fallback)
-        except PermissionError:
-            raise PermissionError(
-                f"Could not write {path.name}: it is open in another program, and so is {fallback.name}. "
-                f"Close them (folder: {path.parent}) and try again."
-            ) from None
-        return fallback
+        return replace_with_retry(tmp, path, new_name(path))
     except BaseException:
         with contextlib.suppress(OSError):
             tmp.unlink()
         raise
+
+
+def replace_with_retry(tmp, target, fallback) -> Path:
+    """Rename the finished file `tmp` onto `target`; if `target` stays locked by another program,
+    onto `fallback`. All three are paths in one folder. Returns the one of `target` and `fallback`
+    that now holds the data.
+
+    A rename that raises PermissionError (on Windows: another program holds `target` open) is tried
+    again after each wait of `RETRY_DELAYS_S`, about 5 s in all. PermissionError is raised when
+    `fallback` is locked as well; `tmp` is then still there, for the caller to remove. Any other
+    error of the rename is passed on at once.
+    """
+    tmp, target, fallback = Path(tmp), Path(target), Path(fallback)
+    for delay in (*RETRY_DELAYS_S, None):
+        try:
+            os.replace(tmp, target)
+            return target
+        except PermissionError:
+            if delay is None:
+                break
+            time.sleep(delay)
+    try:
+        os.replace(tmp, fallback)
+    except PermissionError:
+        raise PermissionError(
+            f"Could not write {target.name}: it is open in another program, and so is {fallback.name}. "
+            f"Close them (folder: {target.parent}) and try again."
+        ) from None
+    return fallback
+
+
+def append_block(path, lines: Iterable[str]) -> Path:
+    """Add one block of lines to the text file `path` (run.log; UTF-8, LF line ends), after a blank
+    line when the file has text already. What is there is kept as it is; the file is replaced in
+    one step (`atomic_write`). Returns the path written: `path`, or `<stem>.new<suffix>` next to it
+    when `path` stayed locked by another program."""
+    path = Path(path)
+    earlier = path.read_bytes() if path.is_file() else b""
+    if earlier and not earlier.endswith(b"\n"):
+        earlier += b"\n"
+    block = ("\n".join(lines) + "\n").encode("utf-8")
+    return atomic_write(path, lambda tmp: tmp.write_bytes(earlier + (b"\n" if earlier else b"") + block))
 
 
 def relative_path(target, folder, pathmod=os.path) -> str | None:

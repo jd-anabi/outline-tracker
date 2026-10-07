@@ -5,13 +5,14 @@ clip's step), fps_true and the video; probes.csv goes into the session's run fol
 session.json. Expected values: see tests/cli_probe_helpers.py. The video form is in tests/test_cli_probe.py.
 """
 
+import re
 import shutil
 
 import pytest
 from cli_probe_helpers import (FPS, LED, LED_BOX, N, ONSET, WALL, WALL_BOX, assert_rows, decode, error_line,
                                onset_frame, probe, table, write_manifest)
 
-from outline_tracker import __version__
+from outline_tracker import __version__, provenance
 from outline_tracker.session import Clip, ProbeBox, Session, TimeSettings, VideoRef
 
 
@@ -149,6 +150,16 @@ def test_run_log_says_what_was_measured(dish_clip, tmp_path):
     assert log_lines(out, "frames: ") == ["frames: 0 to 119, every frame (120 frames)"]
     (wrote_line,) = log_lines(out, "wrote: ")
     assert "probes.csv" in wrote_line and "240 rows" in wrote_line  # 120 frames x 2 probes
+
+
+def test_run_log_entry_is_headed_by_the_version_line_with_the_commit(dish_clip, tmp_path, monkeypatch):
+    # SPEC 8.9: "tool version and commit"; the line `--version` prints and an export's block starts with
+    monkeypatch.setattr(provenance, "tool_version", lambda: "outline-tracker 0.1.0 (commit abc1234)")
+    out = tmp_path / "out"
+    assert probe(dish_clip.path, "--rect", LED, "--fps", FPS, "--out", out, "--end", 3) == 0
+    head = (out / "run.log").read_text(encoding="utf-8").splitlines()[0]
+    assert re.fullmatch(r"==== probe, \d{4}-\d\d-\d\d \d\d:\d\d:\d\d [+-]\d{4}, "
+                        r"outline-tracker 0\.1\.0 \(commit abc1234\) ====", head), head
 
 
 def test_run_log_names_the_manifest_fps_came_from(dish_clip, tmp_path, monkeypatch):

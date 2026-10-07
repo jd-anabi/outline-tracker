@@ -14,8 +14,9 @@ Rules of the rows:
 The Tracker-format folder holds nothing but `<id>.csv`: students' own loaders read every .csv and
 .txt file in it as a track. So a file is written under `<id>.csv.tmp` by last week's writer
 (`tracker_io.write_tracker_file`, its bytes unchanged) and renamed; if `<id>.csv` stays locked by
-another program the new data stay next to it as `<id>.csv.new`; what an earlier export left under
-those two names is removed, and so are the files of tracks that no longer exist.
+another program the new data stay next to it as `<id>.csv.new` (`fileio.replace_with_retry`: the
+waits and the rule of every other output file, under these two names); what an earlier export left
+under those two names is removed, and so are the files of tracks that no longer exist.
 
 Units and coordinates: as the columns say (SPEC 3): mm in the user's axes with y up, s, rad
 counterclockwise from +x, px in Tracker's image coordinates (pixel centers at +0.5). Frames are
@@ -26,9 +27,7 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
 import re
-import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 
@@ -171,7 +170,7 @@ def write_tracker_folder(folder: Path, derived_by_track: Mapping[str, DerivedTra
         try:
             tracker_io.write_tracker_file(tmp, track_id, derived.frame, derived.t_s, derived.x_mm, derived.y_mm,
                                           derived.u_px, derived.v_px)
-            path = _replace_with_retry(tmp, target, target.with_name(target.name + _NEW))
+            path = fileio.replace_with_retry(tmp, target, target.with_name(target.name + _NEW))
         except BaseException:
             with contextlib.suppress(OSError):
                 tmp.unlink()
@@ -182,28 +181,3 @@ def write_tracker_folder(folder: Path, derived_by_track: Mapping[str, DerivedTra
                             f"{path.name} next to it. Close that program and export again.")
     return written, warnings
 
-
-def _replace_with_retry(tmp: Path, target: Path, fallback: Path) -> Path:
-    """Rename `tmp` onto `target`; if `target` stays locked by another program, onto `fallback`.
-    Returns the one of the two that now holds the data. PermissionError when both are locked.
-
-    This is the rename inside `fileio.atomic_write` with the names given by the caller: the same
-    waits (`fileio.RETRY_DELAYS_S`, s), the same error that counts as locked, the same message.
-    `atomic_write` itself names its temporary file and its fallback with the target's suffix, here
-    .csv, which this folder must not hold. tests/test_export_tracker_folder.py runs both against
-    the same locks and compares what they do.
-    """
-    for delay in (*fileio.RETRY_DELAYS_S, None):
-        try:
-            os.replace(tmp, target)
-            return target
-        except PermissionError:
-            if delay is None:
-                break
-            time.sleep(delay)
-    try:
-        os.replace(tmp, fallback)
-    except PermissionError:
-        raise PermissionError(f"Could not write {target.name}: it is open in another program, and so is "
-                              f"{fallback.name}. Close them (folder: {target.parent}) and try again.") from None
-    return fallback

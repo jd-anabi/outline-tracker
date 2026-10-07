@@ -15,8 +15,8 @@ from importlib import metadata
 import pytest
 from export_helpers import MODEL, add_fine, coarse_run, load
 
-from outline_tracker import export, provenance, qc
-from outline_tracker.session import Correction
+from outline_tracker import cli, export, provenance, qc
+from outline_tracker.session import Correction, ProbeBox
 
 VERSION_LINE = "outline-tracker 0.1.0 (commit abc1234)"
 SECTIONS = ["software:", "machine:", "libraries:", "device:", "model:", "video:", "time:", "calibration:", "runs:",
@@ -137,33 +137,20 @@ def test_each_export_appends_a_block_and_keeps_what_was_there(run_folder):
     assert second.count("==== export, ") == 2 and second.count("==== probe, ") == 1
 
 
-@pytest.mark.parametrize("earlier", [
-    pytest.param(None, id="no log yet"),
-    pytest.param(b"", id="an empty log"),
-    pytest.param(b"==== probe, an earlier entry ====\nwrote: probes.csv\n", id="one entry"),
-    pytest.param(b"a log that ends without a line end", id="no line end"),
-    pytest.param("a note by Zoë\n\n".encode(), id="a blank line at the end, and UTF-8"),
-])
-def test_export_and_probe_add_to_run_log_in_one_way(tmp_path, earlier):
-    # two commands write this file: what one leaves, the other must leave, byte for byte
-    from outline_tracker import cli_probe, export_log
-
-    lines = ["==== an entry ====", "wrote: 12 um, by Zoë"]
-    entry = "==== an entry ====\nwrote: 12 um, by Zoë\n".encode()
-    kept = earlier or b""
-    if kept and not kept.endswith(b"\n"):
-        kept += b"\n"
-    expected = kept + (b"\n" if kept else b"") + entry  # what was there, a blank line, the entry
-    writers = {"export": lambda folder: export_log.append_block(folder / "run.log", lines),
-               "probe": lambda folder: cli_probe._append_run_log(folder, lines)}
-    for name, append in writers.items():
-        folder = tmp_path / name
-        folder.mkdir()
-        if earlier is not None:
-            (folder / "run.log").write_bytes(earlier)
-        assert append(folder) == folder / "run.log", name
-        assert (folder / "run.log").read_bytes() == expected, name
-        assert [path.name for path in folder.iterdir()] == ["run.log"], name
+def test_probe_and_export_head_their_entries_with_one_version_line(tracked, tmp_path):
+    # one run.log, two commands: both name the tool by the line `--version` prints, commit included
+    run_folder = shutil.copytree(tracked, tmp_path / "run")
+    session, _ = load(run_folder)
+    session.probes = [ProbeBox(name="LED1", rect_px=[8, 8, 40, 28])]
+    session.save(run_folder / "session.json")
+    assert cli.main(["probe", str(run_folder / "session.json")]) == 0
+    export.export_all(run_folder, log=lambda line: None)
+    heads = [line for line in (run_folder / "run.log").read_text(encoding="utf-8").split("\n")
+             if line.startswith("====")]
+    assert [head.split(",")[0] for head in heads] == ["==== probe", "==== export"]
+    versions = [head.split(", ", 2)[2].removesuffix(" ====") for head in heads]
+    assert versions[0] == versions[1]
+    assert re.fullmatch(r"outline-tracker 0\.1\.0 \(commit ([0-9a-f]{7,40}|unknown)\)", versions[0]), versions
 
 
 def test_a_run_without_a_crop_and_a_fine_run_say_what_the_model_saw(shapes_clip, tmp_path):
