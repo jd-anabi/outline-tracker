@@ -27,12 +27,12 @@ from outline_tracker.run_folder import default_run_folder, folder_has_foreign_ta
 from outline_tracker.session import (Axes, CalibrationSettings, Clip, Processing, Prompt, Session, TimeSettings,
                                      Track, VideoRef)
 from outline_tracker.tracker_io import Plan, read_tracker_export
+from outline_tracker.tracking_ids import TRACK_COLORS as _TRACK_COLORS
 from outline_tracker.video import VideoInfo
 
-# Last week's overlay colors (shrimp.segment.COLORS, there as blue, green, red) as RGB hex, in the
-# same order: the first track is yellow, and the eleventh has the first color again (X14).
-TRACK_COLORS = ["#FFFF00", "#FF00FF", "#00FF00", "#0080FF", "#FF8000", "#00FFFF", "#FF0080", "#FF0000", "#0000FF",
-                "#80FF80"]
+# Last week's overlay colors as RGB hex, in last week's order: the first track is yellow, and the
+# eleventh has the first color again (X14). The one list of the package is in tracking_ids.py.
+TRACK_COLORS = list(_TRACK_COLORS)
 ELSEWHERE = "Choose another folder with --out DIR, or another name with --student NAME."
 
 
