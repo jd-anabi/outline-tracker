@@ -1,11 +1,15 @@
-"""Fixtures for the tests of every folder: synthetic clips with ground truth, the settings kept out
-of the user's own, the main window. pytest finds a fixture by its name; nothing imports this file
-(tests/test_repo_rules.py says why). The plain helpers and values that tests import by name are in
-tests/helpers.py and in the helper modules beside it.
+"""Fixtures for the tests of every folder: synthetic clips with ground truth, a file that another
+program holds open, the settings kept out of the user's own, the main window. pytest finds a fixture
+by its name; nothing imports this file (tests/test_repo_rules.py says why). The plain helpers and
+values that tests import by name are in tests/helpers.py and in the helper modules beside it.
 """
 
+import errno
+import math
+import os
 import shutil
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -77,6 +81,78 @@ def gapped_clip(tmp_path_factory):
 
     path = tmp_path_factory.mktemp("gapped") / "gapped_tracker.mp4"
     return synthetic.render(synthetic.disk_scene(), path, crf=10, skip_before=GAPS_BEFORE)
+
+
+# ---------------------------------------------------------------------------------------------
+# A file that another program holds open (Windows: a CSV open in a spreadsheet program, a file being
+# synced). The package renames a finished file onto its target with `os.replace`, in
+# outline_tracker/fileio.py only; a locked target is an `os.replace` that raises.
+
+
+class LockedFiles:
+    """What `lock_file` returns: what was tried while the files were locked, and the way to free them.
+
+    attempts: the destination of every rename (`os.replace`) since the call, as a Path, in order,
+    whether it was refused or not. sleeps: every wait asked of `time.sleep` since the call, in s, in
+    order (recorded with waits="skip" only).
+    """
+
+    def __init__(self, targets, times, error, rename):
+        self.attempts: list[Path] = []
+        self.sleeps: list[float] = []
+        self._error, self._rename = error, rename
+        self._left: dict[Path | str, float] = {}  # refusals left: by Path for a file, by name for a bare name
+        for target in targets:
+            path = Path(target)
+            self._left[path.name if len(path.parts) == 1 else path] = times
+
+    def release(self) -> None:
+        """The other program closes the files: from now on no rename is refused."""
+        self._left.clear()
+
+    def _replace(self, src, dst, **kwargs):
+        """In place of `os.replace`: refuse a locked destination, rename onto any other."""
+        path = Path(dst)
+        self.attempts.append(path)
+        for locked in (path, path.name):
+            if self._left.get(locked, 0) > 0:
+                self._left[locked] -= 1
+                if self._error is not None:
+                    raise self._error
+                raise PermissionError(errno.EACCES, "The file is being used by another process", str(dst))
+        return self._rename(src, dst, **kwargs)
+
+
+@pytest.fixture
+def lock_file(monkeypatch):
+    """`lock_file(*targets, times=math.inf, error=None, waits="skip")` lets files be open in another
+    program: a rename onto one of them is refused, and the file stays as it was.
+
+    targets: a path locks that file; a bare file name locks every file of that name, in any folder.
+    times: how many renames onto each target are refused before one goes through (default: all).
+    error: the exception to raise for a refused rename (default: PermissionError, as Windows raises
+    for a file in use, which is what `fileio` takes for a lock). waits: "skip" makes `time.sleep`
+    return at once, so that the tries of `fileio` (about 5 s) take no time; "none" takes the waits
+    out of `fileio` (`RETRY_DELAYS_S = ()`), which then tries once and goes on to the fallback.
+
+    Returns a `LockedFiles`. The files are free again after its `release()`, after the test, and
+    after `monkeypatch.undo()` in the test: the patches are made with the test's own `monkeypatch`.
+    `os.replace` is patched for the whole process, so a rename in another thread is refused as well.
+    """
+    from outline_tracker import fileio
+
+    def lock(*targets, times=math.inf, error=None, waits="skip"):
+        if waits not in ("skip", "none"):
+            raise ValueError(f'waits is "skip" or "none", not {waits!r}')
+        held = LockedFiles(targets, times, error, os.replace)
+        monkeypatch.setattr(os, "replace", held._replace)
+        if waits == "skip":
+            monkeypatch.setattr(fileio.time, "sleep", held.sleeps.append)
+        else:
+            monkeypatch.setattr(fileio, "RETRY_DELAYS_S", ())
+        return held
+
+    return lock
 
 
 # ---------------------------------------------------------------------------------------------

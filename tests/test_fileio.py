@@ -6,16 +6,18 @@ the target is locked ... if it stays locked, write <name>.new.csv") and from the
 SHA-256: hashlib over the same bytes, and the published digests of the empty message and of "abc"
 (FIPS 180-2). Nothing is copied from the output of the code under test.
 
-A lock is imitated on every platform by an `os.replace` that refuses one destination with
-PermissionError, which is what Windows does while another program holds that file open. One test,
-for Windows only, holds a real file open.
+A lock is imitated on every platform by the `lock_file` fixture (tests/conftest.py): an `os.replace`
+that refuses one destination with PermissionError, which is what Windows does while another program
+holds that file open. The fixture's own tests are here too. One test, for Windows only, holds a real
+file open.
 """
 
 import errno
 import hashlib
-import math
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -29,30 +31,6 @@ MIB = 1024 * 1024
 
 def _names(folder: Path) -> list[str]:
     return sorted(p.name for p in folder.iterdir())
-
-
-def _refuse(monkeypatch, refused: dict[Path, float]):
-    """Make `os.replace` raise PermissionError for each destination in `refused` the given number of
-    times (math.inf: always), and record the waits instead of sleeping.
-
-    Returns (attempts, sleeps): the destinations tried, in order, and the waits asked for, in s.
-    """
-    real_replace = os.replace
-    left = dict(refused)
-    attempts: list[Path] = []
-    sleeps: list[float] = []
-
-    def replace(src, dst):
-        dst = Path(dst)
-        attempts.append(dst)
-        if left.get(dst, 0) > 0:
-            left[dst] -= 1
-            raise PermissionError(errno.EACCES, "The file is being used by another process", str(dst))
-        real_replace(src, dst)
-
-    monkeypatch.setattr(fileio.os, "replace", replace)
-    monkeypatch.setattr(fileio.time, "sleep", sleeps.append)
-    return attempts, sleeps
 
 
 # --------------------------------------------------------------------------- the normal path
@@ -169,12 +147,149 @@ def test_a_failing_writer_leaves_the_old_file_and_no_litter(tmp_path, error, old
         assert _names(tmp_path) == ["positions.csv"]
 
 
+# --------------------------------------------------------------------------- the stand-in for a lock
+# `lock_file` (tests/conftest.py) is the locked file of every test that needs one. Its own tests call
+# `os.replace` themselves, without fileio: how often a rename is refused is counted from what the test
+# asked for, and the files hold the bytes written here.
+
+def _finished_and_old(folder: Path) -> tuple[Path, Path]:
+    """A finished file and the file it is to replace, in `folder`: (source, target) of a rename."""
+    src, target = folder / "finished.tmp", folder / "positions.csv"
+    src.write_bytes(b"new\n")
+    target.write_bytes(b"old\n")
+    return src, target
+
+
+def test_lock_file_refuses_the_renames_asked_for_and_lets_the_next_one_through(tmp_path, lock_file):
+    src, target = _finished_and_old(tmp_path)
+    held = lock_file(target, times=3)
+    for _ in range(3):
+        with pytest.raises(PermissionError):
+            os.replace(src, target)
+        assert (src.read_bytes(), target.read_bytes()) == (b"new\n", b"old\n")  # both as they were
+    os.replace(str(src), str(target))  # the fourth, with the paths as text
+    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+    assert held.attempts == [target] * 4  # every rename tried, as a Path
+
+
+def test_lock_file_with_a_bare_name_locks_that_name_in_every_folder_and_no_other_file(tmp_path, lock_file):
+    held = lock_file("A.csv")
+    tried = []
+    for folder in (tmp_path / "run", tmp_path / "vidéo test ü" / "edgetam"):
+        folder.mkdir(parents=True)
+        src = folder / "finished.tmp"
+        src.write_bytes(b"new\n")
+        with pytest.raises(PermissionError):
+            os.replace(src, folder / "A.csv")
+        assert _names(folder) == ["finished.tmp"]
+        os.replace(src, folder / "A.csv.new")  # another name, though it begins with the locked one
+        assert _names(folder) == ["A.csv.new"] and (folder / "A.csv.new").read_bytes() == b"new\n"
+        tried += [folder / "A.csv", folder / "A.csv.new"]
+    assert held.attempts == tried  # the free renames are recorded as well
+
+
+def test_lock_file_with_paths_locks_those_files_only_and_counts_for_each_of_them(tmp_path, lock_file):
+    here, there, src = tmp_path / "here", tmp_path / "there", tmp_path / "finished.tmp"
+    here.mkdir()
+    there.mkdir()
+
+    def rename_onto(target):
+        src.write_bytes(b"new\n")
+        os.replace(src, target)
+
+    lock_file(here / "A.csv", here / "B.csv", times=1)
+    rename_onto(there / "A.csv")  # the same name in another folder is free
+    rename_onto(here / "C.csv")  # and so is another file of the same folder
+    for locked in (here / "A.csv", here / "B.csv"):
+        with pytest.raises(PermissionError):
+            rename_onto(locked)  # one refusal for A.csv, and one for B.csv
+    rename_onto(here / "A.csv")
+    rename_onto(here / "B.csv")
+    assert _names(here) == ["A.csv", "B.csv", "C.csv"] and _names(there) == ["A.csv"]
+
+
+def test_lock_file_skips_the_waits_between_the_tries_and_records_them(tmp_path, lock_file, monkeypatch):
+    waited = []
+    monkeypatch.setattr(time, "sleep", waited.append)  # where a wait would go if it were passed on
+    held = lock_file(tmp_path / "positions.csv", waits="skip")
+    assert fileio.time.sleep(0.4) is None
+    assert held.sleeps == [0.4] and waited == []  # recorded, in s, and not waited for
+
+
+def test_lock_file_with_waits_none_leaves_fileio_one_try_and_no_wait(tmp_path, lock_file, monkeypatch):
+    delays, sleep = fileio.RETRY_DELAYS_S, time.sleep
+    lock_file(tmp_path / "positions.csv", waits="none")
+    assert fileio.RETRY_DELAYS_S == () and time.sleep is sleep  # no wait to make, so none to skip
+    monkeypatch.undo()
+    assert fileio.RETRY_DELAYS_S == delays
+
+
+def test_lock_file_takes_no_other_word_for_the_waits_and_then_locks_nothing(tmp_path, lock_file):
+    src, target = _finished_and_old(tmp_path)
+    with pytest.raises(ValueError, match="waits"):
+        lock_file(target, waits="real")
+    os.replace(src, target)
+    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+
+
+def test_lock_file_lets_go_when_it_is_released(tmp_path, lock_file):
+    src, target = _finished_and_old(tmp_path)
+    held = lock_file(target)
+    for _ in range(10):  # locked for good: more often than fileio ever tries
+        with pytest.raises(PermissionError):
+            os.replace(src, target)
+    held.release()  # the other program closes the file
+    os.replace(src, target)
+    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+
+
+def test_lock_file_lets_go_when_the_test_undoes_its_monkeypatch(tmp_path, lock_file, monkeypatch):
+    src, target = _finished_and_old(tmp_path)
+    real_replace, real_sleep = os.replace, time.sleep
+    lock_file(target)
+    with pytest.raises(PermissionError):
+        os.replace(src, target)
+    monkeypatch.undo()
+    assert os.replace is real_replace and time.sleep is real_sleep
+    os.replace(src, target)
+    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+
+
+def test_lock_file_raises_the_error_it_is_given(tmp_path, lock_file):
+    src, target = _finished_and_old(tmp_path)
+    busy = OSError(errno.EBUSY, "Device or resource busy")
+    lock_file(target, error=busy)
+    with pytest.raises(OSError) as raised:
+        os.replace(src, target)
+    assert raised.value is busy
+    assert (src.read_bytes(), target.read_bytes()) == (b"new\n", b"old\n")
+
+
+def test_lock_file_refuses_a_rename_made_in_another_thread(tmp_path, lock_file):
+    src, target = _finished_and_old(tmp_path)
+    held = lock_file(target)
+    refused = []
+
+    def rename():  # as the window's worker thread renames a file it has written
+        try:
+            os.replace(src, target)
+        except PermissionError as error:
+            refused.append(error)
+
+    thread = threading.Thread(target=rename)
+    thread.start()
+    thread.join()
+    assert len(refused) == 1 and held.attempts == [target]
+    assert (src.read_bytes(), target.read_bytes()) == (b"new\n", b"old\n")
+
+
 # --------------------------------------------------------------------------- a locked target
 
-def test_survives_replace_failing_three_times(tmp_path, monkeypatch):
+def test_survives_replace_failing_three_times(tmp_path, lock_file):
     target = tmp_path / "positions.csv"
     target.write_bytes(b"old\n")
-    attempts, sleeps = _refuse(monkeypatch, {target: 3})
+    held = lock_file(target, times=3)
+    attempts, sleeps = held.attempts, held.sleeps
     written = atomic_write(target, lambda tmp: tmp.write_bytes(b"new\n"))
     assert written == target
     assert target.read_bytes() == b"new\n"
@@ -192,10 +307,11 @@ def test_survives_replace_failing_three_times(tmp_path, monkeypatch):
     ("results.npz", "results.new.npz"),
     ("README", "README.new"),
 ])
-def test_a_target_that_stays_locked_keeps_the_data_as_new_file(tmp_path, monkeypatch, name, fallback):
+def test_a_target_that_stays_locked_keeps_the_data_as_new_file(tmp_path, lock_file, name, fallback):
     target = tmp_path / name
     target.write_bytes(b"old\n")
-    attempts, sleeps = _refuse(monkeypatch, {target: math.inf})
+    held = lock_file(target)
+    attempts, sleeps = held.attempts, held.sleeps
     written = atomic_write(target, lambda tmp: tmp.write_bytes(b"new\n"))
     assert written == tmp_path / fallback  # <stem>.new<suffix>, returned so the caller can say so
     assert written.read_bytes() == b"new\n"
@@ -206,21 +322,21 @@ def test_a_target_that_stays_locked_keeps_the_data_as_new_file(tmp_path, monkeyp
     assert _names(tmp_path) == sorted([name, fallback])
 
 
-def test_an_older_new_file_is_replaced(tmp_path, monkeypatch):
+def test_an_older_new_file_is_replaced(tmp_path, lock_file):
     target, fallback = tmp_path / "positions.csv", tmp_path / "positions.new.csv"
     target.write_bytes(b"old\n")
     fallback.write_bytes(b"from the last locked export\n")
-    _refuse(monkeypatch, {target: math.inf})
+    lock_file(target)
     assert atomic_write(target, lambda tmp: tmp.write_bytes(b"new\n")) == fallback
     assert fallback.read_bytes() == b"new\n"
     assert target.read_bytes() == b"old\n"
 
 
-def test_target_and_new_file_both_locked_is_an_error_without_litter(tmp_path, monkeypatch):
+def test_target_and_new_file_both_locked_is_an_error_without_litter(tmp_path, lock_file):
     target, fallback = tmp_path / "positions.csv", tmp_path / "positions.new.csv"
     target.write_bytes(b"old\n")
     fallback.write_bytes(b"older\n")
-    _refuse(monkeypatch, {target: math.inf, fallback: math.inf})
+    lock_file(target, fallback)
     with pytest.raises(PermissionError) as err:
         atomic_write(target, lambda tmp: tmp.write_bytes(b"new\n"))
     assert "positions.csv" in str(err.value)
@@ -269,11 +385,12 @@ def test_on_windows_a_target_held_open_gives_the_new_file(tmp_path, monkeypatch)
 # ending in .csv but the tracks, so its temporary file and its fallback are named by the caller.
 
 @pytest.mark.parametrize("refusals", [0, 3])
-def test_replace_with_retry_renames_onto_a_target_that_is_or_becomes_free(tmp_path, monkeypatch, refusals):
+def test_replace_with_retry_renames_onto_a_target_that_is_or_becomes_free(tmp_path, lock_file, refusals):
     tmp, target = tmp_path / "A.csv.tmp", tmp_path / "A.csv"
     tmp.write_bytes(b"new\n")
     target.write_bytes(b"old\n")
-    attempts, sleeps = _refuse(monkeypatch, {target: refusals})
+    held = lock_file(target, times=refusals)
+    attempts, sleeps = held.attempts, held.sleeps
     written = fileio.replace_with_retry(str(tmp), str(target), str(tmp_path / "A.csv.new"))
     assert written == target and isinstance(written, Path)
     assert target.read_bytes() == b"new\n"
@@ -281,11 +398,12 @@ def test_replace_with_retry_renames_onto_a_target_that_is_or_becomes_free(tmp_pa
     assert _names(tmp_path) == ["A.csv"]
 
 
-def test_replace_with_retry_keeps_the_data_under_the_callers_fallback_name(tmp_path, monkeypatch):
+def test_replace_with_retry_keeps_the_data_under_the_callers_fallback_name(tmp_path, lock_file):
     tmp, target, fallback = tmp_path / "A.csv.tmp", tmp_path / "A.csv", tmp_path / "A.csv.new"
     tmp.write_bytes(b"new\n")
     target.write_bytes(b"old\n")
-    attempts, sleeps = _refuse(monkeypatch, {target: math.inf})
+    held = lock_file(target)
+    attempts, sleeps = held.attempts, held.sleeps
     assert fileio.replace_with_retry(tmp, target, fallback) == fallback
     assert fallback.read_bytes() == b"new\n" and target.read_bytes() == b"old\n"
     assert 4.0 <= sum(sleeps) <= 6.0 and all(wait > 0 for wait in sleeps)  # "retry for a few seconds"
@@ -293,11 +411,11 @@ def test_replace_with_retry_keeps_the_data_under_the_callers_fallback_name(tmp_p
     assert _names(tmp_path) == ["A.csv", "A.csv.new"]  # not A.new.csv, which a loader would read as a track
 
 
-def test_replace_with_retry_leaves_the_finished_file_to_the_caller_when_both_are_locked(tmp_path, monkeypatch):
+def test_replace_with_retry_leaves_the_finished_file_to_the_caller_when_both_are_locked(tmp_path, lock_file):
     tmp, target, fallback = tmp_path / "B.csv.tmp", tmp_path / "B.csv", tmp_path / "spare.new"
     tmp.write_bytes(b"new\n")
     target.write_bytes(b"old\n")
-    _refuse(monkeypatch, {target: math.inf, fallback: math.inf})
+    lock_file(target, fallback)
     with pytest.raises(PermissionError) as err:
         fileio.replace_with_retry(tmp, target, fallback)
     assert "B.csv" in str(err.value) and "spare.new" in str(err.value)
@@ -328,10 +446,10 @@ def test_append_block_adds_the_lines_after_a_blank_line_and_keeps_what_was_there
     assert _names(tmp_path) == ["run.log"]
 
 
-def test_append_block_to_a_locked_log_keeps_the_whole_log_next_to_it(tmp_path, monkeypatch):
+def test_append_block_to_a_locked_log_keeps_the_whole_log_next_to_it(tmp_path, lock_file):
     log = tmp_path / "run.log"
     log.write_bytes(b"an earlier entry\n")
-    _refuse(monkeypatch, {log: math.inf})
+    lock_file(log)
     written = fileio.append_block(str(log), ["a new entry"])
     assert written == tmp_path / "run.new.log"
     assert written.read_bytes() == b"an earlier entry\n\na new entry\n"
