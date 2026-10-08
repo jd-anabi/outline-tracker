@@ -15,16 +15,6 @@ from PySide6.QtWidgets import QApplication, QPushButton
 from outline_tracker.gui import theme
 
 
-@pytest.fixture
-def look(qapp):
-    """Put the application's look back after the test."""
-    style, sheet, palette = qapp.style().objectName(), qapp.styleSheet(), qapp.palette()
-    yield
-    qapp.setStyleSheet(sheet)
-    qapp.setPalette(palette)
-    qapp.setStyle(style)
-
-
 def fill_of(button) -> str:
     """The most frequent color drawn inside `button`, as `#RRGGBB` in capitals."""
     image = button.grab().toImage()
