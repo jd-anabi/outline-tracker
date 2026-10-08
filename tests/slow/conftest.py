@@ -21,8 +21,7 @@ def processor():
 
 @pytest.fixture(scope="module")
 def loaded():
-    """(model, processor): the real EdgeTAM, loaded once for each test module that asks for it, as
-    while each module had its own copy of this fixture."""
+    """(model, processor): the real EdgeTAM. The model is loaded once for each test module that asks for it."""
     from outline_tracker.segmenter import hf
 
     return hf.load_model("edgetam")

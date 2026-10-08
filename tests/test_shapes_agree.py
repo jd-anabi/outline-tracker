@@ -1,24 +1,25 @@
-"""The two shape modules give the same disk and the same ellipse (docs/ROADMAP.md, W1 step 6).
+"""The disk and the ellipse are held to geometry, and the rasterizer to them (docs/ROADMAP.md, W1 step 6).
 
-tests/analytic_shapes.py (functions of the pixel centers of a raster) and
-outline_tracker/synthetic_shapes.py (classes in a body frame, which outline_tracker/synthetic.py puts
-on the pixel grid) overlap in two shapes: the disk and the ellipse. Two tests:
+There is one family of shapes: the classes of outline_tracker/synthetic_shapes.py, in a body frame, which
+outline_tracker/synthetic.py puts on the pixel grid. `disk` and `ellipse` of tests/analytic_shapes.py are
+the package's shapes in image axes: functions of points (u, v) that call those classes. Two tests:
 
-1. the anchor: each of the two is held to geometry by itself. A point of the closed-form outline (the
-   parametric circle and ellipse) is at distance 0; a point half a pixel inside or outside a circle is
-   at +0.5 or -0.5; the point on the first axis of an ellipse, half a pixel inside its end, is at 0.5
-   (the first-order distance is exact along the axes); and a disk smaller than a pixel is the one pixel
-   whose center it covers;
-2. the agreement: at the pixel centers of a raster the two give the same signed distances within
-   1e-9 px and the same masks, and the package's own ground truth (`GroundTruth.mask`) is that mask.
-   Two implementations that agree prove nothing by themselves: the anchor holds both.
+1. the anchor: the two shapes are held to geometry, asked through the functions and through the classes.
+   A point of the closed-form outline (the parametric circle and ellipse) is at distance 0; a point half
+   a pixel inside or outside a circle is at +0.5 or -0.5; the point on the first axis of an ellipse,
+   half a pixel inside its end, is at 0.5 (the first-order distance is exact along the axes); and a disk
+   smaller than a pixel is the one pixel whose center it covers;
+2. the rasterizer: the package's ground truth (`GroundTruth.mask`) agrees with the direct evaluation. It
+   is the mask of the shape evaluated at the pixel centers of a raster, distance > 0. The direct
+   evaluation is the function in image axes, so the test first holds that function at points off those
+   axes: half a pixel inside the end of each axis of an ellipse at 30 degrees the distance is 0.5.
 
 Units and coordinates (SPEC 3.1): px in the full frame, u to the right, v downward; the pixel in
 column c and row r has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A signed
-distance is in px, positive inside. Angles are in rad, and the two modules turn them the other way: an
-`angle` of tests/analytic_shapes.py goes from +u toward +v, clockwise on screen; a heading of the
-package is counterclockwise on screen (y up). So the same ellipse has heading = -angle. The package's
-body frame has xi toward the head and eta 90 degrees counterclockwise from xi.
+distance is in px, positive inside. Angles are in rad, and the functions and the package turn them the
+other way: an `angle` of tests/analytic_shapes.py goes from +u toward +v, clockwise on screen; a heading
+of the package is counterclockwise on screen (y up). So the same ellipse has heading = -angle. The
+package's body frame has xi toward the head and eta 90 degrees counterclockwise from xi.
 """
 
 import numpy as np
@@ -89,22 +90,23 @@ def test_disk_and_ellipse_lie_on_their_closed_form_outlines():
     assert np.argwhere(ground_truth_mask(Disk(radius), center, 0.0)).tolist() == [[20, 10]]
 
 
-def _assert_the_same_shape(analytic, package, truth_mask) -> None:
-    """`analytic` and `package`: the signed distances (px) that the two modules give at the pixel
-    centers of the raster; `truth_mask`: the package's ground-truth mask of the same shape."""
-    # the precondition: no pixel center is so near the outline that rounding could decide its side
-    assert np.abs(analytic).min() > 1e-6 and np.abs(package).min() > 1e-6
-    assert np.abs(analytic - package).max() <= 1e-9
-    assert np.array_equal(analytic > 0, package > 0)
-    assert np.array_equal(truth_mask, analytic > 0)
+def test_the_ground_truth_mask_is_the_shape_evaluated_at_the_pixel_centers():
+    # The direct evaluation is the function in image axes. First its turn of the frame, at points off
+    # those axes: an ellipse at 30 degrees from +u toward +v. R(angle) takes the point (x, y) of the
+    # ellipse's own axes to (x cos - y sin, x sin + y cos) in (u, v). Half a pixel inside the end of each
+    # of its axes the outline is 0.5 px away, and along both axes the first-order distance is exact.
+    center, a, b, angle = (70.3, 60.7), 40.0, 15.0, np.radians(30.0)
+    cos, sin = np.cos(angle), np.sin(angle)
+    for x, y in ((a - 0.5, 0.0), (0.0, b - 0.5)):
+        u, v = np.array([center[0] + x * cos - y * sin]), np.array([center[1] + x * sin + y * cos])
+        assert ellipse(u, v, center, a, b, angle) == pytest.approx(0.5, abs=1e-9)
 
-
-def test_disk_and_ellipse_of_both_modules_give_the_same_masks_and_distances():
+    # Then the rasterizer: the true mask of an object that stands still, with heading = -angle, is the
+    # pixels whose centers the direct evaluation finds inside.
     u, v = pixel_centers(*RASTER)
-    for center, radius in DISKS:
-        _assert_the_same_shape(disk(u, v, center, radius), Disk(radius).distance(u - center[0], -(v - center[1])),
-                               ground_truth_mask(Disk(radius), center, 0.0))
-    for center, a, b, angle in ELLIPSES:
-        _assert_the_same_shape(ellipse(u, v, center, a, b, angle),
-                               Ellipse(a, b).distance(*body_frame(u, v, center, -angle)),
-                               ground_truth_mask(Ellipse(a, b), center, -angle))
+    cases = [(Disk(radius), center, 0.0, disk(u, v, center, radius)) for center, radius in DISKS]
+    cases += [(Ellipse(a, b), center, -angle, ellipse(u, v, center, a, b, angle)) for center, a, b, angle in ELLIPSES]
+    for shape, center, heading, distance in cases:
+        # the precondition: no pixel center is so near the outline that rounding could decide its side
+        assert np.abs(distance).min() > 1e-6
+        assert np.array_equal(ground_truth_mask(shape, center, heading), distance > 0)
