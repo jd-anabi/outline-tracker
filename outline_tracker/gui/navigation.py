@@ -130,7 +130,8 @@ class NavigationBar(QFrame):
         buttons = []
         for text, tip, key, steps in STEPS:
             # as wide as its text needs, and no wider: the row must fit beside the dock in the smallest
-            # window (960 px wide, 400 of them the dock's), also with a wide system font
+            # window (960 px wide; the dock gives way from 400 down to 340 px), in the system's font and up
+            # to 15 % larger
             button = RowButton(text)
             button.setToolTip(tip)
             move = (lambda *_, steps=steps: self.step(steps)) if steps is not None else (

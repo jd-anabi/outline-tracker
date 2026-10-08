@@ -3,8 +3,9 @@
 The rule: nothing outside, nothing over another part, no text cut. `layout_findings`
 (tests/gui/gui_helpers.py) looks at the visible children of a widget and says what breaks it. It is
 tried here on a made-up widget, and then the window's bottom bar is held to it at 960 x 600 px, in
-the system's own font and in two larger ones. What may give way there is the dock, and after it the
-padding of the row's buttons; no text may.
+the system's own font and in one 15 % larger: the smallest window is built for the system's font and
+for a font up to 15 % larger (the owner's decision of 2026-10-08). What may give way there is the
+dock, and after it the padding of the row's buttons; no text may.
 
 Expected values come from geometry and from the design note (docs/design/gui_design.md):
 - for the made-up widget the rectangles are set in the test, (left, top, width, height) in the
@@ -35,29 +36,11 @@ SIDE = 10  # px of padding at each side of the made-up button's text
 
 # The fonts in which the bottom bar is held to the rule: the application's font at so many times its
 # point size (`larger_font`, tests/gui/conftest.py). Text is then wider by that much or somewhat less,
-# and taller. A larger font takes its room from the dock first and then from the padding of the
-# buttons; the two larger steps are there so that the rule is asked in both cases.
+# and taller. The smallest window is built for the system's font and for a font up to 15 % larger, so
+# the rule is asked in these two, and every clause in both on every system; no case is skipped. A
+# larger font takes its room from the dock first, and from the padding of the buttons only once the
+# dock is at its smallest width.
 FONTS = [pytest.param(1, id="system_font"), pytest.param(1.15, id="15_percent_larger")]
-
-# Every clause is asked in every font on every system; no case is skipped. Two cases of the largest
-# step break the rule as the window is built today. Each is marked as failing, strictly: where a marked
-# case passes after all, the run fails, so a mark is proved wherever the tests run. Each is an open
-# question for the owner, and its mark goes with the answer.
-# - The row. The largest step was chosen for the macOS system font, where it passes. In a font as wide
-#   as the Linux test machine's (there the dock gives way in the system's own font already,
-#   docs/PLAN.md) the row at 60 % larger needs more than a window of 960 px has, also with the least
-#   padding. That was seen on a Mac with Verdana as the application's font, not yet on Linux. For
-#   Windows nothing is known either way, so the case is asked there like any other.
-# - The frame box. At 60 % larger six digits need more room than the 96 px box has: in the macOS
-#   system font, and in every other family that was tried on a Mac.
-ROW_FONTS = [*FONTS, pytest.param(1.6, id="60_percent_larger", marks=pytest.mark.xfail(
-    sys.platform == "linux", strict=True, raises=AssertionError,
-    reason="60 % larger in the wide font of the Linux test machine: the row needs more than 960 px has, also "
-           "with the least padding. Open: is this step asked in such a font, or is the step chosen by the font?"))]
-BOX_FONTS = [*FONTS, pytest.param(1.6, id="60_percent_larger", marks=pytest.mark.xfail(
-    strict=True, raises=AssertionError,
-    reason="60 % larger: six digits need more room than the 96 px frame box has. Open: is a frame number of "
-           "six digits asked at this size (then the box changes), or up to 15 % larger only?"))]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -206,13 +189,18 @@ def hold_to_the_rule(window) -> None:
         if dock.width() > 340:  # the dock gives way first: until it is at its smallest, no button gives up padding
             assert button.width() == text + 2 * (6 + 1), f"{longest}\n{seen}"
         else:
+            # No measured case is known to bring the dock to 340 px in these fonts (on the Mac that measured it the
+            # dock is 386 px wide at 15 % larger). The least padding is held by tests/gui/test_play.py::
+            # test_in_a_row_that_is_too_narrow_the_buttons_give_up_padding_and_every_part_stays, and the dock's
+            # widths by tests/gui/test_shell.py::
+            # test_the_dock_stays_at_the_right_and_is_400_px_wide_where_the_window_has_room.
             assert text + 2 * (1 + 1) <= button.width() <= text + 2 * (6 + 1), f"{longest}\n{seen}"
     assert bar.frame_box.width() == 96, seen
     time = bar.time_label.geometry()
     assert bar.first_button.x() == 8 and time.x() + time.width() == bar.width() - 8, seen  # the bar's padding
 
 
-@pytest.mark.parametrize("larger_font", ROW_FONTS, indirect=True)
+@pytest.mark.parametrize("larger_font", FONTS, indirect=True)
 def test_in_the_smallest_window_no_part_of_the_bottom_bar_is_cut_or_lies_over_another(larger_font, window, qtbot):
     # `larger_font` comes before `window`: the window measures its texts while it is built
     bar = smallest(window, qtbot, grid_frames(3, 40, 4))
@@ -223,7 +211,7 @@ def test_in_the_smallest_window_no_part_of_the_bottom_bar_is_cut_or_lies_over_an
     hold_to_the_rule(window)
 
 
-@pytest.mark.parametrize("larger_font", BOX_FONTS, indirect=True)
+@pytest.mark.parametrize("larger_font", FONTS, indirect=True)
 def test_in_the_smallest_window_the_frame_box_shows_a_frame_number_of_six_digits_whole(larger_font, window, qtbot):
     # `larger_font` comes before `window`, as above: the box takes its font while the window is built
     bar = smallest(window, qtbot, [0, 999_999])
