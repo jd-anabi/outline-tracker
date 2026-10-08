@@ -616,7 +616,7 @@ wheels = [
 
 [[package]]
 name = "outline-tracker"
-version = "0.2.0a1"
+version = "0.2.0a2.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "huggingface-hub" },

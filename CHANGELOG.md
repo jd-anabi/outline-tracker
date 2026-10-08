@@ -3,6 +3,10 @@
 What changed in each version of Outline Tracker, newest first. Versions are the tags of this
 repository (`vX.Y.Z`; a pre-release adds a suffix such as `a1`).
 
+## Unreleased
+
+Development version `0.2.0a2.dev0`. The files it writes say so.
+
 ## 0.2.0a1 (2026-10-08)
 
 A pre-release. It marks the end of the first workstream of `docs/ROADMAP.md`, a clean base for
