@@ -14,7 +14,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from helpers import HOME_PATH, _PYTEST_TMP, _USERS
+from helpers import HOME_PATH, VERSION, _PYTEST_TMP, _USERS
 
 import outline_tracker
 
@@ -47,7 +47,7 @@ def test_version_flag():
     # -X importtime prints every module this process imports to stderr, one per line.
     done = _run([sys.executable, "-X", "importtime", "-m", "outline_tracker.cli", "--version"])
     assert done.returncode == 0, done.stderr
-    assert done.stdout.startswith("outline-tracker 0.2.0.dev0 (commit "), done.stdout
+    assert done.stdout.startswith(f"outline-tracker {VERSION} (commit "), done.stdout
     imported = {line.rsplit("|", 1)[-1].strip().split(".")[0] for line in done.stderr.splitlines()}
     assert "outline_tracker" in imported, done.stderr  # the listing is there and was parsed
     assert sorted(imported & set(HEAVY_MODULES)) == []
@@ -64,9 +64,9 @@ def test_the_version_is_written_the_same_in_its_three_places():
         "uv.lock": [package["version"] for package in locked if package["name"] == "outline-tracker"],
     }
     assert written == {
-        "pyproject.toml": "0.2.0.dev0",
-        "outline_tracker/__init__.py": "0.2.0.dev0",
-        "uv.lock": ["0.2.0.dev0"],
+        "pyproject.toml": VERSION,
+        "outline_tracker/__init__.py": VERSION,
+        "uv.lock": [VERSION],
     }
 
 

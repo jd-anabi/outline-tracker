@@ -8,6 +8,14 @@ conftest.py (tests/test_repo_rules.py says why).
 import re
 
 # ---------------------------------------------------------------------------------------------
+# The running version
+
+# The version this tree builds, typed once for the tests;
+# tests/test_repo_rules.py::test_the_version_is_written_the_same_in_its_three_places holds the
+# three places of the repository equal to it.
+VERSION = "0.2.0.dev0"
+
+# ---------------------------------------------------------------------------------------------
 # Synthetic clips with ground truth (outline_tracker/synthetic.py): the clip fixtures of
 # tests/conftest.py are made with these.
 
