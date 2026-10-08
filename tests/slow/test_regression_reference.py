@@ -4,7 +4,10 @@ of SPEC 13.4 at the level of the segmenter. Every test here is slow: it needs to
 Three groups:
 1. no weights (seconds): the real processor and session, with the network replaced by a stand-in
    that returns given logits. The new `HFSegmenter` and last week's `TransformersSegmenter`
-   (tests/reference, package `shrimp`) run side by side through their own code;
+   (tests/reference, package `shrimp`) run side by side through their own code. Beside each
+   comparison stands what needs no reference: the clicks as the session holds them, scaled to the
+   model's 1024 x 1024 input; the crop rule; and, for logits that draw a known disk, its center
+   and area in the frame;
 2. the real EdgeTAM on `cpu`: ONE loaded model is given to both, in one process and with the same
    thread count, on the selftest clip (one object) and on a three-object clip made with the same
    recipe. The first run downloads the model (56 MB) and converts it;
@@ -27,6 +30,7 @@ full frame: `mask_center` of a result's cropped mask plus its offset (col0, row0
 from __future__ import annotations
 
 import hashlib
+import math
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -140,6 +144,13 @@ def _differences(a, b, path="session") -> list[str]:
     return [] if a == b else [f"{path}: {a!r} != {b!r}"]
 
 
+def _stored_point(session, obj_idx: int) -> tuple[list[float], list[int]]:
+    """The prompt that a session holds for one object on its first frame: ([x, y], labels), with
+    x and y on the model's 1024 x 1024 input, where the processor puts image px."""
+    stored = session.point_inputs_per_obj[obj_idx][0]  # [object index][frame index]
+    return stored["point_coords"].flatten().tolist(), stored["point_labels"].flatten().tolist()
+
+
 def _leaves(value, path="session") -> list[str]:
     """The paths `_differences` walks, to show that the comparison reaches the prompt tensors."""
     if isinstance(value, dict):
@@ -196,11 +207,74 @@ def test_session_equals_the_one_the_reference_builds(processor):
     found = _differences(reference.session, moved.session)
     assert len(found) == 1 and found[0].startswith("session.['point_inputs_per_obj'][1][0]['point_coords']")
 
+    # The same without last week's code. The session lists the three objects as having new inputs
+    # (asserted above) and holds one point with the label 1 for each: its click, scaled from image px to
+    # the model's 1024 x 1024 input and nothing else, as `test_prompt_tensors_have_one_point_and_no_padding`
+    # has it.
+    assert new.session.obj_ids == [1, 2, 3]
+    for obj_idx, (x, y) in enumerate(CLICKS):
+        coords, labels = _stored_point(new.session, obj_idx)
+        assert labels == [1]
+        assert coords == pytest.approx([x * 1024 / W, y * 1024 / H], abs=1e-3)
+    # The click that was moved 1 px to the right is 1024 / 1920 further right there, and nothing else
+    # of the session differs.
+    changed = _differences(new.session, moved.session)
+    assert len(changed) == 1 and changed[0].startswith("session.['point_inputs_per_obj'][1][0]['point_coords']")
+    (x, y), (moved_x, moved_y) = _stored_point(new.session, 1)[0], _stored_point(moved.session, 1)[0]
+    assert moved_x - x == pytest.approx(1024 / W, abs=1e-3) and moved_y == y
+
 
 def _stub_outputs(logits):
     import torch
 
     return logits, torch.tensor([5.0, 0.5, -3.0])  # presence logits, one per object
+
+
+def _assert_cropped_to_its_mask(result) -> None:
+    """The crop rule, from the result alone: the crop is the bounding box of the mask it holds with
+    8 px added on every side, clipped to the frame; an object that was not found has shape (0, 0)."""
+    mask = _full(result)
+    if not mask.any():
+        assert result.mask.shape == (0, 0)
+        return
+    rows, cols = np.nonzero(mask)
+    col0, row0 = max(cols.min() - 8, 0), max(rows.min() - 8, 0)
+    assert result.offset == (col0, row0)
+    assert result.mask.shape == (min(rows.max() + 9, H) - row0, min(cols.max() + 9, W) - col0)
+
+
+def _assert_the_disk_of_the_blob_logits(result) -> None:
+    """The first object of `_blob_logits` is a known shape, so its mask has a known center and area.
+
+    On the model's 256 x 256 grid the logits are 6 minus the distance, in cells, from the cell in
+    column 100 and row 120: positive on the disk of radius 6 cells around that cell's center,
+    (100.5, 120.5) cells from the grid's corner. A cell is 1920 / 256 = 7.5 px wide and
+    1080 / 256 = 4.21875 px high in the frame. So the object is an ellipse with its center at
+    (753.75, 508.359) px (Tracker's convention) and the semi-axes 45 and 25.3125 px; its area is
+    pi * 45 * 25.3125 = 3578 px.
+
+    What the mask may differ by, two parts that add:
+    - the pixel grid: the mask's area differs from the shape's by at most half a pixel along its
+      perimeter, and its center by at most 0.5 px. An ellipse's perimeter is at most
+      2 pi sqrt((a^2 + b^2) / 2), here 229 px: 115 px of area;
+    - the noise that `_blob_logits` adds, with a standard deviation of 0.2. The logits fall by 1
+      per cell, so the noise moves the outline by that many cells, independently from cell to cell
+      along the 2 pi 6 = 38 cells of the outline. To first order the area changes by the sum of
+      those moves, with a standard deviation of 0.2 sqrt(2 pi 6) = 1.23 cells of area, 39 px; the
+      center by their mean weighted with the outline's direction, 0.2 / sqrt(pi 6) = 0.046 cells
+      per axis: 0.35 px along u, 0.19 px along v. Four standard deviations are allowed.
+    Together: 270 px of area (7.6 %), 1.9 px along u and 1.3 px along v. A center that is half a
+    cell off (3.75 px, 2.1 px) and a radius that is half a cell off (16 % of the area) are outside.
+    """
+    cell_w, cell_h, radius, noise = W / 256, H / 256, 6.0, 0.2
+    a, b = radius * cell_w, radius * cell_h
+    area_sd = noise * math.sqrt(2 * math.pi * radius) * cell_w * cell_h
+    center_sd = noise / math.sqrt(math.pi * radius)  # cells
+    perimeter = 2 * math.pi * math.sqrt((a * a + b * b) / 2)  # at most
+    u_px, v_px, area_px = _position(result)
+    assert area_px == pytest.approx(math.pi * a * b, abs=0.5 * perimeter + 4 * area_sd)
+    assert u_px == pytest.approx(100.5 * cell_w, abs=0.5 + 4 * center_sd * cell_w)
+    assert v_px == pytest.approx(120.5 * cell_h, abs=0.5 + 4 * center_sd * cell_h)
 
 
 @pytest.mark.parametrize("make_logits", [_random_logits, _blob_logits], ids=["random", "blobs"])
@@ -231,9 +305,12 @@ def test_per_object_logits_give_the_reference_masks(processor, make_logits):
                 assert result.mask.shape == (min(rows.max() + 9, H) - row0, min(cols.max() + 9, W) - col0)
             else:
                 assert result.mask.shape == (0, 0)
+            _assert_cropped_to_its_mask(result)  # the same rule, without last week's mask
     if make_logits is _blob_logits:
         assert [bool(m.any()) for m in old_masks] == [True, True, False]  # the third object is absent
         assert results[0].mask.size < 0.01 * H * W  # a real crop, not the whole frame
+        assert [bool(result.mask.any()) for result in results] == [True, True, False]  # without last week's masks
+        _assert_the_disk_of_the_blob_logits(results[0])
     # The session counts its own frames 0, 1, 2, ...: never the video's frame numbers.
     assert old_model.frame_indices == new_model.frame_indices == [0, 1, 2]
 
