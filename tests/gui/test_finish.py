@@ -140,6 +140,8 @@ def test_the_developers_page_names_every_module_of_the_package():
 def test_the_developers_page_says_how_to_test_how_to_add_a_panel_and_who_writes_which_file():
     text = DEVELOPER.read_text(encoding="utf-8")
     for needed in ('uv run pytest -m "not slow"', "uv run pytest -m slow", "build(window)", "gui/panels/",
-                   "session.json", "results.npz", "worker thread", "GUI thread", "xfail(strict=True"):
+                   "session.json", "results.npz", "worker thread", "GUI thread", "(../CLAUDE.md)", "(ROADMAP.md)"):
         assert needed in text, needed
+    # the rules are in CLAUDE.md and in section 2 of the roadmap: the page links to both and repeats none
+    assert "Questions for J" not in text
 

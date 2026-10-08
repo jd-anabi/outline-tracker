@@ -1,6 +1,6 @@
 # Developer notes
 
-For whoever changes the code. Students read [README.md](../README.md); the files a run writes are described in [OUTPUTS.md](OUTPUTS.md); the plan and its open questions are in [PLAN.md](PLAN.md); the measured results of the real model are in [VALIDATION.md](VALIDATION.md). The specification is `SPEC.md` at the root.
+For whoever changes the code. Students read [README.md](../README.md); the files a run writes are described in [OUTPUTS.md](OUTPUTS.md); the plan is [ROADMAP.md](ROADMAP.md), and [PLAN.md](PLAN.md) is the history of the first build; the measured results of the real model are in [VALIDATION.md](VALIDATION.md). The specification is `SPEC.md` at the root.
 
 ## Where what is
 
@@ -133,17 +133,9 @@ How the tests are laid out:
 
 ## Rules
 
-These are the rules of `CLAUDE.md` that every change has to keep, and at the end two of SPEC 12.
+The rules that every change has to keep are in [CLAUDE.md](../CLAUDE.md), in short, and in
+section 2 of [ROADMAP.md](ROADMAP.md), in full. They are not repeated here. One more, from SPEC 12:
 
-- Test first. Expected values come from geometry, analytic shapes or synthetic ground truth, never from running the code and copying what it gives.
-- Never weaken, skip or delete a test to make it pass. A test that seems wrong is marked `xfail(strict=True, reason=...)` and raised under "Questions for J" in docs/PLAN.md.
-- Conventions (SPEC 3): pixel coordinates are Tracker's, with pixel centers at +0.5; world units are mm in the session's axes, y up; `t_s = frame / fps_true`; frames live on the clip's grid. Units go in column names.
-- Ported code keeps its behavior.
-- Nothing outside `outline_tracker/gui` imports Qt. torch and transformers are imported only inside `outline_tracker/segmenter`, and only when a model is loaded. The one exception is `gui/app.py`, which imports torch before PySide6: on Windows torch does not load after Qt.
-- Never load a whole video into memory. No full-frame float array per object lives longer than the current frame.
-- No new dependency without asking in docs/PLAN.md first.
-- Never commit videos, results.npz or model weights. Never force-push.
-- The repository is public: no answer keys, no student data, no rosters, no personal paths.
 - Every public function says its units and its coordinate frame in its docstring. Split a file that grows past about 400 lines.
 
 ## Adding a panel
