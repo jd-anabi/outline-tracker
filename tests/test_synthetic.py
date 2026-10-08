@@ -465,3 +465,42 @@ def test_shapes_scene_has_the_ellipse_and_the_disk_inside_a_dish():
     assert 0 < by_id["B"].path.speed_px_per_frame < 2.0
     with pytest.raises(ValueError, match="640 x 480"):
         synthetic.shapes_scene(size=SMALL)
+
+
+# ---------------------------------------------------------------------------------------------
+# Last week's selftest clip and its Tracker export
+
+
+def test_the_selftest_clip_is_40_frames_of_1080p_and_an_export_of_the_true_centers_on_every_second_frame(tmp_path):
+    # The recipe of `selftest_clip`: 40 frames of 1920 x 1080 px at 240 frames per s, 0.0324 mm per px.
+    # The ellipse starts at the pixel in column 700 and row 500 and moves (0.6, 0.2) px per frame, so in
+    # Tracker's convention (+0.5) its center is at (700.5 + 0.6 f, 500.5 + 0.2 f) px in frame f. The
+    # export has every 2nd frame, with x and y in mm from the frame's center, (960, 540) px, y up.
+    made = synthetic.selftest_clip(tmp_path / "clip")
+    assert made["video"] == tmp_path / "clip" / "selftest_tracker.mp4" and made["video"].is_file()
+    assert made["export"] == tmp_path / "clip" / "selftest.csv" and made["export"].is_file()
+    frames = np.arange(0, 40, 2)
+    true_u, true_v = 700.5 + 0.6 * frames, 500.5 + 0.2 * frames
+    assert made["frames"] == list(range(0, 40, 2))
+    assert np.allclose(made["pixelx"], true_u) and np.allclose(made["pixely"], true_v)
+
+    clip = cv2.VideoCapture(str(made["video"]))  # counted by decoding, with OpenCV alone
+    try:
+        for frame in range(40):
+            ok, image = clip.read()
+            assert ok, f"frame {frame} is missing"
+            assert image.shape == (1080, 1920, 3)
+        assert not clip.read()[0]  # 40 frames, no more
+    finally:
+        clip.release()
+
+    # The export, read here as text: the name line, the column names, one row per marked frame. A value
+    # in the file is the true one to half of its last decimal: 7 decimals for t, 6 for mm, 3 for px.
+    lines = made["export"].read_text(encoding="ascii").splitlines()
+    assert lines[:2] == [",selftest,,,,,", "t,frame,x,y,pixelx,pixely"]
+    t, marked, x, y, pixelx, pixely = np.loadtxt(lines[2:], delimiter=",", unpack=True)
+    assert marked.tolist() == list(range(0, 40, 2))
+    assert pixelx == pytest.approx(true_u, rel=0, abs=0.5e-3) and pixely == pytest.approx(true_v, rel=0, abs=0.5e-3)
+    assert t == pytest.approx(frames / 240.0, rel=0, abs=0.5e-7)
+    assert x == pytest.approx(0.0324 * (true_u - 960.0), rel=0, abs=0.5e-6)
+    assert y == pytest.approx(-0.0324 * (true_v - 540.0), rel=0, abs=0.5e-6)

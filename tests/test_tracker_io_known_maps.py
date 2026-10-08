@@ -304,3 +304,71 @@ def test_the_written_file_is_the_text_typed_by_hand(tmp_path):
         "0.2000000,48,-0.500000,,104.063,",
         "0.2166667,52,,,,81.999",
     ]
+
+
+def written_lines(path):
+    """The lines of a file that `write_tracker_file` wrote. Read as text, which takes the line ends
+    away: the writer uses the line ends of the system, so lines are compared, not bytes."""
+    return path.read_text(encoding="ascii").splitlines()
+
+
+def test_an_empty_name_leaves_an_empty_cell_in_the_name_line(tmp_path):
+    # SPEC 8.3: the first line is a comma, the name and five commas (`,A,,,,,`). Without a name that
+    # is six commas, and the rest of the file is as with a name.
+    path = tmp_path / "unnamed.csv"
+    tracker_io.write_tracker_file(path, "", frames=[7], t=[0.028], x=[1.5], y=[-2.25], px=[190.0], py=[165.0])
+    assert written_lines(path) == [
+        ",,,,,,",
+        "t,frame,x,y,pixelx,pixely",
+        "0.0280000,7,1.500000,-2.250000,190.000,165.000",
+    ]
+
+
+@pytest.mark.parametrize("empty", [[], np.array([])], ids=["lists", "numpy arrays"])
+def test_a_track_without_rows_is_the_name_line_and_the_column_names(tmp_path, empty):
+    # SPEC 8.3 and the docstring: the name line, the column names, then one row per frame. No frame, no row.
+    path = tmp_path / "A.csv"
+    tracker_io.write_tracker_file(path, "A", frames=empty, t=empty, x=empty, y=empty, px=empty, py=empty)
+    assert written_lines(path) == [",A,,,,,", "t,frame,x,y,pixelx,pixely"]
+
+
+# One track of three frames, lost on the second, in the map of `TRACK` (0.05 mm per px from (160, 120)
+# px, y up) at 240 frames per s: frames, t, x, y, pixelx, pixely. 16 / 240 = 0.0666..., 20 / 240 = 0.0833...
+NAN = float("nan")
+THREE_FRAMES = ([12, 16, 20], [0.05, 16 / 240, 20 / 240], [0.25, NAN, -1.125], [3.0, NAN, 2.0],
+                [165.0, NAN, 137.5], [60.0, NAN, 80.0])
+GIVEN_AS = {
+    "lists": list,
+    "numpy arrays": np.array,  # the frames as integers
+    # as the columns of rows 5, 9 and 13 of a table read by pandas: every column holds floats, the frames too
+    "pandas Series": lambda values: pd.Series(values, index=[5, 9, 13], dtype=float),
+}
+
+
+@pytest.mark.parametrize("kind", GIVEN_AS)
+def test_lists_numpy_arrays_and_pandas_series_give_the_same_text(tmp_path, kind):
+    path = tmp_path / "A.csv"
+    tracker_io.write_tracker_file(path, "A", *(GIVEN_AS[kind](values) for values in THREE_FRAMES))
+    assert written_lines(path) == [
+        ",A,,,,,",
+        "t,frame,x,y,pixelx,pixely",
+        "0.0500000,12,0.250000,3.000000,165.000,60.000",
+        "0.0666667,16,,,,",
+        "0.0833333,20,-1.125000,2.000000,137.500,80.000",
+    ]
+
+
+def test_very_small_and_large_values_keep_the_decimals_of_the_format(tmp_path):
+    # The format gives a number of decimals, not of digits (SPEC 8.2, "as in `segment.write_tracker_file`"):
+    # 7 for t, 6 for mm, 3 for px. So 1e-9 mm is 0.000000 and 1e4 mm is 10000.000000, a pixel beyond
+    # column 1000 keeps its three decimals (1234.5678 rounds to 1234.568, 1000.0004 to 1000.000), and no
+    # number is written with an exponent. 100000 / 240 = 416.66666..., which rounds to 416.6666667.
+    path = tmp_path / "A.csv"
+    tracker_io.write_tracker_file(path, "A", frames=[0, 100000], t=[0.0, 100000 / 240], x=[1e-9, 1e4],
+                                  y=[-1e4, 1e-9], px=[1234.5678, 1919.5], py=[1079.5, 1000.0004])
+    assert written_lines(path) == [
+        ",A,,,,,",
+        "t,frame,x,y,pixelx,pixely",
+        "0.0000000,0,0.000000,-10000.000000,1234.568,1079.500",
+        "416.6666667,100000,10000.000000,0.000000,1919.500,1000.000",
+    ]
