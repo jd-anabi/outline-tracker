@@ -1,7 +1,8 @@
 """What the tests of panel 9 (Export) and the smoke test of the whole flow share (task C6).
 
-Imported by name from tests/gui/test_export_panel.py and tests/gui/test_smoke.py, the fixture too (a
-fixture imported into a test module is that module's own). Nothing here imports torch.
+Imported by name from tests/gui/test_export_panel.py, tests/gui/test_joins.py and
+tests/gui/test_smoke.py; the last two import the fixture too (a fixture imported into a test module
+is that module's own). Nothing here imports torch.
 
 - `second_window` is a second window for one test, made and closed by the function of the `window`
   fixture of tests/helpers.py: a saved session reopens in it.
@@ -9,8 +10,8 @@ fixture imported into a test module is that module's own). Nothing here imports 
   lines and wait at a `Gate` (tests/gui/prompt_helpers.py) first, and then calls the real one. No
   helper waits with a delay.
 - `tracked` is a window whose run folder holds the results of a run with `ExactFake`.
-- `is_off` and `is_on` read Export all and File > Export together; `set_times` says when the two
-  files that decide the panel's state were written; `lock` lets a file be open in another program.
+- `is_off` and `is_on` read Export all and File > Export together; `lock` lets a file be open in
+  another program.
 - `walk_through` is SPEC 13.5's flow, through the panels' public slots and one simulated click.
 
 Coordinates: (u, v) in px of the video frame (SPEC 3.1: u to the right, v downward, pixel centers at
@@ -20,8 +21,6 @@ Coordinates: (u, v) in px of the video frame (SPEC 3.1: u to the right, v downwa
 from __future__ import annotations
 
 import logging
-import os
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -90,12 +89,6 @@ def is_on(window) -> bool:
     panel = export_panel(window)
     return (panel.export_button.isEnabled() and window.menus.export_action.isEnabled()
             and panel.export_button.toolTip() == EXPORT_TIP)
-
-
-def set_times(run_folder: Path, results: datetime, positions: datetime) -> None:
-    """Say when results.npz and positions.csv of a run folder were written (the computer's local time)."""
-    for name, when in ((schema.RESULTS_NPZ, results), (schema.POSITIONS_CSV, positions)):
-        os.utime(run_folder / name, (when.timestamp(), when.timestamp()))
 
 
 def lock(monkeypatch, name: str) -> None:

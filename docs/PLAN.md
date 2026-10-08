@@ -253,7 +253,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   `tests/gui/test_menus.py::test_the_menu_bar_has_file_and_help_with_the_specs_items` and
   `::test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons`.
   Default: J says "delete them" and they go.
-  Done 2026-10-07: (2) deleted on J's word. (1) stays marked: only it checks the slider and the flag strip.
+  Done 2026-10-07: deleted on J's word. Three checks of (1) went with it and are in no test: slider top 8, height 20; flag strip top 30, height 6; slider 8 px in from each side.
 - **Wed 12:00, C2: two superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal, and one choice to confirm.** (1) `tests/gui/test_controller.py::test_a_session_file_is_only_named_until_sessions_can_be_opened`
   pinned C1's stand-in behavior for a `.json` (only its name in the status bar); sessions open
