@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from helpers import normalized
 
 from outline_tracker import schema, tracker_io
 
@@ -164,11 +165,6 @@ NAN = float("nan")
 @pytest.fixture(scope="module")
 def readme(schema_docs) -> str:
     return schema_docs.readme_text()
-
-
-def normalized(text: str) -> str:
-    """Whitespace collapsed to single spaces, so a wrapped paragraph can be searched."""
-    return " ".join(text.split())
 
 
 def convention(readme: str, label: str) -> str:

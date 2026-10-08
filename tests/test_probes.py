@@ -12,9 +12,9 @@ the video's own frame numbers, counted from 0. The dish clip is 320 x 240 px and
 its LED is the slice [8:28, 8:40] and switches on at frame 41.
 """
 
-import cv2
 import numpy as np
 import pytest
+from cli_probe_helpers import decode
 
 from outline_tracker import probes, schema, video
 
@@ -27,20 +27,6 @@ ONSET = 41  # the dish clip's LED: 120 // 3 + 1
 CORNER_BOX = (36, 24, 44, 33)  # 8 x 9 px over the LED's lower right corner (the LED ends at u = 40, v = 28)
 DISH_BOX = (150, 110, 170, 130)  # inside the dish, away from the LED
 NAN = float("nan")
-
-
-def decode(path):
-    """Every frame that decodes, in file order, as RGB uint8 arrays [row, column, 3] (OpenCV's BGR reversed)."""
-    capture = cv2.VideoCapture(str(path))
-    frames = []
-    try:
-        while True:
-            ok, bgr = capture.read()
-            if not ok:
-                return frames
-            frames.append(bgr[:, :, ::-1])
-    finally:
-        capture.release()
 
 
 @pytest.fixture(scope="module")

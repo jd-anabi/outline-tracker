@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from helpers import _names
 from results_helpers import names_number
 
 import outline_tracker
@@ -104,10 +105,6 @@ def _through_a_file(tmp_path: Path, data: dict) -> dict:
     out = tmp_path / "out" / "session.json"
     assert loaded.save(out) == out
     return json.loads(out.read_text(encoding="utf-8"))
-
-
-def _names(folder: Path) -> list[str]:
-    return sorted(p.name for p in folder.iterdir())
 
 
 # --------------------------------------------------------------------------- the SPEC 8.10 example

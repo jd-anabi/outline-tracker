@@ -30,6 +30,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from from_tracker_helpers import Loaded, StopsAfter, read_track, session_json
+from helpers import error_line
 
 from outline_tracker import cli, from_tracker
 from outline_tracker.segmenter.base import crop_to_bbox
@@ -239,13 +240,6 @@ def test_a_problem_is_exit_code_1(temp_folder, monkeypatch, capsys):
     assert verdict, lines[-2]
     assert 4.0 < float(verdict[1]) < 6.0
     assert re.fullmatch(ESTIMATE, lines[-1]), lines[-1]
-
-
-def error_line(capsys) -> str:
-    """The one `ERROR: ...` line the command printed on stderr (asserted to be exactly one line)."""
-    err = capsys.readouterr().err
-    assert err.startswith("ERROR: ") and err.endswith("\n") and err.count("\n") == 1, err
-    return err
 
 
 class StoppedAtOnce(StopsAfter):

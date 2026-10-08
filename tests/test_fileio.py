@@ -22,15 +22,12 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from helpers import _names
 
 from outline_tracker import fileio
 from outline_tracker.fileio import atomic_write, sha256_first_64mib
 
 MIB = 1024 * 1024
-
-
-def _names(folder: Path) -> list[str]:
-    return sorted(p.name for p in folder.iterdir())
 
 
 # --------------------------------------------------------------------------- the normal path

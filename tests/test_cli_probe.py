@@ -13,7 +13,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from cli_probe_helpers import (COLUMNS, FPS, LED, LED_BOX, N, ONSET, UNKNOWN_FPS, WALL, WALL_BOX, assert_rows, decode,
-                               error_line, onset_frame, probe, table, write_manifest)
+                               onset_frame, probe, table, write_manifest)
+from helpers import error_line
 
 from outline_tracker import cli, video
 

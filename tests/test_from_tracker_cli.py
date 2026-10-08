@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 from from_tracker_helpers import FPS, Loaded, mirrored_map, one_disk, read_track, session_json, two_disks
 from from_tracker_helpers import write_start_file
+from helpers import error_line
 
 from outline_tracker import cli, cli_from_tracker, from_tracker
 
@@ -143,13 +144,6 @@ def test_folders_with_spaces_and_other_alphabets_with_the_disk_clip(tmp_path, st
     default = clip.parent / "clip_tracker_outline_mes_exports"
     assert session_json(default)["student"] == "mes exports"
     assert read_track(default / "edgetam" / "A.csv")["frame"].tolist() == frames
-
-
-def error_line(capsys) -> str:
-    """The one `ERROR: ...` line the command printed on stderr (asserted to be exactly one line)."""
-    err = capsys.readouterr().err
-    assert err.startswith("ERROR: ") and err.endswith("\n") and err.count("\n") == 1, err
-    return err
 
 
 def test_errors_are_one_line_and_exit_code_1(tmp_path, stand_in, capsys):

@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from helpers import normalized
 
 from outline_tracker import schema, tracker_io
 
@@ -101,11 +102,6 @@ def read_csv(text: str) -> pd.DataFrame:
 
 def names(columns) -> list[str]:
     return [c.name for c in columns]
-
-
-def normalized(text: str) -> str:
-    """Whitespace collapsed to single spaces, so a wrapped paragraph can be searched."""
-    return " ".join(text.split())
 
 
 # ---------------------------------------------------------------------------------------------

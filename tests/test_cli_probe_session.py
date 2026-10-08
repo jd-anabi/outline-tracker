@@ -9,8 +9,9 @@ import re
 import shutil
 
 import pytest
-from cli_probe_helpers import (FPS, LED, LED_BOX, N, ONSET, WALL, WALL_BOX, assert_rows, decode, error_line,
-                               onset_frame, probe, table, write_manifest)
+from cli_probe_helpers import (FPS, LED, LED_BOX, N, ONSET, WALL, WALL_BOX, assert_rows, decode, onset_frame, probe,
+                               table, write_manifest)
+from helpers import error_line
 
 from outline_tracker import __version__, provenance
 from outline_tracker.session import Clip, ProbeBox, Session, TimeSettings, VideoRef

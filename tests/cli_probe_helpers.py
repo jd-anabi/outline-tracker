@@ -43,13 +43,6 @@ def table(folder) -> pd.DataFrame:
     return pd.read_csv(folder / "probes.csv")
 
 
-def error_line(capsys) -> str:
-    """The one `ERROR: ...` line the command printed on stderr (asserted to be exactly one line)."""
-    err = capsys.readouterr().err
-    assert err.startswith("ERROR: ") and err.endswith("\n") and err.count("\n") == 1, err
-    return err
-
-
 def decode(path) -> list[np.ndarray]:
     """Every frame of a video, in file order, as RGB uint8 arrays [row, column, 3], with OpenCV alone."""
     capture = cv2.VideoCapture(str(path))

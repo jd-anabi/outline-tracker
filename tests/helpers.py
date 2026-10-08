@@ -42,6 +42,27 @@ def java_sci(v):
 
 
 # ---------------------------------------------------------------------------------------------
+# What a command printed, what a folder holds, a text to search in
+
+
+def error_line(capsys) -> str:
+    """The one `ERROR: ...` line the command printed on stderr (asserted to be exactly one line)."""
+    err = capsys.readouterr().err
+    assert err.startswith("ERROR: ") and err.endswith("\n") and err.count("\n") == 1, err
+    return err
+
+
+def _names(folder) -> list[str]:
+    """The names of the files and folders in `folder`, sorted."""
+    return sorted(p.name for p in folder.iterdir())
+
+
+def normalized(text: str) -> str:
+    """Whitespace collapsed to single spaces, so a wrapped paragraph can be searched."""
+    return " ".join(text.split())
+
+
+# ---------------------------------------------------------------------------------------------
 # Segmenter results (tests/test_fakes.py, tests/test_fakes_threshold.py)
 
 
