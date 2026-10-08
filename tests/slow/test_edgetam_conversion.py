@@ -7,10 +7,11 @@ converted again, into an empty model folder, by the function the tool calls on f
 (`hf.load_model`), and the new file is compared with tests/data/edgetam_weights.txt: its SHA-256
 and its size in bytes.
 
-What this holds: the two renaming tables (`KEYS_TO_MODIFY_MAPPING`, `PERCEIVER`), `_renumber`,
-`convert_state_dict`, `edgetam_config` and `load_edgetam`. A weight that gets a name the model does
-not have stops the conversion ("EdgeTAM conversion failed"); weights under each other's names give
-another file.
+What this holds: what the two renaming tables (`KEYS_TO_MODIFY_MAPPING`, `PERCEIVER`), `_renumber`,
+`convert_state_dict`, `edgetam_config` and `load_edgetam` give for this checkpoint. A weight that
+gets a name the model does not have stops the conversion ("EdgeTAM conversion failed"); weights
+under each other's names give another file. It cannot see the 9 of the 53 table entries that rename
+no weight of this checkpoint (counted 2026-10-08): a change of one of those changes nothing here.
 
 The expected value is a frozen one (docs/ROADMAP.md, section 2, rule 2): the frozen file was
 written by a run in which last week's code still agreed with the package, and its header says how.
