@@ -11,19 +11,32 @@ The third runs the reference `track_video` with the reference `DiskFinder`, and 
 `ThresholdFake`, on the same clip and export: the Tracker-format files must be the same bytes on this
 computer, and the CHECK messages the same list.
 
+The fourth compares what `from_tracker` writes with the frozen files of the same three cases,
+tests/data/tracker_format/<case>/<name>.csv, and needs nothing of the template. The third is their
+independent check on every system: the template's bytes equal the frozen bytes too. It is also what
+writes them, only when asked and only after the template and the package agreed in that run
+(tests/frozen_helpers.py). A frozen file has LF line ends; the tool writes the system's line ends
+(CRLF on Windows, docs/OUTPUTS.md), so the frozen bytes are compared after LF is replaced by those.
+
 Coordinates: px in Tracker's convention (pixel centers at +0.5); mm in Tracker's axes, y up; a disk
 drawn at (x, y) by `disk_video` is at (x + 0.5, y + 0.5) px. Frames are video frame numbers.
 """
+
+import os
 
 import numpy as np
 import pandas as pd
 import pytest
 from conftest import java_sci
 from from_tracker_helpers import disk_video, write_start_file
+from frozen_helpers import DATA, frozen_files, write_frozen, write_listing
 from test_tracker_io import MM_PER_PX, export_text, tracker_map
 
 from outline_tracker.from_tracker import from_tracker
 from outline_tracker.segmenter.fake import ThresholdFake
+
+GOLDEN = DATA / "tracker_format"  # the frozen Tracker-format files, <case>/<name>.csv, and their HEADER.txt
+FREEZE_COMMAND = "OUTLINE_TRACKER_FREEZE=1 uv run pytest tests/test_from_tracker_port.py -q"  # what writes them
 
 
 def test_whole_run_with_a_stand_in_model(tmp_path):
@@ -106,6 +119,12 @@ def _every_frame_and_a_jump(folder):
     return video, export, {}, ["A"]
 
 
+def as_written_here(frozen: bytes) -> bytes:
+    """The bytes of a frozen Tracker-format file (LF line ends) with this system's line ends, which is
+    how `write_tracker_file` writes it here."""
+    return frozen.replace(b"\n", os.linesep.encode())
+
+
 @pytest.mark.parametrize("case", [_one_track, _start_file_and_a_lost_disk, _every_frame_and_a_jump])
 def test_the_tracker_format_files_are_last_weeks_bytes(tmp_path, case):
     from shrimp import segment as reference
@@ -124,6 +143,27 @@ def test_the_tracker_format_files_are_last_weeks_bytes(tmp_path, case):
     assert new.flags == old["flags"]
     assert (new.plan.start, new.plan.step, new.plan.n, new.plan.fps) == (
         old["plan"].start, old["plan"].step, old["plan"].n, old["plan"].fps)
+    # The template and the package agree. Only now, and only when asked, their bytes are frozen (with LF).
+    frozen = GOLDEN / case.__name__
+    for new_file in new.files:
+        write_frozen(frozen / new_file.name, new_file.read_bytes().replace(os.linesep.encode(), b"\n"))
+    write_listing(GOLDEN, FREEZE_COMMAND, {
+        "agreement with the template": "the same bytes, file by file, asserted in the run that wrote them",
+        "line ends": "LF; the tool writes the system's line ends, and a test compares after putting those in"})
+    # The independent check of the frozen files, on every system: the template writes their bytes.
+    for old_file in old["files"]:
+        assert old_file.read_bytes() == as_written_here((frozen / old_file.name).read_bytes()), old_file.name
+
+
+@pytest.mark.parametrize("case", [_one_track, _start_file_and_a_lost_disk, _every_frame_and_a_jump])
+def test_the_tracker_format_files_are_the_frozen_bytes(tmp_path, case):
+    video, export, options, names = case(tmp_path)
+    new = from_tracker(video, export, model="stand-in", segmenter=ThresholdFake(), overlay=False,
+                       out=tmp_path / "new", log=lambda *a: None, **options)
+    frozen = GOLDEN / case.__name__
+    assert [f.name for f in new.files] == [f.name for f in frozen_files(frozen)] == [f"{name}.csv" for name in names]
+    for new_file in new.files:
+        assert new_file.read_bytes() == as_written_here((frozen / new_file.name).read_bytes()), new_file.name
 
 
 def test_the_check_messages_are_last_weeks(tmp_path):

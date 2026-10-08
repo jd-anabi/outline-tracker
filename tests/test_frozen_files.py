@@ -201,3 +201,12 @@ def test_the_check_of_tests_data_finds_each_broken_rule(tmp_path):
 
 def test_every_file_under_tests_data_has_lf_line_ends_and_is_listed():
     assert rule_breaks(DATA) == []
+    # the check saw the folder: the Tracker-format files of the three stand-in cases and their HEADER.txt
+    names = [path.relative_to(DATA).as_posix() for path in frozen_files(DATA)]
+    assert [name for name in names if name.startswith("tracker_format/")] == [
+        "tracker_format/HEADER.txt",
+        "tracker_format/_every_frame_and_a_jump/A.csv",
+        "tracker_format/_one_track/A.csv",
+        "tracker_format/_start_file_and_a_lost_disk/A.csv",
+        "tracker_format/_start_file_and_a_lost_disk/B.csv",
+    ]

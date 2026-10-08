@@ -1,0 +1,15 @@
+# made: 2026-10-07
+# commit: cb20405
+# tool: outline-tracker 0.2.0.dev0 (commit cb20405)
+# system: macOS-27.0.1-arm64-arm-64bit; Python 3.12.15
+# machine: Apple M1 Max
+# decoder: opencv-5.0.0/darwin/arm64
+# libraries: torch 2.14.1; torchvision 0.29.1; transformers 5.18.0; timm 1.0.30; safetensors 0.8.0; numpy 2.5.3; opencv-python-headless 5.0.0.93; scikit-image 0.26.0
+# command: OUTLINE_TRACKER_FREEZE=1 uv run pytest tests/test_from_tracker_port.py -q
+# each row: path relative to this file, size in bytes, SHA-256
+# agreement with the template: the same bytes, file by file, asserted in the run that wrote them
+# line ends: LF; the tool writes the system's line ends, and a test compares after putting those in
+_every_frame_and_a_jump/A.csv,1491,43bc3039df93578c47cec267248644946970faa366bc41d4e684de64b8535526
+_one_track/A.csv,1528,86b8de4395499882838349ba0a08e169bac5d625505e092fb4c524e4bc05f969
+_start_file_and_a_lost_disk/A.csv,1209,076b4a792149be2fa4d41e69f6f2614955675cb03fdc45b648e4a4f81c808018
+_start_file_and_a_lost_disk/B.csv,934,dc771e6b1f491830927256ef064d50b6c38f60bfab2fed0e91cb0a45406eaff0
