@@ -38,7 +38,7 @@ No quantities here: no units and no coordinates.
 from __future__ import annotations
 
 import pytest
-from frozen_helpers import WEIGHTS, machine_here, machine_of, read_frozen, same_machine
+from frozen_helpers import machine_here, machine_of, read_weights, same_machine
 
 pytestmark = pytest.mark.slow
 
@@ -68,8 +68,7 @@ def test_a_new_conversion_gives_the_frozen_weights(tmp_path, monkeypatch):
     new = hf.weights_file(MODEL)
     assert new == folder / "model.safetensors"  # the conversion was saved, in the temporary folder
     assert _files(own) == own_before
-    header, rows = read_frozen(WEIGHTS)
-    frozen_weights = dict(row.split(": ", 1) for row in rows)
+    header, frozen_weights = read_weights()
     sha256, size = hf.file_sha256(new), new.stat().st_size
     print(f"VALIDATION frozen numbers, a new conversion: {size} bytes, sha256 {sha256}; "
           f"frozen: {frozen_weights['bytes']} bytes, sha256 {frozen_weights['sha256']}")

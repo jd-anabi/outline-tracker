@@ -32,14 +32,13 @@ from types import SimpleNamespace
 import cv2
 import numpy as np
 import pytest
+from pipeline_helpers import H, W, position
 
-from outline_tracker.measure import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
 
 pytestmark = pytest.mark.slow
 
 REPO = Path(__file__).resolve().parents[2]
-W, H = 1920, 1080
 DARK = 70.0  # gray value of an ellipse, as in the selftest
 TINT = np.array([1.00, 0.90, 0.80])  # red, green, blue: the three channels differ
 
@@ -90,12 +89,6 @@ def _full(result) -> np.ndarray:
     col0, row0 = result.offset
     full[row0:row0 + result.mask.shape[0], col0:col0 + result.mask.shape[1]] = result.mask
     return full
-
-
-def _position(result) -> tuple[float, float]:
-    """(u, v) of a result in px of the full frame; NaN, NaN if the object was not found."""
-    u, v, _ = mask_center(result.mask)
-    return u + result.offset[0], v + result.offset[1]
 
 
 # The moving scene: three small ellipses (semi-axes 8 and 3 px, the selftest's test shrimp), each
@@ -183,14 +176,6 @@ def _disk_center(n: int, j: int) -> tuple[float, float]:
     return (60.5 + 50.0 * j + 2.0 * n) * W / 256, 100.5 * H / 256
 
 
-@pytest.fixture(scope="module")
-def processor():
-    """The processor that `load_edgetam` builds: no weights and no download."""
-    from transformers import Sam2ImageProcessor, Sam2VideoProcessor, Sam2VideoVideoProcessor
-
-    return Sam2VideoProcessor(image_processor=Sam2ImageProcessor(), video_processor=Sam2VideoVideoProcessor())
-
-
 def _stored(session, obj_idx: int):
     """(coordinates, labels) the session holds for an object on its first frame, as tensors."""
     stored = session.point_inputs_per_obj[obj_idx][0]  # [object index][frame index]
@@ -267,7 +252,7 @@ def test_preview_uses_a_session_of_its_own(processor):
     shown = segmenter.preview(image, [ObjectPrompt("X", [(100.5, 200.5), (300.5, 200.5)], [1, 0])])
 
     assert [result.obj_id for result in shown] == ["X"]
-    assert _position(shown[0]) == pytest.approx(_disk_center(2, 0), abs=1.0)  # the stand-in's third call
+    assert position(shown[0]) == pytest.approx(_disk_center(2, 0), abs=1.0)  # the stand-in's third call
     preview_call = model.calls[2]
     assert preview_call.session is not session and preview_call.frame_idx == 0
     assert preview_call.session.obj_ids == [1]
@@ -311,8 +296,8 @@ def test_step_fallback_opens_a_new_session_on_cpu(processor):
 
     # Where each object was last found: A and C on the second frame, B on the first (geometry of
     # the stand-in's disks, within 1 px).
-    last_seen = [_position(second[0]), _position(first[1]), _position(second[2])]
-    assert np.isnan(_position(second[1])[0])
+    last_seen = [position(second[0]), position(first[1]), position(second[2])]
+    assert np.isnan(position(second[1])[0])
     assert last_seen[0] == pytest.approx(_disk_center(1, 0), abs=1.0)
     assert last_seen[1] == pytest.approx(_disk_center(0, 1), abs=1.0)
     assert last_seen[2] == pytest.approx(_disk_center(1, 2), abs=1.0)
@@ -350,14 +335,6 @@ def test_reserve_ui_thread_with_the_real_torch():
 
 # ---------------------------------------------------------------------------------------------
 # 2. The real EdgeTAM on cpu
-
-
-@pytest.fixture(scope="module")
-def loaded():
-    """(model, processor): the real EdgeTAM, loaded once for this module."""
-    from outline_tracker.segmenter import hf
-
-    return hf.load_model("edgetam")
 
 
 # Two equal ellipses with parallel axes touch exactly when the line between their centers, seen
@@ -453,7 +430,7 @@ def test_preview_equals_the_first_frame_of_a_run(loaded):
     again = mixed.preview(frames[0], prompts)
     interrupted.append(mixed.step(frames[2]))
 
-    errors = [float(np.hypot(*np.subtract(_position(result), start))) for result, start in zip(shown, STARTS)]
+    errors = [float(np.hypot(*np.subtract(position(result), start))) for result, start in zip(shown, STARTS)]
     print(f"VALIDATION preview (3 objects with 1, 3 and 2 points, 1080p, cpu): {seconds:.2f} s; equal to the first "
           f"frame of a run: {_same_results(shown, run[0])}; a run with previews in between equals the plain run: "
           f"{all(_same_results(a, b) for a, b in zip(interrupted, run))}; distance of the previewed centers from "
@@ -501,7 +478,7 @@ def test_step_fallback_with_the_real_model_finishes_on_cpu(monkeypatch):
         seconds.append(time.perf_counter() - t0)
         devices.append(segmenter.device)
         assert [result.obj_id for result in results] == NAMES
-        positions.append([_position(result) for result in results])
+        positions.append([position(result) for result in results])
         if t == 1:
             before = positions[1]  # where the objects were last found before the failure
 

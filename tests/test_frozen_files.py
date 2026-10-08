@@ -37,8 +37,8 @@ import numpy as np
 import pytest
 from frozen_helpers import (COLUMNS, DATA, GOLDEN, POSITIONS, SIDECAR, SWITCH, WEIGHTS, compare_with_frozen,
                             freeze_asked, frozen_files, frozen_text, header_lines, machine_here, machine_name,
-                            machine_of, position_rows, read_frozen, read_positions, same_decoder, same_machine,
-                            write_frozen, write_listing)
+                            machine_of, position_rows, read_frozen, read_positions, read_weights, same_decoder,
+                            same_machine, write_frozen, write_listing)
 from helpers import HOME_PATH
 
 from outline_tracker import provenance, video
@@ -50,8 +50,8 @@ HEADER = "".join(f"# {key}: made up\n" for key in NEEDED).encode("ascii")  # a h
 FRAMES = list(range(0, 40, 2))  # the tracked frames of both clips: 0, 2, ..., 38
 # Where the clips' recipes draw each object: (center on frame 0, step per frame), in array coordinates
 # (pixel centers at whole numbers), px. The selftest clip: outline_tracker/synthetic.py, `selftest_clip`.
-# The three ellipses: `starts` and `steps` of `_write_three_ellipse_clip` in
-# tests/slow/test_regression_reference.py.
+# The three ellipses: `starts` and `steps` of `write_three_ellipse_clip` in
+# tests/slow/pipeline_helpers.py.
 RECIPES = {
     ("selftest", "selftest"): ((700.0, 500.0), (0.6, 0.2)),
     ("three_ellipses", "A"): ((500.0, 300.0), (0.6, 0.2)),
@@ -309,9 +309,8 @@ def test_the_frozen_positions_are_within_3_px_of_the_clips_true_centers():
 
 
 def test_the_frozen_weights_file_names_the_weights_of_the_frozen_positions():
-    header, rows = read_frozen(WEIGHTS)
+    header, facts = read_weights()
     assert [key for key in NEEDED if key not in header] == []
-    facts = dict(row.split(": ", 1) for row in rows)
     assert list(facts)[:2] == ["sha256", "bytes"]
     assert re.fullmatch(r"[0-9a-f]{64}", facts["sha256"]) and int(facts["bytes"]) > 0
     assert facts["sha256"] == read_positions()[0]["weights sha256"]  # one run froze both files

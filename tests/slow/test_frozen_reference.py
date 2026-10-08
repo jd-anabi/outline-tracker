@@ -43,14 +43,12 @@ import numpy as np
 import pandas as pd
 import pytest
 from from_tracker_helpers import write_start_file
-from frozen_helpers import (WEIGHTS, compare_with_the_frozen_positions, machine_here, machine_of, read_frozen,
-                            same_machine)
+from frozen_helpers import compare_with_the_frozen_positions, machine_here, machine_of, read_weights, same_machine
 from helpers import tracker_map
-from pipeline_helpers import _write_three_ellipse_clip
+from pipeline_helpers import position, write_three_ellipse_clip
 
 from outline_tracker import synthetic, tracker_io, video
 from outline_tracker.from_tracker import from_tracker
-from outline_tracker.measure import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
 
 pytestmark = pytest.mark.slow
@@ -60,6 +58,7 @@ FPS = 240.0  # fps_true of both clips, frames per second
 FRAMES = list(range(0, 40, 2))  # the tracked frames of both clips
 
 
+# Overrides the shared `loaded` of tests/slow/conftest.py: this one loads the model that `MODEL` names.
 @pytest.fixture(scope="module")
 def loaded():
     """(model, processor): the real EdgeTAM, loaded once for this module."""
@@ -82,7 +81,7 @@ def clips(tmp_path_factory):
 
     (folder / "three").mkdir()
     three_video = folder / "three" / "three_tracker.mp4"
-    truth = _write_three_ellipse_clip(three_video)  # truth[object][frame] = (x, y), pixel centers at whole numbers
+    truth = write_three_ellipse_clip(three_video)  # truth[object][frame] = (x, y), pixel centers at whole numbers
     marks = {name: (track[0][0] + 0.5, track[0][1] + 0.5) for name, track in zip("ABC", truth)}
     # Tracker's map with the origin in the middle of the frame, 0.05 mm per px, y up
     start = write_start_file(folder / "three" / "start.csv", marks, frame=0,
@@ -101,12 +100,6 @@ def _segmenter(loaded):
     return hf.HFSegmenter(MODEL, "cpu", model=model, processor=processor)
 
 
-def _position(result) -> tuple[float, float]:
-    """(u_px, v_px) of a result in the full frame; NaN, NaN if the object was not found."""
-    u, v, _ = mask_center(result.mask)
-    return u + result.offset[0], v + result.offset[1]
-
-
 def _segmenter_level(loaded, clips, name) -> None:
     """Track the clip `name` with the segmenter alone, on the frames and from the clicks that
     `make_plan` reads from the clip's export, and judge the positions against the frozen ones: the
@@ -121,7 +114,7 @@ def _segmenter_level(loaded, clips, name) -> None:
     for i, (frame, rgb) in enumerate(video.iter_rgb_frames(clip.video, plan.frames)):
         results = segmenter.start(rgb, prompts) if i == 0 else segmenter.step(rgb)
         assert frame == FRAMES[i] and [result.obj_id for result in results] == clip.names
-        found.append([_position(result) for result in results])
+        found.append([position(result) for result in results])
     segmenter.close()
     assert len(found) == len(FRAMES) and segmenter.device == "cpu"
     compare_with_the_frozen_positions(f"{name}, segmenter on cpu", name, FRAMES, clip.names, np.array(found),
@@ -156,8 +149,7 @@ def test_the_weights_are_the_frozen_file(loaded):
     from outline_tracker.segmenter import hf
 
     segmenter = _segmenter(loaded)
-    header, rows = read_frozen(WEIGHTS)
-    frozen_weights = dict(row.split(": ", 1) for row in rows)
+    header, frozen_weights = read_weights()
     saved = hf.weights_file(MODEL)  # the file the model was loaded from
     assert saved is not None
     print(f"VALIDATION frozen numbers, weights: {saved.stat().st_size} bytes, sha256 {segmenter.weights_sha256}; "

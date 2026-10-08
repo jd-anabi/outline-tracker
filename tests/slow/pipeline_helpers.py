@@ -1,6 +1,6 @@
 """A session for a synthetic clip, tracked with the real model and exported: shared by the slow
 pipeline tests (tests/slow/test_fine_mode.py, test_coarse_lowres.py, test_memory.py and its child
-process memory_child.py).
+process memory_child.py). It also holds three things that the slow tests of the segmenter share.
 
 The session is made as the fast tracking tests make one (tests/tracking_helpers.py): clicks from
 the scene's own paths, fps_true = the scene's frame rate. It gets a calibration stick at the
@@ -10,8 +10,11 @@ Units and coordinates (SPEC 3): px in Tracker's convention, u to the right, v do
 (column c, row r) with its center at (c + 0.5, r + 0.5); mm in the session's axes, y up, origin at
 the middle of the frame; frames are video frame numbers; times in s. Nothing here imports torch.
 
-`_write_three_ellipse_clip` is the clip of the regression tests (tests/slow/test_regression_reference.py,
-test_regression_pipeline.py, test_frozen_reference.py); it has nothing to do with a session.
+What has nothing to do with a session: `W, H`, the frame of the 1080p clips and scenes;
+`position`, where a result of the segmenter lies in the full frame (tests/slow/test_real_model.py,
+test_regression_reference.py, test_frozen_reference.py); and `write_three_ellipse_clip`, the clip of
+the regression tests (tests/slow/test_regression_reference.py, test_regression_pipeline.py,
+test_frozen_reference.py). The fixtures of the slow tests are in tests/slow/conftest.py.
 """
 
 from __future__ import annotations
@@ -27,10 +30,11 @@ from tracking_helpers import make_session
 
 from outline_tracker import schema
 from outline_tracker.export import export_all
+from outline_tracker.measure import mask_center
 from outline_tracker.tracking import Callbacks, Job, run_job
 
 STICK_PX = 1000.0  # length of the calibration stick of the sessions made here, px
-W, H = 1920, 1080  # the frame of the three-ellipse clip: width and height, px
+W, H = 1920, 1080  # the frame of the 1080p clips and scenes of the slow tests: width and height, px
 
 
 def expect_minutes() -> None:
@@ -94,7 +98,14 @@ def track_and_export(clip, session, run_folder, segmenter) -> SimpleNamespace:
     return done
 
 
-def _write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
+def position(result) -> tuple[float, float]:
+    """(u_px, v_px) of a result of the segmenter (`MaskResult`) in the full frame: `mask_center` of its
+    cropped mask plus the crop's offset; NaN, NaN if the object was not found."""
+    u, v, _ = mask_center(result.mask)
+    return u + result.offset[0], v + result.offset[1]
+
+
+def write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
     """The selftest's recipe (1080p, 40 frames, mp4v, noise sigma 3, dark ellipses with semi-axes
     8 and 3 px along their motion) with three ellipses on a background whose R, G and B differ.
 

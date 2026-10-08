@@ -36,7 +36,7 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import pytest
-from pipeline_helpers import _write_three_ellipse_clip
+from pipeline_helpers import H, W, position, write_three_ellipse_clip
 
 from outline_tracker import synthetic, tracker_io
 from outline_tracker.measure import mask_center
@@ -45,7 +45,6 @@ from outline_tracker.video import iter_rgb_frames
 
 pytestmark = pytest.mark.slow
 
-W, H = 1920, 1080
 CLICKS = [(700.5, 500.5), (1000.5, 600.5), (1400.5, 350.5)]  # px, one positive click per object
 NAMES = ["A", "B", "C"]
 
@@ -60,12 +59,6 @@ def _full(result, shape=(H, W)) -> np.ndarray:
     col0, row0 = result.offset
     full[row0:row0 + result.mask.shape[0], col0:col0 + result.mask.shape[1]] = result.mask
     return full
-
-
-def _position(result) -> tuple[float, float, int]:
-    """(u_px, v_px, area_px) of a result in the full frame; NaN, NaN, 0 if the object was not found."""
-    u, v, area = mask_center(result.mask)
-    return u + result.offset[0], v + result.offset[1], area
 
 
 # ---------------------------------------------------------------------------------------------
@@ -90,14 +83,6 @@ class StubModel:
         self.frame_indices.append(frame_idx)
         return SimpleNamespace(object_ids=list(inference_session.obj_ids), pred_masks=self.pred_masks,
                                object_score_logits=self.scores, frame_idx=frame_idx)
-
-
-@pytest.fixture(scope="module")
-def processor():
-    """The processor that `load_edgetam` builds: no weights and no download."""
-    from transformers import Sam2ImageProcessor, Sam2VideoProcessor, Sam2VideoVideoProcessor
-
-    return Sam2VideoProcessor(image_processor=Sam2ImageProcessor(), video_processor=Sam2VideoVideoProcessor())
 
 
 def _random_logits():
@@ -262,7 +247,8 @@ def _assert_the_disk_of_the_blob_logits(result) -> None:
     area_sd = noise * math.sqrt(2 * math.pi * radius) * cell_w * cell_h
     center_sd = noise / math.sqrt(math.pi * radius)  # cells
     perimeter = 2 * math.pi * math.sqrt((a * a + b * b) / 2)  # at most
-    u_px, v_px, area_px = _position(result)
+    u_px, v_px = position(result)
+    area_px = mask_center(result.mask)[2]  # the number of pixels of the mask
     assert area_px == pytest.approx(math.pi * a * b, abs=0.5 * perimeter + 4 * area_sd)
     assert u_px == pytest.approx(100.5 * cell_w, abs=0.5 + 4 * center_sd * cell_w)
     assert v_px == pytest.approx(120.5 * cell_h, abs=0.5 + 4 * center_sd * cell_h)
@@ -298,14 +284,6 @@ def test_per_object_logits_give_the_reference_masks(processor, make_logits):
 
 # ---------------------------------------------------------------------------------------------
 # 2. The real EdgeTAM on cpu: one loaded model
-
-
-@pytest.fixture(scope="module")
-def loaded():
-    """(model, processor): the real EdgeTAM, loaded once for this module."""
-    from outline_tracker.segmenter import hf
-
-    return hf.load_model("edgetam")
 
 
 def _track(segmenter, video, frames, prompts) -> SimpleNamespace:
@@ -344,7 +322,7 @@ def selftest_runs(loaded, tmp_path_factory):
     return SimpleNamespace(
         video=video, plan=plan, segmenter=segmenter, run=run,
         truth=pd.read_csv(export, skiprows=1),  # the click and the true positions
-        positions=np.array([_position(results[0])[:2] for results in run.results]),
+        positions=np.array([position(results[0]) for results in run.results]),
     )
 
 
@@ -384,7 +362,7 @@ def test_three_objects_match_the_reference(loaded, tmp_path):
 
     model, processor = loaded
     video = tmp_path / "three_tracker.mp4"
-    truth = _write_three_ellipse_clip(video)
+    truth = write_three_ellipse_clip(video)
     frames = list(range(0, 40, 2))
     clicks = [(track[0][0] + 0.5, track[0][1] + 0.5) for track in truth]  # Tracker's convention (+0.5)
     separations = [np.hypot(a[f][0] - b[f][0], a[f][1] - b[f][1])
@@ -401,7 +379,7 @@ def test_three_objects_match_the_reference(loaded, tmp_path):
     for results in run.results:
         assert [r.obj_id for r in results] == NAMES
     # [i][k] = (u_px, v_px) of NAMES[k] on frames[i]: where it was found, and its true center
-    positions = np.array([[_position(result)[:2] for result in results] for results in run.results])
+    positions = np.array([[position(result) for result in results] for results in run.results])
     true = np.array([[(track[frame][0] + 0.5, track[frame][1] + 0.5) for track in truth] for frame in frames])
     error = np.hypot(positions[..., 0] - true[..., 0], positions[..., 1] - true[..., 1])
     found = ~np.isnan(error)
@@ -426,7 +404,7 @@ def test_selftest_clip_within_3_px_of_truth_on_mps(selftest_runs):
     s = selftest_runs
     segmenter = hf.HFSegmenter("edgetam", "mps")  # its own copy of the model: the shared one stays on cpu
     run = _track(segmenter, s.video, s.plan.frames, [ObjectPrompt("selftest", [s.plan.points_px[0]], [1])])
-    positions = np.array([_position(results[0])[:2] for results in run.results])
+    positions = np.array([position(results[0]) for results in run.results])
     true = s.truth[["pixelx", "pixely"]].to_numpy(float)
     error = np.hypot(*(positions - true).T)
     print(f"VALIDATION selftest criterion, mps: max error {np.nanmax(error):.3f} px; {_timing(run.seconds)}; "

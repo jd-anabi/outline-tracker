@@ -33,7 +33,7 @@ from types import SimpleNamespace
 import pytest
 from from_tracker_helpers import write_start_file
 from helpers import tracker_map
-from pipeline_helpers import _write_three_ellipse_clip
+from pipeline_helpers import write_three_ellipse_clip
 
 from outline_tracker import synthetic
 from outline_tracker.from_tracker import from_tracker
@@ -49,6 +49,7 @@ RUN_FOLDER = {"session.json", "positions.csv", MODEL, "shapes.csv", "radial.csv"
               "run.log", "README.txt"}
 
 
+# Overrides the shared `loaded` of tests/slow/conftest.py: this one loads the model that `MODEL` names.
 @pytest.fixture(scope="module")
 def loaded():
     """(model, processor): the real EdgeTAM, loaded once for this module."""
@@ -101,7 +102,7 @@ def test_three_ellipses_from_a_multi_start_file_equal_last_weeks_files(loaded, t
     # test_the_pipelines_tracker_files_equal_the_frozen_numbers[three_ellipses]. Here: the start file is a
     # `#multi` one, and the run returns and leaves one Tracker-format file for each of its three marks.
     video = tmp_path / "three_tracker.mp4"
-    truth = _write_three_ellipse_clip(video)  # truth[object][frame] = (x, y), pixel centers at whole numbers
+    truth = write_three_ellipse_clip(video)  # truth[object][frame] = (x, y), pixel centers at whole numbers
     marks = {name: (track[0][0] + 0.5, track[0][1] + 0.5) for name, track in zip("ABC", truth)}
     # Tracker's map with the origin in the middle of the frame, 0.05 mm per px, y up
     start = write_start_file(tmp_path / "ana" / "extra" / "start.csv", marks, frame=0,

@@ -323,6 +323,14 @@ def read_positions(path=POSITIONS) -> tuple[dict[str, str], list[tuple[str, int,
     return header, rows
 
 
+def read_weights(path=WEIGHTS) -> tuple[dict[str, str], dict[str, str]]:
+    """The frozen weights file as (header, facts): the header as `read_frozen` gives it, and the rows
+    after it, each `key: value`, as a dict in the file's order: `sha256` and `bytes` of the converted
+    weights first. The values are text as written."""
+    header, rows = read_frozen(path)
+    return header, dict(row.split(": ", 1) for row in rows)
+
+
 def machine_here(weights_sha256: str | None = None) -> dict[str, str]:
     """This machine as the machine rule (`same_machine`) sees it: `platform` (the operating system's
     family as Python names it: darwin, linux, win32), `architecture` (arm64, x86_64, AMD64), `chip`
