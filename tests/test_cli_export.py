@@ -38,16 +38,11 @@ DEFERRED = (*HEAVY, "numpy", "cv2", "pandas", "scipy", "skimage", "imageio_ffmpe
 
 @pytest.fixture(scope="module")
 def tracked(dish_clip, tmp_path_factory):
-    """The dish clip's A, B and C tracked coarse inside the dish crop; nothing exported yet."""
+    """The dish clip's A, B and C tracked coarse inside the dish crop; nothing exported yet. A test gets
+    its own copy of this folder as `run_folder` (tests/conftest.py)."""
     folder = tmp_path_factory.mktemp("cli_export") / "run"
     coarse_run(dish_clip, folder, ["A", "B", "C"])
     return folder
-
-
-@pytest.fixture
-def run_folder(tracked, tmp_path):
-    """This test's own copy of the tracked run folder (its video is found through the absolute path)."""
-    return shutil.copytree(tracked, tmp_path / "run")
 
 
 @pytest.fixture

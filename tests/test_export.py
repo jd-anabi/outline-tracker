@@ -11,7 +11,6 @@ Coordinates: px in Tracker's convention (pixel centers at +0.5), world mm with y
 """
 
 import json
-import shutil
 import subprocess
 import sys
 
@@ -34,16 +33,11 @@ MEASURED = {  # the columns that hold a measured number: an empty cell on a lost
 
 @pytest.fixture(scope="module")
 def tracked(dish_clip, tmp_path_factory):
-    """The dish clip's A, B and C tracked coarse inside the dish crop; nothing exported yet."""
+    """The dish clip's A, B and C tracked coarse inside the dish crop; nothing exported yet. A test gets
+    its own copy of this folder as `run_folder` (tests/conftest.py)."""
     folder = tmp_path_factory.mktemp("export") / "run"
     coarse_run(dish_clip, folder, ["A", "B", "C"])
     return folder
-
-
-@pytest.fixture
-def run_folder(tracked, tmp_path):
-    """This test's own copy of the tracked run folder."""
-    return shutil.copytree(tracked, tmp_path / "run")
 
 
 # ---------------------------------------------------------------------------------------------

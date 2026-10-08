@@ -41,6 +41,7 @@ def tracked(dish_clip, tmp_path_factory):
     return folder
 
 
+# Overrides the shared `run_folder` of tests/conftest.py: it also gives the tool a fixed version line.
 @pytest.fixture
 def run_folder(tracked, tmp_path, monkeypatch):
     """This test's own copy of the run folder; the tool says it is commit abc1234."""

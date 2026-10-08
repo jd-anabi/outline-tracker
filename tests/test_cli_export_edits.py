@@ -10,8 +10,6 @@ package words its own message: each case asks for exit code 1, exactly one line 
 files than the command was able to write before it stopped.
 """
 
-import shutil
-
 import cv2
 import pytest
 from cli_export_helpers import edit_session, error_line, export, listing
@@ -23,16 +21,11 @@ from outline_tracker import export as export_module
 
 @pytest.fixture(scope="module")
 def tracked(dish_clip, tmp_path_factory):
-    """The dish clip's A, B and C tracked coarse inside the dish crop, A with a head click; nothing exported."""
+    """The dish clip's A, B and C tracked coarse inside the dish crop, A with a head click; nothing exported.
+    A test gets its own copy of this folder as `run_folder` (tests/conftest.py)."""
     folder = tmp_path_factory.mktemp("cli_export_edits") / "run"
     coarse_run(dish_clip, folder, ["A", "B", "C"], heads={"A": (150.5, 100.5)})
     return folder
-
-
-@pytest.fixture
-def run_folder(tracked, tmp_path):
-    """This test's own copy of the tracked run folder."""
-    return shutil.copytree(tracked, tmp_path / "run")
 
 
 def refused(run_folder, capsys, *args) -> str:

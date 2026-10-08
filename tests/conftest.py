@@ -1,8 +1,9 @@
 """Fixtures for the tests of every folder: synthetic clips with ground truth, the frames of two of them
-from the sequential decode, a tracked run folder, a file that another program holds open, the
-settings kept out of the user's own, the main window. pytest finds a fixture by its name; nothing
-imports this file (tests/test_repo_rules.py says why). The plain helpers and values that tests import
-by name are in tests/helpers.py and in the helper modules beside it.
+from the sequential decode, a tracked run folder, a test's own copy of the run folder its module
+tracked, a file that another program holds open, the settings kept out of the user's own, the main
+window. pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says
+why). The plain helpers and values that tests import by name are in tests/helpers.py and in the helper
+modules beside it.
 """
 
 import errno
@@ -134,6 +135,23 @@ def tracked_dish_run(tracked_dish_folder, tmp_path):
     folder = tmp_path / ODD_FOLDER
     shutil.copytree(tracked_dish_folder, folder)
     return folder, Session.load(folder / SESSION_JSON), ResultsStore.load(folder / RESULTS_NPZ)
+
+
+# ---------------------------------------------------------------------------------------------
+# A test's own copy of the run folder that its module tracked, for the tests of the export
+# (tests/test_export.py, tests/test_export_tracker_folder.py, tests/test_cli_export.py,
+# tests/test_cli_export_edits.py)
+
+
+@pytest.fixture
+def run_folder(tracked, tmp_path):
+    """This test's own copy of the tracked run folder (its video is found through the absolute path).
+
+    `tracked` is not a fixture of this file: each module that asks for `run_folder` has its own, the
+    run folder it tracks once. tests/test_export_corrections.py and tests/test_export_log.py have a
+    `run_folder` of their own, which overrides this one there.
+    """
+    return shutil.copytree(tracked, tmp_path / "run")
 
 
 # ---------------------------------------------------------------------------------------------

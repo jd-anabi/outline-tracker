@@ -11,7 +11,6 @@ Coordinates: x, y in mm in the user's axes (y up), pixelx, pixely in px (Tracker
 
 import errno
 import os
-import shutil
 import time
 
 import numpy as np
@@ -27,16 +26,11 @@ GRID = list(range(0, 120, 2))
 
 @pytest.fixture(scope="module")
 def tracked(dish_clip, tmp_path_factory):
-    """The dish clip's A, B and C tracked coarse inside the dish crop; nothing exported yet."""
+    """The dish clip's A, B and C tracked coarse inside the dish crop; nothing exported yet. A test gets
+    its own copy of this folder as `run_folder` (tests/conftest.py)."""
     folder = tmp_path_factory.mktemp("tracker_folder") / "run"
     coarse_run(dish_clip, folder, ["A", "B", "C"])
     return folder
-
-
-@pytest.fixture
-def run_folder(tracked, tmp_path):
-    """This test's own copy of the tracked run folder."""
-    return shutil.copytree(tracked, tmp_path / "run")
 
 
 def read_with_pandas(path):

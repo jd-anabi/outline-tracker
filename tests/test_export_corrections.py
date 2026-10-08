@@ -33,6 +33,7 @@ def exported(dish_clip, tmp_path_factory):
     return folder
 
 
+# Overrides the shared `run_folder` of tests/conftest.py: it copies a run that was also exported once (`exported`).
 @pytest.fixture
 def run_folder(exported, tmp_path):
     """This test's own copy of the exported run folder."""
