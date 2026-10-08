@@ -139,5 +139,5 @@ def names(folder):
 
 
 def names_number(message, number):
-    """True when the text holds this whole number on its own, not as part of "0.1.0" or "12"."""
-    return re.search(rf"(?<![\d.]){number}(?!\d|\.\d)", message) is not None
+    """True when the text holds this whole number on its own, not as part of "0.1.0", "0.2.0.dev0" or "12"."""
+    return re.search(rf"(?<![\w.]){number}(?!\d|\.\d)", message) is not None

@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from results_helpers import names_number
 
 import outline_tracker
 from outline_tracker import fileio, session as session_module
@@ -294,8 +295,8 @@ def test_unknown_keys_between_known_ones_are_kept(tmp_path):
 # --------------------------------------------------------------------------- versions and other files
 
 def _names_number(message: str, number: int) -> bool:
-    """True when the text holds this whole number on its own, not as part of "0.1.0" or "12"."""
-    return re.search(rf"(?<![\d.]){number}(?!\d|\.\d)", message) is not None
+    """True when the text holds this whole number on its own, not as part of "0.1.0", "0.2.0.dev0" or "12"."""
+    return re.search(rf"(?<![\w.]){number}(?!\d|\.\d)", message) is not None
 
 
 @pytest.mark.parametrize("found", [0, 2])
@@ -322,6 +323,9 @@ def test_names_number_helper():
     assert not _names_number("this outline-tracker (0.1.0) reads version 12", 0)
     assert not _names_number("this outline-tracker (0.1.0) reads version 12", 1)
     assert not _names_number("this outline-tracker (0.1.0) reads version 12", 2)
+    assert not _names_number("this outline-tracker (0.2.0.dev0) reads version 12", 0)
+    # the second copy of the helper (tests/results_helpers.py) has no test of its own
+    assert not names_number("this outline-tracker (0.2.0.dev0) reads version 12", 0)
 
 
 @pytest.mark.parametrize("found", ["missing", "1", None, 1.5])
