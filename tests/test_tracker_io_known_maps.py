@@ -61,11 +61,12 @@ def known_map(rng, mirrored=False):
 def assert_the_fit_is_the_map(cal, to_mm, scale, matrix, rng):
     """A fitted calibration is the map that made its points: the scale, the 2 x 2 part, no residual,
     and at five points in and around the frame `to_mm` gives the map's mm and `to_px` gives the px
-    back from the map's own mm. "The same" is half of the last decimal that a Tracker-format file
-    has, 0.5e-6 mm and 0.5e-3 px."""
+    back from the map's own mm. "The same", and "no residual", is half of the last decimal that a
+    Tracker-format file has, 0.5e-6 mm and 0.5e-3 px: rounding in the fit grows with the size of
+    the numbers (here up to 2500 mm), and no file could show a difference below that."""
     assert cal.mm_per_px == pytest.approx(scale, rel=1e-6)
     assert cal.matrix() == pytest.approx(matrix, rel=0, abs=1e-6 * scale)
-    assert cal.rms_mm < 1e-9  # zero up to rounding
+    assert cal.rms_mm < SAME_MM  # zero up to rounding
     probe_px, probe_py = rng.uniform(-100, 2000, 5), rng.uniform(-100, 1200, 5)
     probe_x, probe_y = to_mm(probe_px, probe_py)
     x, y = cal.to_mm(probe_px, probe_py)
