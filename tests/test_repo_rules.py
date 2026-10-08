@@ -1,5 +1,6 @@
-"""Rules of the repository itself: entry point, import boundaries, no private data, when CI runs, how
-the tests share helpers and fixtures, and that no test waits by a delay.
+"""Rules of the repository itself: entry point, import boundaries, no private data, when CI runs and
+which tests each of its jobs runs, how the tests share helpers and fixtures, and that no test waits
+by a delay.
 
 Checks that a command "loads neither torch nor Qt" run that command in a subprocess: pytest-qt has
 already imported PySide6 into the test process.
@@ -258,6 +259,93 @@ def test_ci_runs_for_every_push_to_main():
     assert _path_filters("on:\n  push:\n    paths:\n      - outline_tracker/**\n") == ["paths:"]
     assert _path_filters('on: {push: {branches: [main], "paths": ["tests/**"]}}\n') != []
     assert _path_filters("on:\n  push:\n    branches: [main]\n  pull_request:\n") == []
+
+
+# The two test commands of a CI job, as its `run:` lines have them (docs/ROADMAP.md, W1 step 8).
+FAST_TESTS = 'uv run pytest -m "not slow"'
+SLOW_TESTS_WITHOUT_WEIGHTS = 'uv run pytest -m "slow and not weights" tests/slow'
+
+
+def _job_steps(workflow: str) -> dict[str, list[str]]:
+    """The jobs of a workflow text with their steps, {job: [the text of each step]}, in the order of
+    the text. A job is a key two spaces deep below the line `jobs:`; a step begins with `- ` six spaces
+    deep and goes on to the next step or job. The text is read as lines, not as YAML, so it has to be
+    laid out as this repository's workflow is."""
+    jobs: dict[str, list[str]] = {}
+    steps, in_jobs = None, False
+    for line in workflow.splitlines():
+        if re.match(r"[\w\"']", line):  # a key at the left edge
+            steps, in_jobs = None, line.rstrip() == "jobs:"
+        elif in_jobs and (job := re.fullmatch(r"  ([\w-]+):\s*", line)):
+            steps = jobs.setdefault(job[1], [])
+        elif steps is not None and line.startswith("      - "):
+            steps.append(line)
+        elif steps:
+            steps[-1] += "\n" + line
+    return jobs
+
+
+def _runs(step: str, command: str) -> bool:
+    """True if the step's `run:` line is this command and nothing else: a command in a block of several
+    lines or behind a `#` does not count."""
+    return re.search(rf"^ +(- )?run: {re.escape(command)} *$", step, re.MULTILINE) is not None
+
+
+def _test_step_gaps(workflow: str) -> list[str]:
+    """What the jobs of a workflow text lack, one line each: a job without a step that runs the fast
+    tests, without a step that runs the slow tests without weights, with that step before the fast
+    tests, or with that step not offline (`HF_HUB_OFFLINE: "1"` among the lines of the step)."""
+    found = []
+    for job, steps in _job_steps(workflow).items():
+        fast = [number for number, step in enumerate(steps) if _runs(step, FAST_TESTS)]
+        slow = [number for number, step in enumerate(steps) if _runs(step, SLOW_TESTS_WITHOUT_WEIGHTS)]
+        if not fast:
+            found.append(f"{job}: no step runs {FAST_TESTS}")
+        if not slow:
+            found.append(f"{job}: no step runs {SLOW_TESTS_WITHOUT_WEIGHTS}")
+        if fast and slow and slow[0] < fast[0]:
+            found.append(f"{job}: the slow tests run before the fast tests")
+        if slow and not re.search(r'^ +HF_HUB_OFFLINE: "1" *$', steps[slow[0]], re.MULTILINE):
+            found.append(f"{job}: the step of the slow tests does not set HF_HUB_OFFLINE")
+    return found
+
+
+def test_every_ci_job_runs_the_fast_tests_and_then_the_slow_tests_without_weights():
+    # The use of this test: nobody drops one of the two steps from one job unnoticed. It reads the file it
+    # guards, so it does not show that a job passes; only a run on GitHub shows that. The second step is
+    # offline, so that a test that reaches for the model fails there instead of downloading it
+    # (tests/test_slow_selection.py holds which tests the step selects).
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert list(_job_steps(workflow)) == ["ubuntu", "windows", "macos"]
+    assert _test_step_gaps(workflow) == []
+
+    # The check finds each gap in a made-up workflow, and none in a job that has both steps.
+    def job(name, *steps):
+        return [f"  {name}:", "    runs-on: ubuntu-latest", "    steps:", "      - uses: actions/checkout@v7", *steps]
+
+    fast = ["      - name: Fast tests", f"        run: {FAST_TESTS}"]
+    slow = ["      - name: Slow tests without weights", "        env:", '          HF_HUB_OFFLINE: "1"',
+            f"        run: {SLOW_TESTS_WITHOUT_WEIGHTS}"]
+    online = [slow[0], slow[3]]
+    later = [*slow[:3], f"        # run: {SLOW_TESTS_WITHOUT_WEIGHTS}", "        run: echo later"]
+    made_up = "\n".join([
+        "name: tests", "on:", "  push:", "    branches: [main]", "jobs:",
+        *job("whole", *fast, *slow),
+        *job("no-slow", *fast),
+        *job("no-fast", *slow),
+        *job("online", *fast, *online),
+        *job("slow-first", *slow, *fast),
+        *job("commented", *fast, *later),
+        ""])
+    assert list(_job_steps(made_up)) == ["whole", "no-slow", "no-fast", "online", "slow-first", "commented"]
+    assert [len(steps) for steps in _job_steps(made_up).values()] == [3, 2, 2, 3, 3, 3]  # with the checkout
+    assert _test_step_gaps(made_up) == [
+        f"no-slow: no step runs {SLOW_TESTS_WITHOUT_WEIGHTS}",
+        f"no-fast: no step runs {FAST_TESTS}",
+        "online: the step of the slow tests does not set HF_HUB_OFFLINE",
+        "slow-first: the slow tests run before the fast tests",
+        f"commented: no step runs {SLOW_TESTS_WITHOUT_WEIGHTS}",
+    ]
 
 
 # ---------------------------------------------------------------------------------------------

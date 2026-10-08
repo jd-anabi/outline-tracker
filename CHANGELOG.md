@@ -7,6 +7,11 @@ repository (`vX.Y.Z`).
 
 Development version `0.2.0.dev0`. The files it writes say so.
 
+### Added
+
+- The automatic tests also run on macOS, and on all three systems (Ubuntu, Windows, macOS) they
+  now include the slow tests that need no model weights.
+
 ### Changed
 
 - The size check of a shape is now of the largest connected piece of the mask, not of the whole

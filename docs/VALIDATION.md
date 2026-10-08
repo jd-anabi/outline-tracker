@@ -445,7 +445,8 @@ uv run pytest -m slow tests/slow/test_fine_mode.py -q -rP -p no:cacheprovider
   `cpu` and 0.0624 on `mps`.
 - No pictures were made of this run.
 - Still not tried: other click positions, a negative click, SAM 2.1, a real close-up clip. The
-  numbers are one run per device on one laptop; the slow tests do not run in CI.
+  numbers are one run per device on one laptop; the slow tests with the real model do not run in
+  CI.
 
 ### 4.3 Coarse mode at dish scale flags `LOWRES` (SPEC 13.4): in 0.1.0 B failed on one frame; with the size check of the largest piece all three pass
 
@@ -773,8 +774,10 @@ table of panel 8 and Export all in panel 9. All panels were on the merged main (
 - A real video of shrimp, and a long one (opening time, memory over minutes).
 - The three corrections of panel 8 with the real model (they are tested with stand-in models),
   and the real model's antennae outline in fine mode in the window.
-- Windows with the real model: the Windows test machine runs only the fast tests, with stand-in
-  models.
+- Windows and Linux with the real model: the test machines of CI run the fast tests, with stand-in
+  models, and since W1 step 8 the slow tests that need no weights (the real processor and session
+  with a stand-in for the network, the thread count of the real torch); a macOS machine runs the
+  same. None of them has the model, so the real model has never run on Windows or Linux.
 
 ## 7. The frozen reference numbers (W1 step 4, 2026-10-08)
 
@@ -872,7 +875,8 @@ known.
 
 **Not covered.**
 - The Apple GPU: no `mps` numbers are frozen; `mps` is held to the 3 px criterion (section 1.2).
-- Another machine, another torch version, Linux, Windows, CUDA: never run. CI runs no slow test.
+- Another machine, another torch version, Linux, Windows, CUDA: never run. CI runs only the slow
+  tests that need no weights (since W1 step 8), and none of those reads the frozen numbers.
 - Mask areas and outlines: only the centers are frozen.
 - The fault of section 1.4 (a changed mask threshold) was not repeated against the frozen table;
   the moved rows above stand in for it.

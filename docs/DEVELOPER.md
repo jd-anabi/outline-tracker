@@ -110,11 +110,19 @@ The fast tests need no model and no internet. Run them after every change:
 uv run pytest -m "not slow"
 ```
 
-The slow tests run the real model on short synthetic clips. They take minutes, need the model on this computer, and are not part of CI. Never run the model on a long real video for a test.
+The slow tests need torch. Most of them run the real model on short synthetic clips: they take minutes, need the model on this computer, carry the mark `weights`, and are not part of CI. Never run the model on a long real video for a test.
 
 ```shell
 uv run pytest -m slow
 ```
+
+The slow tests without that mark need no weights and take seconds. CI runs them in every job (Ubuntu, Windows and macOS), after the fast tests, offline and with a model folder that holds nothing:
+
+```shell
+uv run pytest -m "slow and not weights" tests/slow
+```
+
+`tests/test_slow_selection.py` lists them. A new slow test that loads the model gets the mark `weights`; one that does not is added to that list.
 
 The tests of the window alone:
 

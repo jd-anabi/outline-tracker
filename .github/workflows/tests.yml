@@ -1,6 +1,7 @@
 name: tests
 
-# SPEC 13.7. The slow tests (real model) never run here.
+# SPEC 13.7, and since W1 step 8 of docs/ROADMAP.md a macOS job. Every job runs the fast tests, then the
+# slow tests that need no weights. The slow tests with the real model never run here.
 on:
   push:
     branches: [main]
@@ -37,6 +38,13 @@ jobs:
         run: uv sync --locked
       - name: Fast tests
         run: uv run pytest -m "not slow"
+      - name: Slow tests without weights
+        # Offline, and the model folder is one that holds nothing: a test that reaches for the model fails
+        # here instead of downloading it.
+        env:
+          HF_HUB_OFFLINE: "1"
+          SHRIMP_MODEL_CACHE: ${{ runner.temp }}/no-model
+        run: uv run pytest -m "slow and not weights" tests/slow
 
   windows:
     runs-on: windows-latest
@@ -67,3 +75,34 @@ jobs:
           outline-tracker --version
       - name: Fast tests
         run: uv run pytest -m "not slow"
+      - name: Slow tests without weights
+        # Offline, and the model folder is one that holds nothing: a test that reaches for the model fails
+        # here instead of downloading it.
+        env:
+          HF_HUB_OFFLINE: "1"
+          SHRIMP_MODEL_CACHE: ${{ runner.temp }}/no-model
+        run: uv run pytest -m "slow and not weights" tests/slow
+
+  macos:
+    # A minute of macOS is billed as ten while the repository is private: then no run for a push.
+    if: ${{ github.event_name != 'push' || !github.event.repository.private }}
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install (pinned torch and PySide6-Essentials from PyPI)
+        run: uv sync --locked
+      - name: Fast tests
+        run: uv run pytest -m "not slow"
+      - name: Slow tests without weights
+        # Offline, and the model folder is one that holds nothing: a test that reaches for the model fails
+        # here instead of downloading it.
+        env:
+          HF_HUB_OFFLINE: "1"
+          SHRIMP_MODEL_CACHE: ${{ runner.temp }}/no-model
+        run: uv run pytest -m "slow and not weights" tests/slow
