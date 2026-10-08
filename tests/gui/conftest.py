@@ -1,12 +1,13 @@
 """Fixtures for the tests of the window (tests/gui/): larger clips, a tracked run folder, a second
 window, a settings folder of the test's own, the bottom bar on a grid of frames, a larger font for
-the application, a worker without a window, and two guards (the application's look is put back; a
-dialog that would block is an error).
+the application, a worker without a window, a results file that cannot be opened at this moment,
+and two guards (the application's look is put back; a dialog that would block is an error).
 pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says why). The
 fixtures for the tests of every folder, `window` among them, are in tests/conftest.py; plain helpers
 are in the helper modules beside this file.
 """
 
+import errno
 import shutil
 from dataclasses import replace
 from pathlib import Path
@@ -139,6 +140,47 @@ def worker(qtbot):
     made = Worker()
     yield made
     made.stop()
+
+
+# ---------------------------------------------------------------------------------------------
+# A results file that cannot be opened at this moment (Windows: during a run the worker thread replaces
+# results.npz at every autosave, and the open of a reader can be refused while it does)
+
+
+class RefusedOpens:
+    """What `refuse_open` returns. tried: how often `ResultsStore.load` was called since the call
+    of `refuse_open`, whether the open was refused or the file was read."""
+
+    def __init__(self, times: int, load):
+        self.tried = 0
+        self._left, self._load = times, load
+
+    def _open(self, path):
+        """In place of `ResultsStore.load`: refuse while refusals are left, then read the file."""
+        self.tried += 1
+        if self._left > 0:
+            self._left -= 1
+            raise PermissionError(errno.EACCES, "Permission denied", str(path))
+        return self._load(path)
+
+
+@pytest.fixture
+def refuse_open(monkeypatch):
+    """`refuse_open(times=1)` lets a results file be one that cannot be opened at this moment: the
+    next `times` calls of `ResultsStore.load` raise PermissionError, as the open inside it does on
+    Windows while the file is being replaced, and read nothing; every call after them reads its
+    file. No real lock is needed, so the tests that use it run on every system.
+
+    Returns a `RefusedOpens`, which counts the calls. `ResultsStore.load` is patched for the whole
+    process, with the test's own `monkeypatch`: it is the real one again after the test."""
+    from outline_tracker.results import ResultsStore
+
+    def refuse(times: int = 1) -> RefusedOpens:
+        opens = RefusedOpens(times, ResultsStore.load)
+        monkeypatch.setattr(ResultsStore, "load", opens._open)
+        return opens
+
+    return refuse
 
 
 # ---------------------------------------------------------------------------------------------

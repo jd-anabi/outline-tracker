@@ -66,6 +66,19 @@ def tracked(window, qtbot, clip, ids="ABC", end=20, heads=None):
     return panel
 
 
+def found_on(clip, frames, ids) -> ResultsStore:
+    """Results as a job would leave them: each object of `ids` found on each video frame of
+    `frames`, where the scene of `clip` has it (the masks of `ExactFake`, measured as tracking
+    measures them)."""
+    store, truth, picture = ResultsStore(), ExactFake(clip), np.zeros((240, 320, 3), np.uint8)
+    for frame in frames:
+        truth.set_view(frame, (0, 0), (320, 240))
+        clicks = [helpers.click(track_id, *center(clip, track_id, frame)) for track_id in ids]
+        for track_id, result in zip(ids, truth.preview(picture, clicks)):
+            store.put(track_id, measure_mask(result, frame, (0, 0, 320, 240), "coarse"))
+    return store
+
+
 # ---------------------------------------------------------------------------------------------
 # What is drawn on a tracked frame
 
@@ -238,3 +251,32 @@ def test_during_a_run_the_frames_saved_so_far_are_drawn(window, qtbot, clip_in_o
     assert set(panel.overlays.shown) == {"A"}  # frame 10, once the run has ended
     assert results_of(window).arrays("A").frames.tolist() == list(range(0, 120, 2))
     assert window.controller.run_folder.name == f"dish_tracker_outline_{NAME}"
+
+
+def test_a_results_file_that_cannot_be_opened_at_this_moment_leaves_the_drawing_until_the_next_reload(
+        window, qtbot, clip_in_odd_folder, refuse_open):
+    # On Windows the open of results.npz can be refused while the worker replaces the file at the next
+    # autosave (CI met it in the test above). The rule: what is drawn stays, nothing is raised, and the
+    # next reload draws what the file holds. Here the test writes the files, and `refuse_open` refuses.
+    clip = clip_in_odd_folder
+    panel, _ = ready_to_track(window, qtbot, clip, Tracked(ExactFake(clip)), ids="AB")
+    path = window.controller.run_folder / schema.RESULTS_NPZ
+    found_on(clip, [0, 2], "A").save(path)  # A is tracked
+    panel.overlays.reload()
+    window.show_frame(2)
+    assert set(panel.overlays.shown) == {"A"}
+    drawn = panel.overlays.shown["A"].outline.copy()
+    assert np.array_equal(drawn, results_of(window).arrays("A").outline_px[1].astype(float))
+    found_on(clip, [0, 2], "AB").save(path)  # an autosave of a run that tracks B replaces the file
+    opens = refuse_open()
+    panel.overlays.reload()  # the open is refused: nothing is raised
+    assert set(panel.overlays.shown) == {"A"}  # not the new state, and not an empty picture
+    assert np.array_equal(panel.overlays.shown["A"].outline, drawn)
+    assert panel.overlays.shown["A"].line.scene() is window.view.scene()
+    assert len(panel.overlays.dots.points()) == 1
+    assert opens.tried == 1
+    panel.overlays.reload()  # the next autosave says so again: now the file is read
+    assert set(panel.overlays.shown) == {"A", "B"}
+    assert np.array_equal(panel.overlays.shown["A"].outline, drawn)
+    assert len(panel.overlays.dots.points()) == 2
+    assert opens.tried == 2

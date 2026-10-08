@@ -161,7 +161,9 @@ class Overlays(QObject):
 
     def reload(self, *_) -> None:
         """Read results.npz of the run folder again, if it changed, and draw the frame shown. A
-        file that cannot be read as results draws nothing."""
+        file that cannot be read as results draws nothing. A file that cannot be opened at this
+        moment (on Windows, while the worker replaces it at the next autosave) leaves what is
+        drawn as it is, and is read at the next call (`ResultsOnDisk`)."""
         try:
             self._store = self._results.now()
         except ValueError:

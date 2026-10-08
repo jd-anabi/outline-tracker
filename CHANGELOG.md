@@ -32,6 +32,12 @@ Development version `0.2.0.dev0`. The files it writes say so.
   the tool with them, were retired. Their value is held by tests on known values and by reference
   numbers frozen under `tests/data/` (`docs/VALIDATION.md`, section 7). The tool itself did not change.
 
+### Fixed
+
+- On Windows the window could fail to read `results.npz` at the moment an autosave replaced it
+  during a run: the outlines on the picture were then not brought up to date, and an error was
+  printed. The window now keeps what it has drawn and reads the file again at the next autosave.
+
 ## 0.1.0 (2026-10-07)
 
 ### Added

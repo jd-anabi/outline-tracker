@@ -112,7 +112,14 @@ def frame_shown(controller, view) -> tuple[int, np.ndarray]:
 class ResultsOnDisk:
     """The results of the run folder as results.npz holds them now, for the functions that only
     read them. The file is read again whenever it was replaced or changed (its size, time and file
-    number are compared); without a run folder or a file there are no records."""
+    number are compared); without a run folder or a file there are no records.
+
+    A results file that cannot be opened at this moment leaves what was read before in place, and
+    is read at the next call. During a run the worker thread replaces results.npz at every
+    autosave, and the window reads it again after each one: on Windows the file can be refused to
+    the reader (PermissionError) while the worker is replacing it once more. These functions are
+    called in the GUI thread, so nothing waits and nothing is tried again here: the next autosave,
+    or the end of the run, asks again."""
 
     def __init__(self, controller):
         self._controller = controller
@@ -120,16 +127,24 @@ class ResultsOnDisk:
 
     def now(self) -> ResultsStore:
         """The store to read from; never change it. Raises ValueError for a file that is no
-        results file of this version (`ResultsStore.load`). Values in it are px and frame numbers."""
+        results file of this version (`ResultsStore.load`). A file that is refused at this moment
+        (PermissionError when it is looked at or opened) raises nothing: the store that was read
+        from it before is returned, one without records if nothing was read from it yet (what was
+        read in another run folder does not count), and the next call reads the file. Values in
+        it are px and frame numbers."""
         folder = self._controller.run_folder
         path = None if folder is None else Path(folder) / RESULTS_NPZ
-        if path is None or not path.is_file():
-            self._key, self._store = None, ResultsStore()
-            return self._store
-        found = path.stat()
-        key = (str(path), found.st_size, found.st_mtime_ns, found.st_ino)
-        if key != self._key:
-            self._store, self._key = ResultsStore.load(path), key
+        try:
+            if path is None or not path.is_file():
+                self._key, self._store = None, ResultsStore()
+                return self._store
+            found = path.stat()
+            key = (str(path), found.st_size, found.st_mtime_ns, found.st_ino)
+            if key != self._key:
+                self._store, self._key = ResultsStore.load(path), key
+        except PermissionError:  # refused at this moment: the key stays, so the next call reads the file
+            if self._key is not None and self._key[0] != str(path):  # what is held is another run folder's
+                self._key, self._store = None, ResultsStore()
         return self._store
 
 
