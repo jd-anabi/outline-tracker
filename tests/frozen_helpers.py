@@ -19,8 +19,10 @@ The frozen numbers of the real model are two such text files (the last part of t
 `POSITIONS`, where EdgeTAM found each object of two synthetic clips on the processor, and `WEIGHTS`, the
 hash and size of the weights that gave them. A position is (u_px, v_px): px in Tracker's convention
 (pixel centers at +0.5, u to the right, v downward) in the full frame; a frame is a video frame number.
-The slow tests that compare a run with them leave two decisions to this module: on which machine the
-limit of 0.01 px is asserted (`same_machine`), and how positions are judged (`compare_with_frozen`).
+The slow tests that compare a run with them (tests/slow/test_frozen_reference.py) leave two decisions to
+this module: on which machine the limit of 0.01 px is asserted (`same_machine`), and how positions are
+judged (`compare_with_frozen`). They ask both with one call for a clip of the table
+(`compare_with_the_frozen_positions`).
 
 The golden Tracker-format files are files of the second layout (the part before the last): `GOLDEN`,
 what the tool wrote for three cases with the stand-in model. The tests that compare a run with them
@@ -401,12 +403,12 @@ def _frozen_positions(clip: str, frames, names) -> tuple[dict[str, str], np.ndar
     return header, np.array([[table[clip, frame, name] for name in names] for frame in frames])
 
 
-def _compare_with_the_frozen_positions(what: str, clip: str, frames, names, found, true, weights_sha256) -> None:
+def compare_with_the_frozen_positions(what: str, clip: str, frames, names, found, true, weights_sha256) -> None:
     """Judge the positions that a run found on a clip of the frozen table against that table
-    (`frozen_helpers.compare_with_frozen`, which also prints what it measured): the rows that are lost
-    are the table's, and every position is within 0.01 px of its frozen one on the machine that froze
-    them, with the weights whose hash is `weights_sha256` (`frozen_helpers.same_machine`); on another
-    machine no row is lost and every position is under 3 px from its true center.
+    (`compare_with_frozen`, which also prints what it measured): the rows that are lost are the
+    table's, and every position is within 0.01 px of its frozen one on the machine that froze them,
+    with the weights whose hash is `weights_sha256` (`same_machine`); on another machine no row is
+    lost and every position is under 3 px from its true center.
 
     found, true: [i][k] = (u_px, v_px) of names[k] on frames[i], what the run found (NaN, NaN where
     lost) and the true center, px in Tracker's convention in the full frame.

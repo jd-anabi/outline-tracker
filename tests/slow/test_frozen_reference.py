@@ -6,7 +6,9 @@ run of tests/slow/test_regression_reference.py while last week's code was still 
 in that run it agreed within 0.01 px, and every position was under 3 px from its true center; each
 file's header says how. Last week's code left in W1 step 5, and with it what wrote the two files:
 the command in their headers writes nothing now. Here the package alone runs and is compared with
-them.
+them. This is the one place where a run is compared with the table; the two regression files beside
+this one (test_regression_reference.py, test_regression_pipeline.py) run the same clips for what the
+table does not hold.
 
 The two clips, both 1920 x 1080 px and 40 frames, tracked on frames 0, 2, ..., 38 with one positive
 click per object on frame 0:
@@ -41,7 +43,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from from_tracker_helpers import write_start_file
-from frozen_helpers import (WEIGHTS, compare_with_frozen, machine_here, machine_of, read_frozen, read_positions,
+from frozen_helpers import (WEIGHTS, compare_with_the_frozen_positions, machine_here, machine_of, read_frozen,
                             same_machine)
 from helpers import tracker_map
 from pipeline_helpers import _write_three_ellipse_clip
@@ -64,15 +66,6 @@ def loaded():
     from outline_tracker.segmenter import hf
 
     return hf.load_model(MODEL)
-
-
-@pytest.fixture(scope="module")
-def frozen():
-    """The frozen table: `header` (its `# key: value` lines) and `positions`, where
-    positions[clip, frame, track_id] = (u_px, v_px)."""
-    header, rows = read_positions()
-    return SimpleNamespace(header=header, positions={(clip, frame, track_id): (u_px, v_px)
-                                                     for clip, frame, track_id, u_px, v_px in rows})
 
 
 @pytest.fixture(scope="module")
@@ -108,26 +101,17 @@ def _segmenter(loaded):
     return hf.HFSegmenter(MODEL, "cpu", model=model, processor=processor)
 
 
-def _strict(frozen, segmenter) -> bool:
-    """Whether the limit of 0.01 px is asserted in this run: on the machine that froze the numbers,
-    with the weights that gave them (the machine rule, `frozen_helpers.same_machine`)."""
-    return same_machine(frozen.header, machine_here(segmenter.weights_sha256))
-
-
-def _frozen_positions(frozen, name, names) -> np.ndarray:
-    """The frozen positions of the clip `name`: [i][k] = (u_px, v_px) of names[k] on FRAMES[i]."""
-    return np.array([[frozen.positions[name, frame, track_id] for track_id in names] for frame in FRAMES])
-
-
 def _position(result) -> tuple[float, float]:
     """(u_px, v_px) of a result in the full frame; NaN, NaN if the object was not found."""
     u, v, _ = mask_center(result.mask)
     return u + result.offset[0], v + result.offset[1]
 
 
-def _segmenter_level(loaded, frozen, clips, name) -> None:
+def _segmenter_level(loaded, clips, name) -> None:
     """Track the clip `name` with the segmenter alone, on the frames and from the clicks that
-    `make_plan` reads from the clip's export, and judge the positions against the frozen ones."""
+    `make_plan` reads from the clip's export, and judge the positions against the frozen ones: the
+    table's rows of this clip, by the machine rule with the hash of the weights that the segmenter
+    reports (`frozen_helpers.compare_with_the_frozen_positions`)."""
     clip = clips[name]
     plan = tracker_io.make_plan(clip.export, fps=FPS, **clip.options)
     assert plan.frames == FRAMES and plan.names == clip.names
@@ -140,20 +124,20 @@ def _segmenter_level(loaded, frozen, clips, name) -> None:
         found.append([_position(result) for result in results])
     segmenter.close()
     assert len(found) == len(FRAMES) and segmenter.device == "cpu"
-    compare_with_frozen(f"{name}, segmenter on cpu", np.array(found), _frozen_positions(frozen, name, clip.names),
-                        clip.true, _strict(frozen, segmenter))
+    compare_with_the_frozen_positions(f"{name}, segmenter on cpu", name, FRAMES, clip.names, np.array(found),
+                                      clip.true, segmenter.weights_sha256)
 
 
-def test_selftest_clip_positions_equal_the_frozen_numbers(loaded, frozen, clips):
-    _segmenter_level(loaded, frozen, clips, "selftest")
+def test_selftest_clip_positions_equal_the_frozen_numbers(loaded, clips):
+    _segmenter_level(loaded, clips, "selftest")
 
 
-def test_three_ellipses_equal_the_frozen_numbers(loaded, frozen, clips):
-    _segmenter_level(loaded, frozen, clips, "three_ellipses")
+def test_three_ellipses_equal_the_frozen_numbers(loaded, clips):
+    _segmenter_level(loaded, clips, "three_ellipses")
 
 
 @pytest.mark.parametrize("name", ["selftest", "three_ellipses"])
-def test_the_pipelines_tracker_files_equal_the_frozen_numbers(loaded, frozen, clips, name, tmp_path):
+def test_the_pipelines_tracker_files_equal_the_frozen_numbers(loaded, clips, name, tmp_path):
     clip = clips[name]
     segmenter = _segmenter(loaded)
     run = from_tracker(clip.video, clip.export, fps=FPS, out=tmp_path / "run", model=MODEL, device="cpu",
@@ -164,8 +148,8 @@ def test_the_pipelines_tracker_files_equal_the_frozen_numbers(loaded, frozen, cl
     assert [table["frame"].tolist() for table in tables] == [FRAMES] * len(clip.names)
     # found[i][k] = (pixelx, pixely) of names[k] on FRAMES[i]; the empty cells of a lost row are read as NaN
     found = np.stack([table[["pixelx", "pixely"]].to_numpy(float) for table in tables], axis=1)
-    compare_with_frozen(f"{name}, pipeline (from_tracker) on cpu", found, _frozen_positions(frozen, name, clip.names),
-                        clip.true, _strict(frozen, segmenter))
+    compare_with_the_frozen_positions(f"{name}, pipeline (from_tracker) on cpu", name, FRAMES, clip.names, found,
+                                      clip.true, segmenter.weights_sha256)
 
 
 def test_the_weights_are_the_frozen_file(loaded):

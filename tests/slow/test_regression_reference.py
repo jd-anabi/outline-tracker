@@ -1,6 +1,5 @@
-"""The Hugging Face backend at the level of the segmenter: its prompts and masks, the frozen
-positions (SPEC 13.3), and the selftest criterion of SPEC 13.4. Every test here is slow: it needs
-torch.
+"""The Hugging Face backend at the level of the segmenter: its prompts and masks, and the selftest
+criterion of SPEC 13.4. Every test here is slow: it needs torch.
 
 Three groups:
 1. no weights (seconds): the real processor and session, with the network replaced by a stand-in
@@ -8,16 +7,17 @@ Three groups:
    1024 x 1024 input; the mask as logits > 0 and the crop rule; and, for logits that draw a known
    disk, its center and area in the frame;
 2. the real EdgeTAM on `cpu`: ONE loaded model, on the selftest clip (one object) and on a
-   three-object clip made with the same recipe. The positions are compared with the frozen ones,
-   tests/data/edgetam_cpu_positions.csv. The first run downloads the model (56 MB) and converts it;
-3. the selftest criterion (max error < 3 px against the true positions) on `cpu` and on `mps`.
+   three-object clip made with the same recipe: what the segmenter reports, the clip's own
+   properties, and the selftest criterion (max error < 3 px against the true positions). The first
+   run downloads the model (56 MB) and converts it;
+3. the selftest criterion on `mps`.
 
 Until W1 step 5 the tests of groups 1 and 2 ran last week's script (`shrimp.segment`) beside the new
 backend and compared the two; some test names still say "the reference". The script has left the
-repository. What it confirmed is kept as the frozen table: the positions that this backend gave in
-the run in which the script agreed within 0.01 px (docs/VALIDATION.md, section 7). So "the
-reference" of group 2 is that table now, judged as tests/frozen_helpers.py says: within 0.01 px on
-the machine that froze it, and by the true centers on another.
+repository. What it confirmed is kept as the frozen table, tests/data/edgetam_cpu_positions.csv: the
+positions that this backend gave in the run in which the script agreed within 0.01 px
+(docs/VALIDATION.md, section 7). The comparison of a run with that table (SPEC 13.3) is asserted
+once, in tests/slow/test_frozen_reference.py, for both clips; no test here reads the table.
 
 Lines printed with the prefix `VALIDATION` are measured numbers; show them with
 `uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP`.
@@ -36,7 +36,6 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import pytest
-from frozen_helpers import _compare_with_the_frozen_positions
 from pipeline_helpers import _write_three_ellipse_clip
 
 from outline_tracker import synthetic, tracker_io
@@ -298,7 +297,7 @@ def test_per_object_logits_give_the_reference_masks(processor, make_logits):
 
 
 # ---------------------------------------------------------------------------------------------
-# 2. The real EdgeTAM on cpu: one loaded model, and the frozen positions as the reference
+# 2. The real EdgeTAM on cpu: one loaded model
 
 
 @pytest.fixture(scope="module")
@@ -349,17 +348,6 @@ def selftest_runs(loaded, tmp_path_factory):
     )
 
 
-def test_selftest_clip_positions_equal_the_reference_csv(selftest_runs):
-    # the reference CSV is the frozen table: its 20 rows of this clip, none of them lost
-    s = selftest_runs
-    assert s.plan.frames == list(range(0, 40, 2))
-    assert s.run.frames == s.plan.frames
-    true = s.truth[["pixelx", "pixely"]].to_numpy(float)
-    _compare_with_the_frozen_positions("selftest clip (1 object, 20 frames), segmenter on cpu", "selftest",
-                                       s.plan.frames, ["selftest"], s.positions[:, None, :], true[:, None, :],
-                                       s.segmenter.weights_sha256)
-
-
 def test_selftest_clip_within_3_px_of_truth_on_cpu(selftest_runs):
     s = selftest_runs
     true = s.truth[["pixelx", "pixely"]].to_numpy(float)
@@ -389,7 +377,9 @@ def test_segmenter_reports_device_model_and_weights(selftest_runs):
 
 
 def test_three_objects_match_the_reference(loaded, tmp_path):
-    # the reference is the frozen table: its 60 rows of this clip, none of them lost
+    # The reference is the frozen table, and the comparison with it is asserted once, in
+    # tests/slow/test_frozen_reference.py::test_three_ellipses_equal_the_frozen_numbers. Here: the clip's
+    # own properties, and the selftest criterion for this clip, asserted directly.
     from outline_tracker.segmenter import hf
 
     model, processor = loaded
@@ -420,8 +410,6 @@ def test_three_objects_match_the_reference(loaded, tmp_path):
     # the selftest criterion (SPEC 13.4) for this clip too: every found position under 3 px from the
     # true center, which the clip's recipe gives
     assert error[found].max() < 3.0
-    _compare_with_the_frozen_positions("three-ellipse clip (3 objects, 20 frames), segmenter on cpu", "three_ellipses",
-                                       frames, NAMES, positions, true, segmenter.weights_sha256)
 
 
 # ---------------------------------------------------------------------------------------------
