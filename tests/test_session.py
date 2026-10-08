@@ -291,11 +291,6 @@ def test_unknown_keys_between_known_ones_are_kept(tmp_path):
 
 # --------------------------------------------------------------------------- versions and other files
 
-def _names_number(message: str, number: int) -> bool:
-    """True when the text holds this whole number on its own, not as part of "0.1.0", "0.2.0.dev0" or "12"."""
-    return re.search(rf"(?<![\w.]){number}(?!\d|\.\d)", message) is not None
-
-
 @pytest.mark.parametrize("found", [0, 2])
 def test_other_schema_version_raises_and_names_both_versions(tmp_path, found):
     data = spec_example()
@@ -306,8 +301,8 @@ def test_other_schema_version_raises_and_names_both_versions(tmp_path, found):
         Session.load(path)
     assert "session.json" in str(err.value)
     message = str(err.value).replace(str(path), "<the file>")  # a temp folder's name may hold any digit
-    assert _names_number(message, found), message  # the file's version
-    assert _names_number(message, 1), message  # the version this tool reads
+    assert names_number(message, found), message  # the file's version
+    assert names_number(message, 1), message  # the version this tool reads
     assert (err.value.found, err.value.supported) == (found, 1)
     assert isinstance(err.value, ValueError)  # one "bad input" family for the command line to catch
     with pytest.raises(SessionVersionError):
@@ -315,13 +310,11 @@ def test_other_schema_version_raises_and_names_both_versions(tmp_path, found):
 
 
 def test_names_number_helper():
-    assert _names_number("has version 2, but reads only version 1. Update.", 2)
-    assert _names_number("has version 2, but reads only version 1. Update.", 1)
-    assert not _names_number("this outline-tracker (0.1.0) reads version 12", 0)
-    assert not _names_number("this outline-tracker (0.1.0) reads version 12", 1)
-    assert not _names_number("this outline-tracker (0.1.0) reads version 12", 2)
-    assert not _names_number("this outline-tracker (0.2.0.dev0) reads version 12", 0)
-    # the second copy of the helper (tests/results_helpers.py) has no test of its own
+    assert names_number("has version 2, but reads only version 1. Update.", 2)
+    assert names_number("has version 2, but reads only version 1. Update.", 1)
+    assert not names_number("this outline-tracker (0.1.0) reads version 12", 0)
+    assert not names_number("this outline-tracker (0.1.0) reads version 12", 1)
+    assert not names_number("this outline-tracker (0.1.0) reads version 12", 2)
     assert not names_number("this outline-tracker (0.2.0.dev0) reads version 12", 0)
 
 
@@ -334,7 +327,7 @@ def test_missing_or_odd_schema_version_is_a_version_error(found):
         data["schema_version"] = found
     with pytest.raises(SessionVersionError) as err:
         Session.from_json(data)
-    assert _names_number(str(err.value), 1), str(err.value)
+    assert names_number(str(err.value), 1), str(err.value)
 
 
 @pytest.mark.parametrize("content", [
