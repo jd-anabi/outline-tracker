@@ -130,7 +130,10 @@ def fit_calibration(px, py, x, y) -> Calibration:
     Tracker's map is a similarity (scale, rotation, shift) with y flipped (its y points up, image rows
     go down), so two different points determine it and the residual of many points is zero up to
     rounding. The unflipped form is kept only if it fits clearly better: with two points, or points on
-    one line, both forms fit exactly, and the flip must not be left to rounding.
+    one line, both forms fit exactly, and the flip must not be left to rounding. `rms_mm` of the result
+    is the root mean square of the fit's residuals in mm over the x and the y values of all points
+    together, sqrt(sum(dx^2 + dy^2) / (2 n)) for n points: 1 / sqrt(2) of the root mean square distance
+    between the points and the map.
     """
     px, py, x, y = (np.asarray(v, float) for v in (px, py, x, y))
     ok = np.isfinite(px) & np.isfinite(py) & np.isfinite(x) & np.isfinite(y)

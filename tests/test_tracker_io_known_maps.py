@@ -6,7 +6,8 @@ taken from what the package returns, and nothing is read back with the package's
 
 - `fit_calibration`: 200 random maps of each form, made from a scale, an angle and a shift that
   the test drew (seeded numpy); rows without a value; the refusal below 1 px; the choice of the
-  form under noise;
+  form under noise; points moved off a typed map by a typed distance to both sides, where the fit
+  is still that map and `rms_mm` follows from the distance by arithmetic;
 - `read_tracker_export`: one known track in every layout that Tracker and a spreadsheet give it:
   comma, tab or semicolon; LF or CRLF; with and without a byte order mark;
 - `make_plan`: its options on a known track, by arithmetic on the frame numbers, and fps_true from
@@ -152,6 +153,54 @@ def test_mirrored_data_keep_the_mirrored_form_under_small_noise_and_lose_it_unde
     small, large = rng.normal(0, 1e-3 * extent_mm, (2, 40)), rng.normal(0, 1e3 * extent_mm, (2, 40))
     assert tracker_io.fit_calibration(px, py, x + small[0], y + small[1]).flip is False
     assert tracker_io.fit_calibration(px, py, x + large[0], y + large[1]).flip is True
+
+
+# Tracker's map at 0.05 mm per px with its x axis turned by 12 degrees and a shift of (-31.5, 27.25)
+# mm, and seven points in px that are not on one line. E_MM is how far each mm value is moved.
+TYPED_SCALE, TYPED_ANGLE_DEG, TYPED_SHIFT = 0.05, 12.0, (-31.5, 27.25)
+TYPED_POINTS = [(100.5, 80.5), (1800.5, 150.5), (900.5, 1000.5), (400.5, 600.5), (1500.5, 900.5),
+                (250.5, 950.5), (1200.5, 300.5)]
+PROBES = [(-100.0, -100.0), (2000.0, 1200.0), (960.0, 540.0), (0.5, 1079.5), (1919.5, 0.5)]  # px
+E_MM = 0.02
+
+
+@pytest.mark.parametrize("order", ["all +e, then all -e", "alternating"])
+def test_points_moved_by_e_to_both_sides_along_x_give_the_typed_map_and_an_rms_of_e_over_root_2(order):
+    # Each of the seven points is given twice: with its mm value on the typed map moved along x by
+    # +e, and by -e. For a map that gives p where the typed map gives m,
+    #     (p - (m + e))^2 + (p - (m - e))^2 = 2 (p - m)^2 + 2 e^2,
+    # so the sum of squares over all rows is twice the sum over the unmoved values plus a constant.
+    # The least-squares fit over all rows is therefore the map of the unmoved values: the typed
+    # map. A fit over a part of the rows is another map: seven is odd, so in neither order is the
+    # first half of the rows a set of whole pairs.
+    a, c = TYPED_SCALE * np.cos(np.radians(TYPED_ANGLE_DEG)), TYPED_SCALE * np.sin(np.radians(TYPED_ANGLE_DEG))
+    tx, ty = TYPED_SHIFT
+
+    def typed_map(px, py):  # Tracker's form
+        return a * px + c * py + tx, c * px - a * py + ty
+
+    px, py = np.array(TYPED_POINTS).T
+    x, y = typed_map(px, py)
+    if order == "alternating":  # point 1 by +e, point 1 by -e, point 2 by +e, ...
+        rows = px.repeat(2), py.repeat(2), x.repeat(2) + np.tile([E_MM, -E_MM], len(px)), y.repeat(2)
+    else:
+        rows = np.tile(px, 2), np.tile(py, 2), np.concatenate([x + E_MM, x - E_MM]), np.tile(y, 2)
+    cal = tracker_io.fit_calibration(*rows)
+
+    assert cal.flip is True
+    assert cal.mm_per_px == pytest.approx(TYPED_SCALE, rel=1e-6)
+    assert (cal.a, cal.c) == pytest.approx((a, c), rel=0, abs=1e-6 * TYPED_SCALE)  # the scale and the angle
+    assert (cal.tx, cal.ty) == pytest.approx((tx, ty), rel=0, abs=SAME_MM)
+    probe_px, probe_py = np.array(PROBES).T
+    probe_x, probe_y = typed_map(probe_px, probe_py)
+    fitted_x, fitted_y = cal.to_mm(probe_px, probe_py)
+    assert fitted_x == pytest.approx(probe_x, rel=0, abs=SAME_MM)
+    assert fitted_y == pytest.approx(probe_y, rel=0, abs=SAME_MM)
+    # rms_mm is the root mean square over the x and the y residuals of all rows together (the
+    # docstring of fit_calibration). At the typed map the 14 x residuals are +e or -e and the 14 y
+    # residuals are 0: sqrt(14 e^2 / 28) = e / sqrt(2), about 0.01414 mm. The root mean square of
+    # the distances would be e, and the mean of the residuals' sizes e / 2.
+    assert cal.rms_mm == pytest.approx(E_MM / np.sqrt(2.0), rel=1e-9)
 
 
 # ---------------------------------------------------------------------------------------------
