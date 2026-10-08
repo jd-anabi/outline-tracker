@@ -37,13 +37,27 @@ SIDE = 10  # px of padding at each side of the made-up button's text
 # point size (`larger_font`, tests/gui/conftest.py). Text is then wider by that much or somewhat less,
 # and taller. A larger font takes its room from the dock first and then from the padding of the
 # buttons; the two larger steps are there so that the rule is asked in both cases.
-# The largest step was chosen for the macOS system font. A wider system font at 60 % more needs more
-# than 960 px has (on the Linux test machine the dock gives way in the system's own font already,
-# docs/PLAN.md), so that step is asked on macOS only.
-ONLY_ON_MACOS = pytest.mark.skipif(
-    sys.platform != "darwin", reason="60 % larger is a step for the macOS system font; a wider font needs over 960 px")
-FONTS = [pytest.param(1, id="system_font"), pytest.param(1.15, id="15_percent_larger"),
-         pytest.param(1.6, id="60_percent_larger", marks=ONLY_ON_MACOS)]
+FONTS = [pytest.param(1, id="system_font"), pytest.param(1.15, id="15_percent_larger")]
+
+# Every clause is asked in every font on every system; no case is skipped. Two cases of the largest
+# step break the rule as the window is built today. Each is marked as failing, strictly: where a marked
+# case passes after all, the run fails, so a mark is proved wherever the tests run. Each is an open
+# question for the owner, and its mark goes with the answer.
+# - The row. The largest step was chosen for the macOS system font, where it passes. In a font as wide
+#   as the Linux test machine's (there the dock gives way in the system's own font already,
+#   docs/PLAN.md) the row at 60 % larger needs more than a window of 960 px has, also with the least
+#   padding. That was seen on a Mac with Verdana as the application's font, not yet on Linux. For
+#   Windows nothing is known either way, so the case is asked there like any other.
+# - The frame box. At 60 % larger six digits need more room than the 96 px box has: in the macOS
+#   system font, and in every other family that was tried on a Mac.
+ROW_FONTS = [*FONTS, pytest.param(1.6, id="60_percent_larger", marks=pytest.mark.xfail(
+    sys.platform == "linux", strict=True, raises=AssertionError,
+    reason="60 % larger in the wide font of the Linux test machine: the row needs more than 960 px has, also "
+           "with the least padding. Open: is this step asked in such a font, or is the step chosen by the font?"))]
+BOX_FONTS = [*FONTS, pytest.param(1.6, id="60_percent_larger", marks=pytest.mark.xfail(
+    strict=True, raises=AssertionError,
+    reason="60 % larger: six digits need more room than the 96 px frame box has. Open: is a frame number of "
+           "six digits asked at this size (then the box changes), or up to 15 % larger only?"))]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -198,7 +212,7 @@ def hold_to_the_rule(window) -> None:
     assert bar.first_button.x() == 8 and time.x() + time.width() == bar.width() - 8, seen  # the bar's padding
 
 
-@pytest.mark.parametrize("larger_font", FONTS, indirect=True)
+@pytest.mark.parametrize("larger_font", ROW_FONTS, indirect=True)
 def test_in_the_smallest_window_no_part_of_the_bottom_bar_is_cut_or_lies_over_another(larger_font, window, qtbot):
     # `larger_font` comes before `window`: the window measures its texts while it is built
     bar = smallest(window, qtbot, grid_frames(3, 40, 4))
@@ -209,7 +223,9 @@ def test_in_the_smallest_window_no_part_of_the_bottom_bar_is_cut_or_lies_over_an
     hold_to_the_rule(window)
 
 
-def test_in_the_smallest_window_the_frame_box_shows_a_frame_number_of_six_digits_whole(window, qtbot):
+@pytest.mark.parametrize("larger_font", BOX_FONTS, indirect=True)
+def test_in_the_smallest_window_the_frame_box_shows_a_frame_number_of_six_digits_whole(larger_font, window, qtbot):
+    # `larger_font` comes before `window`, as above: the box takes its font while the window is built
     bar = smallest(window, qtbot, [0, 999_999])
     bar.set_frame(999_999)
     box = bar.frame_box
