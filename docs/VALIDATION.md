@@ -290,7 +290,10 @@ at the level of the segmenter.
 the fast tests with a stand-in model (`tests/test_from_tracker_port.py`). A real video was not run:
 that is the owner's go/no-go check.
 
-### 4.2 Fine mode on the close-up shrimp (SPEC 13.4): two of three criteria FAIL
+### 4.2 Fine mode on the close-up shrimp (SPEC 13.4): in 0.1.0 two of three criteria failed from one click on the body; with a click on each antenna and the limit of 0.02 on the variation all three pass
+
+The record of version 0.1.0 comes first, as it was written. What changed after it, and the run
+with the changed rule, are under it.
 
 **What was run.** `synthetic.closeup_scene()` as it stands: 1080p, 480 frames at 240 fps (2 s),
 0.010 mm per px; object A is a 47 × 20 px body with two antennae 30 px long and 3 px wide that beat
@@ -355,11 +358,80 @@ numbers (RMS 0.044, window 191 px).
   to the object. Students who want the stroke need a positive click on each antenna and must judge
   the preview; one click on the body gives a clean body outline (good for position and heading,
   useless for solidity). This belongs in the how-to.
+  **Answer:** it is there. Step 6 of the README's quickstart and the text of panel 6 (Objects) say
+  to click on each antenna too if the antennae matter, because one click on the body leaves them
+  out.
 - The absolute solidity is then about 0.05 too high, while its variation is right (9.00 Hz,
   correlation 0.995). The limit of 0.02 on the absolute value is not met by this one try either.
   Whether the criterion should be the variation, or whether the clicks should be different, is J's
   decision; the tests still ask what SPEC 13.4 asks.
+  **Answer (decision 26 of `docs/ROADMAP.md`, decided 2026-10-07): the criterion is the
+  variation, and the clicks are these: one on the body and one on each thin part.** The peak is
+  still asked within 0.5 Hz of 9 Hz. The change is made after 0.1.0; see below.
 - Not tried: other click positions, a negative click, SAM 2.1, a real close-up clip.
+
+**What changed after 0.1.0 (decision 26 of `docs/ROADMAP.md`, decided 2026-10-07).** Fine mode is
+tested with a click on the body and on each thin part, and the limit of 0.02 is for the variation
+of the solidity. With d = measured solidity − true solidity on each frame, the offset is the mean
+of d, and the variation is what is left of d when the offset is taken out; its RMS is
+sqrt(mean((d − mean(d))²)). No package code changed: this is a change of the test.
+
+- The three clicks, all positive, on frame 0: the center of A's body at (1393.7, 465.9) px, and
+  the middle of each antenna at (1375.3, 446.4) and (1395.2, 439.2) px. The test works them out
+  from the scene alone: an antenna is 30 px long, so its middle is 15 px from where it starts on
+  the body's axis, along the antenna's direction on frame 0; the pose of the shrimp on frame 0
+  puts that point into the image. Before the model runs the test checks that each antenna click
+  is on the antenna's middle line, 1.5 px inside the shape (an antenna is 3 px wide), and outside
+  the body's ellipse, and that every click falls in a pixel of the true mask. These are the
+  clicks of the one trial above. The rule fixes them; they were not chosen by trying.
+- `test_solidity_is_within_0_02_rms_of_the_true_solidity` is replaced by
+  `test_solidity_follows_the_true_solidity_within_0_02_rms_once_the_offset_is_taken_out`: no
+  frame is lost, and the RMS of the variation is under 0.02. The two other tests ask what they
+  asked. Both `xfail` marks and their reason text are gone.
+- The new test can fail. A solidity that does not beat has a variation RMS of 0.0685 against this
+  truth: the true solidity's own RMS about its mean. The test works that number out from the
+  ground-truth table and asserts that it is over the limit. Seen once with the model too: the new
+  tests with the one click of 0.1.0 (2026-10-07, both devices) gave a peak at 0.56 Hz and a
+  variation RMS of 0.0682 on each device, so the two tests of the solidity failed there.
+- Nothing was tuned: not the limit, not the 9 ± 0.5 Hz, not the clicks, not the window.
+
+**Run with the changed rule (2026-10-07).** Once, `cpu` and then `mps`, on an Apple-silicon laptop
+with macOS 27; the library versions and the SHA-256 of the weights were checked and are those of
+section 1.
+
+```
+uv run pytest -m slow tests/slow/test_fine_mode.py -q -rP -p no:cacheprovider
+```
+
+**Result.** 6 passed in 263 s, both devices together.
+
+| | cpu | mps | asked |
+|---|---|---|---|
+| `shape_ok` = 1 | 480 of 480 frames | 480 of 480 frames | **passes** |
+| peak of the solidity spectrum (mean removed) | 9.00 Hz | 9.00 Hz | **passes** (9 ± 0.5 Hz) |
+| RMS of the variation (the offset taken out) | 0.0072 | 0.0068 | **passes** (< 0.02) |
+| offset (mean of measured − true) | +0.0540 | +0.0522 | not asked |
+| RMS difference from the true solidity, offset included | 0.0544 | 0.0526 | not asked any more (SPEC 13.4: < 0.02) |
+| measured solidity | 0.544 to 0.779, mean 0.626 | 0.542 to 0.776, mean 0.625 | true: 0.507 to 0.711, mean 0.572, peak at 9.00 Hz |
+| mask area | 952 to 1071 px, mean 1008 | 950 to 1053 px, mean 1004 | body alone 738 px; true mask 863 to 888 px |
+| window chosen | 191 px | 190 px | |
+| `px_along_major` / `cells_along_major` | 52.5 to 70.4 / 70.4 to 94.3 | 52.5 to 70.7 / 70.7 to 95.2 | both ≥ 20 |
+| lost frames; flags | 0; `HEADGUESS` on all (no head click) | the same | |
+| s per frame | 0.39 | 0.12 | |
+| device at the end | cpu | mps (no fall back) | |
+
+- The table holds the numbers the run printed (its two `VALIDATION` lines).
+- The `mps` column repeats the one trial above: every number that both give is the same. On
+  `cpu` the 480 frames were measured with three clicks for the first time. On both devices the
+  variation RMS is about a third of the limit.
+- The offset is as large as in the trial: the solidity itself is about 0.05 too high on both
+  devices, and the mask is larger than the true one (1008 and 1004 px on average against 863 to
+  888 px). The absolute value is not asked any more, and it is not within 0.02 of the truth. The
+  RMS difference from the solidity of the true pixel mask as scikit-image defines it is 0.0642 on
+  `cpu` and 0.0624 on `mps`.
+- No pictures were made of this run.
+- Still not tried: other click positions, a negative click, SAM 2.1, a real close-up clip. The
+  numbers are one run per device on one laptop; the slow tests do not run in CI.
 
 ### 4.3 Coarse mode at dish scale flags `LOWRES` (SPEC 13.4): in 0.1.0 B failed on one frame; with the size check of the largest piece all three pass
 
@@ -444,6 +516,18 @@ checked and are those of section 1. Nothing was tuned.
 - A's mask has two pieces on one frame (28). There the largest piece is 0.3 px shorter than the
   whole mask; A's range did not move. C's masks have one piece on every frame.
 - 0.78 s per frame for three objects on the dish square.
+
+**Two readings of the spec, kept as built (decision 27 of `docs/ROADMAP.md`, decided
+2026-10-07).** Nothing was run for this; the fast tests named here hold them. One jump of the axis
+flags one frame as `ORIENT`, not the rest of the track: a frame whose axis is more than 60 degrees
+from that of the last frame with an axis before it is flagged, and the frames after it are
+compared with it
+(`tests/test_derive_rules.py::test_one_axis_jump_flags_one_frame_and_becomes_the_reference`). A
+long shape always takes the core fallback: the opening leaves less than half of its mask, so the
+full mask stands for the core
+(`tests/test_measure_core.py::test_a_slender_ellipse_falls_back_to_the_full_mask`, an ellipse of
+72 × 12 px, aspect ratio 6). The other half of that reading, appendages longer than about 1.7
+body lengths, is held by no test.
 
 ### 4.4 Memory (SPEC 6.5): 10 coarse objects at 1080p
 
