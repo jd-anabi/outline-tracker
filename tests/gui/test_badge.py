@@ -22,7 +22,7 @@ import pytest
 from PySide6.QtGui import QFont, QFontDatabase, QFontInfo, QGuiApplication
 
 from outline_tracker.gui import theme
-from test_theme import badge_pixels, inside_badge, look  # noqa: F401  `look` is a fixture
+from test_theme import badge_pixels, inside_badge
 
 SIZE = 20           # the badge: a circle this many px across
 MIDDLE = SIZE / 2   # its centre, px from its left and from its top edge; also the circle's radius
@@ -151,7 +151,7 @@ def described(badge, seen: Reading) -> str:
 @pytest.mark.parametrize("number", [1, 9])
 @pytest.mark.parametrize("state", STATES)
 def test_the_digit_is_in_the_middle_of_a_circle_of_the_states_fill(state, number, text_font, window, qapp, qtbot,
-                                                                   look):  # noqa: F811
+                                                                   look):
     theme.apply(qapp, False)
     panel = window.panels[number - 1]
     assert panel.badge.text() == str(number)

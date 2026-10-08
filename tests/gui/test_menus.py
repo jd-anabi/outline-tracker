@@ -14,7 +14,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFileDialog
 
-from finish_helpers import named, never_blocking, record_every_dialog  # noqa: F401 (fixture)
+from finish_helpers import named, record_every_dialog
 from gui_helpers import picture, show
 from outline_tracker.gui import about, dialogs
 from prompt_helpers import objects_panel
@@ -147,7 +147,7 @@ def test_about_shows_the_versions(window, monkeypatch):
 # The dialog that asks for a folder
 
 
-def test_choose_folder_asks_for_one_folder_and_hands_it_on(window, qtbot, never_blocking, tmp_path):  # noqa: F811
+def test_choose_folder_asks_for_one_folder_and_hands_it_on(window, qtbot, never_blocking, tmp_path):
     show(window, qtbot)
     chosen = []
     dialogs.choose_folder(window, "Save session as", chosen.append)
@@ -166,7 +166,7 @@ def test_choose_folder_asks_for_one_folder_and_hands_it_on(window, qtbot, never_
     assert not asking.isVisible()
 
 
-def test_choose_folder_hands_on_nothing_when_the_user_cancels(window, qtbot, never_blocking):  # noqa: F811
+def test_choose_folder_hands_on_nothing_when_the_user_cancels(window, qtbot, never_blocking):
     show(window, qtbot)
     chosen = []
     dialogs.choose_folder(window, "Save session as", chosen.append)

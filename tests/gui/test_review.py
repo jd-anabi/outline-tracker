@@ -26,9 +26,8 @@ from PySide6.QtWidgets import QCheckBox, QPushButton, QTableView
 from gui_helpers import picture
 from outline_tracker import schema, tracking
 from prompt_helpers import Gate, gui_thread, this_thread
-from review_helpers import (FPS, GRID, contact_frames, current_row, dish_run, frames_with, give_scale,  # noqa: F401
-                            hint, listed, listed_by, opened_run, review_panel, shown_rows, tracked_window,
-                            written_since)
+from review_helpers import (FPS, GRID, contact_frames, current_row, frames_with, give_scale, hint, listed, listed_by,
+                            opened_run, review_panel, shown_rows, tracked_window, written_since)
 from track_helpers import NAME, Tracked, own_copy, run_log
 
 LISTED = ("LOST", "JUMP", "SIZE", "CONTACT", "EDGE", "MULTI")  # what the table lists by default (task C7)

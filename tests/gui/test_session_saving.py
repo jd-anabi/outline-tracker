@@ -22,8 +22,10 @@ from gui_helpers import record_dialogs, show
 from outline_tracker import fileio
 from outline_tracker.gui.session_controller import SessionController
 from outline_tracker.session import Session, VideoNotFoundError
-from session_helpers import (FOLDER_OF_NAME, NAME, body, hd_clip, hd_scene_clip, own_settings,  # noqa: F401 (fixtures)
-                             read_json, second_spelling, settle, type_into, wait_for_check)
+from session_helpers import (FOLDER_OF_NAME, NAME, body, read_json, second_spelling, settle, type_into,
+                             wait_for_check)
+
+pytestmark = pytest.mark.usefixtures("own_settings")  # every test here has a settings folder of its own
 
 NOT_WRITTEN = "A file could not be written"
 NOT_OPENED = "The session could not be opened"

@@ -23,8 +23,9 @@ import helpers
 from gui_helpers import record_dialogs, show
 from outline_tracker import video
 from outline_tracker.gui.panels import time_panel
-from session_helpers import (FOLDER_OF_NAME, LEFT, NAME, body, hd_clip, hd_scene_clip,  # noqa: F401 (fixtures)
-                             own_settings, settle, type_into, wait_for_check, write_manifest)
+from session_helpers import FOLDER_OF_NAME, LEFT, NAME, body, settle, type_into, wait_for_check, write_manifest
+
+pytestmark = pytest.mark.usefixtures("own_settings")  # every test here has a settings folder of its own
 
 START_HINT = "Type your name. Then open your video (a _tracker.mp4 file)."
 NAME_MISSING = "Type your name in panel 1 first. The run folder is named after you. Nothing is saved until then."

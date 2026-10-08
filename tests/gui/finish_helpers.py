@@ -18,10 +18,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 from gui_helpers import MARK, StandInSource, drawn, picture
 from session_helpers import NAME, body, type_into
@@ -58,16 +57,6 @@ def record_every_dialog(monkeypatch) -> Asked:
     for name in ("message", "open_file", "choose_folder"):
         monkeypatch.setattr(dialogs, name, getattr(recorder, name))
     return recorder
-
-
-@pytest.fixture
-def never_blocking(monkeypatch):
-    """Make `exec`, which would wait for the user and never return here, an error."""
-    def blocked(*_):
-        raise AssertionError("A dialog was run with exec(): it blocks the window. Use open().")
-
-    for kind in (QDialog, QMessageBox, QFileDialog):
-        monkeypatch.setattr(kind, "exec", blocked)
 
 
 def named(window, qtbot, clip, name: str = NAME) -> Path:

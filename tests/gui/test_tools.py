@@ -20,7 +20,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from calibration_helpers import (LEFT, NO_KEY, RIGHT, click_at, fit_of, lit, on_circle, opened, outside_points,
-                                 place, restart, screen_point, wide_clip)  # noqa: F401  (wide_clip is a fixture)
+                                 place, restart, screen_point)
 from gui_helpers import ClickRecorder, StandInSource, drawn, picture
 from outline_tracker import geometry
 

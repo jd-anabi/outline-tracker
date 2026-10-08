@@ -303,3 +303,76 @@ def test_no_module_under_tests_imports_conftest(tmp_path):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
     assert _conftest_imports(tmp_path) == ["gui/test_b.py:3", "helpers.py:2", "test_a.py:2"]
+
+
+def _fixtures_of(tree: ast.Module) -> dict[str, int]:
+    """The pytest fixtures a parsed file defines at its top level, {name: line}: the functions under
+    `@pytest.fixture` or `@fixture`, with or without arguments."""
+    found = {}
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            decorators = [d.func if isinstance(d, ast.Call) else d for d in node.decorator_list]
+            if any(ast.unparse(d) in ("pytest.fixture", "fixture") for d in decorators):
+                found[node.name] = node.lineno
+    return found
+
+
+def _fixtures_out_of_place(folder: Path) -> list[str]:
+    """Scan every .py file under `folder`, where a module's name is its file's name (the test folders
+    are on the import path). Return one line for each fixture that a helper module defines (a file
+    that is neither a conftest.py nor a test_*.py), and one for each `from module import ...` that
+    brings in a fixture of that module, by name or with a star."""
+    trees = {path: ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+             for path in sorted(folder.rglob("*.py"))}
+    fixtures: dict[str, dict[str, int]] = {}
+    for path, tree in trees.items():
+        fixtures.setdefault(path.stem, {}).update(_fixtures_of(tree))
+    found = []
+    for path, tree in trees.items():
+        rel = path.relative_to(folder).as_posix()
+        if path.name != "conftest.py" and not path.name.startswith("test_"):
+            found += [f"{rel}:{line}: the fixture {name} is in a helper module"
+                      for name, line in _fixtures_of(tree).items()]
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.level == 0 and fixtures.get(node.module):
+                theirs = fixtures[node.module]
+                asked = [alias.name for alias in node.names]
+                names = sorted(theirs) if "*" in asked else [name for name in asked if name in theirs]
+                if names:
+                    found.append(f"{rel}:{node.lineno}: imports {', '.join(names)} from {node.module}")
+    return found
+
+
+def test_no_fixture_is_imported_by_name(tmp_path):
+    # pytest finds a fixture by its name in the test's module and in the conftest.py files of the folders
+    # above it. A fixture imported into a test module is a second fixture: a session fixture is made once
+    # more for each module that imports it, an autouse fixture acts wherever it is imported, and a test
+    # that asks for it shadows the imported name. So a fixture is defined in a conftest.py, or in the
+    # test module that uses it.
+    scanned = {path.relative_to(TESTS).as_posix() for path in TESTS.rglob("*.py")}
+    assert {"conftest.py", "helpers.py", "gui/session_helpers.py", "gui/test_theme.py"} <= scanned  # the real folder
+    assert _fixtures_out_of_place(TESTS) == []
+    # the scan finds a fixture in a helper module, and its import by name, over several lines and with a
+    # star; it leaves alone the fixtures of a conftest.py and of a test module, and the import of a function
+    sources = {
+        "conftest.py": "import pytest\n\n\n@pytest.fixture(scope='session')\ndef clip():\n    return 1\n",
+        "gui/conftest.py": "from pytest import fixture\n\n\n@fixture\ndef look():\n    yield\n",
+        "gui/panel_helpers.py": ("import pytest\n\n\n@pytest.fixture\ndef own():\n    return 2\n\n\n"
+                                 "def body():\n    return 3\n"),
+        "gui/test_panel.py": ("from panel_helpers import body, own\nfrom test_theme import (badge,\n"
+                              "                        shade)\n\n\ndef test_body(own, shade):\n    pass\n"),
+        "gui/test_theme.py": ("import pytest\n\n\n@pytest.fixture\ndef shade():\n    yield\n\n\n"
+                              "def badge():\n    return 4\n\n\ndef test_shade(shade, look, clip):\n    pass\n"),
+        "gui/test_view.py": "from panel_helpers import body\nfrom test_theme import badge\n",
+        "test_all.py": "from panel_helpers import *\n",
+    }
+    for rel, text in sources.items():
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    assert _fixtures_out_of_place(tmp_path) == [
+        "gui/panel_helpers.py:5: the fixture own is in a helper module",
+        "gui/test_panel.py:1: imports own from panel_helpers",
+        "gui/test_panel.py:2: imports shade from test_theme",
+        "test_all.py:1: imports own from panel_helpers",
+    ]

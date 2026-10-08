@@ -30,9 +30,8 @@ from outline_tracker.export import export_all
 from outline_tracker.fileio import new_name
 from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import Gate
-from review_helpers import (GRID, assert_tracks_identical, confirming, contact_frames, dish_run,  # noqa: F401
-                            frames_with, hint, listed, object_cells, opened_run, results_file, track_again,
-                            tracked_window)
+from review_helpers import (GRID, assert_tracks_identical, confirming, contact_frames, frames_with, hint, listed,
+                            object_cells, opened_run, results_file, track_again, tracked_window)
 from track_helpers import Tracked, results_of, run_to_end, session_on_disk
 from tracking_helpers import Renaming, center, table_truth
 

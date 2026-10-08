@@ -7,8 +7,9 @@ thread; without a model in a thread of the listing's own), and `listed` waits fo
 that its table is up to date.
 
 Two ways to a tracked run:
-- `opened_run` opens a copy of a run folder that the core made once (`dish_run`: A, B and C of the
-  dish clip on every 2nd frame, with a scale): for the table and for going through it;
+- `opened_run` opens a copy of a run folder that the core made once (the fixture `dish_run` of
+  tests/gui/conftest.py: A, B and C of the dish clip on every 2nd frame, with a scale): for the
+  table and for going through it;
 - `tracked_window` tracks in the window itself, with a student's name: for the corrections, which
   start a run.
 
@@ -21,7 +22,6 @@ from __future__ import annotations
 import os
 import shutil
 
-import pytest
 from PySide6.QtCore import Qt
 
 from export_helpers import ellipse_gap
@@ -31,7 +31,6 @@ from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import gui_thread, this_thread
 from results_helpers import read_npz
 from track_helpers import Tracked, ready_to_track, run_to_end
-from tracking_helpers import abc_session, run
 
 FPS = 240.0                     # of every synthetic scene
 GRID = list(range(0, 120, 2))   # the dish clip has 120 frames; a new clip takes every 2nd
@@ -69,16 +68,6 @@ def give_scale(window, save: bool = True) -> None:
     window.controller.touch()
     if save:
         window.controller.save_now()
-
-
-@pytest.fixture(scope="session")
-def dish_run(dish_clip, tmp_path_factory):
-    """A run folder in which the core tracked A, B and C of the dish clip on every 2nd frame with
-    `ExactFake`, with a scale. Tests open a copy of it (`opened_run`), never the folder itself."""
-    folder = tmp_path_factory.mktemp("review") / "run"
-    status, _ = run(dish_clip, abc_session(dish_clip, folder), folder, ExactFake(dish_clip))
-    assert status == "complete"
-    return folder
 
 
 def opened_run(window, qtbot, run_folder, own_folder, model: bool = True, wait: bool = True):

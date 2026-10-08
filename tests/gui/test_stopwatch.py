@@ -17,11 +17,11 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QLineEdit
 
-from finish_helpers import is_paused, is_playing, named, never_blocking, tick  # noqa: F401 (fixture)
+from finish_helpers import is_paused, is_playing, named, tick
 from gui_helpers import show
 from outline_tracker import geometry
 from outline_tracker.gui.stopwatch_dialog import StopwatchDialog
-from session_helpers import body, hd_clip, hd_scene_clip, read_json, type_into  # noqa: F401 (fixtures)
+from session_helpers import body, read_json, type_into
 
 LEFT = Qt.MouseButton.LeftButton
 
@@ -64,7 +64,7 @@ def test_the_stopwatch_button_waits_for_a_video(window, qtbot, clip_in_odd_folde
     assert button.isEnabled()
 
 
-def test_the_dialog_is_window_modal_and_does_not_block(with_video, qtbot, never_blocking):  # noqa: F811
+def test_the_dialog_is_window_modal_and_does_not_block(with_video, qtbot, never_blocking):
     window = with_video
     dialog = opened(window, qtbot)
     assert dialog.isVisible() and dialog.windowModality() == Qt.WindowModality.WindowModal

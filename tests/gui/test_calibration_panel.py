@@ -18,7 +18,7 @@ from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QApplication
 
-from calibration_helpers import body, look, opened, place, restart, shown, wide_clip  # noqa: F401  (fixtures)
+from calibration_helpers import body, opened, place, restart, shown
 from gui_helpers import pixels
 from outline_tracker.gui import theme
 

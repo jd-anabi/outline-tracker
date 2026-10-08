@@ -1,54 +1,22 @@
 """What the tests of panels 1 and 2 and of session saving share (task C2).
 
-Imported by name from tests/gui/test_session_panels.py and tests/gui/test_session_saving.py, the
-fixtures too (a fixture imported into a test module is that module's own). Every clip a test here
-works on is a copy in the test's own folder, because the window writes a run folder next to the
-video. Frames are video frame numbers counted from 0; fps_true is in frames per second.
+Imported by name from tests/gui/test_session_panels.py and tests/gui/test_session_saving.py. Every
+clip a test here works on is a copy in the test's own folder (the fixture `hd_clip` of
+tests/gui/conftest.py), because the window writes a run folder next to the video. Frames are video
+frame numbers counted from 0; fps_true is in frames per second.
 """
 
 from __future__ import annotations
 
 import json
-import shutil
-from dataclasses import replace
 from pathlib import Path
 
-import pytest
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 NAME = "Ada Lovelace"
 FOLDER_OF_NAME = "dish_tracker_outline_Ada_Lovelace"  # SPEC 8.1: <video stem>_outline_<student>, blanks as _
 LEFT = Qt.MouseButton.LeftButton
-
-
-@pytest.fixture(autouse=True)
-def own_settings(tmp_path):
-    """Keep the application's settings out of the user's own: Qt's INI files of the user's scope
-    go to a folder of this test. Returns that folder. Qt cannot be asked where they went before,
-    so the scope is not put back: it stays on a test folder, which no later test may count on."""
-    folder = tmp_path / "settings"
-    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(folder))
-    return folder
-
-
-@pytest.fixture(scope="session")
-def hd_scene_clip(tmp_path_factory):
-    """`dish_scene` at 1280 x 720 px, 6 frames, 240 frames per second: a clip that last week's check
-    of a video has no warning for (720 px at the short side, a slow-motion frame rate)."""
-    from outline_tracker import synthetic
-
-    scene = synthetic.dish_scene(size=(1280, 720), n_frames=6)
-    return synthetic.render(scene, tmp_path_factory.mktemp("hd") / "hd_tracker.mp4")
-
-
-@pytest.fixture
-def hd_clip(tmp_path, hd_scene_clip):
-    """A copy of the 1280 x 720 clip in a folder of this test: the GroundTruth with its `path`."""
-    folder = tmp_path / "hd video"
-    folder.mkdir()
-    path = Path(shutil.copyfile(hd_scene_clip.path, folder / hd_scene_clip.path.name))
-    return replace(hd_scene_clip, path=path)
 
 
 def body(window, number: int):

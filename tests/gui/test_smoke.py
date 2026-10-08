@@ -24,8 +24,8 @@ import numpy as np
 import pytest
 
 from export_helpers import table
-from export_panel_helpers import (END, FRAMES, P0_FILES, STICK_ENDS, STICK_MM, export_panel,  # noqa: F401 (fixture)
-                                  no_error_recorded, second_window, walk_through)
+from export_panel_helpers import (END, FRAMES, P0_FILES, STICK_ENDS, STICK_MM, export_panel, no_error_recorded,
+                                  walk_through)
 from finish_helpers import record_every_dialog
 from gui_helpers import show
 from outline_tracker import schema

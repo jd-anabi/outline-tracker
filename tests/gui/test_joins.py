@@ -32,8 +32,8 @@ from PySide6.QtCore import QCoreApplication, Qt, QThread
 from PySide6.QtWidgets import QAbstractButton
 
 from export_helpers import calibrate
-from export_panel_helpers import (END, FRAMES, P0_FILES, WRITTEN, export_panel, export_to_end,  # noqa: F401 (fixture)
-                                  is_on, second_window, state, tracked, watch_export)
+from export_panel_helpers import (END, FRAMES, P0_FILES, WRITTEN, export_panel, export_to_end, is_on, state, tracked,
+                                  watch_export)
 from export_panel_helpers import hint as export_hint
 from export_panel_helpers import listed as files_listed
 from finish_helpers import record_every_dialog
@@ -48,7 +48,7 @@ from outline_tracker.gui.worker import Worker, worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from prompt_helpers import LEFT, NO_KEY, SAFETY_S, Gate, Watched, gui_thread, objects_panel, this_thread
-from review_helpers import dish_run, listed, listed_by, opened_run, review_panel  # noqa: F401 (fixture)
+from review_helpers import listed, listed_by, opened_run, review_panel
 from session_helpers import body, read_json
 from track_helpers import Tracked, ready_to_track, results_of, run_to_end, track_panel, window_hint
 from tracking_helpers import center

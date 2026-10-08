@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import math
 
-import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QApplication
 
@@ -20,29 +19,6 @@ from outline_tracker.session import Session
 
 LEFT, RIGHT = Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton
 NO_KEY = Qt.KeyboardModifier.NoModifier
-WIDE = (1280, 720)  # a frame wide enough for the spec's stick of 926 px
-
-
-@pytest.fixture(scope="session")
-def wide_clip(tmp_path_factory):
-    """`dish_scene` at 1280 x 720 px, 4 frames, H.264: the GroundTruth with its `path`."""
-    from outline_tracker import synthetic
-
-    scene = synthetic.dish_scene(size=WIDE, n_frames=4)
-    return synthetic.render(scene, tmp_path_factory.mktemp("wide") / "wide_tracker.mp4")
-
-
-@pytest.fixture
-def look(qapp):
-    """Put the application's style, palette and style sheet back after the test."""
-    from PySide6.QtGui import QPalette
-
-    style, palette, sheet = qapp.style().name(), QPalette(qapp.palette()), qapp.styleSheet()
-    yield
-    qapp.setStyleSheet(sheet)
-    qapp.setPalette(palette)
-    if style:
-        qapp.setStyle(style)
 
 
 def body(window, number: int):
