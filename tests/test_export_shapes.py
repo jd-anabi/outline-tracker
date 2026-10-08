@@ -30,6 +30,7 @@ from export_helpers import (
     head_point,
     load,
     ray_ellipse,
+    silent,
     table,
     true_core_center,
     true_pose,
@@ -43,10 +44,6 @@ GRID = list(range(0, 60, 2))       # shapes_scene: 60 frames, every 2nd
 DISH_GRID = list(range(0, 120, 2))  # the dish and close-up clips: 120 frames
 A_PX, B_PX, R_PX = 40.0, 15.0, 50.0
 RADII = [f"r_{degrees:03d}" for degrees in range(0, 360, 5)]
-
-
-def silent(_line):
-    """A log that keeps nothing."""
 
 
 @pytest.fixture(scope="module", params=["coarse, dish crop", "coarse, whole frame", "fine"])

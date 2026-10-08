@@ -17,7 +17,7 @@ import time
 import numpy as np
 import pandas as pd
 import pytest
-from export_helpers import MODEL, RUN_FILES, coarse_run, load, store_run, table
+from export_helpers import MODEL, RUN_FILES, coarse_run, load, silent, store_run, table
 from overlay_helpers import record
 
 from outline_tracker import export, export_tables, fileio, schema, tracker_io
@@ -37,10 +37,6 @@ def tracked(dish_clip, tmp_path_factory):
 def run_folder(tracked, tmp_path):
     """This test's own copy of the tracked run folder."""
     return shutil.copytree(tracked, tmp_path / "run")
-
-
-def silent(_line):
-    """A log that keeps nothing."""
 
 
 def read_with_pandas(path):

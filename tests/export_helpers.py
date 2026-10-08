@@ -132,6 +132,10 @@ def add_fine(clip, run_folder, track_id, window, head_px=None):
     session.save(run_folder / schema.SESSION_JSON)
 
 
+def silent(_line):
+    """A log that keeps nothing."""
+
+
 def table(path):
     """A CSV file of the run folder as a DataFrame: track ids and flags as text ("" for no flag)."""
     frame = pd.read_csv(path, dtype={"track_id": str, "flags": str, "mode": str}, keep_default_na=True)

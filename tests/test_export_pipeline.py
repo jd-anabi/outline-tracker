@@ -33,6 +33,7 @@ from export_helpers import (
     load,
     log_section,
     ray_ellipse,
+    silent,
     table,
     true_pose,
     world,
@@ -60,10 +61,6 @@ A_PX, B_PX, R_PX = 40.0, 15.0, 50.0
 RADII = [f"r_{degrees:03d}" for degrees in range(0, 360, 5)]
 POSITION_COLUMNS = ["u_px", "v_px", "x_mm", "y_mm", "area_mm2", "visible"]
 RETRACK, END, PIECE = 40, 50, 70    # the frames of the corrections: rows 20, 25 and 35 of a whole track
-
-
-def silent(_line):
-    """A log that keeps nothing."""
 
 
 def new_session(clip, run_folder, tracks):

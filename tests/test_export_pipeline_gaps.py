@@ -17,7 +17,7 @@ numbers; positions are px in Tracker's convention and mm in the user's axes (y u
 
 import numpy as np
 import pytest
-from export_helpers import MODEL, cells, frames_of, log_section, store_run
+from export_helpers import MODEL, cells, frames_of, log_section, silent, store_run
 from overlay_helpers import lost_record, record
 
 from outline_tracker import export
@@ -25,10 +25,6 @@ from outline_tracker import export
 # what a lost row keeps: every other cell of it is empty
 KEPT = {"positions.csv": {"track_id", "frame", "t_s", "visible", "mode", "flags"},
         "shapes.csv": {"track_id", "frame", "t_s", "n_components", "shape_ok", "flags"}}
-
-
-def silent(_line):
-    """A log that keeps nothing."""
 
 
 def gap_run(clip, run_folder, lost=False):

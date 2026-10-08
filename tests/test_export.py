@@ -17,7 +17,7 @@ import sys
 
 import numpy as np
 import pytest
-from export_helpers import K, MODEL, RUN_FILES, cells, coarse_run, load, store_run, table, true_pieces, world
+from export_helpers import K, MODEL, RUN_FILES, cells, coarse_run, load, silent, store_run, table, true_pieces, world
 from overlay_helpers import lost_record, record
 from tracking_helpers import DISH_BOX, box_truth
 
@@ -44,10 +44,6 @@ def tracked(dish_clip, tmp_path_factory):
 def run_folder(tracked, tmp_path):
     """This test's own copy of the tracked run folder."""
     return shutil.copytree(tracked, tmp_path / "run")
-
-
-def silent(_line):
-    """A log that keeps nothing."""
 
 
 # ---------------------------------------------------------------------------------------------
