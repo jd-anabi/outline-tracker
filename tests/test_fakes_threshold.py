@@ -127,6 +127,18 @@ def test_only_the_red_channel_counts():
     assert np.array_equal(mask_in_image(result, SHAPE), box_mask((10, 10, 20, 20)))
 
 
+def test_a_pixel_is_dark_when_its_red_value_is_below_128():
+    # the same box twice, green and blue light: with red at 127 it is dark, with red at 128 it is not
+    box = (30, 20, 45, 30)  # center (37.5, 25.0)
+    image = picture()
+    image[20:30, 30:45, 0] = 127
+    (found,) = ThresholdFake().start(image, [click("A", 37.5, 25.0)])
+    assert np.array_equal(mask_in_image(found, SHAPE), box_mask(box))
+    image[20:30, 30:45, 0] = 128
+    (lost,) = ThresholdFake().start(image, [click("A", 37.5, 25.0)])
+    assert_empty_result(lost)
+
+
 def test_every_dark_group_within_20_px_belongs_to_the_object():
     near, also_near, far = (20, 20, 26, 26), (34, 20, 40, 26), (70, 20, 76, 26)  # 7.5, 6.5 and 42.5 px away
     (result,) = ThresholdFake().start(picture(near, also_near, far), [click("A", 30.5, 23.5)])

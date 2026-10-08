@@ -53,3 +53,30 @@ def test_the_empty_mask_is_nan_with_area_zero_and_a_found_mask_gives_plain_numbe
     u, v, area = segment.mask_center(np.ones((6, 4), bool))
     assert (u, v, area) == (2.0, 3.0, 24)
     assert type(u) is float and type(v) is float and type(area) is int
+
+
+@pytest.mark.parametrize("layout", ["as it is", "transposed", "every 2nd row and 3rd column"])
+@pytest.mark.parametrize("dtype, inside", [(np.uint8, 1), (np.uint8, 255), (np.int32, 1), (np.float32, 1.0)],
+                         ids=["uint8 0 and 1", "uint8 0 and 255", "int32", "float32"])
+def test_a_rectangle_in_a_mask_that_is_not_bool_or_not_contiguous_is_centered_on_its_geometric_center(dtype, inside,
+                                                                                                      layout):
+    # The mask is 48 rows by 64 columns; its rectangle has the columns 12 to 19 and the rows 6 to 11, so it
+    # covers the plane from 12 to 20 and from 6 to 12: center (16, 9), 8 * 6 = 48 pixels.
+    if layout == "as it is":
+        m = np.zeros((48, 64), dtype)
+    elif layout == "transposed":
+        m = np.zeros((64, 48), dtype).T
+    else:  # a view of every 2nd row and 3rd column of a larger array, whose other elements are all set
+        m = np.full((96, 192), inside, dtype)[::2, ::3]
+        m[:] = 0
+    m[6:12, 12:20] = inside
+    assert m.shape == (48, 64) and m.flags["C_CONTIGUOUS"] == (layout == "as it is")
+    u, v, area = segment.mask_center(m)
+    assert (u, v, area) == (pytest.approx(16.0), pytest.approx(9.0), 48)
+    assert type(u) is float and type(v) is float and type(area) is int
+
+
+@pytest.mark.parametrize("shape", [(0, 7), (5, 0)])
+def test_an_array_without_rows_or_without_columns_is_an_empty_mask(shape):
+    u, v, area = segment.mask_center(np.zeros(shape, bool))
+    assert np.isnan(u) and np.isnan(v) and area == 0 and type(area) is int
