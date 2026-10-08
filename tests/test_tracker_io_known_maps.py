@@ -9,7 +9,8 @@ taken from what the package returns, and nothing is read back with the package's
   form under noise;
 - `read_tracker_export`: one known track in every layout that Tracker and a spreadsheet give it:
   comma, tab or semicolon; LF or CRLF; with and without a byte order mark;
-- `make_plan`: its options on a known track, by arithmetic on the frame numbers;
+- `make_plan`: its options on a known track, by arithmetic on the frame numbers, and fps_true from
+  the times of two marked frames;
 - `write_tracker_file`: the lines of the file, typed by hand.
 
 Coordinates: pixelx and pixely are px in Tracker's convention (pixelx to the right, pixely downward,
@@ -267,6 +268,16 @@ def test_a_track_with_unmarked_frames_takes_the_median_spacing_and_ends_on_its_l
     assert (plan.start, plan.step, plan.n) == (100, 3, 8)
     assert plan.frames == [100, 103, 106, 109, 112, 115, 118, 121]
     assert plan.fps == pytest.approx(250.0, rel=1e-5)
+
+
+def test_two_marked_frames_are_enough_for_fps_true(tmp_path):
+    # The frames 100 and 110, with t = 0 and t = 0.04 s in the export: 10 frames in 0.04 s are 250
+    # frames per s. One spacing of 10 frames, and n = (110 - 100) // 10 + 1 = 2.
+    path = tmp_path / "A.csv"
+    path.write_bytes(export_bytes(moving_point([100, 110])))
+    plan = tracker_io.make_plan(path)
+    assert plan.fps == pytest.approx(250.0, rel=1e-5)
+    assert (plan.start, plan.step, plan.n) == (100, 10, 2) and plan.frames == [100, 110]
 
 
 def test_a_point_mass_without_any_marked_frame_is_refused(tmp_path):
