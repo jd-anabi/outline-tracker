@@ -361,7 +361,10 @@ numbers (RMS 0.044, window 191 px).
   decision; the tests still ask what SPEC 13.4 asks.
 - Not tried: other click positions, a negative click, SAM 2.1, a real close-up clip.
 
-### 4.3 Coarse mode at dish scale flags `LOWRES` (SPEC 13.4): A and C pass, B FAILS on one frame
+### 4.3 Coarse mode at dish scale flags `LOWRES` (SPEC 13.4): in 0.1.0 B failed on one frame; with the size check of the largest piece all three pass
+
+The record of version 0.1.0 comes first, as it was written. What changed after it, and the run
+with the changed rule, are under it.
 
 **What was run.** `synthetic.dish_scene()` as it stands (1080p, 0.0324 mm per px, bodies 14.5 px
 long), its three objects tracked coarse from one click each on frames 0, 2, …, 58 with the scene's
@@ -395,7 +398,52 @@ numbers on both runs.
   it. **For J:** should `px_along_major` and `cells_along_major` be taken from the largest piece of
   the mask, so that a few stray pixels cannot switch `shape_ok` on? That is a change of SPEC 7.8,
   not made here.
+  **Answer (decision 26 of `docs/ROADMAP.md`, decided 2026-10-07): yes.** It is made after 0.1.0;
+  see below.
 - 0.76 to 0.81 s per frame for three objects on the dish square.
+
+**What changed after 0.1.0 (decision 26 of `docs/ROADMAP.md`, decided 2026-10-07).** The size
+check is of the largest piece of the mask. `px_along_major`, `cells_along_major` and `shape_ok`,
+and with them the flag `LOWRES`, are taken from the largest connected piece (pixels that touch at
+a side or a corner belong together): L1 = 4 sqrt(lambda1) of the covariance of that piece's pixel
+centers, the formula of SPEC 7.8 on fewer pixels. It is the piece the outline goes around.
+
+- The three numbers are derived at export from the mask that `results.npz` stores, and only on
+  frames whose mask has more than one piece. A frame with one piece has the numbers it had. No
+  saved format changed, so a run folder of 0.1.0 shows the new numbers at its next export.
+- Not changed: the position and the area are of the whole mask, and so are `major_mm`,
+  `minor_mm` and `eccentricity`. The core and the heading were stored at tracking time. `SIZE`,
+  `MULTI` and the limit of 20 are as they were.
+- The test asks what it asked. Its `xfail` mark on B and the reason text are gone; no assertion
+  changed.
+
+**Run with the changed rule (2026-10-07).** The same command, once, on `cpu`, on an
+Apple-silicon laptop with macOS 27; the library versions and the SHA-256 of the weights were
+checked and are those of section 1. Nothing was tuned.
+
+**Result.** 3 passed in 35 s.
+
+| object | frames with a mask | `px_along_major` | `cells_along_major` | `LOWRES` |
+|---|---|---|---|---|
+| A (shrimp, at the wall) | 30 of 30 | 16.5 to 24.4 px | 4.2 to 6.2 | 30 of 30: **passes** |
+| B (plain body) | 15 of 30 | 15.0 to 16.0 px | 3.8 to 4.1 | 15 of 15: **passes** |
+| C (plain body) | 30 of 30 | 14.9 to 16.7 px | 3.8 to 4.3 | 30 of 30: **passes** |
+
+- The table holds the numbers the run printed (its `VALIDATION` line). The next three points
+  were read from the `shapes.csv` and `positions.csv` that the same run wrote; the true centers
+  are those of the scene's ground-truth table.
+- The model did what it did before: B is lost on frames 6 to 34, and on frame 36 its mask has
+  99 px in two pieces, 97 px and 2 px. Frame 36 now reads `px_along_major` 15.0 px and
+  `cells_along_major` 3.8, `shape_ok` is 0 and its flags are `LOWRES;ORIENT;HEADGUESS`. Its
+  `major_mm` is still of the whole mask: 4.37 mm, which is 134.8 px.
+- Left as it is, on purpose: on frame 36 the position is the centroid of all 99 px, so it is
+  still 5.0 px from the true center, and the frame keeps `ORIENT`, because the core's opening
+  radius was taken from the whole mask at tracking time. Decision 26 is about the size check
+  only. The other errors against the true centers are those of the table above too: A 2.25 px,
+  B 0.71 px on its other 14 frames, C 0.48 px.
+- A's mask has two pieces on one frame (28). There the largest piece is 0.3 px shorter than the
+  whole mask; A's range did not move. C's masks have one piece on every frame.
+- 0.78 s per frame for three objects on the dish square.
 
 ### 4.4 Memory (SPEC 6.5): 10 coarse objects at 1080p
 

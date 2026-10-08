@@ -9,17 +9,13 @@ shared by the three tests (one per object). On those frames B and C are more tha
 (they meet on frame 240).
 
 Why `LOWRES` is the right answer, from the scene alone (SPEC 7.8): `shape_ok` needs at least 20
-camera pixels AND 20 of the model's grid cells along the major axis. The bodies are 14.5 px long,
-and a grid cell of the dish square (2 x 1.03 x 486 px, 1002 whole px wide) is 3.9 px, so a body
-spans 3.7 cells. Asserted for each object: it is found at its click, and every frame on which it
-has a mask has `shape_ok` = 0 and the flag `LOWRES`.
+camera pixels AND 20 of the model's grid cells along the major axis of the largest piece of the
+mask. The bodies are 14.5 px long, and a grid cell of the dish square (2 x 1.03 x 486 px, 1002
+whole px wide) is 3.9 px, so a body spans 3.7 cells. Asserted for each object: it is found at its
+click, and every frame on which it has a mask has `shape_ok` = 0 and the flag `LOWRES`.
 
-The test of B fails with the real model and is marked xfail (strict), with what was measured: on
-one frame B's mask holds two stray pixels far from the body. Nothing was tuned;
-docs/VALIDATION.md, section 4.3, has the numbers.
-
-Lines printed with the prefix `VALIDATION` are the numbers of docs/VALIDATION.md; show them with
-`uv run pytest -m slow tests/slow/test_coarse_lowres.py -q -rP`.
+Lines printed with the prefix `VALIDATION` are the numbers of docs/VALIDATION.md, section 4.3;
+show them with `uv run pytest -m slow tests/slow/test_coarse_lowres.py -q -rP`.
 
 Coordinates: px in Tracker's convention (pixel centers at +0.5, SPEC 3.1), in the full frame;
 frames are video frame numbers. Every test here is slow: it needs torch.
@@ -38,16 +34,6 @@ pytestmark = pytest.mark.slow
 
 FRAMES = list(range(0, 60, 2))  # the tracked video frames
 SHAPE_OK_MIN = 20  # px and grid cells along the major axis that `shape_ok` asks for (SPEC 7.8)
-
-STRAY_PIXELS = (
-    "Measured on 2026-10-07 with EdgeTAM on cpu: B is LOWRES on 14 of the 15 frames on which it has a mask. The "
-    "model lost B on frames 6 to 34. On frame 36 it came back with a mask of 99 px in two pieces: the body, and 2 "
-    "px far away from it. The second moments of the whole mask then give a major axis of 134.8 px (34.4 cells), so "
-    "by the rule of SPEC 7.8 shape_ok is 1 and the frame is not LOWRES (it is flagged ORIENT; MULTI needs a second "
-    "piece of 10%). From frame 38 on the mask is the body again (15 px, LOWRES). A and C are LOWRES on all 30 "
-    "frames. Nothing was tuned. For J (docs/VALIDATION.md 4.3): should px_along_major be taken from the largest "
-    "piece of the mask?"
-)
 
 
 @pytest.fixture(scope="module")
@@ -85,8 +71,7 @@ def dish_run(tmp_path_factory):
     return done
 
 
-@pytest.mark.parametrize("name", ["A", pytest.param("B", marks=pytest.mark.xfail(strict=True, reason=STRAY_PIXELS)),
-                                  "C"])
+@pytest.mark.parametrize("name", ["A", "B", "C"])
 def test_every_frame_with_a_mask_is_flagged_lowres(dish_run, name):
     shapes = dish_run.shapes[dish_run.shapes.track_id == name]
     positions = dish_run.positions[dish_run.positions.track_id == name]
