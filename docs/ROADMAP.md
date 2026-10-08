@@ -682,3 +682,11 @@ One line per session: date, workstream, what was done, the last commit.
   deleted; install lines with the tag.
 - 2026-10-07: W0: CI green on Linux and Windows at `9a36125`; tagged `v0.1.0`. Open in W0: the
   owner's Windows check, and making the repository public. Next: W1, from step 0.
+- 2026-10-08: W1 (a clean base): steps 0 to 8 done; the whole range reviewed, its ten confirmed
+  findings fixed or assigned. `CLAUDE.md` rewritten; the size checks use the largest piece of a
+  mask (decision 26); reference numbers frozen under `tests/data/`; the class template removed;
+  fixtures in `conftest.py` files and one lock fixture; no test waits a fixed time; CI on
+  Linux, Windows and macOS, with the slow tests that need no weights. A race of 0.1.0 on
+  Windows, found by the new CI, is fixed on `main`. The repository is public. This commit is
+  the pre-release `v0.2.0a1`; the README still installs `v0.1.0`. Open: the owner's Windows
+  check of `v0.1.0`; whether the race fix goes out as `v0.1.1`; decisions 29 and 30. Next: W2.
