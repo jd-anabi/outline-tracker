@@ -11,6 +11,11 @@ v downward, the pixel in column c and row r has its center at (c + 0.5, r + 0.5)
 the unit vector (cos, sin) in (u, v). Because v points down, that turn is CLOCKWISE on screen. This
 module knows nothing about world coordinates: a test that needs a world angle maps the direction
 vector through its own calibration.
+
+The disk and the ellipse are the package's own shapes (outline_tracker/synthetic_shapes.py), asked in
+this module's frame; tests/test_shapes_agree.py holds both to their closed-form outlines. The package's
+body frame has xi toward the head and eta 90 degrees counterclockwise on screen from xi, so its heading
+is minus this module's angle. The other shapes here have no equivalent in the package.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ from __future__ import annotations
 import numpy as np
 
 from outline_tracker.segmenter.base import MaskResult, crop_to_bbox
+from outline_tracker.synthetic_shapes import Disk, Ellipse
 
 
 def pixel_centers(height: int, width: int, origin: tuple[int, int] = (0, 0)) -> tuple[np.ndarray, np.ndarray]:
@@ -36,8 +42,9 @@ def direction(angle: float) -> np.ndarray:
 
 
 def disk(u: np.ndarray, v: np.ndarray, center: tuple[float, float], radius: float) -> np.ndarray:
-    """Exact signed distance (px, positive inside) to the circle of `radius` px around `center` (u, v)."""
-    return radius - np.hypot(u - center[0], v - center[1])
+    """Exact signed distance (px, positive inside) to the circle of `radius` px around `center` (u, v):
+    the package's `Disk`, asked at the points as seen from its center (xi to the right, eta up)."""
+    return Disk(radius).distance(u - center[0], -(v - center[1]))
 
 
 def ellipse(u: np.ndarray, v: np.ndarray, center: tuple[float, float], a: float, b: float,
@@ -45,17 +52,15 @@ def ellipse(u: np.ndarray, v: np.ndarray, center: tuple[float, float], a: float,
     """Signed distance (px, positive inside) to an ellipse, to first order near its boundary.
 
     `center` (u, v) and the semi-axes `a` (along `direction(angle)`) and `b` (across) are in px.
-    With q = sqrt((x/a)^2 + (y/b)^2) in the ellipse's own axes, d = (1 - q) / |grad q|: exact in
+    It is the package's `Ellipse(a, b)` with its head along `direction(angle)`. With
+    q = sqrt((x/a)^2 + (y/b)^2) in the ellipse's own axes, d = (1 - q) / |grad q|: exact in
     sign everywhere (inside is q < 1), and a distance within a pixel or so of the boundary. Deep
     inside it is capped at min(a, b).
     """
     e = direction(angle)
     du, dv = u - center[0], v - center[1]
-    x = du * e[0] + dv * e[1]
-    y = -du * e[1] + dv * e[0]
-    q = np.sqrt((x / a) ** 2 + (y / b) ** 2)
-    slope = np.hypot(x / a ** 2, y / b ** 2) / np.maximum(q, 1e-12)
-    return np.minimum((1.0 - q) / np.maximum(slope, 1e-12), min(a, b))
+    # the package's body frame: xi along the head, eta across it, counterclockwise on screen (v is down)
+    return Ellipse(a, b).distance(du * e[0] + dv * e[1], du * e[1] - dv * e[0])
 
 
 def capsule(u: np.ndarray, v: np.ndarray, p0: tuple[float, float], p1: tuple[float, float],
