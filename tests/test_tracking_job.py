@@ -8,20 +8,17 @@ are video frame numbers; positions are px in Tracker's convention (SPEC 3.1).
 """
 
 import copy
-import errno
-import os
 import time
 import weakref
 from dataclasses import replace
 from datetime import datetime
-from pathlib import Path
 
 import numpy as np
 import pytest
 from helpers import SMALL
 from tracking_helpers import Recorder, Watched, dish_circle, make_session, run, table_truth, track
 
-from outline_tracker import fileio, synthetic, tracking
+from outline_tracker import synthetic, tracking
 from outline_tracker.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake
 from outline_tracker.session import Session
@@ -191,17 +188,9 @@ def test_a_job_for_a_track_the_session_does_not_have_is_refused(dish_clip, tmp_p
 
 
 @pytest.mark.parametrize("locked, kept_as", [("results.npz", "results.new.npz"), ("session.json", "session.new.json")])
-def test_a_file_that_stays_locked_is_written_next_to_it_and_the_log_says_so(dish_clip, tmp_path, monkeypatch, locked,
+def test_a_file_that_stays_locked_is_written_next_to_it_and_the_log_says_so(dish_clip, tmp_path, lock_file, locked,
                                                                             kept_as):
-    real_replace = os.replace
-
-    def replace_unless_locked(src, dst):  # what Windows does while another program holds the file open
-        if Path(dst).name == locked:
-            raise PermissionError(errno.EACCES, "The file is being used by another process", str(dst))
-        real_replace(src, dst)
-
-    monkeypatch.setattr(fileio.os, "replace", replace_unless_locked)
-    monkeypatch.setattr(fileio.time, "sleep", lambda seconds: None)
+    lock_file(locked)  # by its name: what Windows does while another program holds the file open
     session = make_session(dish_clip, tmp_path, [track(dish_clip, "B")])
     status, seen = run(dish_clip, session, tmp_path, ExactFake(dish_clip))
     assert status == "complete"

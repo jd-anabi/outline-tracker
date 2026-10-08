@@ -10,10 +10,9 @@ size within half of its last digit.
 """
 
 import json
-import os
 import re
 
-from outline_tracker import cli, fileio
+from outline_tracker import cli
 
 WROTE = re.compile(r"^wrote (?P<name>.+): (?P<number>\d+(?:\.\d)?) (?P<unit>B|kB|MB|GB)$")
 UNIT_BYTES = {"B": 1, "kB": 10 ** 3, "MB": 10 ** 6, "GB": 10 ** 9}
@@ -64,17 +63,3 @@ def within_rounding(shown: tuple[float, str], size: int) -> bool:
     number, unit = shown
     half_digit = 0.5 if unit == "B" else 0.05
     return abs(number - size / UNIT_BYTES[unit]) <= half_digit + 1e-9
-
-
-def lock(monkeypatch, *names) -> None:
-    """Make every rename onto a file of one of these names fail as Windows does while another program
-    holds the file open, and do not wait between the tries."""
-    real = os.replace
-
-    def replace(src, dst, **kwargs):
-        if os.path.basename(dst) in names:
-            raise PermissionError(13, "The process cannot access the file", str(dst))
-        return real(src, dst, **kwargs)
-
-    monkeypatch.setattr(os, "replace", replace)
-    monkeypatch.setattr(fileio, "RETRY_DELAYS_S", ())

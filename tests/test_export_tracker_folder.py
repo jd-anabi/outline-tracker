@@ -51,20 +51,6 @@ def read_with_pandas(path):
     return name, pd.read_csv(path, skiprows=1)
 
 
-def _lock(monkeypatch, *names):
-    """Make every rename onto a file of one of these names fail as Windows does while another
-    program holds the file open, and do not wait between the tries."""
-    real = os.replace
-
-    def replace(src, dst, **kwargs):
-        if os.path.basename(dst) in names:
-            raise PermissionError(13, "The process cannot access the file", str(dst))
-        return real(src, dst, **kwargs)
-
-    monkeypatch.setattr(os, "replace", replace)
-    monkeypatch.setattr(fileio, "RETRY_DELAYS_S", ())
-
-
 # ---------------------------------------------------------------------------------------------
 # The files (SPEC 8.3)
 
@@ -161,13 +147,13 @@ def test_results_of_a_track_the_session_does_not_list_are_not_exported_and_repor
 # Locked files (SPEC 8.1)
 
 
-def test_locked_files_get_the_new_data_next_to_them_and_a_warning(run_folder, monkeypatch):
+def test_locked_files_get_the_new_data_next_to_them_and_a_warning(run_folder, monkeypatch, lock_file):
     export.export_all(run_folder, log=silent)
     old = {name: (run_folder / name).read_bytes() for name in ("positions.csv", f"{MODEL}/A.csv")}
     session, _ = load(run_folder)
     session.calibration.stick["length_mm"] = 29.0  # so that the new files differ from the old ones
     session.save(run_folder / "session.json")
-    _lock(monkeypatch, "positions.csv", "A.csv")
+    lock_file("positions.csv", "A.csv", waits="none")  # by their names; one try, then the fallback
     lines = []
     report = export.export_all(run_folder, log=lines.append)
     assert {name: (run_folder / name).read_bytes() for name in old} == old  # the locked files are as they were

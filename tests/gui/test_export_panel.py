@@ -28,7 +28,7 @@ from PySide6.QtWidgets import QProgressBar, QPushButton
 
 from export_helpers import calibrate, frames_of
 from export_panel_helpers import (END, FRAMES, WRITTEN, Clock, export_panel, export_to_end, hint, is_off, is_on,
-                                  listed, lock, state, tracked, watch_export)
+                                  listed, state, tracked, watch_export)
 from finish_helpers import menu_texts, record_every_dialog
 from gui_helpers import show
 from outline_tracker import schema
@@ -170,14 +170,14 @@ def test_export_all_runs_in_the_worker_thread_and_the_panel_says_what_it_writes(
     assert panel.open_button.property("kind") == "primary"
 
 
-def test_the_exports_warnings_are_shown_as_warnings(window, qtbot, clip_in_odd_folder, monkeypatch):
+def test_the_exports_warnings_are_shown_as_warnings(window, qtbot, clip_in_odd_folder, monkeypatch, lock_file):
     asked = record_every_dialog(monkeypatch)
     panel = tracked(window, qtbot, clip_in_odd_folder)
     run_folder = window.controller.run_folder
     export_to_end(qtbot, panel)
     assert panel.message.kind == "success" and state(window) == "done"
 
-    lock(monkeypatch, schema.SHAPES_CSV)  # open in Excel, say
+    lock_file(schema.SHAPES_CSV)  # open in Excel, say
     gone = "The video dish_tracker.mp4 is at none of the places the session knows."
 
     def not_found(self, run_folder):
@@ -260,11 +260,11 @@ def test_without_a_name_export_says_what_is_missing_and_nothing_starts(window, q
 
 
 def test_a_session_that_cannot_be_saved_is_not_exported_from_its_older_file(window, qtbot, clip_in_odd_folder,
-                                                                            monkeypatch):
+                                                                            monkeypatch, lock_file):
     record_every_dialog(monkeypatch)
     panel = tracked(window, qtbot, clip_in_odd_folder)
     watch = watch_export(monkeypatch)
-    lock(monkeypatch, schema.SESSION_JSON)
+    lock_file(schema.SESSION_JSON)
     window.controller.session.calibration.stick["length_mm"] = 25.0  # the correction the export is for
     window.controller.touch()
     panel.export_button.click()

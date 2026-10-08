@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from cli_export_helpers import edit_session, export, listing, lock, one_error, within_rounding, written
+from cli_export_helpers import edit_session, export, listing, one_error, within_rounding, written
 from cli_probe_helpers import decode
 from export_helpers import K, MODEL, coarse_run, load, table, world
 from helpers import ODD_FOLDER
@@ -296,12 +296,12 @@ def test_a_session_new_json_beside_the_session_is_named_with_the_session_and_not
     np.testing.assert_allclose(rows[rows.track_id == "A"].x_mm, world(u, v)[0], rtol=0, atol=K * 0.01 + 1e-6)
 
 
-def test_a_locked_file_gets_its_new_data_next_to_it_and_one_warning_after_the_list(run_folder, monkeypatch, capsys):
+def test_a_locked_file_gets_its_new_data_next_to_it_and_one_warning_after_the_list(run_folder, lock_file, capsys):
     assert export(run_folder / "session.json") == 0
     capsys.readouterr()
     old = (run_folder / "positions.csv").read_bytes()
     edit_session(run_folder, lambda data: data["calibration"]["stick"].update(length_mm=29.0))
-    lock(monkeypatch, "positions.csv")  # another program holds it open
+    lock_file("positions.csv", waits="none")  # another program holds it open; one try, then the fallback
     assert export(run_folder / "session.json") == 0
     lines = lines_of(capsys)
     assert (run_folder / "positions.csv").read_bytes() == old

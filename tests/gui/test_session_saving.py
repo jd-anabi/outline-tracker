@@ -19,7 +19,6 @@ from PySide6.QtGui import QKeySequence
 
 import helpers
 from gui_helpers import record_dialogs, show
-from outline_tracker import fileio
 from outline_tracker.gui.session_controller import SessionController
 from outline_tracker.session import Session, VideoNotFoundError
 from session_helpers import (FOLDER_OF_NAME, NAME, body, read_json, second_spelling, settle, type_into,
@@ -297,20 +296,12 @@ def test_a_name_typed_again_in_another_case_stays_in_this_sessions_folder(window
     assert controller.save_now() == again and read_json(first)["clip"]["step"] == 7
 
 
-def test_a_locked_session_file_is_saved_beside_it_and_the_user_is_told_once(named, monkeypatch):
+def test_a_locked_session_file_is_saved_beside_it_and_the_user_is_told_once(named, monkeypatch, lock_file):
     window, _, target = named
     asked = record_dialogs(monkeypatch)
     controller, panel = window.controller, body(window, 1)
     assert controller.save_now() == target
-    real, locked = fileio.os.replace, [True]
-
-    def replace(source, destination):
-        if locked[0] and Path(destination).name == "session.json":
-            raise PermissionError("the file is open in another program")  # what Windows says of a locked file
-        return real(source, destination)
-
-    monkeypatch.setattr(fileio.os, "replace", replace)
-    monkeypatch.setattr(fileio.time, "sleep", lambda seconds: None)  # the 5 s of retries, without the wait
+    held = lock_file("session.json")  # open in another program; the 5 s of retries are made without the wait
     body(window, 1).step_box.setValue(6)
     beside = target.with_name("session.new.json")
     assert controller.save_now() == beside and controller.save_now() == beside
@@ -321,7 +312,7 @@ def test_a_locked_session_file_is_saved_beside_it_and_the_user_is_told_once(name
         (window, "problem", f"{NOT_WRITTEN}\n{told}")]
     assert not panel.save_message.isHidden() and panel.save_message.text() == told
 
-    locked[0] = False  # the other program let go
+    held.release()  # the other program let go
     assert controller.save_now() == target and read_json(target)["clip"]["step"] == 6
     assert panel.save_message.isHidden() and len(asked.messages) == 1
 

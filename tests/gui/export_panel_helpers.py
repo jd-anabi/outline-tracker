@@ -7,8 +7,7 @@ tests/gui/test_smoke.py. Nothing here imports torch.
   lines and wait at a `Gate` (tests/gui/prompt_helpers.py) first, and then calls the real one. No
   helper waits with a delay.
 - `tracked` is a window whose run folder holds the results of a run with `ExactFake`.
-- `is_off` and `is_on` read Export all and File > Export together; `lock` lets a file be open in
-  another program.
+- `is_off` and `is_on` read Export all and File > Export together.
 - `walk_through` is SPEC 13.5's flow, through the panels' public slots and one simulated click.
 
 Coordinates: (u, v) in px of the video frame (SPEC 3.1: u to the right, v downward, pixel centers at
@@ -23,7 +22,7 @@ from pathlib import Path
 from calibration_helpers import on_circle, place
 from export_helpers import STICK, calibrate
 from gui_helpers import show
-from outline_tracker import export, fileio, schema
+from outline_tracker import export, schema
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import LEFT, NO_KEY, at, this_thread
@@ -75,20 +74,6 @@ def is_on(window) -> bool:
     panel = export_panel(window)
     return (panel.export_button.isEnabled() and window.menus.export_action.isEnabled()
             and panel.export_button.toolTip() == EXPORT_TIP)
-
-
-def lock(monkeypatch, name: str) -> None:
-    """Let the file `name` be open in another program, as Windows reports it: the rename onto it
-    is refused. The 5 s of tries are made without the waits."""
-    real = fileio.os.replace
-
-    def replace(source, destination):
-        if Path(destination).name == name:
-            raise PermissionError("the file is open in another program")
-        return real(source, destination)
-
-    monkeypatch.setattr(fileio.os, "replace", replace)
-    monkeypatch.setattr(fileio.time, "sleep", lambda seconds: None)
 
 
 class ExportWatch:
