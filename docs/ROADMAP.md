@@ -317,9 +317,20 @@ inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
       within 0.25 px of the true center. The 0.01 px limit of the positions is asserted on
       the machine that froze them; another machine asserts 3 px to the truth and prints the
       difference.
-- [ ] 5. Remove `tests/reference/`, the port-fidelity tests and what else imports the template
+- [x] 5. Remove `tests/reference/`, the port-fidelity tests and what else imports the template
       (14 test files); keep their value as tests against the frozen numbers. `CLAUDE.md` loses
       the two port rules in the same commit.
+      Done 2026-10-08. Every comparison with the template first got a successor beside it
+      (known maps, typed values, an independent reader, the frozen numbers) and passed together
+      with it; then one commit removed the template, its 93 test ids and the two port rules.
+      No code line of the package changed. Gone without a successor, because nothing
+      independent exists to compare with: the pins of source text, the two renaming tables of
+      the model conversion as tables, and a few pixel-for-pixel comparisons (the commit message
+      of the removal lists them). The conversion itself is now run by a slow test and compared
+      with the frozen weights. Six small behaviors of ported helpers are stated by no document
+      and held by no test (the gray weights and the 0.25 scale in `video.py`, the shortest file
+      that gets a slow-motion ratio, two details of how `fps_true` is read from an export);
+      they wait for the owner's word on what the rule is.
 - [ ] 6. Ordinary `conftest.py` files for the fixtures; the duplicated helpers joined where they
       are (their move into one folder is W2 step 3); one lock simulation as a fixture. The
       shapes: keep `outline_tracker/synthetic_shapes.py` and delete `tests/analytic_shapes.py`
