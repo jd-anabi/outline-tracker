@@ -7,9 +7,9 @@ Expected values come from the spec and the design note:
 - a video that is opened shows its first frame (frame 0 of a new session's clip), also when another
   video was open before it and the bar was elsewhere;
 - left and right arrow: 1 step; with Shift: 10 steps; Home and End: the first and the last frame;
-- t = frame / fps_true in s with three decimals, or a dash while fps_true is not known (SPEC 3.3);
-- the bar is 76 px high: 8, slider 20, 2, flag strip 6, 4, button row 28, 8; the buttons are
-  28 px high and 4 px apart; the frame box is 96 px wide (Qt's device-independent px).
+- t = frame / fps_true in s with three decimals, or a dash while fps_true is not known (SPEC 3.3).
+Where the bar's parts lie is held in tests/gui/test_play.py (the design note's px) and in
+tests/gui/test_row_rule.py (the smallest window: nothing cut, nothing over another part).
 """
 
 import numpy as np
@@ -60,22 +60,6 @@ def test_before_a_video_is_open_the_bar_cannot_be_used(window, qtbot):
     for key in (Qt.Key.Key_Right, Qt.Key.Key_End):
         qtbot.keyClick(window, key)
     assert asked == []
-
-
-def test_in_the_smallest_window_the_row_still_has_room_for_every_part(window, qtbot):
-    window.resize(window.minimumSize())  # 960 x 600: the dock takes 400 of the width
-    show(window, qtbot)
-    bar = window.navigation
-    row = [bar.first_button, bar.back_ten_button, bar.back_button, bar.forward_button, bar.forward_ten_button,
-           bar.last_button, bar.frame_box, bar.time_label]
-    lefts = [part.mapTo(bar, QPoint(0, 0)).x() for part in row]
-    assert lefts[0] == 8 and lefts[-1] + row[-1].width() == bar.width() - 8
-    for part, left, next_left in zip(row, lefts, lefts[1:]):
-        assert left + part.width() <= next_left, part  # no part lies over the next one
-    for button in row[:6]:  # and no text is cut: 6 px beside it at each side, inside the 1 px edge
-        assert button.width() == button.fontMetrics().horizontalAdvance(button.text()) + 2 * (6 + 1), button.text()
-    assert bar.frame_box.width() == 96
-    assert bar.time_label.width() >= bar.time_label.fontMetrics().horizontalAdvance("t = 000.000 s")
 
 
 def test_every_button_says_what_it_does_and_names_its_key(bar):

@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from PySide6.QtCore import QPoint, QPointF, Qt
-from PySide6.QtGui import QImage, QWheelEvent
+from PySide6.QtGui import QFont, QImage, QWheelEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QStyle, QStyleOptionButton, QWidget
 
@@ -179,6 +179,21 @@ def layout_findings(parent, longest=None) -> list[str]:
             if room(child) < needed:
                 found.append(f"cut: {named(child)} has {room(child)} px for {text!r}, which is {needed} px wide")
     return found
+
+
+def with_larger_font(qapp, times: float):
+    """Give the application its font at `times` its point size, and put the font back afterwards: a
+    generator for a fixture to `yield from` (`larger_font`, tests/gui/conftest.py). Text is then
+    wider and taller, by `times` or somewhat less (a system font may set large text tighter). With
+    `times` = 1 nothing is set: the font is the system's own. A widget measures its texts when it is
+    made, so this comes before the window."""
+    before = qapp.font()
+    if times != 1:
+        larger = QFont(before)
+        larger.setPointSizeF(times * before.pointSizeF())
+        qapp.setFont(larger)
+    yield
+    qapp.setFont(before)
 
 
 def pixels(image: QImage) -> np.ndarray:

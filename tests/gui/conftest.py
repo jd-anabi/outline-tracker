@@ -1,6 +1,7 @@
 """Fixtures for the tests of the window (tests/gui/): larger clips, a tracked run folder, a second
-window, a settings folder of the test's own, the bottom bar on a grid of frames, a worker without a
-window, and two guards (the application's look is put back; a dialog that would block is an error).
+window, a settings folder of the test's own, the bottom bar on a grid of frames, a larger font for
+the application, a worker without a window, and two guards (the application's look is put back; a
+dialog that would block is an error).
 pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says why). The
 fixtures for the tests of every folder, `window` among them, are in tests/conftest.py; plain helpers
 are in the helper modules beside this file.
@@ -14,7 +15,7 @@ import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
-from gui_helpers import StandInSource, show
+from gui_helpers import StandInSource, show, with_larger_font
 from helpers import new_window
 from outline_tracker.geometry import grid_frames
 from outline_tracker.segmenter.fake import ExactFake
@@ -109,6 +110,20 @@ def bar(window, qtbot):
     made.set_grid(grid_frames(3, 40, 4))
     show(window, qtbot)
     return made
+
+
+# ---------------------------------------------------------------------------------------------
+# A larger font
+
+
+@pytest.fixture
+def larger_font(qapp, request):
+    """The application's font at `request.param` times its point size for this test, put back after
+    it (`with_larger_font`, tests/gui/gui_helpers.py); with 1 the font is the system's own. The test
+    gives the number with `pytest.mark.parametrize(..., indirect=True)`, and asks for this fixture
+    before `window`: a window measures its texts while it is built, and the font is put back only
+    after that window has closed."""
+    yield from with_larger_font(qapp, request.param)
 
 
 # ---------------------------------------------------------------------------------------------
