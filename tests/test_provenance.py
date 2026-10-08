@@ -22,7 +22,7 @@ import pytest
 from outline_tracker import cli, provenance
 
 REPO = Path(__file__).resolve().parents[1]
-LINE = re.compile(r"outline-tracker 0\.1\.0 \(commit ([0-9a-f]{7,40}|unknown)\)")
+LINE = re.compile(r"outline-tracker 0\.2\.0\.dev0 \(commit ([0-9a-f]{7,40}|unknown)\)")
 GIT_INSTALL = {"url": "https://github.com/jd-anabi/outline-tracker",
                "vcs_info": {"vcs": "git", "commit_id": "abc1234def5678900987654321abcdefabcdef12",
                             "requested_revision": "main"}}
@@ -77,7 +77,7 @@ def _no_git(*args, **kwargs):
 def test_a_git_install_takes_the_commit_from_direct_url_json(monkeypatch, tmp_path):
     _install(monkeypatch, GIT_INSTALL, tmp_path)
     monkeypatch.setattr(provenance.subprocess, "run", _no_git)
-    assert provenance.tool_version() == "outline-tracker 0.1.0 (commit abc1234)"
+    assert provenance.tool_version() == "outline-tracker 0.2.0.dev0 (commit abc1234)"
 
 
 @needs_git
@@ -93,7 +93,7 @@ def test_a_source_folder_in_a_git_checkout_takes_the_commit_from_git(monkeypatch
 def test_a_package_that_only_lies_inside_somebody_elses_checkout_has_no_commit(monkeypatch, tmp_path):
     package, _ = _checkout(tmp_path / "repo", tracked=False)
     _install(monkeypatch, None, package)
-    assert provenance.tool_version() == "outline-tracker 0.1.0 (commit unknown)"
+    assert provenance.tool_version() == "outline-tracker 0.2.0.dev0 (commit unknown)"
 
 
 @pytest.mark.parametrize("direct_url", [None, EDITABLE, "{ not json", '["a list"]',
@@ -103,7 +103,7 @@ def test_a_package_that_only_lies_inside_somebody_elses_checkout_has_no_commit(m
                               "commit missing"])
 def test_without_a_commit_anywhere_the_line_says_unknown(monkeypatch, tmp_path, direct_url):
     _install(monkeypatch, direct_url, tmp_path)  # a folder that is in no git checkout
-    assert provenance.tool_version() == "outline-tracker 0.1.0 (commit unknown)"
+    assert provenance.tool_version() == "outline-tracker 0.2.0.dev0 (commit unknown)"
 
 
 def test_a_tool_that_is_not_installed_as_a_distribution_still_has_a_line(monkeypatch, tmp_path):
@@ -112,7 +112,7 @@ def test_a_tool_that_is_not_installed_as_a_distribution_still_has_a_line(monkeyp
 
     monkeypatch.setattr(provenance.metadata, "distribution", missing)
     monkeypatch.setattr(provenance, "PACKAGE_FOLDER", tmp_path)
-    assert provenance.tool_version() == "outline-tracker 0.1.0 (commit unknown)"
+    assert provenance.tool_version() == "outline-tracker 0.2.0.dev0 (commit unknown)"
 
 
 @needs_git
@@ -131,7 +131,7 @@ def test_a_computer_without_git_gives_unknown_not_an_error(monkeypatch, tmp_path
 
     _install(monkeypatch, EDITABLE, tmp_path)
     monkeypatch.setattr(provenance.subprocess, "run", no_git)
-    assert provenance.tool_version() == "outline-tracker 0.1.0 (commit unknown)"
+    assert provenance.tool_version() == "outline-tracker 0.2.0.dev0 (commit unknown)"
 
 
 @pytest.mark.parametrize("direct_url", [GIT_INSTALL, EDITABLE, None], ids=["git", "editable", "plain"])
@@ -147,7 +147,7 @@ def test_the_version_option_prints_the_line(monkeypatch, tmp_path, capsys):
     with pytest.raises(SystemExit) as stopped:
         cli.main(["--version"])
     assert stopped.value.code == 0
-    assert capsys.readouterr().out == "outline-tracker 0.1.0 (commit abc1234)\n"
+    assert capsys.readouterr().out == "outline-tracker 0.2.0.dev0 (commit abc1234)\n"
 
 
 @needs_git

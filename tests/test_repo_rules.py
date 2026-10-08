@@ -10,7 +10,10 @@ import json
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
+
+import outline_tracker
 
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "outline_tracker"
@@ -63,10 +66,27 @@ def test_version_flag():
     # -X importtime prints every module this process imports to stderr, one per line.
     done = _run([sys.executable, "-X", "importtime", "-m", "outline_tracker.cli", "--version"])
     assert done.returncode == 0, done.stderr
-    assert done.stdout.startswith("outline-tracker 0.1.0"), done.stdout
+    assert done.stdout.startswith("outline-tracker 0.2.0.dev0 (commit "), done.stdout
     imported = {line.rsplit("|", 1)[-1].strip().split(".")[0] for line in done.stderr.splitlines()}
     assert "outline_tracker" in imported, done.stderr  # the listing is there and was parsed
     assert sorted(imported & set(HEAVY_MODULES)) == []
+
+
+def test_the_version_is_written_the_same_in_its_three_places():
+    # Two places are written by hand and `uv lock` copies the third. CI installs with `uv sync --locked`,
+    # which refuses a lock that does not fit pyproject.toml: a forgotten place fails here first.
+    project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    locked = tomllib.loads((REPO / "uv.lock").read_text(encoding="utf-8"))["package"]
+    written = {
+        "pyproject.toml": project["version"],
+        "outline_tracker/__init__.py": outline_tracker.__version__,
+        "uv.lock": [package["version"] for package in locked if package["name"] == "outline-tracker"],
+    }
+    assert written == {
+        "pyproject.toml": "0.2.0.dev0",
+        "outline_tracker/__init__.py": "0.2.0.dev0",
+        "uv.lock": ["0.2.0.dev0"],
+    }
 
 
 # ---------------------------------------------------------------------------------------------

@@ -168,7 +168,7 @@ def test_outlines_npz_holds_frames_and_128_point_outlines_in_both_frames(fine_ru
         data = {key: outlines[key] for key in outlines.files}
     meta = json.loads(str(data["meta"]))
     assert meta["n_points"] == 128 and meta["tracks"] == ["A", "B"]
-    assert meta["tool_version"].startswith("outline-tracker 0.1.0") and isinstance(meta["conventions"], str)
+    assert meta["tool_version"].startswith("outline-tracker 0.2.0.dev0") and isinstance(meta["conventions"], str)
     for track_id in "AB":
         frames, xy, xieta = (data[schema.npz_key(track_id, name)] for name in ("frames", "xy_mm", "xieta_mm"))
         assert frames.dtype == np.int32 and list(frames) == GRID

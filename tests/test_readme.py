@@ -10,6 +10,8 @@ These tests read it as data and hold it against the real tool:
   both last week's script and `from-tracker` have, and "new" only for options that last week's lacks;
 - the example output lines of the README are shaped like what the real commands print, here run on small
   made-up clips with a stand-in model (`...` and `path/to/...` stand for any text, numbers for any number);
+- every install line names a release tag, and the example version line is that release's: until the next
+  release the README on `main` is the page of the tagged release (docs/ROADMAP.md, section 2, rule 1);
 - the file names of the run folder are those of `outline_tracker/schema.py`; relative links resolve; no
   `#` comment in a shell block (zsh pastes `#` as a command); American spelling;
 - the section "Quickstart" (task C8b) has ten numbered steps of one or two sentences each, in the order of
@@ -49,6 +51,8 @@ LANGUAGES = SHELLS | {"text", "python"}  # `text` is what a command prints
 COMMANDS = ["selftest", "from-tracker", "export", "check", "convert"]  # the README must show each of them
 UV_OPTIONS = {"--force", "--python", "--with"}  # of `uv`, not of this tool: `uv tool install --force --python 3.12`
 # (SPEC 15: the install line names the Python version), and last week's `uv run --with`
+ADDRESS = "github.com/jd-anabi/outline-tracker"  # the repository, as an install line names it
+TAG = re.compile(re.escape(ADDRESS) + r"@refs/tags/v(\d+\.\d+\.\d+)(?![\w.+-])")  # a release tag: `vX.Y.Z`
 COMMIT = re.compile(r"commit (?:[0-9a-f]{7}|unknown)")
 BRITISH = re.compile(r"\b(?:colours?|centres?|centimetres?|millimetres?|metres?|analys(?:ed|ing)|behaviours?|greys?|"
                      r"licences?|organis\w*|programmes?|recognis\w*|normalis\w*|labelled|travelled)\b", re.IGNORECASE)
@@ -250,6 +254,31 @@ def run_folder_names(text: str) -> set[str]:
     return {name for name in names if re.fullmatch(r"[\w.-]+\.(?:csv|json|npz|mp4|log|txt)|[\w.-]+/", name)}
 
 
+def install_lines(text: str) -> list[tuple[str, str | None]]:
+    """The lines of the shell blocks that install the tool from its repository (they hold `uv tool install` and
+    the repository's address), in order, each with the version of the tag it names: "0.1.0" for
+    `@refs/tags/v0.1.0` right after the address, None for a line that names no such tag."""
+    lines = [line.strip() for block in code_blocks(text) if block.language in SHELLS for line in block.lines
+             if "uv tool install" in line and ADDRESS in line]
+    return [(line, found.group(1) if found else None) for line, found in zip(lines, map(TAG.search, lines))]
+
+
+def tag_version(text: str) -> str:
+    """The version of the tag that the first install line with a tag names. A text without one raises."""
+    versions = [version for _, version in install_lines(text) if version is not None]
+    if not versions:
+        raise ValueError("no install line names a tag")
+    return versions[0]
+
+
+def install_problems(text: str) -> list[str]:
+    """Install lines that name no tag, and install lines that name another tag than the first one."""
+    lines = install_lines(text)
+    first = next((version for _, version in lines if version is not None), None)
+    return ([f"no `@refs/tags/vX.Y.Z` after the address: {line}" for line, version in lines if version is None]
+            + [f"another tag than v{first}: {line}" for line, version in lines if version not in (None, first)])
+
+
 # ---------------------------------------------------------------------------------------------
 # The README as it is
 
@@ -326,8 +355,18 @@ def test_the_name_of_a_file_that_was_locked_is_the_one_the_tool_uses(text):
     assert f"`{locked}`" in section(text, "Troubleshooting")
 
 
-def test_the_version_line_is_the_one_of_this_version(text):
-    assert f"outline-tracker {__version__} (commit " in text
+def test_every_install_line_names_a_tag(text):
+    # docs/ROADMAP.md, section 2, rule 1: no install line on `main` is without a tag until the next release
+    assert install_problems(text) == []
+    assert len(install_lines(text)) == 2  # the first install, and the install again with `--force`
+
+
+def test_the_version_line_is_the_one_of_the_tag_that_the_install_line_names(text):
+    # until the next release this page is the page of the tagged release (rule 1): its example line is that
+    # release's line, not the line of the build under test
+    version = tag_version(text)
+    assert f"outline-tracker {version} (commit " in text
+    assert f"installs version {version}" in text
 
 
 def test_it_holds_no_email_address_and_only_american_spelling(text):
@@ -433,12 +472,18 @@ def write_clip(path: Path, n_frames: int = 48) -> Path:
 
 
 @pytest.fixture(scope="module")
-def real_lines(tmp_path_factory) -> list[str]:
+def real_lines(tmp_path_factory, text) -> list[str]:
     """Every line that the commands print on made-up clips: `--version`, `check`, `convert`, `from-tracker`
     (two disks, a stand-in model, overlay on), `export` of that run, and `selftest` with the stand-in. The
-    stand-in is called edgetam, as the README's example is."""
+    stand-in is called edgetam, as the README's example is.
+
+    The version line is the tool's own (`tool_version()` gives its shape and the commit), but with the version
+    of the tag that the README's install line names in place of this build's version. Until the next release
+    the README on `main` is the page of the tagged release (docs/ROADMAP.md, section 2, rule 1), so its example
+    is the line that release prints. A build between two releases has a development version, which is written
+    with one more part (`X.Y.Z.devN`) and would fit no example line of a release."""
     folder = tmp_path_factory.mktemp("readme")
-    lines = [tool_version()]
+    lines = [tool_version().replace(__version__, tag_version(text))]
     clip = write_clip(folder / "video.mp4")
     for argv in (["check", str(clip)], ["convert", str(clip)]):
         lines += printed(cli.main, argv).splitlines()
@@ -511,6 +556,30 @@ def test_the_link_check_finds_a_file_that_is_not_there(tmp_path):
     (tmp_path / "docs" / "A.md").write_text("x")
     text = "[a](docs/A.md#top) [b](docs/B.md) [c](https://example.org/x) [d](#up)\n" + fenced("text", "[e](nope.md)")
     assert link_problems(text, tmp_path) == ["docs/B.md does not exist"]
+
+
+TAGGED = "uv tool install git+https://github.com/jd-anabi/outline-tracker@refs/tags/v0.12.3 --python 3.12"
+
+
+@pytest.mark.parametrize("second, problem", [
+    (TAGGED.replace("@refs/tags/v0.12.3", ""), "no `@refs/tags/vX.Y.Z` after the address"),
+    (TAGGED.replace("@refs/tags/v0.12.3", "@main"), "no `@refs/tags/vX.Y.Z` after the address"),
+    (TAGGED.replace("v0.12.3", "v0.12.3rc1"), "no `@refs/tags/vX.Y.Z` after the address"),
+    (TAGGED.replace("v0.12.3", "v0.12.4"), "another tag than v0.12.3"),
+], ids=["no tag", "a branch", "a tag that is not a release", "another tag than the first"])
+def test_the_install_check_finds_a_line_without_a_tag_and_a_line_with_another_tag(second, problem):
+    bad = fenced("shell", TAGGED) + "\n" + fenced("shell", second)
+    assert install_problems(bad) == [f"{problem}: {second}"]
+
+
+def test_the_install_check_reads_the_lines_of_shell_blocks_that_install_from_the_repository():
+    again = TAGGED.replace("install", "install --force")
+    good = fenced("shell", TAGGED, "uv tool uninstall outline-tracker", "uv tool install --python 3.12 .", again)
+    good += "\n" + fenced("text", TAGGED.replace("@refs/tags/v0.12.3", ""))  # printed text, not a command to paste
+    assert install_lines(good) == [(TAGGED, "0.12.3"), (again, "0.12.3")]
+    assert install_problems(good) == [] and tag_version(good) == "0.12.3"
+    with pytest.raises(ValueError, match="no install line names a tag"):
+        tag_version(fenced("shell", TAGGED.replace("@refs/tags/v0.12.3", ""), "uv tool uninstall outline-tracker"))
 
 
 def test_the_table_check_finds_what_is_not_true():

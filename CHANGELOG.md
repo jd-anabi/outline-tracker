@@ -3,7 +3,11 @@
 What changed in each version of Outline Tracker, newest first. Versions are the tags of this
 repository (`vX.Y.Z`).
 
-## 0.1.0 (not released yet)
+## Unreleased
+
+Development version `0.2.0.dev0`. The files it writes say so.
+
+## 0.1.0 (2026-10-07)
 
 ### Added
 

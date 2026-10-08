@@ -1,6 +1,6 @@
 [project]
 name = "outline-tracker"
-version = "0.1.0"
+version = "0.2.0.dev0"
 description = "Track objects in videos with EdgeTAM; export positions and outline shapes"
 readme = "README.md"
 license = "Apache-2.0"

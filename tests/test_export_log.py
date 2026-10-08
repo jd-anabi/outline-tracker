@@ -150,7 +150,7 @@ def test_probe_and_export_head_their_entries_with_one_version_line(tracked, tmp_
     assert [head.split(",")[0] for head in heads] == ["==== probe", "==== export"]
     versions = [head.split(", ", 2)[2].removesuffix(" ====") for head in heads]
     assert versions[0] == versions[1]
-    assert re.fullmatch(r"outline-tracker 0\.1\.0 \(commit ([0-9a-f]{7,40}|unknown)\)", versions[0]), versions
+    assert re.fullmatch(r"outline-tracker 0\.2\.0\.dev0 \(commit ([0-9a-f]{7,40}|unknown)\)", versions[0]), versions
 
 
 def test_a_run_without_a_crop_and_a_fine_run_say_what_the_model_saw(shapes_clip, tmp_path):
