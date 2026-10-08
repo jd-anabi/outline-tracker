@@ -42,6 +42,7 @@ from outline_tracker.segmenter.base import MaskResult
 
 MODES = ("coarse", "fine")  # what the model saw: the frame or the dish crop, or a crop that follows one object
 GRID_CELLS = 256            # the model predicts its masks on a 256 x 256 grid, whatever its input (SPEC 6.2)
+_BESIDE_PX = 1.0 + 1e-3     # an outline point is at most this far, in u and in v, from a pixel center of its piece
 
 
 def mask_center(mask: np.ndarray) -> tuple[float, float, int]:
@@ -142,15 +143,16 @@ def largest_piece(mask: np.ndarray, outline: np.ndarray | None = None) -> tuple[
     not keep them. So `derive` gives `outline`, the outline that was stored with the mask: points
     [n, 2] as (u, v) in px in the mask's own frame, pixel centers at +0.5. Then, of equal pieces,
     the one that the outline runs along is taken, which is the piece `measure_mask` took: the
-    piece with the most points of the outline beside its pixels (`_points_beside`). If no point
-    is beside any of them, it is again the first in label order.
+    piece that has a pixel center within 1 px of the most points of the outline
+    (`_points_beside`). If no point is that close to any of them, it is again the first in label
+    order.
     """
     labels, sizes = _components(mask)
     largest = int(np.argmax(sizes))
     if outline is not None:
         equal = np.flatnonzero(sizes == sizes[largest])
         if len(equal) > 1:
-            largest = int(equal[np.argmax(_points_beside(labels, outline, len(sizes))[equal])])
+            largest = int(equal[np.argmax(_points_beside(labels, outline, 1 + equal))])
     return labels == 1 + largest, sizes
 
 
@@ -269,29 +271,30 @@ def _components(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return labels, stats[1:count, cv2.CC_STAT_AREA]
 
 
-def _points_beside(labels: np.ndarray, outline: np.ndarray, count: int) -> np.ndarray:
-    """For each of the `count` pieces of `labels` (0 off the mask, 1..count on it): how many points
-    of `outline`, (u, v) in px in the array's frame, lie beside one of its pixels.
+def _points_beside(labels: np.ndarray, outline: np.ndarray, pieces: np.ndarray) -> np.ndarray:
+    """For each label in `pieces`: how many points of `outline`, (u, v) in px in the frame of
+    `labels` (0 off the mask, 1..n on it), have a pixel center of that piece within 1 px of them
+    in u and in v.
 
-    A point lies in a square whose corners are four neighboring pixel centers. An outline
-    (`_outline`) passes only through squares that have a pixel of its piece at a corner: with
-    logits it runs between a pixel of the piece and a neighbor off it, without logits from one
-    border pixel of the piece to the next. A pixel of another piece is never a corner of such a
-    square, because it would touch the piece. So each point counts for the one piece that has a
-    pixel at a corner of its square, and a stored outline counts for the piece it was taken
-    from. Points that are not numbers, or beside no pixel, count for no piece.
+    An outline (`_outline`) is never farther from its piece: with logits it runs between a pixel
+    of the piece and a neighbor off it, without logits from one border pixel of the piece to the
+    next. So the piece an outline was taken from has every point. The pixel centers of another
+    piece are 2 px or more from the piece's in u or in v (the two do not touch), so they are 1 px
+    or more from the outline: another piece has a point only where the outline passes through
+    the center of a free pixel between the two, which takes a logit of 0 there. `_BESIDE_PX` adds
+    0.001 px for the float32 of a stored point. Points that are not numbers count for no piece.
     """
     points = np.asarray(outline, np.float64).reshape(-1, 2)
     points = points[np.isfinite(points).all(axis=1)]
-    # The square of a point (u, v) has its top-left corner at the pixel in column floor(u - 0.5)
-    # and row floor(v - 0.5). Two free pixels around the array: a square beyond it holds no pixel.
-    padded = np.pad(labels, 2)
-    col = np.clip(np.floor(points[:, 0] - 0.5), -2, labels.shape[1]).astype(np.int64) + 2
-    row = np.clip(np.floor(points[:, 1] - 0.5), -2, labels.shape[0]).astype(np.int64) + 2
-    # The four pixels of a square touch each other, so those on the mask have one label: the largest of the four.
-    beside = np.maximum(np.maximum(padded[row, col], padded[row, col + 1]),
-                        np.maximum(padded[row + 1, col], padded[row + 1, col + 1]))
-    return np.bincount(beside, minlength=count + 1)[1:]
+    padded = np.pad(labels, 3)   # free pixels around the array; a point far from it falls on them
+    reach = []
+    for along, size in ((points[:, 1], labels.shape[0]), (points[:, 0], labels.shape[1])):   # rows, then columns
+        # Pixel i has its center at i + 0.5. Within reach are two pixels, or three if the point is level with one.
+        first = np.clip(np.ceil(along - 0.5 - _BESIDE_PX), -3, size + 2).astype(np.int64) + 3
+        last = np.clip(np.floor(along - 0.5 + _BESIDE_PX), -3, size + 2).astype(np.int64) + 3
+        reach.append((first, np.minimum(first + 1, last), last))
+    near = np.stack([padded[row, col] for row in reach[0] for col in reach[1]], axis=1)   # [points, 9] labels
+    return np.array([np.count_nonzero((near == piece).any(axis=1)) for piece in pieces])
 
 
 def _opening(mask: np.ndarray, radius: int) -> np.ndarray:

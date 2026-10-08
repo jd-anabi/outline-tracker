@@ -223,12 +223,13 @@ def test_the_outline_is_the_largest_components_even_next_to_a_wider_hollow_one(l
 # --------------------------------------------------------------------------- largest_piece
 
 
-def around(row0, row1, col0, col1, *, on_edges):
+def around(row0, row1, col0, col1, *, inset):
     """An outline around the pixel rectangle (row0, row1, col0, col1) of `blocks`: 40 points (u, v)
-    in px in the array's frame, 10 per side. With `on_edges` it runs along the rectangle's outer
-    pixel edges, as the level set of logits of +1 and -1 does, else through the centers of its
-    border pixels, as an outline without logits does."""
-    inset = 0.0 if on_edges else 0.5
+    in px in the array's frame, 10 per side, `inset` px inside the rectangle's outer pixel edges.
+    0: along those edges, as the level set of logits of +1 and -1 runs. 0.5: through the centers
+    of the border pixels, as an outline without logits runs. -0.5: through the centers of the
+    free pixels around the rectangle, where logits of exactly 0 off the mask put the level set;
+    no outline is farther from its piece."""
     left, right, top, bottom = col0 + inset, col1 - inset, row0 + inset, row1 - inset
     corners = np.array([(left, top), (right, top), (right, bottom), (left, bottom), (left, top)])
     steps = np.linspace(0.0, 1.0, 10, endpoint=False)[:, None]
@@ -250,7 +251,8 @@ EQUAL_BLOCKS = [(1, 3, 1, 4), (2, 4, 5, 8), (5, 7, 2, 5)]
 @pytest.mark.parametrize("on_edges", [True, False])
 @pytest.mark.parametrize("taken", EQUAL_BLOCKS)
 def test_of_equal_pieces_largest_piece_takes_the_one_that_the_outline_runs_along(taken, on_edges):
-    piece, sizes = segment.largest_piece(blocks((8, 9), *EQUAL_BLOCKS), around(*taken, on_edges=on_edges))
+    outline = around(*taken, inset=0.0 if on_edges else 0.5)
+    piece, sizes = segment.largest_piece(blocks((8, 9), *EQUAL_BLOCKS), outline)
     assert np.array_equal(piece, blocks((8, 9), taken))
     assert [int(size) for size in sizes] == [6, 6, 6]
 
@@ -259,8 +261,21 @@ def test_of_equal_pieces_largest_piece_takes_the_one_that_the_outline_runs_along
 def test_an_outline_does_not_make_a_smaller_piece_the_largest(on_edges):
     large, small = (1, 4, 1, 4), (1, 3, 6, 8)   # 9 px and 4 px
     mask = blocks((6, 10), large, small)
-    piece, _ = segment.largest_piece(mask, around(*small, on_edges=on_edges))
+    piece, _ = segment.largest_piece(mask, around(*small, inset=0.0 if on_edges else 0.5))
     assert np.array_equal(piece, blocks((6, 10), large))
+
+
+def test_an_outline_through_the_free_pixels_between_two_equal_pieces_counts_for_its_own_piece():
+    # A block of 3 rows x 4 columns and an L of 7 + 5 = 12 px, one free pixel to the right of the
+    # block and one below it. The outline through the centers of the free pixels around the block
+    # is 1 px from the block's pixel centers on every side, and along its right and its bottom
+    # side it is 1 px from the L's too. It is still the block's outline: only the block has a
+    # pixel center within 1 px of every point.
+    block, right_arm, bottom_arm = (2, 5, 1, 5), (0, 7, 6, 7), (6, 7, 1, 6)
+    mask = blocks((8, 8), block, right_arm, bottom_arm)
+    piece, sizes = segment.largest_piece(mask, around(*block, inset=-0.5))
+    assert np.array_equal(piece, blocks((8, 8), block))
+    assert [int(size) for size in sizes] == [12, 12]
 
 
 @pytest.mark.parametrize("outline", [np.full((256, 2), np.nan), np.full((256, 2), 500.0), np.zeros((0, 2)),
