@@ -10,7 +10,8 @@ Development version `0.2.0.dev0`. The files it writes say so.
 ### Added
 
 - The automatic tests also run on macOS, and on all three systems (Ubuntu, Windows, macOS) they
-  now include the slow tests that need no model weights.
+  now include the slow tests that need no model weights. One of those ten tests needs the Apple
+  GPU and is skipped on Ubuntu and Windows.
 
 ### Changed
 
@@ -24,7 +25,9 @@ Development version `0.2.0.dev0`. The files it writes say so.
   135 px, and the frame lost its `LOWRES` flag. The position, the area, `major_mm`, `minor_mm`
   and `eccentricity` are of the whole mask, as before. A run folder made by 0.1.0 shows the new
   values at its next export on the frames whose mask has more than one piece (`n_components`
-  above 1); every other row is unchanged. No file format changed: nothing is tracked again.
+  above 1); every other row is unchanged. The review table of the window (with "Show shape flags
+  too") shows the new `LOWRES` flag as soon as the folder is opened; the files on disk change at
+  the next export. No file format changed: nothing is tracked again.
 
 ### Removed
 

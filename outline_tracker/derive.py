@@ -25,10 +25,11 @@ Which number comes from where:
   `cov_full`); the heading and `core_x_mm`, `core_y_mm` from the core's (`derive_heading`).
 - The resolution indicators `px_along_major`, `cells_along_major` and `shape_ok` are of the
   largest piece of the mask, the piece the outline goes around (`measure.largest_piece`), so that
-  a few stray pixels far from the object cannot lengthen them. With one piece that is the full
-  mask, and `cov_full` gives them. With more pieces (`n_components` > 1) the row's stored mask
-  crop is unpacked and its largest piece is measured: of pieces of equal size the one that the
-  row's stored outline runs along. A crop without a pixel keeps the value of `cov_full`.
+  a few stray pixels far from the object cannot lengthen them; this replaces the full mask of
+  SPEC 7.8 (decision 26 of docs/ROADMAP.md). With one piece that is the full mask, and `cov_full`
+  gives them. With more pieces (`n_components` > 1) the row's stored mask crop is unpacked and its
+  largest piece is measured: of pieces of equal size the one that the row's stored outline runs
+  along. A crop without a pixel keeps the value of `cov_full`.
 
 The polygon geometry is in `derive_outline`; its `radial_profile` and `feret_max` (the maximum
 Feret diameter of an outline, also for one in px) are offered here too. No Qt, no torch.

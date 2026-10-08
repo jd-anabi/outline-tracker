@@ -260,8 +260,9 @@ Each value includes decoding, measuring the masks and saving.
 **Note, 2026-10-08.** This comparison was retired on this date, with the one of section 1 (W1 step 5
 of `docs/ROADMAP.md`): last week's script has left the repository. The numbers below stay as the
 record. The positions are frozen under `tests/data/` (section 7 says how). The command of this
-section still runs and compares the files of `from-tracker` with the frozen positions; it no longer
-prints this table.
+section still runs and checks what the run folder holds; it no longer prints this table. The
+comparison of the files of `from-tracker` with the frozen positions is made by
+`uv run pytest -m slow tests/slow/test_frozen_reference.py` (section 7).
 
 **What was compared.** `from_tracker.from_tracker` (coarse, the whole frame, no overlay) and last
 week's `shrimp.segment.track_video` with last week's `TransformersSegmenter` (the unmodified copies
@@ -777,7 +778,9 @@ table of panel 8 and Export all in panel 9. All panels were on the merged main (
 - Windows and Linux with the real model: the test machines of CI run the fast tests, with stand-in
   models, and since W1 step 8 the slow tests that need no weights (the real processor and session
   with a stand-in for the network, the thread count of the real torch); a macOS machine runs the
-  same. None of them has the model, so the real model has never run on Windows or Linux.
+  same. One of those ten slow tests needs the Apple GPU and is skipped on Ubuntu and Windows
+  (measured: macOS 10 passed; Ubuntu and Windows 9 passed, 1 skipped). None of the machines has
+  the model, so the real model has never run on Windows or Linux.
 
 ## 7. The frozen reference numbers (W1 step 4, 2026-10-08)
 
@@ -813,13 +816,19 @@ OUTLINE_TRACKER_FREEZE=1 uv run pytest -m slow tests/slow/test_regression_refere
 uv run pytest -m slow tests/slow/test_regression_reference.py tests/slow/test_regression_pipeline.py tests/slow/test_frozen_reference.py -q -rP -p no:cacheprovider
 ```
 
-Without `OUTLINE_TRACKER_FREEZE=1` no test writes under `tests/data/`. With it, nothing is written
-unless the package is as committed and last week's code and the truth agreed first
-(`tests/frozen_helpers.py`, `tests/slow/test_regression_reference.py`).
+Without `OUTLINE_TRACKER_FREEZE=1` no test writes under `tests/data/` (`tests/frozen_helpers.py`).
+With it, nothing was written unless the package was as committed and last week's code and the
+truth had agreed first.
 
 Since 2026-10-08 (W1 step 5) the first command, and the one in `tests/data/tracker_format/HEADER.txt`,
 can no longer be run to write the files: the lines that wrote them left the tests together with last
 week's code, because without that code a new freeze would have no independent check.
+
+The files can still be frozen again with their independent check, from the commit before that step:
+check out `29b5bfa`, the last commit in which last week's code and the lines that wrote the files were
+together (the lines for the positions and the weights are there from `4a1ac97`, those for the
+Tracker-format files from `98fc8e0`), and run the command of the file's header there, on the machine
+that the header names.
 
 **Result.** The first: 9 passed (58 s). The second, on the tree of commit `2282a2e`: 16 passed
 (159 s), the 11 tests of sections 1 and 4.1 and the 5 new ones of
