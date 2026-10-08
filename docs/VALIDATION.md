@@ -761,3 +761,100 @@ table of panel 8 and Export all in panel 9. All panels were on the merged main (
   and the real model's antennae outline in fine mode in the window.
 - Windows with the real model: the Windows test machine runs only the fast tests, with stand-in
   models.
+
+## 7. The frozen reference numbers (W1 step 4, 2026-10-08)
+
+Sections 1 and 4.1 compare the tool with last week's script. That script leaves the repository in
+the next step of `docs/ROADMAP.md`, so the numbers of those comparisons were written down first, as
+small text files under `tests/data/`: they were frozen. A frozen file holds what the tool itself
+gave. It may stand as an expected value because two independent checks confirmed it in the run that
+wrote it: last week's code agreed within 0.01 px, and every position was under 3 px from the true
+center that the clip's recipe gives. Same laptop, library versions and weights as section 1.
+
+**What was frozen, and where.**
+
+| file | what it holds |
+|---|---|
+| `tests/data/edgetam_cpu_positions.csv` | Where `HFSegmenter` (EdgeTAM on `cpu`) found each object of the two clips of section 1.1: 20 rows of the selftest clip and 60 rows of the three-ellipse clip (A, B, C), frames 0, 2, …, 38, no row lost. The columns are `clip,frame,track_id,u_px,v_px`; `u_px` and `v_px` have 4 decimals and are px in Tracker's convention (pixel centers at +0.5) in the full 1920 × 1080 frame. |
+| `tests/data/edgetam_weights.txt` | The SHA-256 and the size of the converted `model.safetensors`: `8858f8e4757b0b96dab8763f296ecffd845efbbbf698f64163cfa20a63d5fff4`, 55,912,824 bytes. These are the values of section 1. For information, never asserted: Meta's `edgetam.pt` as the Hugging Face cache held it, 56,116,523 bytes, revision `14d7ecc48c656b94e5184519f698cd5386c5a2bf`. |
+
+The Tracker-format files of the three stand-in cases (`tests/data/tracker_format/`, no real model)
+were frozen earlier in the same step; their `HEADER.txt` says how.
+
+**The header.** Each of the two files starts with lines that say how it was made:
+- 2026-10-08, commit `98fc8e0`. The package was as committed; the freezing changed only tests.
+- Apple M1 Max, macOS 27.0.1, arm64, Python 3.12.15; `cpu` with 8 torch threads.
+- torch 2.14.1, torchvision 0.29.1, transformers 5.18.0, timm 1.0.30, safetensors 0.8.0,
+  numpy 2.5.3, opencv-python-headless 5.0.0.93, scikit-image 0.26.0.
+- The command, the weights' hash, and what the two checks measured in that run.
+
+**Commands.** The first wrote the two files. The second is the proof: the old comparisons and the
+new tests in one run. It writes nothing.
+
+```
+OUTLINE_TRACKER_FREEZE=1 uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP -p no:cacheprovider
+uv run pytest -m slow tests/slow/test_regression_reference.py tests/slow/test_regression_pipeline.py tests/slow/test_frozen_reference.py -q -rP -p no:cacheprovider
+```
+
+Without `OUTLINE_TRACKER_FREEZE=1` no test writes under `tests/data/`. With it, nothing is written
+unless the package is as committed and last week's code and the truth agreed first
+(`tests/frozen_helpers.py`, `tests/slow/test_regression_reference.py`).
+
+**Result.** The first: 9 passed (58 s). The second, on the tree of commit `2282a2e`: 16 passed
+(159 s), the 11 tests of sections 1 and 4.1 and the 5 new ones of
+`tests/slow/test_frozen_reference.py`; `git status --short tests/data` printed nothing after it.
+
+| largest distance | selftest clip, 20 rows | three-ellipse clip, 60 rows | limit |
+|---|---|---|---|
+| last week's code against the package, segmenter (as section 1.1) | 0.0005 px (its CSV has 3 decimals) | 0.0000 px; 0 mask pixels differ | 0.01 px |
+| last week's files against the package's, pipeline (as section 4.1) | 0.0000 px | 0.0000 px | 0.01 px |
+| the package against the frozen table, segmenter | 0.0001 px | 0.0001 px | 0.01 px |
+| the package against the frozen table, pipeline (`from_tracker`) | 0.0006 px | 0.0006 px | 0.01 px |
+| the package against the true centers, segmenter | 0.460 px | 1.042 px | 3 px |
+| the package against the true centers, pipeline | 0.461 px | 1.041 px | 3 px |
+| last week's code against the true centers | 0.461 px (from its CSV) | not computed | 3 px |
+
+- 0.0001 px is the rounding of the table's 4 decimals; 0.0006 px is that and the 3 decimals of the
+  Tracker-format files. Both are rounding: the package found the positions of the run that froze
+  them.
+- The first row was measured in both runs and was the same in both. The other rows are from the
+  second run; the freezing run measured 0.460 px and 1.042 px against the true centers too.
+- No row was lost in any run. The loaded model's `weights_sha256` and the size of its file equal
+  the frozen values.
+- The three-ellipse test of section 1.1 now asserts the 3 px criterion; before, it printed the
+  number (1.042 px).
+
+**The limit.** 0.01 px holds on the machine that froze the numbers; on another machine it is
+measured, not assumed. The tests decide by one rule (`frozen_helpers.same_machine`): this is the
+machine that froze the numbers when its operating system's family, its architecture, its chip, its
+torch version and the hash of its weights are the header's. Only then the limit is asserted.
+Anywhere else the position tests assert that no row is lost and that every position is under 3 px
+from its true center, and they print the distance from the frozen numbers with the sentence that
+the limit was not measured for that machine. The weights test asks the rule without the hash: on
+the freezing machine other weights fail it, and on another machine it is skipped with both hashes
+in the reason (the converted file is written on each machine, so its hash may differ there for a
+reason that is no fault). No other machine has run these tests: what they measure there is not
+known.
+
+**Can these tests fail?**
+- With two rows of the table moved by 0.02 px (one of each clip) and one digit of the frozen hash
+  changed, in the working tree for one run of the second command: 5 failed, 11 passed. The four
+  position tests reported 0.0200 px (segmenter) and 0.0196 px (pipeline) against 0.01 px; the
+  weights test reported the two hashes. The files were then put back as committed.
+- The other branch, with the chip's name changed in both headers for one run: 15 passed, 1 skipped.
+  The position tests printed that the limit of 0.01 px was not measured, with 0.0001 px and
+  0.0006 px; the weights test was skipped.
+- The fast tests of `tests/test_frozen_files.py` need no model and run in CI. They compare the
+  table with the true centers worked out from the clips' recipes, and check what the header says
+  about the truth against the table. 13 single changes of the two files each made one of them
+  fail: a row moved by 3.2 px, lost, removed, doubled, with 3 decimals, with u and v swapped; a
+  changed header line (four kinds); CRLF line ends; a weights file without its size, and one with
+  a short hash. The rule and the judgement of positions are tested there with made-up headers and
+  positions.
+
+**Not covered.**
+- The Apple GPU: no `mps` numbers are frozen; `mps` is held to the 3 px criterion (section 1.2).
+- Another machine, another torch version, Linux, Windows, CUDA: never run. CI runs no slow test.
+- Mask areas and outlines: only the centers are frozen.
+- The fault of section 1.4 (a changed mask threshold) was not repeated against the frozen table;
+  the moved rows above stand in for it.
