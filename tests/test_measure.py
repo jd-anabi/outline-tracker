@@ -1,9 +1,10 @@
 """Tests for outline_tracker.measure: the ported mask_center (SPEC 3.1, 7.1, 13.1 Centroid).
 
-The first test is the template's, unchanged but for its import line (tests/test_port_fidelity.py
-checks that). The others check the same convention from geometry: a mask's center is the mean of
-its pixel centers, and the pixel (column c, row r) has its center at (c + 0.5, r + 0.5), Tracker's
-rule. Equality with last week's function on random masks is in tests/test_port_equivalence.py.
+The first test is last week's, unchanged but for its import line. The others check the same
+convention from geometry: a mask's center is the mean of its pixel centers, and the pixel
+(column c, row r) has its center at (c + 0.5, r + 0.5), Tracker's rule. That holds for a mask of any
+number type and layout in memory, which the tests of a rectangle that is not bool or not contiguous
+assert.
 """
 
 import numpy as np

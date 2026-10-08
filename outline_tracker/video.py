@@ -1,7 +1,7 @@
 """Reading phone videos safely. Ported from the course's shrimp.video (unchanged behavior).
 
-The functions down to `check_video` are last week's, moved over unchanged and checked against the
-reference copy by tests/test_port_fidelity.py; so is `iter_rgb_frames`, from last week's
+The functions down to `check_video` are last week's, moved over unchanged, with last week's tests
+(tests/test_video.py); so is `iter_rgb_frames`, from last week's
 shrimp.segment. Coordinates: frames are arrays indexed [row, column], so x is the column and y is
 the row counted downward (pixel units; see SPEC 3.1 for the pixel-center rule).
 

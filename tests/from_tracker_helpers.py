@@ -1,9 +1,8 @@
 """Clips, Tracker exports, a run with the stand-in model, and readers, shared by the from-tracker tests
 (tests/test_from_tracker*.py).
 
-`disk_video` is the template's (tests/reference/template_tests/test_segment.py), copied unchanged;
-tests/test_port_fidelity.py compares the two. `tracker_map`, `MM_PER_PX`, `W` and `H` are the
-template's too, taken from tests/test_tracker_io.py, where they are ported verbatim.
+`disk_video` is the helper of last week's tests, copied unchanged. `tracker_map`, `MM_PER_PX`, `W`
+and `H` are last week's too, taken from tests/test_tracker_io.py, where they are ported verbatim.
 
 Coordinates: a clip is 320 x 240 px at 240 frames per s. `disk_video` takes disk centers with pixel
 centers at whole numbers, so a disk drawn at (x, y) is at (x + 0.5, y + 0.5) px in Tracker's

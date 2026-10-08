@@ -101,11 +101,6 @@ def test_a_missing_fps_gives_the_ported_message_and_writes_nothing(dish_clip, no
     assert not out.exists()
 
 
-def test_the_unknown_fps_message_is_last_weeks():
-    last_weeks_script = (REPO / "tests" / "reference" / "shrimp" / "segment.py").read_text(encoding="utf-8")
-    assert f'raise ValueError("{UNKNOWN_FPS[len("ERROR: "):-1]}")' in last_weeks_script
-
-
 def test_fps_comes_from_the_manifest_in_the_current_folder(dish_clip, frames, nowhere, tmp_path, capsys):
     manifest = write_manifest(nowhere, "238.0")
     out = tmp_path / "out"

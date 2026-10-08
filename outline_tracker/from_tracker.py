@@ -10,7 +10,7 @@ their mask on the first frame (SPEC 6.3).
 
 What is last week's and stays: the errors of `make_plan`, the console lines, and `_flags`, the three
 checks behind the `CHECK:` lines (lost, jump, size change), moved here unchanged
-(tests/test_port_fidelity.py compares it with the reference). The nine flags of SPEC 9 are in the
+(tests/test_from_tracker_port.py holds their limits and messages). The nine flags of SPEC 9 are in the
 `flags` columns of the CSV files and in run.log; they are not CHECK lines (decision X22).
 
 Units and coordinates (SPEC 3): px in Tracker's image coordinates (pixel centers at +0.5); mm in

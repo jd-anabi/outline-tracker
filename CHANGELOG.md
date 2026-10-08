@@ -21,6 +21,12 @@ Development version `0.2.0.dev0`. The files it writes say so.
   values at its next export on the frames whose mask has more than one piece (`n_components`
   above 1); every other row is unchanged. No file format changed: nothing is tracked again.
 
+### Removed
+
+- The copies of the class template (`tests/reference/`) and the port-fidelity tests, which compared
+  the tool with them, were retired. Their value is held by tests on known values and by reference
+  numbers frozen under `tests/data/` (`docs/VALIDATION.md`, section 7). The tool itself did not change.
+
 ## 0.1.0 (2026-10-07)
 
 ### Added

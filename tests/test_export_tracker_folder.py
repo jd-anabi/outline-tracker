@@ -3,8 +3,7 @@
 
 Students' own loaders read every .csv and .txt file of that folder as a track, so it may hold
 nothing but `<id>.csv`: no temporary file and no fallback file there ends in .csv or .txt, and the
-files of tracks that no longer exist are removed. The files are read back with last week's
-unmodified `shrimp.segment.read_tracker_export` (tests/reference), and by pandas alone
+files of tracks that no longer exist are removed. The files are read back by pandas alone
 (`read_with_pandas`), so that the check of the writer rests on no reader of the tool.
 
 Coordinates: x, y in mm in the user's axes (y up), pixelx, pixely in px (Tracker's convention).
@@ -20,7 +19,6 @@ import pandas as pd
 import pytest
 from export_helpers import MODEL, RUN_FILES, coarse_run, load, store_run, table
 from overlay_helpers import record
-from shrimp import segment as reference
 
 from outline_tracker import export, export_tables, fileio, schema, tracker_io
 
@@ -78,13 +76,9 @@ def test_tracker_files_parse_with_last_weeks_reader_and_agree_with_positions(run
         path = run_folder / MODEL / f"{track_id}.csv"
         lines = path.read_text().splitlines()
         assert lines[:2] == [f",{track_id},,,,,", "t,frame,x,y,pixelx,pixely"]
-        (name, read), = reference.read_tracker_export(path).items()
         mine = positions[(positions.track_id == track_id) & (positions.visible == 1)]
-        assert name == track_id and list(read.frame) == list(mine.frame) == GRID
-        # the same numbers written with the same decimals: the same values, not merely close ones
-        for theirs, ours in (("x", "x_mm"), ("y", "y_mm"), ("pixelx", "u_px"), ("pixely", "v_px"), ("t", "t_s")):
-            np.testing.assert_array_equal(read[theirs].to_numpy(), mine[ours].to_numpy(), err_msg=theirs)
-        # the same, read by pandas alone: the name of the first line, every frame, the same values
+        # read by pandas alone: the name of the first line, every frame, and the same numbers written
+        # with the same decimals: the same values, not merely close ones
         name, rows = read_with_pandas(path)
         assert name == track_id and list(rows.frame) == list(mine.frame) == GRID
         for theirs, ours in (("x", "x_mm"), ("y", "y_mm"), ("pixelx", "u_px"), ("pixely", "v_px"), ("t", "t_s")):
@@ -181,8 +175,6 @@ def test_locked_files_get_the_new_data_next_to_them_and_a_warning(run_folder, mo
     np.testing.assert_allclose(new_positions.x_mm, 29 / 30 * table(run_folder / "positions.csv").x_mm, atol=1e-6)
     # in the Tracker-format folder the fallback must not be a .csv or .txt: a loader would read it as a track
     assert {path.name for path in (run_folder / MODEL).iterdir()} == {"A.csv", "A.csv.new", "B.csv", "C.csv"}
-    (name, read), = reference.read_tracker_export(_as_csv(run_folder / MODEL / "A.csv.new")).items()
-    np.testing.assert_array_equal(read.x.to_numpy(), new_positions[new_positions.track_id == "A"].x_mm.to_numpy())
     name, rows = read_with_pandas(run_folder / MODEL / "A.csv.new")  # pandas reads it under the name it has
     assert name == "A"
     np.testing.assert_array_equal(rows.x.to_numpy(), new_positions[new_positions.track_id == "A"].x_mm.to_numpy())
@@ -198,14 +190,6 @@ def test_locked_files_get_the_new_data_next_to_them_and_a_warning(run_folder, mo
     assert {path.name for path in (run_folder / MODEL).iterdir()} == {"A.csv", "B.csv", "C.csv"}
     np.testing.assert_array_equal(table(run_folder / "positions.csv").x_mm.to_numpy(), new_positions.x_mm.to_numpy())
     assert any("positions.new.csv" in line and "removed" in line for line in lines)
-
-
-def _as_csv(path):
-    """A copy of a file under the name A.csv in a folder of its own (the reader names a track by its file)."""
-    target = path.parent.parent / "copy" / "A.csv"
-    target.parent.mkdir()
-    shutil.copyfile(path, target)
-    return target
 
 
 # One rule for a locked file. `fileio.atomic_write` cannot write into the Tracker-format folder (its

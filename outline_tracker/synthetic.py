@@ -15,7 +15,7 @@ angle when the axis angle alpha is 0. A shape's body frame has its origin at the
 xi toward the head and eta 90 degrees counterclockwise from xi. Time is frame / fps, in s.
 
 `selftest_clip` is the clip-making part of last week's `shrimp.segment.selftest`, moved over
-unchanged and checked against the reference copy by tests/test_port_fidelity.py.
+unchanged; tests/test_synthetic.py holds its frames, its true centers and its export.
 """
 
 from __future__ import annotations

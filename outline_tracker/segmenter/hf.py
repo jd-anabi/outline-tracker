@@ -1,8 +1,8 @@
 """SAM 2.1 and EdgeTAM through Hugging Face transformers, one frame at a time (SPEC 6.2).
 
 Ported from `TransformersSegmenter` and `load_model` of the course's shrimp.segment, written for
-transformers 5.18.0. Kept from last week (tests/test_port_fidelity.py compares the unchanged
-parts with the reference copy):
+transformers 5.18.0. Kept from last week (held by tests/test_hf_helpers.py without a model, and by
+the slow tests, which compare with the positions that last week's script confirmed, tests/data/):
 - the streaming session, which counts its own frames 0, 1, 2, ... (not the video's frame numbers:
   the model looks for its memory at the previous indices);
 - the pruning of what the model no longer uses, with `KEEP_FRAMES = 20`;

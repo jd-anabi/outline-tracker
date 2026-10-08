@@ -1,33 +1,27 @@
-"""Last week's end-to-end tests, through `from_tracker` (decision X3), and last week's script itself
-as the judge of the Tracker-format files (SPEC 13.3).
+"""Last week's end-to-end tests, through `from_tracker` (decision X3), and the frozen Tracker-format
+files of three cases (SPEC 13.3).
 
-The first two tests are the template's (tests/reference/template_tests/test_segment.py). Their
-assertions on frames, times and positions are unchanged; `from_tracker` with `ThresholdFake` stands
-where `segment.track_video` with `DiskFinder` stood, and the files are looked for in the run folder of
-SPEC 8.1. tests/test_port_fidelity.py lists every changed piece of text and compares the rest with the
-template.
+The first two tests are last week's, ported. Their assertions on frames, times and positions are
+unchanged; `from_tracker` with `ThresholdFake` stands where `segment.track_video` with `DiskFinder`
+stood, and the files are looked for in the run folder of SPEC 8.1.
 
-The third runs the reference `track_video` with the reference `DiskFinder`, and `from_tracker` with
-`ThresholdFake`, on the same clip and export: the Tracker-format files must be the same bytes on this
-computer, and the CHECK messages the same list.
-
-The fourth compares what `from_tracker` writes with the frozen files of the same three cases,
-tests/data/tracker_format/<case>/<name>.csv, and needs nothing of the template. The third is what
-writes them, only when asked and only after the template and the package agreed in that run
-(tests/frozen_helpers.py). The plan and the CHECK messages of each case are typed values
-(`REPORTED`): the fourth holds the tool's run to them, and the third the template's.
+The third compares what `from_tracker` writes with the frozen files of three cases,
+tests/data/tracker_format/<case>/<name>.csv. They were frozen while last week's script was still in
+the repository, in a run in which that script wrote the same bytes; their HEADER.txt says how. The
+script left in W1 step 5, and the test that wrote the files with it: the command in the header
+writes nothing now. The plan and the CHECK messages of each case are typed values (`REPORTED`), and
+the third test holds the tool's run to them.
 
 The frozen bytes belong to the decoder that made them. The positions come from a clip that OpenCV
 encodes and decodes on the computer that runs the test, and another build of OpenCV gives other digits
 at a few frames. So the bytes are asserted only where the decoder is the one that the files' HEADER.txt
-names (`same_decoder`). There the third test is their independent check: the template's bytes equal
-the frozen bytes too. A frozen file has LF line ends; the tool writes the system's line ends (CRLF on
+names (`same_decoder`). A frozen file has LF line ends; the tool writes the system's line ends (CRLF on
 Windows, docs/OUTPUTS.md), so the frozen bytes are compared after LF is replaced by those. With every
-other decoder the fourth test asserts what does not depend on the decoder (`compare_with_golden`): the
+other decoder the third test asserts what does not depend on the decoder (`compare_with_golden`): the
 text that does not come from pixels is the frozen file's, every position is within 0.25 px of the
 disk's true center, and the mm columns follow from the pixel columns.
 
-Three tests after the fourth: that second comparison is run on every system, so on the one that froze
+Three tests after the third: that second comparison is run on every system, so on the one that froze
 the files too; the frozen positions themselves are held to the true centers, without a clip; and
 changed copies of a frozen file, made up in the test's own folder, show that each difference is found.
 
@@ -43,15 +37,12 @@ import pandas as pd
 import pytest
 from conftest import java_sci
 from from_tracker_helpers import FPS, disk_video, write_start_file
-from frozen_helpers import (GOLDEN, SIDECAR, compare_with_golden, frozen_files, read_frozen, same_decoder,
-                            write_frozen, write_listing)
+from frozen_helpers import GOLDEN, SIDECAR, compare_with_golden, frozen_files, read_frozen, same_decoder
 from test_tracker_io import MM_PER_PX, export_text, tracker_map
 
 from outline_tracker.from_tracker import _flags, from_tracker
 from outline_tracker.segmenter.fake import ThresholdFake
 from outline_tracker.video import decoder_tag
-
-FREEZE_COMMAND = "OUTLINE_TRACKER_FREEZE=1 uv run pytest tests/test_from_tracker_port.py -q"  # what writes them
 
 
 def test_whole_run_with_a_stand_in_model(tmp_path):
@@ -104,7 +95,7 @@ def test_many_shrimp_from_a_start_file_in_extra(tmp_path):
 
 
 # ---------------------------------------------------------------------------------------------
-# Last week's script on the same clip and export
+# Three cases and their frozen Tracker-format files
 
 # Where each of the three cases below draws its disks, by the name of the case and of the track:
 # frame -> (x, y) of the disk's center as `disk_video` takes it (px, pixel centers at whole numbers), or
@@ -198,7 +189,7 @@ def as_written_here(frozen: bytes) -> bytes:
 
 def golden_decoder_here() -> bool:
     """Whether this computer's decoder is the one that froze the golden files (`same_decoder`): only
-    then are their bytes asserted. Read when asked, because a run that freezes writes the header."""
+    then are their bytes asserted."""
     return same_decoder(read_frozen(GOLDEN / SIDECAR)[0], decoder_tag())
 
 
@@ -213,47 +204,13 @@ def run_and_compare(folder, case, strict: bool):
     frozen = GOLDEN / case.__name__
     assert [f.name for f in new.files] == [f.name for f in frozen_files(frozen)] == [f"{name}.csv" for name in names]
     for new_file in new.files:
+        assert new_file.parent == folder / "new" / "stand-in"
         if strict:
             assert new_file.read_bytes() == as_written_here((frozen / new_file.name).read_bytes()), new_file.name
         else:
             compare_with_golden(f"{case.__name__}, {new_file.name}", new_file, frozen / new_file.name,
                                 true_center(case, new_file.stem), tracker_map)
     return new
-
-
-@pytest.mark.parametrize("case", CASES)
-def test_the_tracker_format_files_are_last_weeks_bytes(tmp_path, case):
-    from shrimp import segment as reference
-    from template_tests.test_segment import DiskFinder
-
-    video, export, options, names = case(tmp_path)
-    old = reference.track_video(video, export, model="stand-in", segmenter=DiskFinder(), overlay=False,
-                                out=tmp_path / "reference", manifest=tmp_path / "none.csv", log=lambda *a: None,
-                                **options)
-    new = from_tracker(video, export, model="stand-in", segmenter=ThresholdFake(), overlay=False,
-                       out=tmp_path / "new", log=lambda *a: None, **options)
-    assert [f.name for f in new.files] == [f.name for f in old["files"]] == [f"{name}.csv" for name in names]
-    for new_file, old_file in zip(new.files, old["files"]):
-        assert new_file.parent == tmp_path / "new" / "stand-in"
-        assert new_file.read_bytes() == old_file.read_bytes(), new_file.name
-    assert new.flags == old["flags"]
-    assert (new.plan.start, new.plan.step, new.plan.n, new.plan.fps) == (
-        old["plan"].start, old["plan"].step, old["plan"].n, old["plan"].fps)
-    # the typed values of the next test, proved here against the template's own run
-    assert_the_plan_and_the_messages(case, old["plan"], old["flags"])
-    # The template and the package agree. Only now, and only when asked, their bytes are frozen (with LF).
-    frozen = GOLDEN / case.__name__
-    for new_file in new.files:
-        write_frozen(frozen / new_file.name, new_file.read_bytes().replace(os.linesep.encode(), b"\n"))
-    write_listing(GOLDEN, FREEZE_COMMAND, {
-        "agreement with the template": "the same bytes, file by file, asserted in the run that wrote them",
-        "line ends": "LF; the tool writes the system's line ends, and a test compares after putting those in"})
-    # The independent check of the frozen files, with the decoder that froze them: the template writes
-    # their bytes. With another decoder the template's bytes are still this run's (asserted above), and
-    # this run's are judged by the next test.
-    if golden_decoder_here():
-        for old_file in old["files"]:
-            assert old_file.read_bytes() == as_written_here((frozen / old_file.name).read_bytes()), old_file.name
 
 
 @pytest.mark.parametrize("case", CASES)
@@ -406,4 +363,34 @@ def test_a_step_is_a_jump_when_it_is_faster_than_100_mm_per_s(step_px, messages)
     pixelx = np.array([200.5, 201.5, 202.5, 202.5 + step_px, 203.5 + step_px])
     x_mm, y_mm = pixelx / 32.0, np.zeros(5)  # along x; y is the same on every row
     area_px = np.full(5, 113)  # a disk of radius 6 px on every row: no change of size
+    assert _flags("A", frames, frames / 256.0, x_mm, y_mm, area_px) == messages
+
+
+def size_message(n_frames: int) -> str:
+    """The CHECK message for a track whose outline has another size on `n_frames` rows, the first of
+    them frame 52 of the track below, at t = 52 / 256 = 0.203 s."""
+    return (f"A: outline size changes by more than 2x in {n_frames} frames (first at t = 0.203 s): two shrimp "
+            "touching, or a lost outline")
+
+
+@pytest.mark.parametrize("area_52_px, area_56_px, messages", [
+    (200, 100, []),
+    (201, 100, [size_message(1)]),
+    (50, 100, []),
+    (49, 100, [size_message(1)]),
+    (201, 49, [size_message(2)]),
+], ids=["2 times the median", "just over 2 times", "half the median", "just under half", "two rows"])
+def test_an_outline_outside_half_to_2_times_the_tracks_median_area_is_a_check_message(area_52_px, area_56_px,
+                                                                                      messages):
+    # The third check behind the CHECK lines, bracketed with a made-up track: no clip and no model. SPEC 9
+    # has the rule for SIZE: "area outside [0.5, 2] x the track's median area (as last week)", and README.md
+    # says of the CHECK lines that an outline "changed size by more than 2 times".
+    # The track: five rows on the frames 40, 44, ..., 56 at 256 frames per s, moving 1 px = 1/32 mm per row
+    # (2 mm/s: no jump). The first three rows have an area of 100 px, so the median of the five is 100 px
+    # whatever the last two have, and the interval is 50 to 200 px:
+    #   200 px and 50 px are its ends, which are not outside it: no message;
+    #   201 px and 49 px are outside: one message, which counts the rows and names the first, frame 52.
+    frames = np.array([40, 44, 48, 52, 56])
+    x_mm, y_mm = (200.5 + np.arange(5)) / 32.0, np.zeros(5)
+    area_px = np.array([100, 100, 100, area_52_px, area_56_px])
     assert _flags("A", frames, frames / 256.0, x_mm, y_mm, area_px) == messages

@@ -5,9 +5,9 @@ These tests read it as data and hold it against the real tool:
 
 - every `outline-tracker ...` line in a code block, and every inline `outline-tracker ...`, is parsed by the
   real parser (`cli.build_parser()`); an option or command that does not exist fails the test;
-- every `--option` the README names exists in some command's help, or is last week's (read from the
-  unmodified reference script) or `uv`'s own; the side-by-side table says "same" only for options that
-  both last week's script and `from-tracker` have, and "new" only for options that last week's lacks;
+- every `--option` the README names exists in some command's help or is `uv`'s own; the side-by-side
+  table says "same" only for options that both last week's script (its nine options are typed here,
+  `LAST_WEEKS_OPTIONS`) and `from-tracker` have, and "new" only for options that last week's lacks;
 - the example output lines of the README are shaped like what the real commands print, here run on small
   made-up clips with a stand-in model (`...` and `path/to/...` stand for any text, numbers for any number);
 - every install line names a release tag, and the example version line is that release's: until the next
@@ -43,7 +43,6 @@ from outline_tracker.selftest import selftest
 
 REPO = Path(__file__).resolve().parents[1]
 README = REPO / "README.md"
-REFERENCE_SEGMENT = REPO / "tests" / "reference" / "shrimp" / "segment.py"
 
 TITLES = ["If the app does not open", "Troubleshooting", "Getting the original video off your phone"]
 SHELLS = {"zsh", "bash", "sh", "powershell", "pwsh", "shell"}  # `shell`: the same on macOS and on Windows
@@ -323,16 +322,11 @@ def test_each_command_of_the_fallback_is_shown(text):
 
 
 def test_every_option_it_names_exists(text):
-    last_week = options_in(REFERENCE_SEGMENT.read_text(encoding="utf-8"))
-    unknown = options_in(text) - help_options() - last_week - UV_OPTIONS
-    assert unknown == set()
-    # and without last week's script: the README names no option but the tool's own and those of `uv`
+    # the README names no option but the tool's own and those of `uv`
     assert options_in(text) - help_options() - UV_OPTIONS == set()
 
 
 def test_the_table_of_options_is_true_and_has_the_options_of_the_brief(text):
-    in_the_script = set(re.findall(r'add_argument\("(--[a-z-]+)"', REFERENCE_SEGMENT.read_text(encoding="utf-8")))
-    assert LAST_WEEKS_OPTIONS == in_the_script  # the typed set is the script's own, while the script is here
     last_week = LAST_WEEKS_OPTIONS
     this_week = options_in(printed(cli.build_parser().parse_args, ["from-tracker", "--help"]))
     assert table_problems(text, last_week, this_week) == []

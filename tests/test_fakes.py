@@ -1,6 +1,5 @@
 """The stand-in segmenters (SPEC 12, 13.2): `ThresholdFake` on the disk clip, `ExactFake`, and the
-rules both share. tests/test_fakes_threshold.py checks `ThresholdFake` against the template's
-`DiskFinder` and on hand-made images.
+rules both share. tests/test_fakes_threshold.py checks `ThresholdFake` on hand-made images.
 
 Expected values come from geometry written out here (a disk's inequality, bounding boxes worked out
 by hand), from the scenes' stated paths, and from the ground truth of outline_tracker/synthetic.py,

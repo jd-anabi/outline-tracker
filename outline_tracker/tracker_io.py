@@ -1,8 +1,9 @@
 """Tracker's files and calibration, ported from the course's shrimp.segment (unchanged behavior).
 
-The functions and classes below are last week's, moved over unchanged under their own names and
-checked against the reference copy by tests/test_port_fidelity.py and
-tests/test_port_equivalence.py. A "fix" here would change what students' files from last week mean.
+The functions and classes below are last week's, moved over unchanged under their own names. Their
+tests are last week's own (tests/test_tracker_io.py) and tests on known maps and on files typed by
+hand (tests/test_tracker_io_known_maps.py). A "fix" here would change what students' files from last
+week mean.
 
 What the module does:
 - `read_tracker_export` reads a file exported from Tracker (File > Export > Data) with one point
@@ -42,8 +43,10 @@ def _cells(line: str) -> tuple[list[str], str]:
 def read_tracker_export(path) -> dict[str, pd.DataFrame]:
     """Read a file exported from Tracker with one or several point masses.
 
-    Returns {name: table} with the columns t, frame, x, y, pixelx, pixely (float, NaN where empty),
-    one row per line of the file. Several point masses exported together start with "#multi:",
+    Returns {name: table} with the columns t, frame, x, y, pixelx, pixely: frame is a whole number,
+    the others are floats (NaN where empty). A table has one row per line of the file on which its
+    point mass is marked, in the order of the frames: a line without a frame, a pixelx or a pixely for
+    it is dropped. Several point masses exported together start with "#multi:",
     then a line of names, then the column names repeated for each point mass. With one point mass the
     name is the file name without extension (that is how the tracks are matched across tools).
     """

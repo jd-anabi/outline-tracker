@@ -1,3 +1,2 @@
 * text=auto eol=lf
-tests/reference/** -text
 tests/data/** -text

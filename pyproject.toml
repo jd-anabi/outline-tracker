@@ -46,10 +46,9 @@ packages = ["outline_tracker"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# tests/ holds helpers.py and the ported conftest helpers; tests/reference holds last week's
-# unmodified code (package `shrimp`), used only by regression tests.
-pythonpath = ["tests", "tests/reference"]
-norecursedirs = ["reference", ".*", "build", "dist"]
+# tests/ holds helpers.py and the ported conftest helpers.
+pythonpath = ["tests"]
+norecursedirs = [".*", "build", "dist"]
 addopts = "-ra --strict-markers"
 qt_api = "pyside6"
 faulthandler_timeout = 120

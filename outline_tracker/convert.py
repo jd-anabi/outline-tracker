@@ -6,7 +6,7 @@ or dropped and the phone's rotation applied. The slow motion is not "baked in": 
 copy is frame n of the original.
 
 The command is `outline-tracker convert VIDEO...` (cli.py); the functions here are last week's,
-unchanged, and checked against the reference copy by tests/test_port_fidelity.py. Frame counts
+moved over unchanged, and last week's tests of them are tests/test_convert.py. Frame counts
 are frames, frame rates are frames per second of file time.
 
 Usage (from the repository folder):

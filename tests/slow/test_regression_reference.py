@@ -1,27 +1,26 @@
-"""The Hugging Face backend reproduces last week's script (SPEC 13.3), and the selftest criterion
-of SPEC 13.4 at the level of the segmenter. Every test here is slow: it needs torch.
+"""The Hugging Face backend at the level of the segmenter: its prompts and masks, the frozen
+positions (SPEC 13.3), and the selftest criterion of SPEC 13.4. Every test here is slow: it needs
+torch.
 
 Three groups:
 1. no weights (seconds): the real processor and session, with the network replaced by a stand-in
-   that returns given logits. The new `HFSegmenter` and last week's `TransformersSegmenter`
-   (tests/reference, package `shrimp`) run side by side through their own code. Beside each
-   comparison stands what needs no reference: the clicks as the session holds them, scaled to the
-   model's 1024 x 1024 input; the crop rule; and, for logits that draw a known disk, its center
-   and area in the frame;
-2. the real EdgeTAM on `cpu`: ONE loaded model is given to both, in one process and with the same
-   thread count, on the selftest clip (one object) and on a three-object clip made with the same
-   recipe. The first run downloads the model (56 MB) and converts it;
+   that returns given logits: the clicks as the session holds them, scaled to the model's
+   1024 x 1024 input; the mask as logits > 0 and the crop rule; and, for logits that draw a known
+   disk, its center and area in the frame;
+2. the real EdgeTAM on `cpu`: ONE loaded model, on the selftest clip (one object) and on a
+   three-object clip made with the same recipe. The positions are compared with the frozen ones,
+   tests/data/edgetam_cpu_positions.csv. The first run downloads the model (56 MB) and converts it;
 3. the selftest criterion (max error < 3 px against the true positions) on `cpu` and on `mps`.
 
-Lines printed with the prefix `VALIDATION` are the numbers of docs/VALIDATION.md; show them with
-`uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP`.
+Until W1 step 5 the tests of groups 1 and 2 ran last week's script (`shrimp.segment`) beside the new
+backend and compared the two; some test names still say "the reference". The script has left the
+repository. What it confirmed is kept as the frozen table: the positions that this backend gave in
+the run in which the script agreed within 0.01 px (docs/VALIDATION.md, section 7). So "the
+reference" of group 2 is that table now, judged as tests/frozen_helpers.py says: within 0.01 px on
+the machine that froze it, and by the true centers on another.
 
-With `OUTLINE_TRACKER_FREEZE=1` the tests of group 2 also write the frozen numbers of
-tests/slow/test_frozen_reference.py: the new backend's positions on both clips
-(tests/data/edgetam_cpu_positions.csv) and the weights' hash (tests/data/edgetam_weights.txt). Each
-test hands its numbers over after its own assertions have passed, so the files hold only what last
-week's code and the true positions confirmed in that run (tests/frozen_helpers.py). Without the
-switch nothing is written.
+Lines printed with the prefix `VALIDATION` are measured numbers; show them with
+`uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP`.
 
 Coordinates: positions are in px in Tracker's convention (pixel centers at +0.5, SPEC 3.1), in the
 full frame: `mask_center` of a result's cropped mask plus its offset (col0, row0). Clips are 1080p.
@@ -32,18 +31,18 @@ from __future__ import annotations
 import hashlib
 import math
 import time
-from pathlib import Path
 from types import SimpleNamespace
 
 import cv2
 import numpy as np
 import pandas as pd
 import pytest
-from frozen_helpers import (COLUMNS, POSITIONS, REPO, WEIGHTS, freeze_asked, frozen_text, header_lines, position_rows,
-                            write_frozen)
+from frozen_helpers import compare_with_frozen, machine_here, read_positions, same_machine
 
+from outline_tracker import synthetic, tracker_io
 from outline_tracker.measure import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
+from outline_tracker.video import iter_rgb_frames
 
 pytestmark = pytest.mark.slow
 
@@ -152,7 +151,8 @@ def _stored_point(session, obj_idx: int) -> tuple[list[float], list[int]]:
 
 
 def _leaves(value, path="session") -> list[str]:
-    """The paths `_differences` walks, to show that the comparison reaches the prompt tensors."""
+    """The paths `_differences` walks, to show that a comparison of two sessions reaches the prompt
+    tensors."""
     if isinstance(value, dict):
         return [leaf for key, item in value.items() for leaf in _leaves(item, f"{path}[{key!r}]")]
     if type(value).__module__.startswith("transformers."):
@@ -183,41 +183,33 @@ def test_prompt_tensors_have_one_point_and_no_padding(processor):
 
 
 def test_session_equals_the_one_the_reference_builds(processor):
-    from shrimp import segment
-
+    # Until W1 step 5 this session was compared with the one that last week's script built from the same
+    # clicks. What needs no script is asserted: what the session holds for each click.
     from outline_tracker.segmenter import hf
 
     image = np.zeros((H, W, 3), np.uint8)
-    reference = segment.TransformersSegmenter("edgetam", "cpu", model=StubModel(_random_logits(), None),
-                                              processor=processor)
-    reference.start(image, CLICKS)  # last week's single call for all objects
     new = hf.HFSegmenter("edgetam", "cpu", model=StubModel(*_stub_outputs(_random_logits())), processor=processor)
     new.start(image, _prompts())  # one call per object
 
-    assert _differences(reference.session, new.session) == []
     leaves = _leaves(new.session)
     for obj_idx in range(3):
         assert f"session.['point_inputs_per_obj'][{obj_idx}][0]['point_coords']" in leaves
     assert "session.['obj_with_new_inputs']" in leaves and "session.['video_height']" in leaves
     assert new.session.obj_with_new_inputs == [1, 2, 3]
 
-    # The comparison can fail: one click moved by 1 px.
-    moved = hf.HFSegmenter("edgetam", "cpu", model=StubModel(*_stub_outputs(_random_logits())), processor=processor)
-    moved.start(image, _prompts([CLICKS[0], (CLICKS[1][0] + 1.0, CLICKS[1][1]), CLICKS[2]]))
-    found = _differences(reference.session, moved.session)
-    assert len(found) == 1 and found[0].startswith("session.['point_inputs_per_obj'][1][0]['point_coords']")
-
-    # The same without last week's code. The session lists the three objects as having new inputs
-    # (asserted above) and holds one point with the label 1 for each: its click, scaled from image px to
-    # the model's 1024 x 1024 input and nothing else, as `test_prompt_tensors_have_one_point_and_no_padding`
-    # has it.
+    # The session lists the three objects as having new inputs (asserted above) and holds one point with
+    # the label 1 for each: its click, scaled from image px to the model's 1024 x 1024 input and nothing
+    # else, as `test_prompt_tensors_have_one_point_and_no_padding` has it.
     assert new.session.obj_ids == [1, 2, 3]
     for obj_idx, (x, y) in enumerate(CLICKS):
         coords, labels = _stored_point(new.session, obj_idx)
         assert labels == [1]
         assert coords == pytest.approx([x * 1024 / W, y * 1024 / H], abs=1e-3)
-    # The click that was moved 1 px to the right is 1024 / 1920 further right there, and nothing else
-    # of the session differs.
+
+    # A second session, with the second click moved 1 px to the right: that click is 1024 / 1920 further
+    # right there, and nothing else of the session differs.
+    moved = hf.HFSegmenter("edgetam", "cpu", model=StubModel(*_stub_outputs(_random_logits())), processor=processor)
+    moved.start(image, _prompts([CLICKS[0], (CLICKS[1][0] + 1.0, CLICKS[1][1]), CLICKS[2]]))
     changed = _differences(new.session, moved.session)
     assert len(changed) == 1 and changed[0].startswith("session.['point_inputs_per_obj'][1][0]['point_coords']")
     (x, y), (moved_x, moved_y) = _stored_point(new.session, 1)[0], _stored_point(moved.session, 1)[0]
@@ -279,44 +271,34 @@ def _assert_the_disk_of_the_blob_logits(result) -> None:
 
 @pytest.mark.parametrize("make_logits", [_random_logits, _blob_logits], ids=["random", "blobs"])
 def test_per_object_logits_give_the_reference_masks(processor, make_logits):
-    from shrimp import segment
-
+    # Until W1 step 5 the masks were compared with those that last week's script made of the same logits,
+    # pixel for pixel. What needs no script is asserted: the rule that makes a mask of logits and crops it,
+    # and, for the logits that draw a known disk, where that disk is.
     from outline_tracker.segmenter import hf
 
     image = np.zeros((H, W, 3), np.uint8)
     logits, scores = _stub_outputs(make_logits())
-    old_model, new_model = StubModel(logits, None), StubModel(logits, scores)
-    reference = segment.TransformersSegmenter("edgetam", "cpu", model=old_model, processor=processor)
-    new = hf.HFSegmenter("edgetam", "cpu", model=new_model, processor=processor)
+    model = StubModel(logits, scores)
+    new = hf.HFSegmenter("edgetam", "cpu", model=model, processor=processor)
 
     for step in range(3):
-        old_masks = reference.start(image, CLICKS) if step == 0 else reference.step(image)  # binarize=True, batched
         results = new.start(image, _prompts()) if step == 0 else new.step(image)
         assert [r.obj_id for r in results] == NAMES
         assert [r.score for r in results] == pytest.approx([5.0, 0.5, -3.0])
-        for result, old_mask in zip(results, old_masks):
-            assert np.array_equal(_full(result), old_mask)
+        for result in results:
             assert result.mask.dtype == bool and result.logits.dtype == np.float32
             assert np.array_equal(result.logits > 0, result.mask)
-            if old_mask.any():  # cropped to the bounding box +/- 8 px, clipped to the frame
-                rows, cols = np.nonzero(old_mask)
-                col0, row0 = max(cols.min() - 8, 0), max(rows.min() - 8, 0)
-                assert result.offset == (col0, row0)
-                assert result.mask.shape == (min(rows.max() + 9, H) - row0, min(cols.max() + 9, W) - col0)
-            else:
-                assert result.mask.shape == (0, 0)
-            _assert_cropped_to_its_mask(result)  # the same rule, without last week's mask
+            _assert_cropped_to_its_mask(result)  # the bounding box +/- 8 px, clipped to the frame
     if make_logits is _blob_logits:
-        assert [bool(m.any()) for m in old_masks] == [True, True, False]  # the third object is absent
         assert results[0].mask.size < 0.01 * H * W  # a real crop, not the whole frame
-        assert [bool(result.mask.any()) for result in results] == [True, True, False]  # without last week's masks
+        assert [bool(result.mask.any()) for result in results] == [True, True, False]  # the third object is absent
         _assert_the_disk_of_the_blob_logits(results[0])
     # The session counts its own frames 0, 1, 2, ...: never the video's frame numbers.
-    assert old_model.frame_indices == new_model.frame_indices == [0, 1, 2]
+    assert model.frame_indices == [0, 1, 2]
 
 
 # ---------------------------------------------------------------------------------------------
-# 2. The real EdgeTAM on cpu: one loaded model for the reference and for the new backend
+# 2. The real EdgeTAM on cpu: one loaded model, and the frozen positions as the reference
 
 
 @pytest.fixture(scope="module")
@@ -328,16 +310,15 @@ def loaded():
 
 
 def _track(segmenter, video, frames, prompts) -> SimpleNamespace:
-    """Drive a segmenter over the frames of a clip, as last week's loop did.
+    """Drive a segmenter over the frames of a clip, read one after the other with
+    `video.iter_rgb_frames`: `start` with the prompts on the first, `step` on every later one.
 
     Returns frames (video frame numbers), results (one list of MaskResult per frame) and seconds
     (per frame, decoding included).
     """
-    from shrimp import segment
-
     done, results, seconds = [], [], []
     t0 = time.perf_counter()
-    for i, (frame, rgb) in enumerate(segment.iter_rgb_frames(video, frames)):
+    for i, (frame, rgb) in enumerate(iter_rgb_frames(video, frames)):
         results.append(segmenter.start(rgb, prompts) if i == 0 else segmenter.step(rgb))
         done.append(frame)
         seconds.append(time.perf_counter() - t0)
@@ -349,133 +330,64 @@ def _timing(seconds: np.ndarray) -> str:
     return f"{seconds.mean():.2f} s per frame (mean of {len(seconds)}; median {np.median(seconds):.2f})"
 
 
-FREEZE_COMMAND = ("OUTLINE_TRACKER_FREEZE=1 uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP "
-                  "-p no:cacheprovider")  # what writes the two frozen files
-_handed_over = {}  # what the tests of a freeze run have handed over: "selftest", "three_ellipses", "weights"
+def _frozen_positions(clip: str, frames, names) -> tuple[dict[str, str], np.ndarray]:
+    """The frozen table (tests/data/edgetam_cpu_positions.csv) for one of its clips: its header, and
+    positions[i][k] = (u_px, v_px) of the object names[k] on the frame frames[i], px in Tracker's
+    convention in the full frame. A frame or an object that the table does not hold is a KeyError."""
+    header, rows = read_positions()
+    table = {(row_clip, frame, track_id): (u_px, v_px) for row_clip, frame, track_id, u_px, v_px in rows}
+    return header, np.array([[table[clip, frame, name] for name in names] for frame in frames])
 
 
-def _hand_over_positions(clip, frames, names, positions, difference, error) -> None:
-    """Take one clip's positions of the new backend for the frozen table, after the assertions of its
-    test have passed. Does nothing unless this run was asked to freeze (tests/frozen_helpers.py).
+def _compare_with_the_frozen_positions(what: str, clip: str, frames, names, found, true, weights_sha256) -> None:
+    """Judge the positions that a run found on a clip of the frozen table against that table
+    (`frozen_helpers.compare_with_frozen`, which also prints what it measured): the rows that are lost
+    are the table's, and every position is within 0.01 px of its frozen one on the machine that froze
+    them, with the weights whose hash is `weights_sha256` (`frozen_helpers.same_machine`); on another
+    machine no row is lost and every position is under 3 px from its true center.
 
-    positions[i][k]: (u_px, v_px) of the object names[k] on the frame frames[i], px in Tracker's
-    convention in the full frame. difference, error: each found row's distance in px from last week's
-    position and from the true center. What these two checks do not confirm is refused: a row more
-    than 0.01 px from last week's, or 3 px or more from the truth.
+    found, true: [i][k] = (u_px, v_px) of names[k] on frames[i], what the run found (NaN, NaN where
+    lost) and the true center, px in Tracker's convention in the full frame.
     """
-    if not freeze_asked():
-        return
-    worst, farthest = float(np.nanmax(difference)), float(np.nanmax(error))
-    assert worst <= 0.01 and farthest < 3.0, (
-        f"Nothing was frozen: {clip} is {worst:.4f} px from last week's and {farthest:.3f} px from the truth.")
-    _handed_over[clip] = SimpleNamespace(rows=position_rows(clip, frames, names, positions), worst=worst,
-                                         farthest=farthest)
-    _freeze_when_complete()
-
-
-def _hand_over_weights(sha256: str, size: int) -> None:
-    """Take the hash and the size in bytes of the weights file that the loaded model was read from,
-    after the test has hashed the file again. Does nothing unless this run was asked to freeze."""
-    if not freeze_asked():
-        return
-    _handed_over["weights"] = SimpleNamespace(sha256=sha256, size=size)
-    _freeze_when_complete()
-
-
-def _freeze_when_complete() -> None:
-    """Write the two frozen files once both clips and the weights have been handed over in this run:
-    one loaded model on cpu made all of it. A run of a part of this file writes nothing."""
-    if set(_handed_over) != {"selftest", "three_ellipses", "weights"}:
-        return
-    import torch
-
-    clips = {name: _handed_over[name] for name in ("selftest", "three_ellipses")}
-    weights = _handed_over["weights"]
-    rows = [row for clip in clips.values() for row in clip.rows]
-    write_frozen(POSITIONS, frozen_text(header_lines(FREEZE_COMMAND, {
-        "device": "cpu",
-        "torch threads": str(torch.get_num_threads()),
-        "weights sha256": weights.sha256,
-        "agreement with the template": f"{max(clip.worst for clip in clips.values()):.4f} px at most over the "
-                                       f"{len(rows)} rows (limit 0.01 px), asserted in the run that wrote this file",
-        "largest distance from the true centers": "; ".join(f"{name} {clip.farthest:.3f} px"
-                                                            for name, clip in clips.items()) + " (limit 3 px)",
-    }), [COLUMNS, *rows]))
-    write_frozen(WEIGHTS, frozen_text(header_lines(FREEZE_COMMAND, {
-        "model": "facebook/EdgeTAM (edgetam), converted on first use; the tool loads the converted model.safetensors",
-        "sha256, bytes": "of that model.safetensors; HFSegmenter.weights_sha256 reports this hash, and the run that "
-                         "wrote this file took it again from the file's bytes",
-        "original checkpoint, original revision": "Meta's edgetam.pt as the Hugging Face cache of this machine held "
-                                                  "it; for information, never asserted",
-    }), [f"sha256: {weights.sha256}", f"bytes: {weights.size}", *_original_checkpoint()]))
-    print(f"FROZEN {len(rows)} rows in {POSITIONS.relative_to(REPO).as_posix()}; the weights' hash in "
-          f"{WEIGHTS.relative_to(REPO).as_posix()}")
-
-
-def _original_checkpoint() -> list[str]:
-    """Meta's checkpoint as the Hugging Face cache of this computer holds it: a line with its name and
-    its size in bytes, and a line with its revision. Nothing when the cache does not hold it."""
-    from huggingface_hub import try_to_load_from_cache
-
-    found = try_to_load_from_cache("facebook/EdgeTAM", "edgetam.pt")
-    if not isinstance(found, str):
-        return []
-    return [f"original checkpoint: edgetam.pt of facebook/EdgeTAM, {Path(found).stat().st_size} bytes",
-            f"original revision: {Path(found).parent.name}"]
+    header, frozen = _frozen_positions(clip, frames, names)
+    compare_with_frozen(what, found, frozen, true, same_machine(header, machine_here(weights_sha256)))
 
 
 @pytest.fixture(scope="module")
 def selftest_runs(loaded, tmp_path_factory):
-    """Last week's selftest with the reference segmenter, then the new backend on the same clip."""
-    from shrimp import segment
-
+    """The selftest clip with its Tracker export (`synthetic.selftest_clip`), and the backend on it:
+    on the frames and from the click that `tracker_io.make_plan` reads from the export."""
     from outline_tracker.segmenter import hf
 
     model, processor = loaded
-    folder = tmp_path_factory.mktemp("selftest")
-    reference = segment.TransformersSegmenter("edgetam", "cpu", model=model, processor=processor)
-    log = []
-    summary = segment.selftest(model="edgetam", device="cpu", segmenter=reference, folder=folder, log=log.append)
-
-    video, export = folder / "selftest_tracker.mp4", folder / "selftest.csv"
-    plan = segment.make_plan(export, fps=240.0, video=video, manifest=folder / "none.csv")  # as track_video did
+    clip = synthetic.selftest_clip(tmp_path_factory.mktemp("selftest"))
+    video, export = clip["video"], clip["export"]
+    plan = tracker_io.make_plan(export, fps=240.0)
     segmenter = hf.HFSegmenter("edgetam", "cpu", model=model, processor=processor)
     run = _track(segmenter, video, plan.frames, [ObjectPrompt("selftest", [plan.points_px[0]], [1])])
     return SimpleNamespace(
-        video=video, plan=plan, segmenter=segmenter, run=run, summary=summary,
+        video=video, plan=plan, segmenter=segmenter, run=run,
         truth=pd.read_csv(export, skiprows=1),  # the click and the true positions
-        reference=pd.read_csv(folder / "edgetam" / "selftest.csv", skiprows=1),  # last week's positions
         positions=np.array([_position(results[0])[:2] for results in run.results]),
     )
 
 
 def test_selftest_clip_positions_equal_the_reference_csv(selftest_runs):
+    # the reference CSV is the frozen table: its 20 rows of this clip, none of them lost
     s = selftest_runs
     assert s.plan.frames == list(range(0, 40, 2))
-    assert s.run.frames == s.plan.frames == s.reference["frame"].tolist()
-    assert not s.reference["pixelx"].isna().iloc[0]  # the reference found the test shrimp at the click
-
-    old = s.reference[["pixelx", "pixely"]].to_numpy(float)
-    lost_old, lost_new = np.isnan(old[:, 0]), np.isnan(s.positions[:, 0])
-    difference = np.hypot(*(s.positions - old).T)
-    print(f"VALIDATION regression, selftest clip (1 object, 20 frames, cpu): max difference "
-          f"{np.nanmax(difference):.4f} px; lost frames: reference {int(lost_old.sum())}, new {int(lost_new.sum())}")
-    assert np.array_equal(lost_new, lost_old)
-    assert np.nanmax(difference) <= 0.01
-    # Last week's code agrees. Only now, and only when asked, the positions go to the frozen table.
+    assert s.run.frames == s.plan.frames
     true = s.truth[["pixelx", "pixely"]].to_numpy(float)
-    _hand_over_positions("selftest", s.plan.frames, ["selftest"], s.positions[:, None, :], difference,
-                         np.hypot(*(s.positions - true).T))
+    _compare_with_the_frozen_positions("selftest clip (1 object, 20 frames), segmenter on cpu", "selftest",
+                                       s.plan.frames, ["selftest"], s.positions[:, None, :], true[:, None, :],
+                                       s.segmenter.weights_sha256)
 
 
 def test_selftest_clip_within_3_px_of_truth_on_cpu(selftest_runs):
     s = selftest_runs
     true = s.truth[["pixelx", "pixely"]].to_numpy(float)
     error = np.hypot(*(s.positions - true).T)
-    print(f"VALIDATION selftest criterion, cpu: max error {np.nanmax(error):.3f} px (new backend); "
-          f"{_timing(s.run.seconds)}; reference on the same model: max error "
-          f"{s.summary['max_error_px']:.3f} px, {s.summary['seconds_per_frame']:.2f} s per frame")
-    assert s.summary["ok"]  # last week's code passes its own check here
+    print(f"VALIDATION selftest criterion, cpu: max error {np.nanmax(error):.3f} px; {_timing(s.run.seconds)}")
     assert np.isfinite(error).all() and error.max() < 3.0
 
 
@@ -497,7 +409,6 @@ def test_segmenter_reports_device_model_and_weights(selftest_runs):
             assert result.score > 0  # the presence logit: an object the model calls absent has no mask
     segmenter.close()
     assert segmenter.session is None
-    _hand_over_weights(segmenter.weights_sha256, saved.stat().st_size)  # frozen only when asked
 
 
 def _write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
@@ -529,8 +440,7 @@ def _write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
 
 
 def test_three_objects_match_the_reference(loaded, tmp_path):
-    from shrimp import segment
-
+    # the reference is the frozen table: its 60 rows of this clip, none of them lost
     from outline_tracker.segmenter import hf
 
     model, processor = loaded
@@ -541,46 +451,28 @@ def test_three_objects_match_the_reference(loaded, tmp_path):
     separations = [np.hypot(a[f][0] - b[f][0], a[f][1] - b[f][1])
                    for a, b in [(truth[0], truth[1]), (truth[1], truth[2]), (truth[0], truth[2])] for f in range(40)]
     assert min(separations) >= 300.0
-    _, first = next(segment.iter_rgb_frames(video, [0]))
+    _, first = next(iter_rgb_frames(video, [0]))
     red, green, blue = first.reshape(-1, 3).mean(axis=0)
     assert red > green + 10 and green > blue + 10  # the three channels differ, also after decoding
 
-    reference = segment.TransformersSegmenter("edgetam", "cpu", model=model, processor=processor)
-    old = []  # per frame, the three full-frame masks, bit-packed
-    for i, (_, rgb) in enumerate(segment.iter_rgb_frames(video, frames)):
-        masks = reference.start(rgb, clicks) if i == 0 else reference.step(rgb)
-        old.append([np.packbits(mask) for mask in masks[:3]])
-    run = _track(hf.HFSegmenter("edgetam", "cpu", model=model, processor=processor), video, frames,
-                 _prompts(clicks))
+    segmenter = hf.HFSegmenter("edgetam", "cpu", model=model, processor=processor)
+    run = _track(segmenter, video, frames, _prompts(clicks))
 
-    assert run.frames == frames and len(old) == len(frames)
-    difference = np.full((len(frames), 3), np.nan)
-    error = np.full((len(frames), 3), np.nan)
-    lost_old, lost_new = np.zeros((len(frames), 3), bool), np.zeros((len(frames), 3), bool)
-    changed_pixels = 0
-    for i, (packed, results) in enumerate(zip(old, run.results)):
+    assert run.frames == frames
+    for results in run.results:
         assert [r.obj_id for r in results] == NAMES
-        for k, result in enumerate(results):
-            old_mask = np.unpackbits(packed[k], count=H * W).reshape(H, W).astype(bool)
-            old_u, old_v, _ = segment.mask_center(old_mask)
-            u, v, _ = _position(result)
-            lost_old[i, k], lost_new[i, k] = np.isnan(old_u), np.isnan(u)
-            difference[i, k] = np.hypot(u - old_u, v - old_v)
-            error[i, k] = np.hypot(u - (truth[k][frames[i]][0] + 0.5), v - (truth[k][frames[i]][1] + 0.5))
-            changed_pixels += int(np.count_nonzero(_full(result) != old_mask))
-    found = ~(lost_old | lost_new)
-    print(f"VALIDATION regression, three-ellipse clip (3 objects, 20 frames, cpu): max difference "
-          f"{difference[found].max():.4f} px; mask pixels that differ: {changed_pixels}; lost frames: reference "
-          f"{int(lost_old.sum())}, new {int(lost_new.sum())} of {lost_old.size}; max error against the true "
-          f"positions {np.nanmax(error):.3f} px; {_timing(run.seconds)}")
-    assert not lost_old[0].any()  # the reference found every ellipse at its click
-    assert np.array_equal(lost_new, lost_old)
-    assert difference[found].max() <= 0.01
+    # [i][k] = (u_px, v_px) of NAMES[k] on frames[i]: where it was found, and its true center
+    positions = np.array([[_position(result)[:2] for result in results] for results in run.results])
+    true = np.array([[(track[frame][0] + 0.5, track[frame][1] + 0.5) for track in truth] for frame in frames])
+    error = np.hypot(positions[..., 0] - true[..., 0], positions[..., 1] - true[..., 1])
+    found = ~np.isnan(error)
+    print(f"VALIDATION three-ellipse clip (3 objects, 20 frames, cpu): max error against the true positions "
+          f"{error[found].max():.3f} px; lost: {int((~found).sum())} of {found.size}; {_timing(run.seconds)}")
     # the selftest criterion (SPEC 13.4) for this clip too: every found position under 3 px from the
     # true center, which the clip's recipe gives
     assert error[found].max() < 3.0
-    positions = np.array([[_position(result)[:2] for result in results] for results in run.results])
-    _hand_over_positions("three_ellipses", frames, NAMES, positions, difference, error)
+    _compare_with_the_frozen_positions("three-ellipse clip (3 objects, 20 frames), segmenter on cpu", "three_ellipses",
+                                       frames, NAMES, positions, true, segmenter.weights_sha256)
 
 
 # ---------------------------------------------------------------------------------------------

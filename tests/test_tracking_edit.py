@@ -3,7 +3,7 @@ table (`add_object`, `remove_object`), clicks (`add_prompt`, `undo_prompt`), the
 (`set_head`), what "Track" would start (`pending_runs`) and the flags table (`flags_table`).
 The three corrections and the track ids are in tests/test_corrections.py.
 
-Expected values: last week's overlay colors (tests/reference), frame grids worked out by hand, the
+Expected values: last week's overlay colors (typed in the test), frame grids worked out by hand, the
 ground truth of `dish_clip` (120 frames, every 2nd tracked: frames 0, 2, ..., 118; B and C pass
 each other in frame 60), and the rules of SPEC 9 applied to shapes whose flags are known: a disk
 18 px across is too small for shape numbers (LOWRES) and round (ORIENT). Frames are video frame
@@ -16,7 +16,6 @@ import numpy as np
 import pytest
 from helpers import ODD_FOLDER
 from results_helpers import lost, measured, read_npz
-from shrimp import segment as reference
 from tracking_helpers import abc_session, center, clicks_at, make_session, run, track
 
 from outline_tracker.derive import derive_track
@@ -75,7 +74,6 @@ def test_track_colors_are_last_weeks_overlay_colors_as_rgb_hex():
     assert list(TRACK_COLORS) == ["#FFFF00", "#FF00FF", "#00FF00", "#0080FF", "#FF8000", "#00FFFF", "#FF0080",
                                   "#FF0000", "#0000FF", "#80FF80"]
     # last week's overlay drew on a BGR image: its first color (0, 255, 255) is yellow (X14)
-    assert list(TRACK_COLORS) == [f"#{red:02X}{green:02X}{blue:02X}" for blue, green, red in reference.COLORS]
     assert TRACK_COLORS[0] == "#FFFF00"
 
 

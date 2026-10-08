@@ -6,6 +6,14 @@ numbers and images; nothing is tuned until it passes.
 
 ## 1. The Hugging Face backend against last week's script (task A04a, 2026-10-06)
 
+**Note, 2026-10-08.** This comparison was retired on this date (W1 step 5 of `docs/ROADMAP.md`):
+last week's script, the copy in `tests/reference`, and the tests that ran it have left the
+repository. The numbers below stay as the record of what was measured. What they confirmed is
+frozen under `tests/data/` (section 7 says how), and the tests compare with those files now. The
+command of this section still runs, but it no longer prints these tables: not the two rows of 1.1,
+not the row of last week's code in 1.2, and it no longer makes the two comparisons with last week's
+code in 1.3.
+
 **What was compared.** `outline_tracker.segmenter.hf.HFSegmenter` and last week's
 `shrimp.segment.TransformersSegmenter` (the unmodified copy in `tests/reference`). One loaded
 EdgeTAM was given to both, on `cpu`, in one process and with the same number of torch threads
@@ -248,6 +256,12 @@ time given in this section is an upper bound.
 Each value includes decoding, measuring the masks and saving.
 
 ### 4.1 Regression through the pipeline (SPEC 13.3): the files of `from-tracker` against last week's
+
+**Note, 2026-10-08.** This comparison was retired on this date, with the one of section 1 (W1 step 5
+of `docs/ROADMAP.md`): last week's script has left the repository. The numbers below stay as the
+record. The positions are frozen under `tests/data/` (section 7 says how). The command of this
+section still runs and compares the files of `from-tracker` with the frozen positions; it no longer
+prints this table.
 
 **What was compared.** `from_tracker.from_tracker` (coarse, the whole frame, no overlay) and last
 week's `shrimp.segment.track_video` with last week's `TransformersSegmenter` (the unmodified copies
@@ -799,6 +813,10 @@ uv run pytest -m slow tests/slow/test_regression_reference.py tests/slow/test_re
 Without `OUTLINE_TRACKER_FREEZE=1` no test writes under `tests/data/`. With it, nothing is written
 unless the package is as committed and last week's code and the truth agreed first
 (`tests/frozen_helpers.py`, `tests/slow/test_regression_reference.py`).
+
+Since 2026-10-08 (W1 step 5) the first command, and the one in `tests/data/tracker_format/HEADER.txt`,
+can no longer be run to write the files: the lines that wrote them left the tests together with last
+week's code, because without that code a new freeze would have no independent check.
 
 **Result.** The first: 9 passed (58 s). The second, on the tree of commit `2282a2e`: 16 passed
 (159 s), the 11 tests of sections 1 and 4.1 and the 5 new ones of

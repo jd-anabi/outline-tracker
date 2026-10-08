@@ -1,9 +1,8 @@
 """The `selftest` command (SPEC 11, 13.4) with stand-in models: last week's selftest, through `from_tracker`.
 
-The first test is the template's (tests/reference/template_tests/test_segment.py), its two assertions
-unchanged: `selftest` with `ThresholdFake` stands where `segment.selftest` with `DiskFinder` stood, and
-one assertion is added, for where SPEC 8.1 puts the file the positions are read from.
-tests/test_port_fidelity.py lists what changed in it and compares the rest with the template.
+The first test is last week's, ported, its two assertions unchanged: `selftest` with `ThresholdFake`
+stands where `segment.selftest` with `DiskFinder` stood, and one assertion is added, for where SPEC 8.1
+puts the file the positions are read from.
 
 The clip is last week's: one dark ellipse on a 1080p frame, its center at (700.5 + 0.6 f, 500.5 + 0.2 f)
 px in frame f, tracked on the 20 frames 0, 2, ..., 38. Expected values come from that and from last

@@ -3,10 +3,10 @@ pure drawing, and `write_overlay`, which decodes the clip again and draws what r
 
 Expected values: where an outline, a dot or an id must be comes from the records the test made of
 the synthetic ground truth (tests/overlay_helpers.py), scaled to the overlay; a frame without
-tracks must be last week's overlay frame (`shrimp.segment._overlay`, the reference copy), which
-fixes the size, the resizing and the stamp, and it must follow the rule itself: the frame resized,
-and nothing but the stamp drawn on it (`stamp_box`). Colors are asserted on drawn arrays only, never
-on a decoded video: compression changes them. Positions are px, pixel centers at +0.5; colors are RGB.
+tracks must follow the rule of last week's overlay frame: the frame resized to 960 px wide with an
+even height, and nothing but the stamp drawn on it (`stamp_box`). Colors are asserted on drawn
+arrays only, never on a decoded video: compression changes them. Positions are px, pixel centers at
++0.5; colors are RGB.
 """
 
 import errno
@@ -20,7 +20,6 @@ from helpers import SMALL
 from overlay_helpers import (FPS_TRUE, RGB, Drawn, decoded_frames, ffmpeg_report, fraction_marked,
                              lost_record, make_run, marks, near, record, scaled)
 from results_helpers import names, names_number
-from shrimp import segment as reference
 
 from outline_tracker import fileio, synthetic, video
 from outline_tracker.overlay import OverlayItem, draw_overlay_frame, write_overlay
@@ -106,9 +105,9 @@ def test_a_frame_without_tracks_is_last_weeks_overlay_frame(size, shape, frame, 
     rgb = np.random.default_rng(3).integers(0, 256, (size[1], size[0], 3), dtype=np.uint8)
     image = draw_overlay_frame(rgb, [], frame, t_s)
     assert image.dtype == np.uint8 and image.shape == shape
-    # The rule, without last week's script: the frame resized to the overlay's size with OpenCV's
-    # bilinear interpolation, and nothing drawn on it but the stamp. Outside the stamp's rectangle
-    # the two are the same picture; inside it the stamp has changed pixels.
+    # The rule: the frame resized to the overlay's size with OpenCV's bilinear interpolation, and
+    # nothing drawn on it but the stamp. Outside the stamp's rectangle the two are the same picture;
+    # inside it the stamp has changed pixels.
     resized = cv2.resize(rgb, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
     left, top, right, bottom = stamp_box(frame, t_s)
     stamp = np.zeros(shape[:2], bool)
@@ -116,7 +115,6 @@ def test_a_frame_without_tracks_is_last_weeks_overlay_frame(size, shape, frame, 
     assert stamp.sum() < 0.02 * stamp.size  # a small corner of the frame: nearly all of it is compared
     assert np.array_equal(image[~stamp], resized[~stamp])
     assert (image[stamp] != resized[stamp]).any()
-    assert np.array_equal(image, reference._overlay(rgb, [], [], [], frame, t_s))
 
 
 def test_the_stamp_is_white_text_in_the_top_left_corner_and_changes_with_frame_and_time():

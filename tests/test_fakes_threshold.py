@@ -1,11 +1,10 @@
 """`ThresholdFake` is the template's `DiskFinder` behind the Segmenter protocol (SPEC 12, 13.2).
 
-Its rule, from tests/reference/template_tests/test_segment.py: the dark pixels are those whose red
+Its rule, which was that stand-in's in last week's tests: the dark pixels are those whose red
 value is below 128; an object's mask is every connected group of them whose center lies within
 20 px of the object's last position; the last position then moves to the center of that mask.
-Two kinds of expected values: the masks of the unmodified `DiskFinder` given the same images, and
-hand-made images whose boxes, centers and distances are written out here. The 0.25 px test on the
-disk clip is in tests/test_fakes.py.
+The expected values are hand-made images whose boxes, centers and distances are written out here.
+The 0.25 px test on the disk clip is in tests/test_fakes.py.
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,
 row r) has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A box is
@@ -13,12 +12,10 @@ row r) has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A
 ((col0 + col1) / 2, (row0 + row1) / 2).
 """
 
-import cv2
 import numpy as np
 import pytest
 from helpers import assert_empty_result, click, mask_in_image
 
-from outline_tracker import video
 from outline_tracker.measure import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
 from outline_tracker.segmenter.fake import ThresholdFake
@@ -44,57 +41,6 @@ def position(result):
     """Center of a result's mask in the image, px (Tracker's convention)."""
     u, v, _ = mask_center(result.mask)
     return u + result.offset[0], v + result.offset[1]
-
-
-# ---------------------------------------------------------------------------------------------
-# The same masks as the template's DiskFinder
-
-
-def test_threshold_fake_gives_the_masks_of_the_templates_disk_finder_on_the_disk_clip(disk_clip):
-    from template_tests.test_segment import DiskFinder
-
-    scene = disk_clip.scene
-    points = [obj.path.pose(0)[:2] for obj in scene.objects]
-    fake, finder, compared = ThresholdFake(), DiskFinder(), 0
-    for frame, rgb in video.iter_rgb_frames(disk_clip.path, range(scene.n_frames)):
-        ours = fake.start(rgb, [click(str(k), *point) for k, point in enumerate(points)]) if frame == 0 \
-            else fake.step(rgb)
-        theirs = finder.start(rgb, points) if frame == 0 else finder.step(rgb)
-        assert len(ours) == len(theirs) == 3
-        for result, mask in zip(ours, theirs):
-            assert mask.any() and np.array_equal(mask_in_image(result, mask.shape), mask)
-            compared += 1
-    assert compared == 3 * 120
-
-
-def test_threshold_fake_gives_the_masks_of_the_templates_disk_finder_on_random_blobs():
-    # Blobs of several sizes that wander, touch, vanish for a frame and come back; clicks on and off
-    # them. Whatever DiskFinder makes of it (found, joined, lost, found again), the stand-in does too.
-    from template_tests.test_segment import DiskFinder
-
-    width, height, found, lost = 96, 72, 0, 0
-    for seed in range(60):  # enough sequences for more than 100 masks of each kind (checked at the end)
-        rng = np.random.default_rng(seed)
-        n_blobs = int(rng.integers(2, 7))
-        centers = rng.uniform((5, 5), (width - 5, height - 5), (n_blobs, 2))
-        radii = rng.integers(1, 9, n_blobs)
-        points = [tuple(float(x) for x in np.clip(center + rng.uniform(-12, 12, 2), 0.5, (width - 0.5, height - 0.5)))
-                  for center in centers[:3]]
-        fake, finder = ThresholdFake(), DiskFinder()
-        for step in range(6):
-            image = np.full((height, width, 3), LIGHT, np.uint8)
-            for center, radius in zip(centers, radii):
-                if rng.random() > 0.2:  # one time in five a blob is missing
-                    cv2.circle(image, (int(center[0]), int(center[1])), int(radius), (DARK, DARK, DARK), -1)
-            ours = fake.start(image, [click(str(k), *point) for k, point in enumerate(points)]) if step == 0 \
-                else fake.step(image)
-            theirs = finder.start(image, points) if step == 0 else finder.step(image)
-            assert len(ours) == len(theirs) == len(points)
-            for result, mask in zip(ours, theirs):
-                assert np.array_equal(mask_in_image(result, mask.shape), mask), f"seed {seed}, image {step}"
-                found, lost = found + bool(mask.any()), lost + (not mask.any())
-            centers += rng.uniform(-6, 6, centers.shape)
-    assert found > 100 and lost > 100  # the inputs make both happen: neither comparison is empty
 
 
 # ---------------------------------------------------------------------------------------------

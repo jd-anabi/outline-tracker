@@ -63,12 +63,16 @@ def draw_overlay_frame(rgb: np.ndarray, items: Iterable[OverlayItem], frame: int
                        width: int = WIDTH_PX) -> np.ndarray:
     """One frame of the overlay: the video frame resized, with the items and the stamp drawn on it.
 
-    rgb: the full video frame, an RGB uint8 array [row, column, 3]; it is not changed.
+    rgb: the full video frame, an RGB uint8 array [row, column, 3]; it is not changed. It is resized
+    with OpenCV's default interpolation, which is bilinear (`cv2.INTER_LINEAR`).
     items: one `OverlayItem` per track, positions in px of the full frame (pixel centers at +0.5).
     They are drawn one after the other, a later one over an earlier one, each as its outline (a
     1 px line), a dot of radius 2 px at the centroid and the id beside the dot, in the item's
     color. An outline or a centroid with a value that is not finite (a lost track) is not drawn.
     frame, t_s: the video frame number and its time in s, for the stamp `t = 1.234 s   frame 296`.
+    The stamp is white text in OpenCV's Hershey Simplex font at scale 0.6, with an anti-aliased line
+    2 px thick. It starts at (10, 22) px of the overlay, counted from the top-left corner: the left
+    end of the line that the letters stand on.
     width: the overlay's width in px, an even number (yuv420p).
 
     Returns a new RGB uint8 array [row, column, 3], `width` px wide; its height is the even number

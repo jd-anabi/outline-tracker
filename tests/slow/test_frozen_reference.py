@@ -1,10 +1,12 @@
 """The real EdgeTAM on the processor gives the frozen numbers (docs/ROADMAP.md, W1 step 4).
 
 tests/data/edgetam_cpu_positions.csv holds where the model found each object of two short synthetic
-clips on `cpu`, and tests/data/edgetam_weights.txt the hash of its weights. Both were written by the
-run of tests/slow/test_regression_reference.py in which last week's code agreed within 0.01 px and
-every position was under 3 px from its true center; each file's header says how. Here the package
-alone runs again and is compared with them: nothing of last week's code is imported.
+clips on `cpu`, and tests/data/edgetam_weights.txt the hash of its weights. Both were written by a
+run of tests/slow/test_regression_reference.py while last week's code was still in the repository:
+in that run it agreed within 0.01 px, and every position was under 3 px from its true center; each
+file's header says how. Last week's code left in W1 step 5, and with it what wrote the two files:
+the command in their headers writes nothing now. Here the package alone runs and is compared with
+them.
 
 The two clips, both 1920 x 1080 px and 40 frames, tracked on frames 0, 2, ..., 38 with one positive
 click per object on frame 0:

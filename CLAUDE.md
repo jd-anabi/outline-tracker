@@ -12,8 +12,6 @@
 - Performance is proved by counting, not by timing: a test counts calls, bytes or array sizes; wall times go into a benchmark report.
 - Requirements live in one place. Work handed to helpers has one written brief, and no second wording elsewhere.
 - Conventions (SPEC §3): Tracker's pixel convention (pixel centers at +0.5), mm, the session's origin and axes, y up, t_s = frame / fps_true, the frame grid. Units go in column names.
-- Until W1 step 5: ported code keeps its behavior.
-- Until W1 step 5: you may copy from jd-anabi/shrimp-tracker-template only these provided files: src/shrimp/__init__.py, segment.py, _edgetam.py, video.py, convert.py, check_video.py and tests/conftest.py, test_segment.py, test_video.py, test_convert.py. tests/reference/ holds unmodified copies for regression tests and is never imported by the package.
 - Nothing outside outline_tracker/gui imports Qt. torch and transformers are imported only inside outline_tracker/segmenter, lazily, except that the GUI entry point imports torch before PySide6 (Windows DLL issue).
 - Never load a whole video into memory. Never keep full-frame float arrays per object beyond the current frame.
 - Ask the owner before adding a dependency that pyproject.toml does not list.
