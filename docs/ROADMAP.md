@@ -35,13 +35,15 @@ What exists (version 0.1.0):
 
 What it rests on:
 
-- About 2,700 fast tests (stand-in models, synthetic clips with ground truth), run on Linux and
-  Windows in CI; 34 slow tests with the real model, run by hand on one Apple laptop.
+- About 2,770 fast tests (stand-in models, synthetic clips with ground truth), run in CI on
+  Linux, Windows and macOS. 40 slow tests: 30 need the model's weights and are run by hand on
+  one Apple laptop; 10 need none and run in CI (one of them needs an Apple GPU and is skipped
+  on Linux and Windows).
 - `docs/VALIDATION.md`: measured results. The real model through the whole window, on synthetic
   clips, is section 6.
 - On 2026-10-07 the owner installed the tool on a Mac the way a user does, ran the selftest and
-  went through every panel by hand, and reported that it works. This was said in conversation;
-  `docs/VALIDATION.md` does not record it yet (a box of W0).
+  went through every panel by hand, and reported that it works (`docs/VALIDATION.md`,
+  section 6.4).
 
 What nobody has done yet:
 
@@ -64,7 +66,7 @@ Where things are written down:
 | `docs/PLAN.md` | the build plan of 0.1.0: decisions X1 to X22 (section 4), open points ("Raised during the work") |
 | `CLAUDE.md` | rules for coding agents, rewritten for this phase in W1 step 1; section 2 holds them in full |
 | `docs/design/gui_design.md` | the design note of the window: spacing, colors, wording rules |
-| `docs/roadmap/*.md` | the seven inventories behind this roadmap |
+| `docs/roadmap/*.md` | the inventories behind this roadmap, one for each workstream that is still open |
 
 ## 2. Ground rules for this phase
 
@@ -81,6 +83,13 @@ to them. Where they, or an inventory, say otherwise, this section wins.
      `## Quickstart` stays; no install line on `main` is without a tag until the next release.
    - A fix that the class needs is committed on a branch made from the tag, tagged `v0.1.1`, and
      brought to `main` by cherry-pick.
+   - Read with the owner on 2026-10-07: a session that 0.1.0 made and a later build saves again
+     keeps its `tool_version`, because that field names the version that made the session;
+     `run.log` and the exported files name the build that wrote them.
+   - Pre-releases. On 2026-10-08 the owner decided that the end of W1 is tagged `v0.2.0a1`,
+     and that the README's install lines keep naming `v0.1.0` for now. Both versions stay
+     installable by their tags. The README moves to a newer tag when the owner has tried that
+     tag by hand.
 2. **What carries over from `CLAUDE.md`:** every rule that rule 3 below does not name. Among
    them: tests first; expected values come from geometry, analytic shapes or synthetic ground
    truth, never from the code's own output; the fast tests run after every change; the
@@ -237,6 +246,32 @@ The window and the project:
 28. Two open points of the window: a stored fine window cannot tell "auto" from "set by hand"
     (an Auto button exists); the smallest window stays 960 px wide. Default: as built. [W1, W4]
     Decided 2026-10-07: as built, for both points.
+    Decided 2026-10-08, in addition: the smallest window is built for the system's font and for
+    a font up to 15 % larger. Measured at 60 % larger: the bottom row does not fit 960 px in a
+    font as wide as Linux's (it fits on Windows and macOS), and a six-digit frame number needs
+    77 px of the frame box's 72 on every system. Large fonts at the smallest window are a
+    candidate for W7's list.
+29. A change of the torch or OpenCV version, or of the reference machine. The frozen positions
+    are held to 0.01 px, and the weights to their hash, only with the torch version, the
+    weights and the machine that their headers name; the golden Tracker-format bytes only with
+    the OpenCV version of theirs. A fast test fails when a pinned version moves away from the
+    headers, and the slow summary shows a skip where the 0.01 px limit was not asserted.
+    Default: before such a change the strict tests pass on the old versions; after it the
+    measured distance from the frozen table is recorded in `docs/VALIDATION.md` section 7; a
+    new table is frozen only from a run that the old table confirmed within a stated limit,
+    and its header names the old table as the independent check (rule 2's exception). Until
+    then the 0.01 px limit is asserted nowhere. [W6, W7]
+30. Behaviors of ported code that no document states and no test holds. They came to light when
+    the pins of source text went with the template. In the check of a video: the gray weights
+    and the 0.25 scale of the change between two frames, and the shortest file that gets a
+    slow-motion ratio (4 s). In reading `fps_true` from an export: a time that does not grow,
+    and which track's times are read first. In the checks of `from-tracker`: at most five jumps
+    are reported for a track. In the time estimate of the selftest: the factor 0.6 for `sam2`,
+    `sam2-small` and an unknown model. In the calibration fit: the ratio 0.5 at which a
+    mirrored fit is kept. In the Tracker-format file: a negative value that rounds to zero is
+    written `-0.000000`, and the last line end of a file without rows. Default: when W3
+    touches the function, the rule goes into its docstring or into `docs/design/formats.md`
+    and gets a test; code that nothing calls (`iter_frames`, `read_frame`) is removed. [W3]
 
 ## 4. Workstreams
 
@@ -261,7 +296,7 @@ The window and the project:
 - [x] This file, `docs/roadmap/` and `docs/design/gui_design.md` are committed and pushed.
 - [x] The repository is made public (2026-10-08, by the owner).
 
-### W1. A clean base (inventory: `docs/roadmap/tests.md`)
+### W1. A clean base (closed 2026-10-08)
 
 Goal: no marked tests, no template in the tree, rules that fit a general tool. Why first: the
 port-fidelity tests pin the source text of functions that hold the class's words, so W3 cannot
@@ -269,7 +304,9 @@ change them until the template is retired. Start: 3 strict `xfail` marks, all un
 `tests/slow/` (real findings about the model; the 24 superseded tests were deleted in W0); 25
 helper files in three test folders; the lock simulation written in 11 files; 22 test
 files over 400 lines; three GUI tests open a gate from a timer thread and one sleeps. The
-inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
+inventory still lists the deleted tests: its sections 1a, 1b and 1d are history. The inventory,
+`docs/roadmap/tests.md`, left the tree when the workstream closed; it is in the history at
+`e7c63f8`.
 
 - [x] 0. The version becomes `0.2.0.dev0` (`pyproject.toml`, `outline_tracker/__init__.py`, the
       test of the version line, the README's example line). CI also runs for pushes that change
@@ -346,9 +383,32 @@ inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
       the tests are the package's shapes, held to geometry by `tests/test_shapes_agree.py`;
       the other functions of `tests/analytic_shapes.py` have no equivalent in the package, so
       that file stays, smaller.
-- [ ] 7. Replace the timer threads and the one `sleep` in GUI tests by events; test the bottom
+- [x] 7. Replace the timer threads and the one `sleep` in GUI tests by events; test the bottom
       row by rule (nothing clipped, nothing overlapping at 960 px with each CI system's font).
-- [ ] 8. CI: a macOS job; the slow tests that need no weights.
+      Done 2026-10-08. The four tests that waited a fixed time wait for an event: the worker's
+      own `stopping` event, and a gate that the GUI thread opens from inside the wait. They
+      still pass with closing made a second slower. A rule test scans the tests for delays; its
+      list holds one real delay (the 20 ms steps of a mouse drag, which pyqtgraph needs) and one
+      call that waits for nothing. The bottom row at 960 px is tested by rule in the system's
+      font and 15 % larger (decision 28): nothing cut, nothing overlapping, the dock between
+      340 and 400 px, a six-digit frame number whole. Green on Linux, Windows and macOS in CI.
+      No package code changed.
+- [x] 8. CI: a macOS job; the slow tests that need no weights.
+      Done 2026-10-08. The mark `weights` is on the 30 slow tests that load the model; the
+      other 10 run in every CI job, offline and with an empty model folder (measured: macOS
+      10 passed; Linux and Windows 9 passed, 1 skipped, the test that needs an Apple GPU). The
+      macOS job runs for a push only while the repository is public. Its first run found a
+      race of version 0.1.0 on Windows: the window could fail to read `results.npz` at the
+      moment an autosave replaced it. On `main` the window now keeps what it has and reads
+      again at the next autosave; whether the fix also goes out as `v0.1.1` is the owner's
+      choice.
+- [x] The whole range since `v0.1.0` was reviewed before the pre-release (2026-10-08): six
+      readers, one subject each, and a second reader for every serious finding. Ten findings
+      were confirmed and none refuted. Fixed: the race on Windows; a test of the calibration
+      fit on points that do not fit exactly, which the removal of the template had lost
+      without naming it; decision 29's fast test and visible skip; two tests of speed that
+      read a clock and now count work (rule 6); four sentences of the documents. What is left
+      for later workstreams is noted at each of them below ("From W1").
 
 ### W2. Reorganize the repository (inventory: `docs/roadmap/repo.md`)
 
@@ -357,6 +417,17 @@ in prefix families (`tracking*.py`, `export*.py`, `cli_*.py`); 7 package files a
 400-line limit (13 over 380); eight kinds of imports that go against the layers. The
 inventory's table was made before two modules were added (`gui/panel_parts.py`,
 `gui/prompt_drawing.py`): give them rows.
+
+From W1: 28 test files are over 400 lines (step 6 includes them), and `schema.py` is one line
+under its pinned limit of 420. A commit that moves fixtures changes no scope, `autouse` or
+parameter of a fixture; check it with a list of every test's fixture names and scopes before
+and after (W1's commit `fc44772` changed three, and said so). Left by W1's join of the test
+helpers, for step 3: one function under two names in two helper modules (`_names`, `names`),
+two `W, H` with different values, `position` twice, and helpers that several modules share
+under private names. Two fragile tests were never looked at: pixel reads of lower panels in a
+600 px high window without scrolling, and a test that starts pytest inside pytest with
+`QT_SCALE_FACTOR`. Lists that planned features change are pinned in tests: the models of
+panel 7, the items of the File menu, the nine panels, the ten Quickstart steps.
 
 - [ ] 1. Re-key the tests that pin paths (`tests/test_repo_rules.py`, the DEVELOPER page test,
       the import-order tests) so that they follow a table, before anything moves.
@@ -371,7 +442,7 @@ inventory's table was made before two modules were added (`gui/panel_parts.py`,
       from-tracker module; shared panel widgets into one module (two classes are named `Message`).
 - [ ] 5. A module index generated from each module's first docstring line, kept current by a
       test, as `docs/OUTPUTS.md` is.
-- [ ] 6. Split the files over the limit along the new layout.
+- [ ] 6. Split the files over the limit along the new layout (package files and test files).
 
 ### W3. Make the tool general (inventory: `docs/roadmap/domain.md`)
 
@@ -383,6 +454,12 @@ descriptions, the README (all of it), the session keys `student`, `circle.dish_m
 `processing.dish_crop` and `time.manifest_path` and the `time.source` value `manifest`, two
 column names, the run folder's name, the model cache folder `~/.cache/shrimp-models`, and the
 synthetic scenes.
+
+From W1: decision 30 (behaviors of ported code that wait for a rule). About 24 test names still
+say "last week" or "the reference" although nothing compares with the template any more (step
+6). The README tests ask for exactly two install lines and a tag of the form `vX.Y.Z` (step 8).
+`SPEC.md` 7.8 and 13.4 state the rules that decision 26 changed; code comments still point to
+them (decision 15: `docs/design/decisions.md`).
 
 - [ ] 1. `session.json` version 2 (decision 12): the table goes into `docs/design/formats.md`
       and is approved; then the reader lands and maps every row; steps 2 to 4 switch the code
@@ -439,6 +516,13 @@ everything again; `results.npz` is rewritten whole at each autosave (computed fo
 36,000 frames: 73 GB written); a coarse job decodes from frame 0 twice, a fine job three times;
 overlay, probes, export and the flags listing have no progress and no cancel.
 
+From W1: the wall times of `derive_track` and `compute_flags` at 10 objects over 1,200 frames
+belong in the first benchmark report (step 1); the two tests that asserted them now count
+work. Since decision 26 a row whose mask has more than one piece is unpacked and labelled
+again at every derivation, at a cost that grows with the area of the mask's bounding box:
+count it in step 4 and let the cached derivation do it once. The test of the slow selection
+starts three child collections in every fast run (step 8).
+
 - [ ] 1. A `benchmarks/` folder outside pytest (layout in the inventory, section 5), and its
       first report as the baseline.
 - [ ] 2. P1: the results store keeps columns, not records; cheap questions (`frames`, `has`,
@@ -479,13 +563,16 @@ and 49 ms for 100,000; chained phase correlation drifted 0.4 to 2.5 px over 29 s
       commands and the model box read it.
 - [ ] 3. Results format version 2: the method per track, a position that does not need a mask;
       a reader for version 1 (rule 5). Outputs, flags and overlays say plainly what a method
-      does not give.
+      does not give. From W1: store with each record which piece of the mask was measured
+      (decision 26 finds it again at export from the stored outline).
 - [ ] 4. The classical methods as built-ins: pyramidal iterative Lucas-Kanade, and phase
       correlation with an upsampled DFT for sub-pixel shifts, against a fixed reference patch,
       with a quality measure.
 - [ ] 5. The benchmark: synthetic clips swept over object size, count and length, ground truth
       for body-fixed points, one generated table across methods and devices in the docs.
 - [ ] 6. SAM 2.1 in its four sizes, each with its slow test first (none was ever run here).
+      From W1: a slow test that loads a model carries the mark `weights`, or the test of the
+      slow selection fails; a change of the torch version is decision 29.
 - [ ] 7. The hybrid: a point method steers fine mode's crop (aimed at the measured weak point).
 - [ ] 8. The TAPIR family as an optional install (git only today, so vendored or installed by
       hand); torch as an optional extra if decision 19 says so; CoTracker3 only as decision 18
@@ -493,19 +580,30 @@ and 49 ms for 100,000; chained phase correlation drifted 0.4 to 2.5 px over 29 s
 
 ### W7. Open-source readiness (inventory: `docs/roadmap/oss.md`)
 
-Goal: a stranger can install, trust, use and contribute. Start: no LICENSE, CONTRIBUTING, code
-of conduct, security note, citation file or issue forms; no tag and no release; not on a package
-index; CI has no macOS job, lint, type check, coverage, or wheel and sdist build check (the
-Windows job does install the tool from the checkout); the model download pins no revision,
+Goal: a stranger can install, trust, use and contribute. Start: LICENSE and NOTICE exist (W0);
+no CONTRIBUTING, code of conduct, security note, citation file or issue forms; two tags
+(`v0.1.0`, and the pre-release `v0.2.0a1`) and no release workflow; not on a package index; CI
+has no lint, type check, coverage, or wheel and sdist build check (the Windows job does install
+the tool from the checkout; a macOS job exists since W1); the model download pins no revision,
 compares its hash with nothing and reads a checkpoint with
 `torch.load(..., weights_only=False)`; `run.log` is the only thing a user can send when
 something fails.
 
+From W1, for step 3: the test of the model's conversion asks the Hugging Face Hub on every run
+and pins no revision, and it compares the weights file only (the two config files have no
+frozen value). For step 6: the rule test for personal paths does not know a Linux home (two
+made-up lines of `tests/test_provenance.py` would match); the fast step of CI is not offline;
+the text test of the workflow accepts a test step with `continue-on-error`; tests that call git
+fail in a source archive without `.git`; the condition on the macOS job would skip it without
+a sign if the repository were made private again. For the list of step 1: large fonts at the
+smallest window (decision 28).
+
 - [ ] 1. Hold the brainstorm with the owner: the inventory's section 3 lists about 50 candidates
       in six groups (stability, usability, features, distribution, community, quality gates),
       each with its value and a rough size. Record what was chosen, in order, in this file.
-- [ ] 2. The files every public project has (decision 1): LICENSE, NOTICE, CONTRIBUTING, code of
-      conduct, security note, citation, issue forms, project metadata in `pyproject.toml`.
+- [ ] 2. The files every public project has (decision 1; LICENSE and NOTICE exist):
+      CONTRIBUTING, code of conduct, security note, citation, issue forms, project metadata in
+      `pyproject.toml`.
 - [ ] 3. Trust in the first run: pinned model revisions, a checked hash, no pickle loading.
 - [ ] 4. When something fails: a log outside the run folder, a crash handler, a diagnostics file
       that Help can write.
