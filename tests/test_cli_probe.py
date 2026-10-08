@@ -5,8 +5,6 @@ t_s = frame / fps_true). An error is one `ERROR: ...` line on stderr and exit co
 a command line argparse cannot read is exit code 2. The session form is in tests/test_cli_probe_session.py.
 """
 
-import errno
-import os
 import subprocess
 import sys
 from dataclasses import replace
@@ -17,7 +15,7 @@ import pytest
 from cli_probe_helpers import (COLUMNS, FPS, LED, LED_BOX, N, ONSET, UNKNOWN_FPS, WALL, WALL_BOX, assert_rows, decode,
                                error_line, onset_frame, probe, table, write_manifest)
 
-from outline_tracker import cli, fileio, video
+from outline_tracker import cli, video
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -215,19 +213,12 @@ def test_a_run_folder_with_earlier_output_is_written_again(dish_clip, frames, tm
     assert sorted(path.name for path in out.iterdir()) == ["README.txt", "positions.csv", "probes.csv", "run.log"]
 
 
-def test_a_locked_probes_csv_keeps_the_rows_in_a_new_file_and_says_so(dish_clip, frames, tmp_path, monkeypatch, capsys):
+def test_a_locked_probes_csv_keeps_the_rows_in_a_new_file_and_says_so(dish_clip, frames, tmp_path, monkeypatch,
+                                                                      lock_file, capsys):
     out = tmp_path / "run"
     out.mkdir()
     (out / "probes.csv").write_text("old\n", encoding="utf-8")
-    real_replace = os.replace
-
-    def locked(source, target):  # as on Windows while probes.csv is open in a spreadsheet program
-        if Path(target) == out / "probes.csv":
-            raise PermissionError(errno.EACCES, "The file is being used by another process", str(target))
-        real_replace(source, target)
-
-    monkeypatch.setattr(fileio.os, "replace", locked)
-    monkeypatch.setattr(fileio.time, "sleep", lambda seconds: None)
+    lock_file(out / "probes.csv")  # as on Windows while probes.csv is open in a spreadsheet program
     assert probe(dish_clip.path, "--rect", LED, "--fps", FPS, "--out", out, "--end", 3) == 0
     assert (out / "probes.csv").read_text(encoding="utf-8") == "old\n"
     assert_rows(pd.read_csv(out / "probes.new.csv"), frames, range(4), LED_BOX)

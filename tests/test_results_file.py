@@ -8,13 +8,12 @@ test.
 """
 
 import errno
-from pathlib import Path
 
 import numpy as np
 import pytest
 from results_helpers import assert_holds, made_up, names, names_number, read_npz, two_tracks, write_npz
 
-from outline_tracker import fileio, results
+from outline_tracker import results
 from outline_tracker.results import ResultsStore, ResultsVersionError
 
 
@@ -51,20 +50,12 @@ def test_a_failed_save_leaves_the_old_file_whole(tmp_path, monkeypatch):
     assert_holds(ResultsStore.load(path).arrays("A"), records["A"])
 
 
-def test_save_returns_the_new_file_when_the_target_stays_locked(tmp_path, monkeypatch):
+def test_save_returns_the_new_file_when_the_target_stays_locked(tmp_path, lock_file):
     store, records = two_tracks()
     path = store.save(tmp_path / "results.npz")
     before = path.read_bytes()
     store.truncate_after("B", 20)
-    real_replace = fileio.os.replace
-
-    def replace(src, dst):   # what Windows does while another program holds results.npz open
-        if Path(dst) == path:
-            raise PermissionError(errno.EACCES, "The file is being used by another process", str(dst))
-        real_replace(src, dst)
-
-    monkeypatch.setattr(fileio.os, "replace", replace)
-    monkeypatch.setattr(fileio.time, "sleep", lambda seconds: None)
+    lock_file(path)  # what Windows does while another program holds results.npz open
     written = store.save(path)
     assert written == tmp_path / "results.new.npz"
     assert path.read_bytes() == before

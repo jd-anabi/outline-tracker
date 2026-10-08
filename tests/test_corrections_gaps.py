@@ -19,18 +19,15 @@ bytes of results.npz before the call. Frames are video frame numbers; positions 
 Tracker's convention (SPEC 3.1).
 """
 
-import errno
 import os
 import re
 import shutil
-from pathlib import Path
 
 import numpy as np
 import pytest
 from helpers import ODD_FOLDER
 from tracking_helpers import Recorder, Watched, abc_session, center, clicks_at, make_session, run, table_truth, track
 
-from outline_tracker import fileio
 from outline_tracker.results import ResultsStore
 from outline_tracker.schema import RESULTS_KEYS, RESULTS_NPZ, SESSION_JSON
 from outline_tracker.segmenter.fake import ExactFake
@@ -256,31 +253,17 @@ def test_with_store_none_and_no_results_file_an_edit_starts_from_empty_results(d
 # A save that did not land
 
 
-def lock(monkeypatch, *targets):
-    """Make each of `targets` a file that another program holds open (Windows): every `os.replace`
-    onto it raises PermissionError. The waits between the tries of `fileio` are skipped."""
-    real_replace = os.replace
-
-    def replace(src, dst):
-        if Path(dst) in targets:
-            raise PermissionError(errno.EACCES, "The file is being used by another process", str(dst))
-        real_replace(src, dst)
-
-    monkeypatch.setattr(fileio.os, "replace", replace)
-    monkeypatch.setattr(fileio.time, "sleep", lambda wait_s: None)
-
-
 @pytest.mark.parametrize("locked", [[RESULTS_NPZ], [RESULTS_NPZ, "results.new.npz"]],
                          ids=["results.npz locked", "results.new.npz locked too"])
 @pytest.mark.parametrize("given", [True, False], ids=["a store given", "store=None"])
 @pytest.mark.parametrize("name", EDITS)
-def test_an_edit_whose_save_does_not_land_raises_and_changes_nothing(tracked, dish_clip, monkeypatch, name, given,
-                                                                     locked):
+def test_an_edit_whose_save_does_not_land_raises_and_changes_nothing(tracked, dish_clip, monkeypatch, lock_file, name,
+                                                                     given, locked):
     folder, session, store = tracked
     edit, left = EDITS[name]
     before, results, files = session.to_json(), (folder / RESULTS_NPZ).read_bytes(), files_of(folder)
 
-    lock(monkeypatch, *(folder / file_name for file_name in locked))
+    lock_file(*(folder / file_name for file_name in locked))
     with pytest.raises(RuntimeError) as refused:
         edit(session, store if given else None, dish_clip, folder)
     message = str(refused.value)  # which file, close the program that holds it, try again
@@ -296,14 +279,14 @@ def test_an_edit_whose_save_does_not_land_raises_and_changes_nothing(tracked, di
 
 
 @pytest.fixture
-def left_aside(tracked, dish_clip, monkeypatch):
+def left_aside(tracked, dish_clip, lock_file):
     """A run folder in which a job could not write results.npz: (run folder, session, store).
     Track A was re-tracked from frame 40 while another program held results.npz open, so the job
     left its results in results.new.npz (A, B and C on every grid frame), and results.npz still
     has A on frames 0 to 38 only, as `store` does. That program still holds results.npz."""
     folder, session, store = tracked
     retrack_a(session, store, dish_clip, folder, K)
-    lock(monkeypatch, folder / RESULTS_NPZ)
+    lock_file(folder / RESULTS_NPZ)
     status, seen = run(dish_clip, session, folder, ExactFake(dish_clip))
     assert status == "complete" and any(NEW_NPZ in line for line in seen.log)
     assert frames_on_disk(folder) == {"A": GRID[:20], "B": GRID, "C": GRID}

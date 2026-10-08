@@ -9,7 +9,6 @@ arrays only, never on a decoded video: compression changes them. Positions are p
 +0.5; colors are RGB.
 """
 
-import errno
 import warnings
 from pathlib import Path
 
@@ -258,20 +257,12 @@ def test_the_video_is_finished_under_a_temporary_mp4_name_and_then_renamed(tmp_p
     assert names(run) == ["overlay.mp4", *RUN_FILES]  # no temporary file is left
 
 
-def test_a_locked_overlay_is_left_alone_and_the_new_one_is_written_next_to_it(tmp_path, dish_clip, monkeypatch):
+def test_a_locked_overlay_is_left_alone_and_the_new_one_is_written_next_to_it(tmp_path, dish_clip, lock_file):
     run = tmp_path / "run"
     make_run(run, {"A": [record(dish_clip, "A", f) for f in range(0, 12, 2)]})
     target = run / "overlay.mp4"
     target.write_bytes(b"the overlay of the last export, open in a player")
-    real_replace = fileio.os.replace
-
-    def replace(src, dst):  # what Windows does while another program holds overlay.mp4 open
-        if Path(dst) == target:
-            raise PermissionError(errno.EACCES, "The file is being used by another process", str(dst))
-        real_replace(src, dst)
-
-    monkeypatch.setattr(fileio.os, "replace", replace)
-    monkeypatch.setattr(fileio.time, "sleep", lambda seconds: None)
+    lock_file(target)  # what Windows does while another program holds overlay.mp4 open
     path, n_frames = write_overlay(run, dish_clip.path)
     assert path == run / "overlay.new.mp4" and n_frames == 6 == ffmpeg_report(path)[0]
     assert target.read_bytes() == b"the overlay of the last export, open in a player"

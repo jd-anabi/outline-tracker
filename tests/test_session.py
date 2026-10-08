@@ -25,7 +25,7 @@ import pytest
 from results_helpers import names_number
 
 import outline_tracker
-from outline_tracker import fileio, session as session_module
+from outline_tracker import session as session_module
 from outline_tracker.fileio import relative_path
 from outline_tracker.geometry import WorldFrame
 from outline_tracker.session import (
@@ -433,20 +433,12 @@ def test_numpy_numbers_and_arrays_are_stored_as_plain_json(tmp_path):
     assert_same_json(data["tracks"][0]["prompts"][0]["labels"], [1])
 
 
-def test_save_keeps_the_old_file_and_returns_the_new_name_when_the_target_is_locked(tmp_path, monkeypatch):
+def test_save_keeps_the_old_file_and_returns_the_new_name_when_the_target_is_locked(tmp_path, lock_file):
     path = tmp_path / "session.json"
     first = Session(student="ana")
     first.save(path)
     old = path.read_bytes()
-    real_replace = os.replace
-
-    def replace(src, dst):  # as Windows does while a sync client holds session.json
-        if Path(dst) == path:
-            raise PermissionError(13, "The file is being used by another process", str(dst))
-        real_replace(src, dst)
-
-    monkeypatch.setattr(fileio.os, "replace", replace)
-    monkeypatch.setattr(fileio.time, "sleep", lambda seconds: None)
+    lock_file(path)  # as Windows does while a sync client holds session.json
     written = Session(student="ben").save(path)
     assert written == tmp_path / "session.new.json"
     assert path.read_bytes() == old
