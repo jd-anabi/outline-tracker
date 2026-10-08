@@ -481,13 +481,12 @@ def test_a_change_made_elsewhere_in_the_session_is_drawn(window, qtbot, dish_cli
 
 
 # ---------------------------------------------------------------------------------------------
-# The successor of a test of the video view (tests/gui/test_video_view.py), which marked a block
-# of pixels where the axes are drawn now
+# 1:1 and Fit, with the axes on the picture
 
 
 def test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_beside_the_axes(window, qtbot, disk_clip):
-    # test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_and_fit_goes_back, with the marked
-    # block right of and below the frame's center, where no arrow and no label of the axes is
+    # the block of pixels that is read here is right of and below the frame's center, where no
+    # arrow and no label of the axes is
     view = picture(window, qtbot, disk_clip, StandInSource((320, 240), marked=(190, 140, 210, 150)))
     assert [window.fit_button.text(), window.one_to_one_button.text()] == ["Fit", "1:1"]
     qtbot.mouseClick(window.one_to_one_button, LEFT)

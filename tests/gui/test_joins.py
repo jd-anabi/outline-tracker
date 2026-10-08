@@ -134,8 +134,8 @@ def test_a_task_that_needs_no_model_is_taken_in_every_state_but_stopped(worker, 
 
 def test_after_a_model_that_could_not_be_loaded_export_all_and_the_flags_run_in_the_workers_thread(
         window, qtbot, clip_in_odd_folder, monkeypatch):
-    """The successor of test_export_panel.py's test_export_all_waits_for_the_worker_that_runs_it for
-    a model that could not be loaded: a first start without the internet."""
+    """A first start without the internet, so the model cannot be loaded: Export all and the flags
+    table run all the same, and tracking and outlines still wait for the model."""
     record_every_dialog(monkeypatch)
     clip, loaded_in = clip_in_odd_folder, []
 
@@ -235,8 +235,8 @@ def test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thr
 
 def test_without_a_model_the_flags_are_listed_in_the_worker_thread_and_closing_ends_it(window, qtbot, dish_run,
                                                                                        tmp_path, monkeypatch):
-    """The successor of test_review.py's two tests of the listing's own thread, which is gone: the
-    worker's one thread lists, with a model and without one (X7)."""
+    """The listing has no thread of its own (X7): without a model too, the worker's one thread
+    lists, and closing the window ends that thread."""
     from outline_tracker.gui import review_table
 
     probe = []
@@ -569,8 +569,7 @@ def test_with_results_the_model_box_is_off_with_its_sentence_and_the_device_box_
 
 
 def test_during_a_run_both_boxes_are_off_and_after_it_the_device_box_is_on_again(window, qtbot, clip_in_odd_folder):
-    """The successor of test_model_choice.py's test of the two boxes during a run: after the run
-    there are results, so the model box stays off, with its own sentence."""
+    """After the run there are results, so the model box stays off, with its own sentence."""
     clip, asked = clip_in_odd_folder, []
     with Gate() as gate:
         segmenter = parked(clip, gate)
@@ -621,8 +620,8 @@ def test_a_session_saved_after_the_export_needs_attention_and_a_new_export_is_do
 
 
 def test_results_written_after_the_export_need_attention_and_a_new_export_is_done(window, qtbot, clip_in_odd_folder):
-    """The successor of test_export_panel.py's test of the panel's state from the files' times:
-    session.json counts now too, so the test says when it was written."""
+    """The panel's state comes from the times of three files: session.json counts as well as
+    results.npz and positions.csv, so the test sets the time of each."""
     panel = tracked(window, qtbot, clip_in_odd_folder)
     folder = window.controller.run_folder
     assert state(window) == "todo" and panel.export_button.property("kind") == "primary"
@@ -642,9 +641,9 @@ def test_results_written_after_the_export_need_attention_and_a_new_export_is_don
 
 def test_an_export_on_the_disk_is_done_when_its_session_is_opened(window, second_window, qtbot,
                                                                   clip_in_odd_folder):
-    """The successor of test_export_panel.py's test of a reopened session: done when neither
-    session.json nor results.npz is newer than positions.csv. A window that closes does not write
-    a session that is on the disk as it is, and opening a session does not write it either."""
+    """A session that is opened again: panel 9 is done when neither session.json nor results.npz
+    is newer than positions.csv. A window that closes does not write a session that is on the
+    disk as it is, and opening a session does not write it either."""
     panel = tracked(window, qtbot, clip_in_odd_folder)
     folder = window.controller.run_folder
     export_to_end(qtbot, panel)

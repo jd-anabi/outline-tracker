@@ -106,7 +106,6 @@ def test_the_check_of_marked_names_finds_a_button_the_window_does_not_have(windo
 
 
 def test_help_quickstart_opens_the_quickstart_section_of_the_readme(window, monkeypatch):
-    """The successor of test_menus.py's test of the address: the page now has the section."""
     opened = []
 
     class Browser:

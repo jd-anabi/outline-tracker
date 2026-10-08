@@ -493,7 +493,6 @@ def test_a_file_that_is_no_session_gives_a_message_and_nothing_changes(window, m
 
 
 def test_a_session_file_that_is_not_there_gives_a_message_and_names_only_the_file(window, monkeypatch, tmp_path):
-    # follows test_a_session_file_is_only_named_until_sessions_can_be_opened (tests/gui/test_controller.py)
     asked = record_dialogs(monkeypatch)
     window.open_path(tmp_path / helpers.ODD_FOLDER / "session.json")
     status = window.statusBar().currentMessage()

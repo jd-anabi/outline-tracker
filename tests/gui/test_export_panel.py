@@ -384,7 +384,7 @@ def test_a_folder_that_the_system_cannot_show_is_said_in_the_status_bar(window, 
 
 
 def test_the_file_menu_has_export_between_save_session_as_and_quit(window):
-    # follows test_the_menu_bar_has_file_and_help_with_the_specs_items of tests/gui/test_menus.py (SPEC 10.1)
+    # both menus as SPEC 10.1 lists them
     assert menu_texts(window) == {
         "File": ["Open video", "Open session", "Save session", "Save session as", "Export", "Quit"],
         "Help": ["Quickstart", "About"]}

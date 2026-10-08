@@ -34,7 +34,6 @@ def save_items(window):
 
 def test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons(window, qtbot, monkeypatch,
                                                                                    clip_in_odd_folder):
-    # follows test_open_video_and_open_session_are_the_file_menus_actions of tests/gui/test_session_panels.py
     asked = record_every_dialog(monkeypatch)
     show(window, qtbot)
     panel = body(window, 1)

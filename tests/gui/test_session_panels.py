@@ -287,7 +287,6 @@ def test_an_error_of_the_program_in_the_check_is_reported_and_the_video_counts_a
 
 
 def test_a_row_added_to_a_body_follows_what_is_there_with_the_notes_spacing(window, qtbot):
-    # follows test_rows_added_to_the_body_follow_the_hint_with_the_notes_spacing (tests/gui/test_panel.py):
     # the design note's 8 px between rows and 12 px of padding, with panel 1's controls under the hint
     show(window, qtbot)
     panel = window.panels[0]
