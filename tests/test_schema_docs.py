@@ -49,8 +49,14 @@ REPO = Path(__file__).resolve().parents[1]
 # of the mask", no longer of "the full mask". The diff of the old and the new text was read and shows that
 # entry and nothing else (its two lines, wrapped again). The text before this change had the hash
 # 174e5877b06aea49446e8119a18822f08f475a051ef7885507b799ca6a1f94c0 (14831 characters, 262 lines); the text
-# now has 14847 characters and 262 lines.
-README_SHA256 = "0a3d0042970e10beaaee704d18ef648c6203ee8ac68af5600c0ccdc4dccfe098"
+# then had 14847 characters and 262 lines.
+# The review of that change found that "(L1 / k)" in px_along_major and cells_along_major borrowed the name
+# that major_mm gives to the full mask's axis. The two descriptions now give the formula of the largest piece
+# and say that cells_along_major is px_along_major / cell. The diff of the old and the new text was read and
+# shows those two entries and nothing else (three lines). The text before this change had the hash
+# 0a3d0042970e10beaaee704d18ef648c6203ee8ac68af5600c0ccdc4dccfe098 (14847 characters, 262 lines); the text
+# now has 14877 characters and 262 lines.
+README_SHA256 = "20ec79686c3b77a80a5966f7d1e929274861aaf07c3956d8d88a8a5435ce7c73"
 
 # Every public name that schema.py had before the move (dir() of the unmodified module, without the
 # imported helpers). Other modules import these by name, so each must still be importable.
@@ -301,13 +307,22 @@ def test_core_frac_is_described_for_the_fallback_case(readme):
 
 def test_px_along_major_is_described_for_the_largest_piece(readme, outputs):
     """Decision 26 of docs/ROADMAP.md: the size checks are of the largest piece of the mask, so that a few
-    stray pixels far from the object cannot lengthen them. The three axis columns stay on the full mask."""
+    stray pixels far from the object cannot lengthen them. The three axis columns stay on the full mask.
+
+    L1 is the name that major_mm gives to the full mask's axis. The two size columns do not use it: read
+    with major_mm, "L1 / k" would say px_along_major = major_mm / k, which is false on a mask with stray
+    pixels. cells_along_major is given from px_along_major instead."""
     meanings = {c.name: normalized(c.meaning) for c in schema.SHAPES}
     assert "largest piece" in meanings["px_along_major"] and "full mask" not in meanings["px_along_major"]
     for name in ("major_mm", "minor_mm", "eccentricity"):
         assert "full mask" in meanings[name], name
-    assert meanings["px_along_major"] in normalized(readme)  # both texts are built from the table
-    assert meanings["px_along_major"] in plain(outputs)
+    assert "L1 =" in meanings["major_mm"]  # where the name is defined, for the full mask
+    assert "L1" not in meanings["px_along_major"]
+    assert "px_along_major / cell" in meanings["cells_along_major"]
+    assert "L1" not in meanings["cells_along_major"]
+    for name in ("px_along_major", "cells_along_major"):
+        assert meanings[name] in normalized(readme), name  # both texts are built from the table
+        assert meanings[name] in plain(outputs), name
 
 
 # ---------------------------------------------------------------------------------------------
