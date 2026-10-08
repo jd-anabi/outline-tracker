@@ -98,23 +98,6 @@ def test_a_hash_without_a_decoder_tag_is_compared_as_the_spec_says(dish_clip, tm
     assert_nothing_happened(segmenter, tmp_path)
 
 
-@pytest.mark.xfail(strict=True, reason="Asserts the opposite of decision X8 (docs/PLAN.md, section 4): a hash made "
-                   "under another decoder tag is recomputed here and stored, not kept. Found in the review of A15; "
-                   "the test below it, test_hashes_made_by_another_decoder_are_made_anew_here_and_logged, holds "
-                   "what X8 asks. For J or the controller: delete this test, or amend X8.")
-def test_hashes_made_by_another_decoder_are_not_compared_but_logged(dish_clip, tmp_path):
-    session = two_runs(dish_clip, tmp_path)
-    for a_track in session.tracks:  # the folder came from another computer, whose decoder gave other bytes
-        stamp(a_track.prompts[0], dish_clip, frame=2, decoder=OTHER_DECODER)
-    stored = session.tracks[0].prompts[0].frame_hash
-    status, seen = run(dish_clip, session, tmp_path, ExactFake(dish_clip))
-    assert status == "complete"
-    assert sum(OTHER_DECODER in line for line in seen.log) == 1  # said once, not per prompt
-    # nothing is computed anew here: the session keeps the hash and the tag it came with
-    kept = Session.load(tmp_path / "session.json").tracks[0].prompts[0]
-    assert (kept.frame_hash, kept.decoder) == (stored, OTHER_DECODER)
-
-
 # ---------------------------------------------------------------------------------------------
 # Decision X8: a hash made under another decoder tag cannot be compared; the hash of the frame as
 # this computer decodes it is stored in its place, under this computer's tag, and that is logged.

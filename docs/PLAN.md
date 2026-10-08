@@ -218,6 +218,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   not yet on Windows: the Windows check of go/no-go 2 covers it (the status bar must reach
   "Model ready" and a run must finish). Default: keep it; the alternative is the simpler
   form, in which an export pressed during a load is written when the load has ended.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 15:15, a finding worth telling the students: fine mode rescues a small object that
   coarse tracking loses.** With the real model through the window on the synthetic dish clip
   (three bodies about 14.5 px long), coarse tracking lost one body on 15 of 60 frames; with only
@@ -231,6 +232,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   a Quickstart section and the item opens it (`#quickstart`). Successor:
   `tests/gui/test_finish.py::test_help_quickstart_opens_the_quickstart_section_of_the_readme`.
   Default: J says "delete it" and it goes.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 14:25, two more superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal.** (1) `tests/gui/test_menus.py::test_the_menu_bar_has_file_and_help_with_the_specs_items`
   (from C8a) lists five File items; Export is the sixth (SPEC 10.1). Successor:
@@ -241,6 +243,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   test machine, and the dock gives up 7 px (393). On macOS and Windows the row fits. Successor:
   the same checks in a window of 1440 px, the width the application opens with
   (`..._where_the_window_has_room`). Default: J says "delete them" and they go.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 13:25, C8a: two superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal.** (1) `tests/gui/test_navigation.py::test_the_bar_is_laid_out_as_the_design_note_says`
   listed the six step buttons in a row; the Play button now sits between −1 and +1 (SPEC 10.1).
@@ -250,6 +253,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   `tests/gui/test_menus.py::test_the_menu_bar_has_file_and_help_with_the_specs_items` and
   `::test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons`.
   Default: J says "delete them" and they go.
+  Done 2026-10-07: deleted on J's word. Three checks of (1) went with it and are in no test: slider top 8, height 20; flag strip top 30, height 6; slider 8 px in from each side.
 - **Wed 12:00, C2: two superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal, and one choice to confirm.** (1) `tests/gui/test_controller.py::test_a_session_file_is_only_named_until_sessions_can_be_opened`
   pinned C1's stand-in behavior for a `.json` (only its name in the status bar); sessions open
@@ -261,6 +265,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   which a run folder with their name already holds a session, the window does not write over
   it and does not open it by itself; it says so and points to Open session. Default: keep that;
   the alternative is to offer "Open that session" in the same message.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 11:45, C3: one superseded test marked `xfail(strict=True)`, for J to confirm its
   removal.** `tests/gui/test_video_view.py::test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_and_fit_goes_back`
   (from C1) paints a block of pixels at the frame's center and looks for it on the screen. The
@@ -268,12 +273,14 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   crosses that block. Its successor is the same test with the block beside the axes:
   `tests/gui/test_tools.py::test_one_to_one_draws_one_video_pixel_on_one_screen_pixel_beside_the_axes`.
   Default: J says "delete it" and it goes.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 10:45, C1: one superseded test marked `xfail(strict=True)`, for J to confirm its
   removal.** `tests/gui/test_shell.py::test_the_video_area_says_how_to_start` was written for the
   empty window of C0, where the video area was one line of text. C1 put the Open video button
   between its two sentences, so the area is no longer one label. Its successor is
   `tests/gui/test_controller.py::test_the_empty_video_area_says_how_to_start_and_offers_open_video`.
   Default: J says "delete it" and it goes.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 10:30, the Windows test machine and the window's tests (no action needed).** Three tests
   of the window's colors failed on Windows only. Cause, measured there: the test platform on the
   Windows machine had no font at all and drew a square for every character. On a real Windows
@@ -292,6 +299,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   `tests/test_export_pipeline_gaps.py::test_a_frame_without_a_record_is_written_as_a_lost_frame_is`
   and `::test_the_grid_of_the_lost_rows_is_the_clips_start_and_step`. Default: J says "delete
   them" and they go; or J says the Tracker-format file should carry the lost rows too.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 06:45, B5: what the real model does in fine mode, for J (two tests are `xfail(strict=True)`).**
   On the synthetic close-up shrimp (body 47 × 20 px, two antennae 3 px wide beating at 9 Hz),
   from one click on the body, EdgeTAM outlines the body and leaves the antennae out on every
@@ -328,6 +336,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   `..._with_the_disk_clip`, makes the same folder-name checks with the clip and the 0.25 px
   limit the stand-in is specified for, and runs on all three systems. Default: J says "delete
   it" and the first one goes.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 05:20, track colors: a point for J (default: no change).** Decision X14 keeps last
   week's overlay colors (A is yellow). While preparing the look of the app I had the list
   checked for red-green color blindness: three pairs in it are hard to tell apart for such a
@@ -342,6 +351,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   pinned that the 96 px fallback window is stored in the session; the review found that wrong
   (a window chosen because nothing was found must not be kept), and its successor in the same
   file checks the corrected behavior. Default: J says "delete them" and they go.
+  Done 2026-10-07: deleted on J's word.
 - **Wed 04:42, A16: a design point for J (default in use).** After a fine run that found the
   object, the window the program chose is stored in the track (`fine_window_px`) and every later
   run of that track reuses it, also a re-track from the start frame. That keeps the object's
@@ -356,6 +366,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   The review caught it; the code now follows X8, and the test next to it
   (`..._are_made_anew_here_and_logged`) checks that. The old test stays, marked xfail, because
   tests are never deleted without J. Default: J says "delete it" and it goes.
+  Done 2026-10-07: deleted on J's word.
 
 - **Tue 23:50, A07: one review finding parked.** `session.py` is 488 lines; SPEC §12 says to split
   a file past about 400. Splitting needs a new module, which the parallel work lane was not

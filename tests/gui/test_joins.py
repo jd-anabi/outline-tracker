@@ -185,56 +185,10 @@ def test_the_sentence_that_sent_the_student_to_the_command_line_is_gone(window, 
     assert [name for name, value in texts.items() if "outline-tracker export" in value or "model" in value] == []
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Superseded in fix round 1 of task C9. This test held that one thread makes the model and runs every task, so "
-    "that an export asked for while the model loads is written only when the load has ended. The brief asks that "
-    "Export all runs and ends while the model is still loading: the model is now made in a thread that does nothing "
-    "else, and the worker's one thread exports meanwhile, so nothing here waits for the factory and the export's "
-    "thread is not the factory's. Successor: "
-    "test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thread. For J: delete this test."))
-def test_while_the_model_loads_export_all_starts_at_once_and_is_written_when_the_thread_is_free(
-        window, qtbot, clip_in_odd_folder, monkeypatch):
-    """One thread loads the model and runs every task (X7): an export asked for while the model
-    loads is taken at once and written as soon as the load has ended, however it ended."""
-    record_every_dialog(monkeypatch)
-    clip, loaded_in = clip_in_odd_folder, []
-    exports, listings = watch_export(monkeypatch), listed_by(monkeypatch)
-    with Gate() as gate:
-        def slow(model, device):
-            loaded_in.append(this_thread())
-            gate.park()
-            return ExactFake(clip)
-
-        folder = earlier_run(window, qtbot, clip, slow)
-        worker, panel, review, track = (worker_of(window), export_panel(window), review_panel(window),
-                                        track_panel(window))
-        qtbot.waitUntil(gate.parked.is_set)
-        assert worker.state == "loading"
-        # tracking and outlines wait for the model
-        objects = objects_panel(window)
-        objects.add_object()
-        assert objects.prompts.add_point(*center(clip, "B", 0), 1)
-        assert objects.prompts.busy and objects.prompts.outlines == {}
-        assert not track.track_button.isEnabled() and track.track_button.toolTip() == TRACK_LOADING
-        assert track.jobs.start() == TRACK_LOADING and not track.jobs.running
-        # Export all does not: it is on, and a press is taken
-        assert is_on(window)
-        panel.export_button.click()
-        assert panel.exporting and not panel.progress_bar.isHidden()
-        assert exports.calls == []  # the one thread is still in the factory
-        gate.open()
-        qtbot.waitUntil(lambda: not panel.exporting, timeout=30_000)
-    assert exported_all(folder, panel)
-    listed(qtbot, review)
-    assert review.listing.rows and review.listing.problem == ""
-    assert {thread for _, _, thread, _ in exports.calls} | set(listings.threads) == set(loaded_in)
-    qtbot.waitUntil(lambda: worker.ready and not objects.prompts.busy)
-
-
 def test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thread(window, qtbot,
                                                                                     clip_in_odd_folder, monkeypatch):
-    """The brief's test for a model that is still loading, and the successor of the test above. The
-    factory stands at a gate: everything before `gate.open()` happens while the model is not there."""
+    """The brief's test for a model that is still loading. The factory stands at a gate: everything
+    before `gate.open()` happens while the model is not there."""
     record_every_dialog(monkeypatch)
     clip, making = clip_in_odd_folder, []
     exports, listings = watch_export(monkeypatch), listed_by(monkeypatch)

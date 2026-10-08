@@ -292,18 +292,6 @@ def test_a_file_that_is_no_video_leaves_the_empty_window_empty(window, qtbot, mo
     assert not window.navigation.isEnabled()
 
 
-@pytest.mark.xfail(strict=True, reason="Task C2: sessions can be opened now. `MainWindow.open_path` hands a .json "
-                   "file to `controller.open_session`, so a session file that is not there gives the message of a "
-                   "file that could not be opened, and the status bar says so. The test that follows this one is "
-                   "test_a_session_file_that_is_not_there_gives_a_message_and_names_only_the_file in "
-                   "tests/gui/test_session_saving.py.")
-def test_a_session_file_is_only_named_until_sessions_can_be_opened(window, monkeypatch, tmp_path):
-    asked = record_dialogs(monkeypatch)
-    window.open_path(tmp_path / helpers.ODD_FOLDER / "session.json")
-    assert window.statusBar().currentMessage() == "session.json"
-    assert asked.messages == [] and window.controller.session is None
-
-
 def test_closing_tells_the_parts_first_while_the_video_is_still_open(window, qtbot, dish_clip):
     # a panel saves and a worker stops on `closing`: both may still need the session and the video
     window.open_path(dish_clip.path)

@@ -11,13 +11,12 @@ the order they were added (SPEC 3.4, 5).
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QKeySequence
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFileDialog
 
-from finish_helpers import menu_texts, named, never_blocking, record_every_dialog  # noqa: F401 (fixture)
+from finish_helpers import named, never_blocking, record_every_dialog  # noqa: F401 (fixture)
 from gui_helpers import picture, show
-from outline_tracker.gui import about, dialogs, menus
+from outline_tracker.gui import about, dialogs
 from prompt_helpers import objects_panel
 from session_helpers import FOLDER_OF_NAME, NAME, body, type_into
 
@@ -31,25 +30,6 @@ def save_items(window):
 
 # ---------------------------------------------------------------------------------------------
 # What is in the menus
-
-
-@pytest.mark.xfail(strict=True, reason="Task C6: the File menu has Export now, between Save session as and Quit "
-                   "(SPEC 10.1), so its items are no longer these five. Everything else here holds. The test that "
-                   "follows this one is test_the_file_menu_has_export_between_save_session_as_and_quit in "
-                   "tests/gui/test_export_panel.py: this test with six items. For J or the controller: delete "
-                   "this test.")
-def test_the_menu_bar_has_file_and_help_with_the_specs_items(window):
-    assert menu_texts(window) == {"File": ["Open video", "Open session", "Save session", "Save session as", "Quit"],
-                                  "Help": ["Quickstart", "About"]}
-    made = window.menus
-    (file_menu, help_menu) = [entry.menu() for entry in window.menuBar().actions()]
-    assert [item for item in file_menu.actions() if not item.isSeparator()] == [
-        made.open_action, made.open_session_action, made.save_action, made.save_as_action, made.quit_action]
-    assert help_menu.actions() == [made.quickstart_action, made.about_action]
-    assert (window.open_action, window.quit_action) == (made.open_action, made.quit_action)
-    assert made.open_action.shortcut() == QKeySequence(QKeySequence.StandardKey.Open)
-    assert made.save_action.shortcut() == QKeySequence(QKeySequence.StandardKey.Save)  # Ctrl+S, Cmd+S on a Mac
-    assert made.quit_action.shortcut() == QKeySequence(QKeySequence.StandardKey.Quit)
 
 
 def test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons(window, qtbot, monkeypatch,
@@ -156,24 +136,6 @@ def test_quit_closes_the_window(window, qtbot):
     show(window, qtbot)
     window.menus.quit_action.trigger()
     assert not window.isVisible()
-
-
-@pytest.mark.xfail(strict=True, reason="Task C8b: the README has the section Quickstart, and Help > Quickstart "
-                   "opens that section (#quickstart), no longer the top of the page (#readme). Successor: "
-                   "tests/gui/test_finish.py::test_help_quickstart_opens_the_quickstart_section_of_the_readme")
-def test_quickstart_opens_the_repositorys_readme_in_the_browser(window, monkeypatch):
-    opened = []
-
-    class Browser:
-        @staticmethod
-        def openUrl(url):
-            opened.append(url)
-            return True
-
-    monkeypatch.setattr(menus, "QDesktopServices", Browser)
-    window.menus.quickstart_action.trigger()
-    assert opened == [QUrl("https://github.com/jd-anabi/outline-tracker#readme")]
-    assert menus.QUICKSTART_URL == "https://github.com/jd-anabi/outline-tracker#readme"
 
 
 def test_about_shows_the_versions(window, monkeypatch):

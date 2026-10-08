@@ -9,8 +9,6 @@ Expected values are the spec's and the design note's, not the panel's own output
   (1 kB = 1000 bytes);
 - the time an export took is the difference of two readings of a clock the test gives the panel:
   102.5 s - 100 s = 2.5 s;
-- when a file was written is a time the test sets on the file (14:05), and "newer" is 14:10
-  against 14:05;
 - a file that another program holds open is simulated where Windows reports it, at the rename.
 The texts are the brief's and the design note's. Nothing is read from a pixel of text, and no test
 waits with a delay: the export is parked on a gate (tests/gui/prompt_helpers.py).
@@ -28,10 +26,9 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import QProgressBar, QPushButton
 
-from export_helpers import calibrate, coarse_run, frames_of
-from export_panel_helpers import (END, FRAMES, WRITTEN, Clock, export_panel, export_to_end,  # noqa: F401 (fixture)
-                                  hint, is_off, is_on, listed, lock, second_window, set_times, state, tracked,
-                                  watch_export)
+from export_helpers import calibrate, frames_of
+from export_panel_helpers import (END, FRAMES, WRITTEN, Clock, export_panel, export_to_end, hint, is_off, is_on,
+                                  listed, lock, state, tracked, watch_export)
 from finish_helpers import menu_texts, record_every_dialog
 from gui_helpers import show
 from outline_tracker import schema
@@ -42,7 +39,7 @@ from outline_tracker.gui.worker import worker_of
 from outline_tracker.segmenter.fake import ExactFake
 from outline_tracker.session import Session
 from prompt_helpers import Gate, gui_thread
-from session_helpers import body, read_json, type_into
+from session_helpers import body, read_json
 from track_helpers import NAME, Tracked, ready_to_track, run_log, run_to_end, track_panel
 from tracking_helpers import center
 
@@ -55,8 +52,6 @@ NO_SCALE = ("No scale is set. Place the stick in panel 3 (Calibration). Export n
             "in mm.")  # the design note's sentence
 TRACKING = "Tracking is running. Export all is ready when tracking has stopped."
 EXPORTING = "Export all is running. You can look at other frames meanwhile."
-LOADING = "The model is loading. Export all is ready when the model is ready."
-STALE = "The results changed after the last export. Click Export all again."
 RUN_FOLDER = "dish_tracker_outline_Ada"  # SPEC 8.1: <video stem>_outline_<student>
 
 
@@ -128,47 +123,6 @@ def test_export_all_is_off_while_tracking_runs(window, qtbot, clip_in_odd_folder
         gate.open()
         qtbot.waitUntil(lambda: not tracking.jobs.running)
     assert is_on(window)
-
-
-@pytest.mark.xfail(strict=True, reason=(
-    "Written with task C6, when Export all waited for the model. Task C9 (item 1): Export all needs no model, and the "
-    "sentence that sent the student to the command line is gone. Its successors are in tests/gui/test_joins.py: "
-    "test_after_a_model_that_could_not_be_loaded_export_all_and_the_flags_run_in_the_workers_thread and "
-    "test_while_a_load_never_ends_export_all_writes_every_file_in_the_workers_thread. For J or the "
-    "controller: delete this test."))
-def test_export_all_waits_for_the_worker_that_runs_it(window, second_window, qtbot, clip_in_odd_folder,
-                                                      monkeypatch):
-    record_every_dialog(monkeypatch)
-    clip = clip_in_odd_folder
-    session_file = clip.path.parent / "a run" / schema.SESSION_JSON
-    coarse_run(clip, session_file.parent, ["A"])  # a run folder with results, made without a window
-    with Gate() as gate:
-        def slow(model, device):
-            gate.park()
-            return ExactFake(clip)
-
-        window.segmenter_factory = slow
-        window.open_path(session_file)
-        type_into(qtbot, body(window, 1).name_edit, NAME)  # the folder was made without a name
-        show(window, qtbot)
-        qtbot.waitUntil(gate.parked.is_set)
-        assert worker_of(window).state == "loading" and is_off(window, LOADING)
-        gate.open()
-        qtbot.waitUntil(lambda: worker_of(window).ready)
-    assert is_on(window)
-    window.close()
-
-    def broken(model, device):
-        raise RuntimeError("The model's files could not be downloaded.")
-
-    second_window.segmenter_factory = broken
-    second_window.open_path(session_file)
-    show(second_window, qtbot)
-    qtbot.waitUntil(lambda: worker_of(second_window).state == "failed")
-    reason = export_panel(second_window).export_button.toolTip()
-    assert is_off(second_window, reason)
-    assert reason.startswith("The model could not be loaded. The model's files could not be downloaded.")
-    assert "outline-tracker export" in reason  # what still works: the command line
 
 
 # ---------------------------------------------------------------------------------------------
@@ -336,61 +290,6 @@ def test_closing_the_window_during_an_export_waits_for_it_and_ends_the_thread(wi
     assert not worker.is_running() and worker.traces == []
     assert not panel.exporting and len(watch.reports) == 1  # the export's end was taken over
     assert {entry.name for entry in run_folder.iterdir()} >= {schema.POSITIONS_CSV, schema.OVERLAY_MP4, schema.RUN_LOG}
-
-
-# ---------------------------------------------------------------------------------------------
-# Done, or to be exported again
-
-
-@pytest.mark.xfail(strict=True, reason=(
-    "Written with task C6, when only results.npz was held against positions.csv. Task C9 (item 4): session.json "
-    "counts too, and this test leaves its time at today, long after the 14:05 it gives positions.csv. Its successor, "
-    "which says when session.json was written, is tests/gui/test_joins.py::"
-    "test_results_written_after_the_export_need_attention_and_a_new_export_is_done. For J or the controller: delete "
-    "this test."))
-def test_panel_9_is_done_after_an_export_and_needs_attention_when_the_results_are_newer(window, qtbot,
-                                                                                       clip_in_odd_folder):
-    panel = tracked(window, qtbot, clip_in_odd_folder)
-    run_folder = window.controller.run_folder
-    export_to_end(qtbot, panel)
-    assert state(window) == "done"
-    day = (2026, 2, 3)  # a day that is over, whenever the tests run
-    set_times(run_folder, results=datetime(*day, 14, 0), positions=datetime(*day, 14, 5))
-    panel.refresh()
-    assert state(window) == "done" and hint(window) == "Exported at 14:05. Export all replaces these files."
-    assert panel.open_button.property("kind") == "primary"
-
-    set_times(run_folder, results=datetime(*day, 14, 10), positions=datetime(*day, 14, 5))  # tracked again since
-    window.controller.touch()
-    assert state(window) == "attention" and hint(window) == STALE
-    assert is_on(window) and panel.export_button.property("kind") == "primary"
-    assert panel.open_button.property("kind") != "primary"
-    assert panel.message.isHidden() and panel.files_label.isHidden()  # what the older export wrote is not listed
-
-    export_to_end(qtbot, panel)  # positions.csv is written now, long after 14:10 of that day
-    assert state(window) == "done" and panel.message.kind == "success"
-
-
-@pytest.mark.xfail(strict=True, reason=(
-    "Written with task C6, when only results.npz was held against positions.csv. Task C9 (item 4): session.json "
-    "counts too, and this test leaves its time at today, long after the 09:31 it gives positions.csv. Its successor "
-    "is tests/gui/test_joins.py::test_an_export_on_the_disk_is_done_when_its_session_is_opened. For J or the "
-    "controller: delete this test."))
-def test_an_export_that_is_on_the_disk_is_done_when_the_session_is_opened(window, second_window, qtbot,
-                                                                         clip_in_odd_folder):
-    panel = tracked(window, qtbot, clip_in_odd_folder)
-    run_folder = window.controller.run_folder
-    export_to_end(qtbot, panel)
-    window.close()
-    set_times(run_folder, results=datetime(2026, 2, 3, 9, 30), positions=datetime(2026, 2, 3, 9, 31))
-    second_window.segmenter_factory = lambda model, device: ExactFake(clip_in_odd_folder)
-    second_window.open_path(run_folder / schema.SESSION_JSON)
-    show(second_window, qtbot)
-    qtbot.waitUntil(lambda: worker_of(second_window).ready)
-    again = export_panel(second_window)
-    assert state(second_window) == "done" and is_on(second_window)
-    assert hint(second_window) == "Exported at 09:31. Export all replaces these files."
-    assert again.message.isHidden() and again.files_label.isHidden() and again.open_button.isEnabled()
 
 
 # ---------------------------------------------------------------------------------------------
