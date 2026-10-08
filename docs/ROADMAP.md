@@ -72,8 +72,8 @@ Until `CLAUDE.md` and `docs/DEVELOPER.md` are rewritten (W1 step 1), this sectio
 they, or an inventory, say otherwise.
 
 1. **Version 0.1.0 is not disturbed.**
-   - It is tagged `v0.1.0` at the end of W0. No tag exists yet. No other workstream starts
-     before the tag exists, and the tag is never moved or deleted.
+   - It is tagged `v0.1.0` (2026-10-07, at the end of W0). No other workstream starts before
+     the tag exists, and the tag is never moved or deleted.
    - The first commit on `main` after the tag sets the version to `0.2.0.dev0`, so that no file
      written by a build of this phase says 0.1.0.
    - The README on `main` is the page that 0.1.0 opens from Help > Quickstart. Before the first
@@ -246,11 +246,13 @@ The window and the project:
       deleted (three layout checks that only one of them held went into its successor).
 - [x] The README carries the advice on fine mode for a lost object (in Troubleshooting).
 - [x] The owner's check on the Mac is recorded in `docs/VALIDATION.md` (section 6.4).
-- [ ] Both CI systems are green on the merged commit.
-- [ ] The owner's check on a Windows machine, on the commit that will be tagged: install,
-      selftest, the window opens, "Model ready" appears, a short run and an export finish.
-- [ ] The tag `v0.1.0`; both install lines of the README name it (written as
-      `refs/tags/v0.1.0`, with `--python 3.12`).
+- [x] Both CI systems are green on the commit that is tagged.
+- [ ] The owner's check on a Windows machine, with the tag: install, selftest, the window
+      opens, "Model ready" appears, a short run and an export finish. This box and the last
+      one are the owner's and do not hold up W1: a problem found on Windows is fixed as
+      `v0.1.1` on a branch from the tag (rule 1).
+- [x] The tag `v0.1.0` (on the commit that holds this line); both install lines of the README
+      name it (written as `refs/tags/v0.1.0`, with `--python 3.12`).
 - [x] This file, `docs/roadmap/` and `docs/design/gui_design.md` are committed and pushed.
 - [ ] The repository is made public.
 
@@ -466,7 +468,9 @@ something fails.
 
 ## 5. Order, and what can run side by side
 
-1. Decisions 1 and 4, then the rest of W0. Decisions 2 and 3 come before W1.
+1. Decisions 1 and 4, then the rest of W0. Decisions 2 and 3 come before W1. W1 may start as
+   soon as the tag `v0.1.0` exists; the two boxes of W0 that are the owner's own (the Windows
+   check, making the repository public) do not hold it up.
 2. W1: the base must be clean before files move.
 3. W2: a pure move. Nothing else may be open while it runs: it touches every file.
 4. W3: the renaming lands at the final paths.
@@ -525,3 +529,5 @@ One line per session: date, workstream, what was done, the last commit.
   again; README advice on fine mode; the owner's Mac check recorded.
 - 2026-10-07: W0: decisions 1, 3 and 4 answered; LICENSE and NOTICE; the 24 superseded tests
   deleted; install lines with the tag.
+- 2026-10-07: W0: CI green on Linux and Windows at `9a36125`; tagged `v0.1.0`. Open in W0: the
+  owner's Windows check, and making the repository public. Next: W1, from step 0.
