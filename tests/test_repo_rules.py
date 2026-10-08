@@ -1,4 +1,5 @@
-"""Rules of the repository itself: entry point, reference copies, import boundaries, no private data.
+"""Rules of the repository itself: entry point, reference copies, import boundaries, no private data,
+when CI runs.
 
 Checks that a command "loads neither torch nor Qt" run that command in a subprocess: pytest-qt has
 already imported PySide6 into the test process.
@@ -18,6 +19,7 @@ import outline_tracker
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "outline_tracker"
 REFERENCE = REPO / "tests" / "reference"
+WORKFLOW = REPO / ".github" / "workflows" / "tests.yml"
 
 # Import boundaries (SPEC 12, CLAUDE.md). Top-level module names.
 QT_MODULES = {"PySide6", "pyqtgraph"}  # only inside outline_tracker/gui/
@@ -290,3 +292,28 @@ def test_home_path_pattern_examples():
     ]
     assert [text for text in personal if not HOME_PATH.search(text)] == []
     assert [text for text in generic if HOME_PATH.search(text)] == []
+
+
+# ---------------------------------------------------------------------------------------------
+# When CI runs
+
+
+def _path_filters(workflow: str) -> list[str]:
+    """The lines of a workflow text that limit a trigger to some paths: `paths-ignore` anywhere, or a key
+    `paths:`. The text is read as lines, not as YAML: no YAML library is a dependency."""
+    return [line.strip() for line in workflow.splitlines()
+            if "paths-ignore" in line or re.search(r"(?<![\w-])paths[\"']?\s*:", line)]
+
+
+def test_ci_runs_for_every_push_to_main():
+    # Fast tests read documents (README.md, SPEC.md, docs/), so a push that changes only documents must
+    # start a run too (docs/ROADMAP.md, section 2, rule 2).
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert re.search(r"^ *push:\n *branches: *\[main\]", workflow, re.MULTILINE)  # the trigger is there
+    assert _path_filters(workflow) == []
+    # the check finds both kinds of filter, as a block and inside braces, and nothing in a plain trigger
+    assert _path_filters('on:\n  push:\n    branches: [main]\n    paths-ignore: ["**.md"] # no run\n') == [
+        'paths-ignore: ["**.md"] # no run']
+    assert _path_filters("on:\n  push:\n    paths:\n      - outline_tracker/**\n") == ["paths:"]
+    assert _path_filters('on: {push: {branches: [main], "paths": ["tests/**"]}}\n') != []
+    assert _path_filters("on:\n  push:\n    branches: [main]\n  pull_request:\n") == []
