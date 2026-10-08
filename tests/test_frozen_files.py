@@ -19,9 +19,14 @@ leave two decisions to the helper, and both are tested here with made-up headers
 machine the limit of 0.01 px is asserted (`same_machine`), and how positions are judged
 (`compare_with_frozen`).
 
-The last test is about the golden Tracker-format files (tests/data/tracker_format/): with which decoder
-their bytes are asserted (`same_decoder`), on made-up decoder tags. How a file is judged with another
-decoder is tested where the three cases are (tests/test_from_tracker_port.py).
+The test after those is about the golden Tracker-format files (tests/data/tracker_format/): with which
+decoder their bytes are asserted (`same_decoder`), on made-up decoder tags. How a file is judged with
+another decoder is tested where the three cases are (tests/test_from_tracker_port.py).
+
+The last two tests hold the installed torch and OpenCV to the versions that the headers name. The strict
+checks (the limit of 0.01 px, the weights' hash, the golden bytes) are made only with those versions, so
+with others no computer would make them and every run would stay green: the first of the two fails
+instead, and the second shows that it does.
 """
 
 import hashlib
@@ -32,6 +37,7 @@ import sys
 from datetime import date
 from importlib import metadata
 
+import cv2
 import frozen_helpers
 import numpy as np
 import pytest
@@ -431,3 +437,86 @@ def test_the_golden_bytes_are_asserted_only_with_the_decoder_that_froze_them():
     assert same_decoder(made_here, video.decoder_tag()) is True
     # the header of the golden files has the line that the rule asks for, and it is a tag
     assert re.fullmatch(r"opencv-[\d.]+/\w+/\w+", read_frozen(GOLDEN / SIDECAR)[0]["decoder"])
+
+
+def frozen_torch(path) -> str:
+    """The torch version that the header of a frozen file names, as the machine rule reads it."""
+    return machine_of(read_frozen(path)[0])["torch"]
+
+
+def frozen_opencv() -> str:
+    """OpenCV's version in the header of the golden files: the first part of its `decoder` line
+    (`opencv-5.0.0/darwin/arm64`: 5.0.0), the line that the decoder rule compares."""
+    return read_frozen(GOLDEN / SIDECAR)[0]["decoder"].partition("/")[0].removeprefix("opencv-")
+
+
+def test_the_installed_torch_and_opencv_are_those_of_the_frozen_files_headers():
+    # The strict checks are made only where the libraries are those of the headers: the limit of 0.01 px
+    # and the weights' hash with the header's torch version (`same_machine`), the golden bytes with the
+    # header's OpenCV version (`same_decoder`). What a build adds is no other version: a local part of
+    # torch's (`2.14.1+cpu`, CI's on Linux), and parts of OpenCV's beyond those that the header holds.
+    torch_here = metadata.version("torch").partition("+")[0]  # read without importing torch
+    ended = [f"- {path.name}, {check}: frozen with torch {frozen_torch(path)}, installed is torch {torch_here}"
+             for path, check in ((POSITIONS, "the limit of 0.01 px for the positions of the real model"),
+                                 (WEIGHTS, "the hash of the weights"))
+             if frozen_torch(path) != torch_here]
+    opencv_frozen = frozen_opencv()
+    if cv2.__version__.split(".")[:opencv_frozen.count(".") + 1] != opencv_frozen.split("."):
+        ended.append(f"- {GOLDEN.name}/{SIDECAR}, the bytes of the golden Tracker-format files: frozen with OpenCV "
+                     f"{opencv_frozen}, installed is OpenCV {cv2.__version__}")
+    if ended:
+        pytest.fail("\n".join([
+            "With the installed versions these strict checks are asserted on no computer, and every run would stay "
+            "green without them:", *ended,
+            "Do not edit the header of a frozen file: it says how the file was made. The owner decides what "
+            "happens (docs/ROADMAP.md, section 3: the decision on a change of the torch version or of the "
+            "reference machine)."]))
+
+
+def test_with_another_torch_or_opencv_version_that_test_fails_and_names_the_checks_that_end(monkeypatch):
+    check = test_the_installed_torch_and_opencv_are_those_of_the_frozen_files_headers
+    version_of = metadata.version
+
+    def install(torch_version, opencv_version):
+        """Make this version of torch the installed one, and this one what OpenCV says of itself."""
+        monkeypatch.setattr(metadata, "version", lambda name: torch_version if name == "torch" else version_of(name))
+        monkeypatch.setattr(cv2, "__version__", opencv_version)
+
+    torch_frozen, opencv_frozen = frozen_torch(POSITIONS), frozen_opencv()
+    assert torch_frozen == frozen_torch(WEIGHTS)  # one run froze both files
+    assert re.fullmatch(r"\d+\.\d+\.\d+", torch_frozen) and re.fullmatch(r"\d+\.\d+\.\d+", opencv_frozen)
+
+    install(torch_frozen, opencv_frozen)
+    check()
+    install(torch_frozen + "+cpu", opencv_frozen + ".93")  # what a build adds
+    check()
+
+    # another torch version, also one that begins like the header's (2.14.10 for 2.14.1): the two checks of
+    # the real model end, and the golden bytes do not
+    for other in ("0.0.1", torch_frozen + "0", torch_frozen.rpartition(".")[0]):
+        install(other, opencv_frozen)
+        with pytest.raises(pytest.fail.Exception) as failed:
+            check()
+        message = str(failed.value)
+        assert "asserted on no computer" in message and "Do not edit the header" in message, other
+        assert "The owner decides" in message and "docs/ROADMAP.md, section 3" in message, other
+        assert [line.partition(",")[0] for line in message.splitlines() if line.startswith("- ")] == [
+            "- edgetam_cpu_positions.csv", "- edgetam_weights.txt"], other
+        assert f"frozen with torch {torch_frozen}, installed is torch {other}" in message, other
+        assert "the limit of 0.01 px" in message and "the hash of the weights" in message, other
+
+    # another OpenCV version: the golden bytes end, and the checks of the real model do not
+    for other in ("0.0.1", opencv_frozen + "0", opencv_frozen.rpartition(".")[0]):
+        install(torch_frozen, other)
+        with pytest.raises(pytest.fail.Exception) as failed:
+            check()
+        message = str(failed.value)
+        assert [line.partition(",")[0] for line in message.splitlines() if line.startswith("- ")] == [
+            "- tracker_format/HEADER.txt"], other
+        assert "the bytes of the golden Tracker-format files" in message, other
+        assert f"frozen with OpenCV {opencv_frozen}, installed is OpenCV {other}" in message, other
+
+    install("0.0.1", "0.0.1")  # both: all three
+    with pytest.raises(pytest.fail.Exception) as failed:
+        check()
+    assert len([line for line in str(failed.value).splitlines() if line.startswith("- ")]) == 3
