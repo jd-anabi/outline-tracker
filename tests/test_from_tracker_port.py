@@ -47,7 +47,7 @@ from frozen_helpers import (GOLDEN, SIDECAR, compare_with_golden, frozen_files, 
                             write_frozen, write_listing)
 from test_tracker_io import MM_PER_PX, export_text, tracker_map
 
-from outline_tracker.from_tracker import from_tracker
+from outline_tracker.from_tracker import _flags, from_tracker
 from outline_tracker.segmenter.fake import ThresholdFake
 from outline_tracker.video import decoder_tag
 
@@ -382,3 +382,28 @@ def test_a_jump_is_a_check_message_as_last_week(tmp_path):
     (message,) = new.flags
     assert message.startswith("A: jumps 0.6")  # 12.5 px are 0.625 mm
     assert message.endswith(" mm at t = 0.104 s (frame 25): check the video there")  # 25 / 240 s
+
+
+@pytest.mark.parametrize("step_px, messages", [
+    (49.0, []),
+    (50.0, []),
+    (51.0, ["A: jumps 1.59 mm at t = 0.203 s (frame 52): check the video there"]),
+], ids=["98 mm per s", "100 mm per s", "102 mm per s"])
+def test_a_step_is_a_jump_when_it_is_faster_than_100_mm_per_s(step_px, messages):
+    # The limit behind the CHECK line, bracketed with a made-up track: no clip and no model. README.md
+    # says of the CHECK lines that an animal "jumped faster than 100 mm/s", and SPEC 9 has the same
+    # limit for JUMP ("default 100 mm/s, as last week").
+    # The track: 1/32 mm per px and 256 frames per s, tracked on every 4th frame, so 1/64 s between two
+    # rows. It moves 1 px per row (2 mm/s), except from frame 48 to frame 52:
+    #   49 px = 1.53125 mm in 1/64 s =  98 mm/s: no message;
+    #   50 px = 1.5625 mm  in 1/64 s = 100 mm/s, the limit itself, which is not faster: no message;
+    #   51 px = 1.59375 mm in 1/64 s = 102 mm/s: one message, for frame 52 at t = 52 / 256 = 0.203 s.
+    # A float holds each of these numbers exactly, so the speed at the limit is exactly 100 mm/s. The
+    # positions are typed, so no model's error is in them. Were they found by the stand-in, within
+    # 0.25 px at each end of the step, the step could differ by 0.5 px, which is 1 mm/s here: 98 mm/s
+    # would stay under the limit and 102 mm/s over it.
+    frames = np.array([40, 44, 48, 52, 56])
+    pixelx = np.array([200.5, 201.5, 202.5, 202.5 + step_px, 203.5 + step_px])
+    x_mm, y_mm = pixelx / 32.0, np.zeros(5)  # along x; y is the same on every row
+    area_px = np.full(5, 113)  # a disk of radius 6 px on every row: no change of size
+    assert _flags("A", frames, frames / 256.0, x_mm, y_mm, area_px) == messages
