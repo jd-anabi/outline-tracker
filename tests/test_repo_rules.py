@@ -420,9 +420,15 @@ def test_no_test_module_imports_from_a_test_module(tmp_path):
 # What waits for a time when it is called, by the last part of its name: `time.sleep` and a bare `sleep`,
 # `QThread.msleep` and `usleep`, `QTest.qWait` and `qSleep`, `threading.Timer` and a bare `Timer`.
 DELAY_NAMES = {"sleep", "msleep", "usleep", "qWait", "qSleep", "Timer"}
-# The delays that stay, {file: what it calls there}. There is one: the steps of a mouse drag are 20 ms
-# apart, because pyqtgraph drops a mouse move that follows another one sooner (`drag`).
-ALLOWED_DELAYS = {"tests/gui/gui_helpers.py": ["QTest.qWait"]}
+# The calls that the scan finds and that stay, {file: what it calls there}, each with its reason.
+ALLOWED_DELAYS = {
+    # A real delay, the one exception: the steps of a mouse drag are 20 ms apart, because pyqtgraph drops a
+    # mouse move that follows another one sooner (`drag`).
+    "tests/gui/gui_helpers.py": ["QTest.qWait"],
+    # Not a delay: the fixture `lock_file` has put its recorder in place of the wait, and the test that calls
+    # it asserts that nothing was waited (`test_lock_file_skips_the_waits_between_the_tries_and_records_them`).
+    "tests/test_fileio.py": ["fileio.time.sleep"],
+}
 
 
 def _delay_calls(source: str) -> list[tuple[int, str]]:
@@ -431,8 +437,10 @@ def _delay_calls(source: str) -> list[tuple[int, str]]:
     and a call of `wait` on pytest-qt's `qtbot`, which waits for a number of ms. The `wait` of an event
     or of a thread is not one: it waits for that event or thread. The line is the one the call begins in.
 
-    The scan reads names, not objects: it does not find a wait that is called under another name, and
-    it takes a function for a wait that only has one of the names.
+    The scan reads names, not objects, so it takes a function for a wait that only has one of the names.
+    When it takes a call that waits for nothing for a delay, list that call in `ALLOWED_DELAYS` with the
+    reason; do not call it under another name. The scan does not see a delay that is called under another
+    name, a `QTimer.singleShot` with a delay above 0, or a `QTimer` that is started.
     """
     def last(name: ast.expr) -> str | None:  # `sleep` of `fileio.time.sleep` and of `sleep`
         return name.attr if isinstance(name, ast.Attribute) else getattr(name, "id", None)
@@ -457,13 +465,13 @@ def test_no_test_waits_by_a_delay():
             "tests/slow/conftest.py"} <= set(found)  # the real folders
     assert [f"{name}:{line}: calls {called}" for name, calls in found.items() for line, called in calls
             if called not in ALLOWED_DELAYS.get(name, [])] == []
-    # a delay that stays is there as often as the list says: one more of its kind in that file is a finding too
+    # a listed call is there as often as the list says: one more of its kind in that file is a finding too
     assert {name: [called for _, called in calls] for name, calls in found.items() if calls} == ALLOWED_DELAYS
 
 
 def test_the_delay_scan_flags_each_kind():
-    # The rule test above shows that the scan finds the drag step in the tests and nothing else, not that
-    # it would find a wait of another kind: check it on a text that waits in each way once, and on a text
+    # The rule test above shows that the scan finds the two listed calls in the tests and nothing else, not
+    # that it would find a wait of another kind: check it on a text that waits in each way once, and on a text
     # that only looks so. The two words are put in here, so that a search of tests/ for a call of them
     # finds nothing in this file. The lines are counted by hand.
     sleep, timer = "sleep", "Timer"

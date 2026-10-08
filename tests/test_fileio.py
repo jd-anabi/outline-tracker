@@ -209,11 +209,7 @@ def test_lock_file_skips_the_waits_between_the_tries_and_records_them(tmp_path, 
     waited = []
     monkeypatch.setattr(time, "sleep", waited.append)  # where a wait would go if it were passed on
     held = lock_file(tmp_path / "positions.csv", waits="skip")
-    # What `fileio` calls between two tries is the fixture's recorder now. It is called under another name
-    # here: the rule that no test waits by a delay goes by the names of the calls (tests/test_repo_rules.py),
-    # and this call waits for nothing.
-    between_tries = fileio.time.sleep
-    assert between_tries(0.4) is None
+    assert fileio.time.sleep(0.4) is None
     assert held.sleeps == [0.4] and waited == []  # recorded, in s, and not waited for
 
 
