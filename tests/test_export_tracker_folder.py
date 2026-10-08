@@ -200,7 +200,13 @@ def _what_happens(monkeypatch, folder, write, error, times, fallback_locked):
     """Write A.csv in `folder`, where it exists already, with `write(folder)`, which returns the path
     written. Returns what was done about the lock, in order: each rename tried, each wait in s, how
     it ended, then what each file of the folder holds. The fallback's name and the folder's are left
-    out of the texts, since the two writers differ in them by design."""
+    out of the texts, since the two writers differ in them by design.
+
+    The stand-in for `os.replace` is this function's own, not the `lock_file` fixture of
+    tests/conftest.py, with which the other tests imitate a locked file. Two things here are not
+    that fixture's: the renames and the waits are kept in one list, in the order they came (the
+    fixture keeps a list of each, which cannot show a wait in the wrong place); and the fallback is
+    locked whatever it is called, since its name is first seen when the rename onto it comes."""
     folder.mkdir()
     (folder / "A.csv").write_text("old")
     events, fallback, real = [], [], os.replace
