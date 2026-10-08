@@ -3,25 +3,14 @@ results, end a track, re-track from a frame). SPEC 10.2 and the design note: the
 default one, the other button is named after the action, and the dialog never blocks the window.
 """
 
-import pytest
 from gui_helpers import show
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QMessageBox, QPushButton
+from PySide6.QtWidgets import QMessageBox, QPushButton
 
 from outline_tracker.gui import dialogs
 
 LEFT = Qt.MouseButton.LeftButton
 TEXT = "Remove object B?\nIts 120 tracked frames are removed from the results. This cannot be undone."
-
-
-@pytest.fixture
-def never_blocking(monkeypatch):
-    """Make `exec`, which would wait for the user and never return here, an error."""
-    def blocked(*_):
-        raise AssertionError("A dialog was run with exec(): it blocks the window. Use open().")
-
-    for kind in (QDialog, QMessageBox):
-        monkeypatch.setattr(kind, "exec", blocked)
 
 
 def asked(window, qtbot, done):
