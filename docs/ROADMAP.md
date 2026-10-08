@@ -92,8 +92,8 @@ they, or an inventory, say otherwise.
    or model weights in git; no force-push and no rewritten history; no personal paths or private
    data in the repository; ask before adding a dependency.
    - New in this phase: a step is done when the fast tests are green here and on every CI job.
-     A push that changes only `.md` files or `docs/` starts no CI run today although fast tests
-     read documents; until W1 step 0 changes that, start the workflow by hand for such a push.
+     Since W1 step 0 every push to `main` starts a run, also one that changes only `.md` files
+     or `docs/`, because fast tests read documents.
    - One exception to "never from the code's own output", named where it is used: a frozen
      baseline, taken from a run that an independent check confirmed, with a header that says how
      it was made (W1 step 4).
@@ -138,6 +138,7 @@ Rules and legal:
    `xfail(strict=True)` and waits. Default: a test that a deliberate change makes obsolete is
    replaced in the same commit, and the commit message names the old test, the new one and the
    reason; a test that fails unexpectedly still may not be weakened. [W1]
+   Decided 2026-10-07: the default stands.
 3. Every test marked `xfail(strict=True)` whose reason names a successor, and the two superseded
    but unmarked tests in `tests/gui/test_theme.py`: delete them. These are 22 marked tests (20
    on every system, 2 on some systems only). Three reason texts carry an alternative that the
@@ -227,11 +228,15 @@ The window and the project:
     use the largest piece of a mask (two stray pixels switched a check off); the 0.02 limit of
     fine mode is for the variation of solidity (RMS after the mean offset is taken out), with a
     click on the body and on each thin part. [W1]
+    Decided 2026-10-07: the default stands, for both findings. The peak of the solidity
+    spectrum is still asked within 0.5 Hz of 9 Hz.
 27. Two open readings of the spec (the plan's question 15): one jump of the axis flags one frame
     as `ORIENT`, not the rest of the track; long shapes always take the core fallback. Default:
     as built. [W1]
+    Decided 2026-10-07: as built, for both readings.
 28. Two open points of the window: a stored fine window cannot tell "auto" from "set by hand"
     (an Auto button exists); the smallest window stays 960 px wide. Default: as built. [W1, W4]
+    Decided 2026-10-07: as built, for both points.
 
 ## 4. Workstreams
 
@@ -266,9 +271,13 @@ helper files in three test folders; the lock simulation written in 11 files; 22 
 files over 400 lines; three GUI tests open a gate from a timer thread and one sleeps. The
 inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
 
-- [ ] 0. The version becomes `0.2.0.dev0` (`pyproject.toml`, `outline_tracker/__init__.py`, the
+- [x] 0. The version becomes `0.2.0.dev0` (`pyproject.toml`, `outline_tracker/__init__.py`, the
       test of the version line, the README's example line). CI also runs for pushes that change
       only documents.
+      Done 2026-10-07, with one change on the owner's word: `README.md` is not changed in W1,
+      because the first class installs version 0.1.0 from that page. Its example line keeps
+      showing 0.1.0, and the README tests follow the tag that the install line names, not the
+      running version. `uv.lock` holds the version too, and a test keeps the three places equal.
 - [ ] 1. Rewrite `CLAUDE.md` for this phase (section 2 of this file; decision 2), and
       `docs/DEVELOPER.md` where it repeats the rules. `tests/gui/test_finish.py` pins phrases of
       `docs/DEVELOPER.md`, among them the xfail rule: change that test first. Done when the
