@@ -74,8 +74,9 @@ def test_the_version_is_written_the_same_in_its_three_places():
 # Import boundaries
 
 
-def _imported_top_levels(tree: ast.AST):
-    """Yield (line, top-level module name) for every absolute import in a parsed file.
+def _imports(tree: ast.AST):
+    """Yield (line, module, names) for every absolute import in a parsed file: the dotted name of
+    the module, and for `from module import a, b` the names ("a", "b"), else ().
 
     Covers `import a.b`, `from a.b import c`, and `import_module("a.b")` / `__import__("a.b")`
     with a literal name, at any depth (lazy imports inside functions count too).
@@ -83,16 +84,32 @@ def _imported_top_levels(tree: ast.AST):
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                yield node.lineno, alias.name.split(".")[0]
+                yield node.lineno, alias.name, ()
         elif isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:
-                yield node.lineno, node.module.split(".")[0]
+                yield node.lineno, node.module, tuple(alias.name for alias in node.names)
         elif isinstance(node, ast.Call) and node.args:
             func, first = node.func, node.args[0]
             called = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
             literal = isinstance(first, ast.Constant) and isinstance(first.value, str)
             if called in ("import_module", "__import__") and literal:
-                yield node.lineno, first.value.split(".")[0]
+                yield node.lineno, first.value, ()
+
+
+def _imported_top_levels(tree: ast.AST):
+    """Yield (line, top-level module name) for every absolute import in a parsed file (`_imports`)."""
+    for line, module, _ in _imports(tree):
+        yield line, module.split(".")[0]
+
+
+def _imported_paths(tree: ast.AST):
+    """Yield (line, dotted path) for everything that an absolute import in a parsed file names
+    (`_imports`), with every part of the name: `import a.b` and `import_module("a.b")` name a.b;
+    `from a.b import c, d` names a.b.c and a.b.d, because c may be a module of a.b as well as a
+    name in it."""
+    for line, module, names in _imports(tree):
+        for name in names or ("",):
+            yield line, f"{module}.{name}".rstrip(".")
 
 
 def _import_violations(package: Path) -> list[tuple[str, int, str]]:
@@ -353,13 +370,15 @@ def test_every_ci_job_runs_the_fast_tests_and_then_the_slow_tests_without_weight
 
 
 def _conftest_imports(folder: Path) -> list[str]:
-    """Scan every .py file under `folder`; return `file:line` for each import of a module named
-    conftest, at any depth (the three ways of `_imported_top_levels`)."""
+    """Scan every .py file under `folder`; return `file:line` for each line that imports a module
+    named conftest, at any depth (the three ways of `_imports`). Every part of a dotted name is looked
+    at (`_imported_paths`): `tests.conftest` is that module too, and so is `conftest` imported as a
+    name of `tests`."""
     found = []
     for path in sorted(folder.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        found += [f"{path.relative_to(folder).as_posix()}:{line}"
-                  for line, top in _imported_top_levels(tree) if top == "conftest"]
+        lines = sorted({line for line, dotted in _imported_paths(tree) if "conftest" in dotted.split(".")})
+        found += [f"{path.relative_to(folder).as_posix()}:{line}" for line in lines]
     return found
 
 
@@ -380,12 +399,16 @@ def test_no_module_under_tests_imports_conftest(tmp_path):
         "gui/test_b.py": f"import importlib\n\nfound = importlib.import_module('{name}')\n",
         "gui/conftest.py": f"import pytest\nfrom helpers import late  # used by this {name}.py\n",
         "test_c.py": f"from {name}_helpers import late\n",
+        # by way of the folder's name: the module, a name from it, the module as a name of the folder
+        "slow/test_d.py": f"import tests.{name}\nfrom tests.gui.{name} import look\nfrom tests.gui import {name}\n",
+        "slow/d_helpers.py": f"from tests.helpers import {name}_of, late\n",
     }
     for rel, text in sources.items():
         target = tmp_path / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
-    assert _conftest_imports(tmp_path) == ["gui/test_b.py:3", "helpers.py:2", "test_a.py:2"]
+    assert _conftest_imports(tmp_path) == ["gui/test_b.py:3", "helpers.py:2", "slow/test_d.py:1", "slow/test_d.py:2",
+                                           "slow/test_d.py:3", "test_a.py:2"]
 
 
 def _fixtures_of(tree: ast.Module) -> dict[str, int]:
@@ -463,12 +486,19 @@ def test_no_fixture_is_imported_by_name(tmp_path):
 
 def _test_module_imports(folder: Path) -> list[str]:
     """Scan every .py file under `folder`; return `file:line: imports module` for each import of a
-    module whose name begins with `test_`, at any depth (the three ways of `_imported_top_levels`)."""
+    module whose name begins with `test_`, at any depth (the three ways of `_imports`). Every part of
+    a dotted name is looked at (`_imported_paths`), and `module` is the name up to the first such
+    part: `tests.test_b` for `from tests.test_b import one` and for `from tests import test_b`."""
     found = []
     for path in sorted(folder.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        found += [f"{path.relative_to(folder).as_posix()}:{line}: imports {top}"
-                  for line, top in _imported_top_levels(tree) if top.startswith("test_")]
+        seen = set()  # (line, module): `from test_b import one, two` names the module twice
+        for line, dotted in _imported_paths(tree):
+            parts = dotted.split(".")
+            first = next((count for count, part in enumerate(parts, start=1) if part.startswith("test_")), None)
+            if first is not None:
+                seen.add((line, ".".join(parts[:first])))
+        found += [f"{path.relative_to(folder).as_posix()}:{line}: imports {module}" for line, module in sorted(seen)]
     return found
 
 
@@ -488,6 +518,9 @@ def test_no_test_module_imports_from_a_test_module(tmp_path):
         "conftest.py": "import pytest\nfrom test_b import one, two\n",
         "gui/test_c.py": "import importlib\nimport testing_tools\n\nfound = importlib.import_module('test_a')\n",
         "slow/c_helpers.py": "from test_c import (found,\n                    other)\n",
+        # by way of the folder's name: a name from the module, the module as a name of the folder, the module
+        "slow/test_d.py": ("from tests.test_b import one\nfrom tests.gui import test_c, gui_helpers\n"
+                           "import tests.gui.test_c\nimport tests.testing_tools\nfrom tests.b_helpers import late\n"),
     }
     for rel, text in sources.items():
         target = tmp_path / rel
@@ -498,6 +531,9 @@ def test_no_test_module_imports_from_a_test_module(tmp_path):
         "conftest.py:2: imports test_b",
         "gui/test_c.py:4: imports test_a",
         "slow/c_helpers.py:1: imports test_c",
+        "slow/test_d.py:1: imports tests.test_b",
+        "slow/test_d.py:2: imports tests.gui.test_c",
+        "slow/test_d.py:3: imports tests.gui.test_c",
         "test_a.py:2: imports test_b",
     ]
 
