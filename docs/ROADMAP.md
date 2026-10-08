@@ -62,14 +62,14 @@ Where things are written down:
 | `docs/VALIDATION.md` | what was measured, and how |
 | `SPEC.md` | the specification of version 0.1.0, written for one lab class |
 | `docs/PLAN.md` | the build plan of 0.1.0: decisions X1 to X22 (section 4), open points ("Raised during the work") |
-| `CLAUDE.md` | rules for coding agents; several are about the first build and change in this phase (section 2) |
+| `CLAUDE.md` | rules for coding agents, rewritten for this phase in W1 step 1; section 2 holds them in full |
 | `docs/design/gui_design.md` | the design note of the window: spacing, colors, wording rules |
 | `docs/roadmap/*.md` | the seven inventories behind this roadmap |
 
 ## 2. Ground rules for this phase
 
-Until `CLAUDE.md` and `docs/DEVELOPER.md` are rewritten (W1 step 1), this section wins wherever
-they, or an inventory, say otherwise.
+`CLAUDE.md` states these rules in short (rewritten in W1 step 1), and `docs/DEVELOPER.md` points
+to them. Where they, or an inventory, say otherwise, this section wins.
 
 1. **Version 0.1.0 is not disturbed.**
    - It is tagged `v0.1.0` (2026-10-07, at the end of W0). No other workstream starts before
@@ -278,16 +278,28 @@ inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
       because the first class installs version 0.1.0 from that page. Its example line keeps
       showing 0.1.0, and the README tests follow the tag that the install line names, not the
       running version. `uv.lock` holds the version too, and a test keeps the three places equal.
-- [ ] 1. Rewrite `CLAUDE.md` for this phase (section 2 of this file; decision 2), and
+- [x] 1. Rewrite `CLAUDE.md` for this phase (section 2 of this file; decision 2), and
       `docs/DEVELOPER.md` where it repeats the rules. `tests/gui/test_finish.py` pins phrases of
       `docs/DEVELOPER.md`, among them the xfail rule: change that test first. Done when the
       owner has approved the new `CLAUDE.md`.
+      Done 2026-10-07: the owner approved the text; the Rules section of `docs/DEVELOPER.md` is
+      a pointer to `CLAUDE.md` and to section 2. The permission system refuses a helper's
+      change of `CLAUDE.md` and leaves the decision to the owner: the main session makes such
+      an edit only on the owner's word for that edit (given for this one and for step 5's).
 - [x] 2. Delete the superseded tests (decision 3). Done in W0: the fast suite reports 0
       xfailed. Left for this workstream: a few comments in tests still name a deleted test as
       the one their test follows, and `tests/gui/export_panel_helpers.py::set_times` is used by
       no test now.
-- [ ] 3. Carry out decisions 26 and 27: rewrite the slow tests to the decided rules, and record
+      Done 2026-10-07 in W1: the comments say what their own tests hold; `set_times` had
+      already been removed in W0.
+- [x] 3. Carry out decisions 26 and 27: rewrite the slow tests to the decided rules, and record
       the limits in `docs/VALIDATION.md`.
+      Done 2026-10-07. 26a: `px_along_major`, `cells_along_major` and `shape_ok` are derived
+      from the largest piece of the stored mask, at export, on rows with more than one piece;
+      no saved format changed, and an old run folder shows the new values on such rows at
+      its next export. 26b: three clicks, and the limit asked of the variation; measured
+      0.0072 (processor) and 0.0068 (Apple GPU) against 0.02. No `xfail` mark is left.
+      Decision 27 is recorded in `docs/VALIDATION.md` after section 4.3.
 - [ ] 4. Freeze reference numbers while the template is still there: the positions of the two
       slow regression runs, the Tracker-format golden files, the weights' hash, as small text
       files under `tests/data/` with a header that says how each was made (commit, machine,
