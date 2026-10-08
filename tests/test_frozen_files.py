@@ -14,20 +14,26 @@ two synthetic clips on the processor (tests/data/edgetam_cpu_positions.csv) and 
 (tests/data/edgetam_weights.txt). No model runs here: the table is compared with the clips' true centers,
 worked out from the recipes that draw the clips. Positions are in px in Tracker's convention (pixel
 centers at +0.5, u to the right, v downward) in the full 1920 x 1080 frame; frames are video frame
-numbers.
+numbers. The slow tests that run the model against the two files (tests/slow/test_frozen_reference.py)
+leave two decisions to the helper, and both are tested here with made-up headers and positions: on which
+machine the limit of 0.01 px is asserted (`same_machine`), and how positions are judged
+(`compare_with_frozen`).
 """
 
 import hashlib
 import math
+import platform
 import re
+import sys
 from datetime import date
 from importlib import metadata
 
 import frozen_helpers
+import numpy as np
 import pytest
-from frozen_helpers import (COLUMNS, DATA, POSITIONS, SIDECAR, SWITCH, WEIGHTS, freeze_asked, frozen_files, frozen_text,
-                            header_lines, machine_name, position_rows, read_frozen, read_positions, write_frozen,
-                            write_listing)
+from frozen_helpers import (COLUMNS, DATA, POSITIONS, SIDECAR, SWITCH, WEIGHTS, compare_with_frozen, freeze_asked,
+                            frozen_files, frozen_text, header_lines, machine_here, machine_name, machine_of,
+                            position_rows, read_frozen, read_positions, same_machine, write_frozen, write_listing)
 from test_repo_rules import HOME_PATH
 
 from outline_tracker import provenance, video
@@ -304,3 +310,96 @@ def test_the_frozen_weights_file_names_the_weights_of_the_frozen_positions():
     assert list(facts)[:2] == ["sha256", "bytes"]
     assert re.fullmatch(r"[0-9a-f]{64}", facts["sha256"]) and int(facts["bytes"]) > 0
     assert facts["sha256"] == read_positions()[0]["weights sha256"]  # one run froze both files
+
+
+def test_the_limit_is_asserted_only_on_the_machine_that_froze_the_numbers():
+    # a made-up header, and the machine that made it as `machine_here` would describe it
+    header = {"system": "macOS-27.0.1-arm64-arm-64bit; Python 3.12.15", "machine": "Apple M1 Max",
+              "decoder": "opencv-5.0.0/darwin/arm64",
+              "libraries": "torch 2.14.1; torchvision 0.29.1; transformers 5.18.0; numpy 2.5.3",
+              "weights sha256": "ab" * 32}
+    here = {"platform": "darwin", "architecture": "arm64", "chip": "Apple M1 Max", "torch": "2.14.1",
+            "weights sha256": "ab" * 32}
+    assert machine_of(header) == here
+    assert same_machine(header, here) is True
+
+    # the same machine after an update of the system, of Python or of another library: the rule names none of them
+    updated = {**header, "system": "macOS-27.1-arm64-arm-64bit; Python 3.12.16", "decoder": "opencv-5.1.0/darwin/arm64",
+               "libraries": "torch 2.14.1; torchvision 0.30.0; transformers 5.19.0; numpy 2.6.0"}
+    assert same_machine(updated, here) is True
+
+    # another machine, one fact at a time
+    others = {
+        "another chip": {"machine": "Apple M3 Pro"},
+        "another torch version": {"libraries": "torch 2.15.0; torchvision 0.29.1; transformers 5.18.0; numpy 2.5.3"},
+        "another hash": {"weights sha256": "cd" * 32},
+        "another operating system": {"decoder": "opencv-5.0.0/linux/arm64"},
+        "another architecture": {"decoder": "opencv-5.0.0/darwin/x86_64"},
+    }
+    for what, lines in others.items():
+        assert same_machine({**header, **lines}, here) is False, what
+    # a header without one of the lines names no machine, and neither does an empty fact on both sides
+    for line in ("machine", "decoder", "libraries", "weights sha256"):
+        assert same_machine({key: value for key, value in header.items() if key != line}, here) is False, line
+    assert same_machine({**header, "machine": ""}, {**here, "chip": ""}) is False
+
+    # asked without the hash, as the test of the weights file asks: the hash plays no part, the machine does
+    no_hash = {key: value for key, value in here.items() if key != "weights sha256"}
+    assert same_machine({**header, "weights sha256": "cd" * 32}, no_hash) is True
+    assert same_machine({**header, "machine": "Apple M3 Pro"}, no_hash) is False
+
+    # this machine, described directly and read back from a header made here: the same facts
+    assert machine_here() == {"platform": sys.platform, "architecture": platform.machine(), "chip": machine_name(),
+                              "torch": metadata.version("torch")}
+    assert machine_here("ab" * 32) == {**machine_here(), "weights sha256": "ab" * 32}
+    made_here = dict(line.split(": ", 1) for line in header_lines(COMMAND, {"weights sha256": "ab" * 32}))
+    assert machine_of(made_here) == machine_here("ab" * 32)
+    assert same_machine(made_here, machine_here("ab" * 32)) is True and same_machine(made_here, machine_here()) is True
+    assert same_machine(made_here, machine_here("cd" * 32)) is False
+
+    # the two frozen files hold every fact that the rule asks them for
+    assert [key for key, value in machine_of(read_positions()[0]).items() if not value] == []
+    assert [key for key, value in machine_of(read_frozen(WEIGHTS)[0]).items() if not value] == ["weights sha256"]
+
+
+def test_positions_are_judged_by_the_frozen_numbers_here_and_by_the_truth_elsewhere(capsys):
+    # made-up positions, px: frozen[i][k] = (u_px, v_px) of one object on three frames; every frozen row
+    # is 0.5 px from its true center
+    frozen = np.array([[[700.5, 500.5]], [[701.7, 500.9]], [[702.9, 501.3]]])
+    true = frozen + (0.3, -0.4)
+
+    def judge(found, strict, frozen=frozen):
+        compare_with_frozen("made up", found, frozen, true, strict)
+
+    near = frozen + (0.0048, 0.0064)  # every row 0.008 px from its frozen one
+    moved = frozen.copy()
+    moved[1, 0] += (0.012, 0.016)  # one row 0.02 px from its frozen one
+    far = frozen.copy()
+    far[2, 0] = true[2, 0] + (3.1, 0.0)  # one row 3.1 px from its true center
+    lost = frozen.copy()
+    lost[0, 0] = np.nan  # one row not found
+
+    # on the machine that froze the numbers: 0.01 px from the frozen ones, and the same rows lost
+    judge(near, strict=True)
+    line = capsys.readouterr().out
+    assert line.startswith("VALIDATION frozen numbers, made up: ") and line.count("\n") == 1
+    assert "frozen positions 0.0080 px over 3 rows" in line and "true centers 0.502 px" in line
+    assert "lost rows: frozen 0, found 0" in line
+    with pytest.raises(AssertionError, match=r"0\.0200 px from the frozen positions"):
+        judge(moved, strict=True)
+    with pytest.raises(AssertionError, match="lost"):
+        judge(lost, strict=True)
+    judge(lost, strict=True, frozen=lost)  # the rows that the frozen table has lost
+
+    # on another machine: the limit is measured and printed, not asserted; the truth and "no row lost" are
+    capsys.readouterr()
+    judge(moved, strict=False)
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 2 and all(line.startswith("VALIDATION frozen numbers, made up: ") for line in lines)
+    assert "not measured" in lines[1] and "0.0200 px" in lines[1]
+    with pytest.raises(AssertionError, match=r"3\.100 px from the true centers"):
+        judge(far, strict=False)
+    with pytest.raises(AssertionError, match="lost"):
+        judge(lost, strict=False)
+    with pytest.raises(AssertionError, match="lost"):
+        judge(lost, strict=False, frozen=lost)  # the same rows as the frozen table, but a row is lost
