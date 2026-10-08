@@ -182,8 +182,8 @@ REPORTED = {
 def assert_the_plan_and_the_messages(case, plan, flags) -> None:
     """A run of a case reported what `REPORTED` holds for it: the plan's start, step and n, 240
     frames per s, and its CHECK messages, one for each pattern and in that order."""
-    frames, messages = REPORTED[case.__name__]
-    assert (plan.start, plan.step, plan.n) == frames
+    start_step_n, messages = REPORTED[case.__name__]
+    assert (plan.start, plan.step, plan.n) == start_step_n
     # Two of the cases take fps_true from the times of their export, which have 7 digits there
     # (`java_sci`): 240 to a few parts in a million, not to the last bit.
     assert plan.fps == pytest.approx(FPS, rel=1e-5)
