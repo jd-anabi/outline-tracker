@@ -31,19 +31,6 @@ DASH = "t = –"  # en dash: not known
 EVERY_FOURTH = [3, 7, 11, 15, 19, 23, 27, 31, 35, 39]  # the grid of a clip from 3 to 40, step 4
 
 
-@pytest.fixture
-def bar(window, qtbot):
-    """The window's bottom bar on the grid 3, 7, ..., 39, shown; `bar.asked` collects the frames it
-    asks for. The view shows them from a stand-in with 200 frames."""
-    made = window.navigation
-    made.asked = []
-    made.frame_requested.connect(made.asked.append)
-    window.view.set_source(StandInSource(n_frames=200))
-    made.set_grid(grid_frames(3, 40, 4))
-    show(window, qtbot)
-    return made
-
-
 def typed(qtbot, bar, text: str) -> None:
     """Type `text` into the frame box in place of what it shows, and press Enter."""
     box = bar.frame_box

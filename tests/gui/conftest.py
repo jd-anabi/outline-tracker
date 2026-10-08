@@ -1,8 +1,9 @@
 """Fixtures for the tests of the window (tests/gui/): larger clips, a tracked run folder, a second
-window, a settings folder of the test's own, and two guards (the application's look is put back; a
-dialog that would block is an error). pytest finds a fixture by its name; nothing imports this file
-(tests/test_repo_rules.py says why). The fixtures for the tests of every folder, `window` among them,
-are in tests/conftest.py; plain helpers are in the helper modules beside this file.
+window, a settings folder of the test's own, the bottom bar on a grid of frames, and two guards (the
+application's look is put back; a dialog that would block is an error). pytest finds a fixture by its
+name; nothing imports this file (tests/test_repo_rules.py says why). The fixtures for the tests of
+every folder, `window` among them, are in tests/conftest.py; plain helpers are in the helper modules
+beside this file.
 """
 
 import shutil
@@ -13,7 +14,9 @@ import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
+from gui_helpers import StandInSource, show
 from helpers import new_window
+from outline_tracker.geometry import grid_frames
 from outline_tracker.segmenter.fake import ExactFake
 from tracking_helpers import abc_session, run
 
@@ -89,6 +92,23 @@ def own_settings(tmp_path):
     folder = tmp_path / "settings"
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(folder))
     return folder
+
+
+# ---------------------------------------------------------------------------------------------
+# The bottom bar
+
+
+@pytest.fixture
+def bar(window, qtbot):
+    """The window's bottom bar on the grid 3, 7, ..., 39, shown; `bar.asked` collects the frames it
+    asks for. The view shows them from a stand-in with 200 frames."""
+    made = window.navigation
+    made.asked = []
+    made.frame_requested.connect(made.asked.append)
+    window.view.set_source(StandInSource(n_frames=200))
+    made.set_grid(grid_frames(3, 40, 4))
+    show(window, qtbot)
+    return made
 
 
 # ---------------------------------------------------------------------------------------------

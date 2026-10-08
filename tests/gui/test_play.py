@@ -11,32 +11,17 @@ Expected values come from the spec and the design note:
 No test waits for time to pass: a tick is the timer's own signal, emitted by the test.
 """
 
-import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QApplication
 
 from finish_helpers import is_paused, is_playing, row_parts, tick
 from gui_helpers import ClickRecorder, StandInSource, picture, show
-from outline_tracker.geometry import grid_frames
 from outline_tracker.gui import navigation
 from session_helpers import body
 
 LEFT = Qt.MouseButton.LeftButton
 SPACE = Qt.Key.Key_Space
 EVERY_FOURTH = [3, 7, 11, 15, 19, 23, 27, 31, 35, 39]  # the grid of a clip from 3 to 40, step 4
-
-
-@pytest.fixture
-def bar(window, qtbot):
-    """The window's bottom bar on the grid 3, 7, ..., 39, shown; `bar.asked` collects the frames it
-    asks for. The view shows them from a stand-in with 200 frames."""
-    made = window.navigation
-    made.asked = []
-    made.frame_requested.connect(made.asked.append)
-    window.view.set_source(StandInSource(n_frames=200))
-    made.set_grid(grid_frames(3, 40, 4))
-    show(window, qtbot)
-    return made
 
 
 # ---------------------------------------------------------------------------------------------
