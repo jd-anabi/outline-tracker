@@ -38,7 +38,7 @@ from pipeline_helpers import write_three_ellipse_clip
 from outline_tracker import synthetic
 from outline_tracker.from_tracker import from_tracker
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.weights]
 
 MODEL = "edgetam"
 FPS = 240.0  # fps_true of both clips, frames per second

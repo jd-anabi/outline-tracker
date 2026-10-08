@@ -326,6 +326,7 @@ def selftest_runs(loaded, tmp_path_factory):
     )
 
 
+@pytest.mark.weights
 def test_selftest_clip_within_3_px_of_truth_on_cpu(selftest_runs):
     s = selftest_runs
     true = s.truth[["pixelx", "pixely"]].to_numpy(float)
@@ -334,6 +335,7 @@ def test_selftest_clip_within_3_px_of_truth_on_cpu(selftest_runs):
     assert np.isfinite(error).all() and error.max() < 3.0
 
 
+@pytest.mark.weights
 def test_segmenter_reports_device_model_and_weights(selftest_runs):
     from outline_tracker.segmenter import edgetam_convert
 
@@ -354,6 +356,7 @@ def test_segmenter_reports_device_model_and_weights(selftest_runs):
     assert segmenter.session is None
 
 
+@pytest.mark.weights
 def test_three_objects_match_the_reference(loaded, tmp_path):
     # The reference is the frozen table, and the comparison with it is asserted once, in
     # tests/slow/test_frozen_reference.py::test_three_ellipses_equal_the_frozen_numbers. Here: the clip's
@@ -394,6 +397,7 @@ def test_three_objects_match_the_reference(loaded, tmp_path):
 # 3. The selftest criterion on the Apple GPU
 
 
+@pytest.mark.weights
 def test_selftest_clip_within_3_px_of_truth_on_mps(selftest_runs):
     import torch
 

@@ -49,7 +49,7 @@ from tracking_helpers import track_at
 from outline_tracker import synthetic
 from outline_tracker.synthetic_shapes import Ellipse
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.weights]
 
 BEAT_HZ = 9.0  # the antennae's beat (SPEC 13.4)
 FPS = 240.0    # frames per second of the clip, and its fps_true

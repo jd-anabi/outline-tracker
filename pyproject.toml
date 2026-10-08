@@ -53,7 +53,8 @@ addopts = "-ra --strict-markers"
 qt_api = "pyside6"
 faulthandler_timeout = 120
 markers = [
-    "slow: real model on short synthetic clips (minutes; not in CI); deselect with -m \"not slow\"",
+    "slow: torch and the real model on short synthetic clips (minutes); CI runs the ones without the mark weights; deselect with -m \"not slow\"",
+    "weights: needs the model's weights on this computer; never in CI",
 ]
 
 # CPU-only torch on Linux (CI): no CUDA libraries. The marker keeps Windows and macOS on PyPI wheels.

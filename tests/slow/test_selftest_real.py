@@ -25,7 +25,7 @@ import pytest
 
 from outline_tracker.selftest import selftest
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.weights]
 
 RUN_FOLDER = "selftest_tracker_outline_selftest"  # SPEC 8.1: <video stem>_outline_<student>, next to the clip
 

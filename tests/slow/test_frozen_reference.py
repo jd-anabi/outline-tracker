@@ -51,7 +51,7 @@ from outline_tracker import synthetic, tracker_io, video
 from outline_tracker.from_tracker import from_tracker
 from outline_tracker.segmenter.base import ObjectPrompt
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.weights]
 
 MODEL = "edgetam"
 FPS = 240.0  # fps_true of both clips, frames per second

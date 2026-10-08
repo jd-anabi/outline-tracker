@@ -40,7 +40,7 @@ from __future__ import annotations
 import pytest
 from frozen_helpers import machine_here, machine_of, read_weights, same_machine
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.weights]
 
 MODEL = "edgetam"
 

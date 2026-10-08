@@ -36,7 +36,7 @@ from track_helpers import NAME, Heard, results_of, track_panel  # noqa: E402
 from outline_tracker.from_tracker import load_segmenter  # noqa: E402
 from outline_tracker.synthetic import selftest_clip  # noqa: E402
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.weights]
 
 FRAMES = list(range(0, 40, 2))
 LOADED_WITHIN_MS = 5 * 60 * 1000   # the first time the model is downloaded

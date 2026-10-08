@@ -90,6 +90,7 @@ def test_growth_is_not_moved_by_single_readings_and_sees_a_slow_leak():
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="the child reads its memory with ps and resource: not on Windows")
+@pytest.mark.weights
 def test_ten_coarse_objects_at_1080p_stay_under_3_gb_and_flat(tmp_path):
     expect_minutes()
     scene = ten_ellipse_scene()

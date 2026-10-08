@@ -30,7 +30,7 @@ from tracking_helpers import center, dish_circle, track
 
 from outline_tracker import synthetic
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.weights]
 
 FRAMES = list(range(0, 60, 2))  # the tracked video frames
 SHAPE_OK_MIN = 20  # px and grid cells along the major axis that `shape_ok` asks for (SPEC 7.8)

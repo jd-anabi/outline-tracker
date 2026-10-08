@@ -352,6 +352,7 @@ def _touching_ellipses():
     return (*CENTER_1, A_PX, B_PX, TURN_DEG), (*center_2, A_PX, B_PX, TURN_DEG)
 
 
+@pytest.mark.weights
 def test_negative_click_excludes_the_touching_neighbor(loaded):
     from outline_tracker.segmenter import hf
 
@@ -404,6 +405,7 @@ def test_negative_click_excludes_the_touching_neighbor(loaded):
               f"{100 * without[1]:.1f}% ({without[2]} px)")
 
 
+@pytest.mark.weights
 def test_preview_equals_the_first_frame_of_a_run(loaded):
     from outline_tracker.segmenter import hf
 
@@ -446,6 +448,7 @@ def test_preview_equals_the_first_frame_of_a_run(loaded):
 # 3. The real EdgeTAM on the Apple GPU, with one injected failure
 
 
+@pytest.mark.weights
 def test_step_fallback_with_the_real_model_finishes_on_cpu(monkeypatch):
     import torch
 
