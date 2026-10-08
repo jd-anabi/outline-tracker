@@ -49,6 +49,9 @@ TITLES = ["If the app does not open", "Troubleshooting", "Getting the original v
 SHELLS = {"zsh", "bash", "sh", "powershell", "pwsh", "shell"}  # `shell`: the same on macOS and on Windows
 LANGUAGES = SHELLS | {"text", "python"}  # `text` is what a command prints
 COMMANDS = ["selftest", "from-tracker", "export", "check", "convert"]  # the README must show each of them
+# The options of last week's script (`python -m shrimp.segment`), typed from its nine `add_argument` lines
+LAST_WEEKS_OPTIONS = {"--selftest", "--model", "--seconds", "--step", "--fps", "--out", "--device", "--no-video",
+                      "--edgetam-checkpoint"}
 UV_OPTIONS = {"--force", "--python", "--with"}  # of `uv`, not of this tool: `uv tool install --force --python 3.12`
 # (SPEC 15: the install line names the Python version), and last week's `uv run --with`
 ADDRESS = "github.com/jd-anabi/outline-tracker"  # the repository, as an install line names it
@@ -323,10 +326,14 @@ def test_every_option_it_names_exists(text):
     last_week = options_in(REFERENCE_SEGMENT.read_text(encoding="utf-8"))
     unknown = options_in(text) - help_options() - last_week - UV_OPTIONS
     assert unknown == set()
+    # and without last week's script: the README names no option but the tool's own and those of `uv`
+    assert options_in(text) - help_options() - UV_OPTIONS == set()
 
 
 def test_the_table_of_options_is_true_and_has_the_options_of_the_brief(text):
-    last_week = set(re.findall(r'add_argument\("(--[a-z-]+)"', REFERENCE_SEGMENT.read_text(encoding="utf-8")))
+    in_the_script = set(re.findall(r'add_argument\("(--[a-z-]+)"', REFERENCE_SEGMENT.read_text(encoding="utf-8")))
+    assert LAST_WEEKS_OPTIONS == in_the_script  # the typed set is the script's own, while the script is here
+    last_week = LAST_WEEKS_OPTIONS
     this_week = options_in(printed(cli.build_parser().parse_args, ["from-tracker", "--help"]))
     assert table_problems(text, last_week, this_week) == []
     same = {opt for _, before, now in option_rows(text) for opt in before & now}

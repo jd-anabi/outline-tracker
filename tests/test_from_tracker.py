@@ -83,6 +83,9 @@ def test_the_session_holds_the_plan_the_fit_and_one_click_per_object(tmp_path):
 def test_track_colors_are_last_weeks_overlay_colors(tmp_path):
     from shrimp import segment as reference  # last week's colors are (blue, green, red)
 
+    # last week's ten colors, typed here as red, green, blue: its first, (0, 255, 255), is yellow
+    assert TRACK_COLORS == ["#FFFF00", "#FF00FF", "#00FF00", "#0080FF", "#FF8000", "#00FFFF", "#FF0080", "#FF0000",
+                            "#0000FF", "#80FF80"]
     assert TRACK_COLORS == [f"#{red:02X}{green:02X}{blue:02X}" for blue, green, red in reference.COLORS]
     assert TRACK_COLORS[0] == "#FFFF00"  # the first track is yellow
     clip, export = two_disks(tmp_path)

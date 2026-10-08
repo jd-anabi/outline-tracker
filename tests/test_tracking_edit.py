@@ -69,6 +69,11 @@ def frames_of(folder, track_id):
 
 
 def test_track_colors_are_last_weeks_overlay_colors_as_rgb_hex():
+    # Last week's ten colors, typed here as red, green, blue. Its script held them as (blue, green, red):
+    # (0, 255, 255), (255, 0, 255), (0, 255, 0), (255, 128, 0), (0, 128, 255), (255, 255, 0), (128, 0, 255),
+    # (0, 0, 255), (255, 0, 0), (128, 255, 128).
+    assert list(TRACK_COLORS) == ["#FFFF00", "#FF00FF", "#00FF00", "#0080FF", "#FF8000", "#00FFFF", "#FF0080",
+                                  "#FF0000", "#0000FF", "#80FF80"]
     # last week's overlay drew on a BGR image: its first color (0, 255, 255) is yellow (X14)
     assert list(TRACK_COLORS) == [f"#{red:02X}{green:02X}{blue:02X}" for blue, green, red in reference.COLORS]
     assert TRACK_COLORS[0] == "#FFFF00"
