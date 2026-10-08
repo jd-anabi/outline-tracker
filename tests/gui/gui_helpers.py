@@ -7,6 +7,9 @@ Where a part of the picture is on the screen is read from the drawn widget (`dra
 the view's own numbers: a stand-in frame has one block of pixels in a colour that nothing else
 has, and the block is looked for in the grabbed image. Positions are Qt's device-independent px of
 the widget; a grabbed image has `devicePixelRatio` device px for each of them.
+
+`layout_findings` says what breaks the rule for the parts of a bar: nothing outside, nothing over
+another part, no text cut. tests/gui/test_row_rule.py tries it on a made-up widget.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ import numpy as np
 from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtGui import QImage, QWheelEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QStyle, QStyleOptionButton, QWidget
 
 MARK = (255, 0, 255)   # the marked pixels of a stand-in frame (RGB): no other pixel has this colour
 GREEN = (0, 255, 0)    # a second colour that no stand-in frame has
@@ -124,6 +127,58 @@ def picture(window, qtbot, clip, source=None):
         view.fit()
         QApplication.processEvents()
     return view
+
+
+def visible_children(parent) -> list:
+    """The widgets that are children of `parent` itself (not of its children) and show when it shows."""
+    children = parent.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly)
+    return [child for child in children if child.isVisibleTo(parent)]
+
+
+def layout_findings(parent, longest=None) -> list[str]:
+    """What breaks the rule for the parts of a bar among the visible children of `parent`: one line
+    for each finding, or an empty list. The rule is that nothing is outside, nothing lies over
+    another part, and no text is cut:
+
+    - `outside`: a child that does not lie wholly inside the parent's contents rect;
+    - `overlap`: two children whose rectangles share an area (a shared edge is none);
+    - `cut`: a push button with less room for text, by its own style, than its text is wide; a
+      label that is narrower than its text.
+
+    longest: {child: the longest text it will show}, for a child that will show more than it does
+    now; any other child is measured with the text it shows. A text is as wide as its advance in
+    the child's own font, and it is taken for one line. A hidden child is left out.
+
+    Device-independent px. A rectangle is written (left, top, width, height) in the parent's px.
+    """
+    def named(child) -> str:
+        text = child.text() if hasattr(child, "text") else ""
+        return f"{type(child).__name__} {text!r}" if text else type(child).__name__
+
+    def placed(child) -> str:
+        return f"{named(child)} at {child.geometry().getRect()}"
+
+    def room(child) -> int:
+        """The width the child has for its text."""
+        if isinstance(child, QLabel):
+            return child.contentsRect().width() - 2 * child.margin()
+        option = QStyleOptionButton()
+        child.initStyleOption(option)
+        return child.style().subElementRect(QStyle.SubElement.SE_PushButtonContents, option, child).width()
+
+    children, inside = visible_children(parent), parent.contentsRect()
+    found = [f"outside: {placed(child)} is not inside {inside.getRect()}"
+             for child in children if not inside.contains(child.geometry())]
+    found += [f"overlap: {placed(one)} and {placed(other)}"
+              for index, one in enumerate(children) for other in children[index + 1:]
+              if one.geometry().intersects(other.geometry())]
+    for child in children:
+        if isinstance(child, (QPushButton, QLabel)):
+            text = (longest or {}).get(child, child.text())
+            needed = child.fontMetrics().horizontalAdvance(text)
+            if room(child) < needed:
+                found.append(f"cut: {named(child)} has {room(child)} px for {text!r}, which is {needed} px wide")
+    return found
 
 
 def pixels(image: QImage) -> np.ndarray:
