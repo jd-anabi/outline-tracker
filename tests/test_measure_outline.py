@@ -218,3 +218,58 @@ def test_the_outline_is_the_largest_components_even_next_to_a_wider_hollow_one(l
     assert record.second_fraction == pytest.approx(116 / 144)
     assert 5 - 1e-3 <= record.outline_px[:, 0].min() and record.outline_px[:, 0].max() <= 17 + 1e-3
     assert 20 - 1e-3 <= record.outline_px[:, 1].min() and record.outline_px[:, 1].max() <= 32 + 1e-3
+
+
+# --------------------------------------------------------------------------- largest_piece
+
+
+def around(row0, row1, col0, col1, *, on_edges):
+    """An outline around the pixel rectangle (row0, row1, col0, col1) of `blocks`: 40 points (u, v)
+    in px in the array's frame, 10 per side. With `on_edges` it runs along the rectangle's outer
+    pixel edges, as the level set of logits of +1 and -1 does, else through the centers of its
+    border pixels, as an outline without logits does."""
+    inset = 0.0 if on_edges else 0.5
+    left, right, top, bottom = col0 + inset, col1 - inset, row0 + inset, row1 - inset
+    corners = np.array([(left, top), (right, top), (right, bottom), (left, bottom), (left, top)])
+    steps = np.linspace(0.0, 1.0, 10, endpoint=False)[:, None]
+    return np.concatenate([a + steps * (b - a) for a, b in zip(corners[:-1], corners[1:], strict=True)])
+
+
+def test_largest_piece_is_the_piece_with_the_most_pixels_and_counts_every_piece():
+    large, small, line = (10, 20, 10, 20), (30, 34, 40, 45), (45, 46, 3, 8)
+    piece, sizes = segment.largest_piece(blocks((50, 60), large, small, line))
+    assert piece.dtype == bool and np.array_equal(piece, blocks((50, 60), large))
+    assert sorted(int(size) for size in sizes) == [5, 20, 100]
+
+
+# Three blocks of 2 rows x 3 columns as (row0, row1, col0, col1). One free column lies between the
+# first and the second, one free row between the second and the third: closer, and they would touch.
+EQUAL_BLOCKS = [(1, 3, 1, 4), (2, 4, 5, 8), (5, 7, 2, 5)]
+
+
+@pytest.mark.parametrize("on_edges", [True, False])
+@pytest.mark.parametrize("taken", EQUAL_BLOCKS)
+def test_of_equal_pieces_largest_piece_takes_the_one_that_the_outline_runs_along(taken, on_edges):
+    piece, sizes = segment.largest_piece(blocks((8, 9), *EQUAL_BLOCKS), around(*taken, on_edges=on_edges))
+    assert np.array_equal(piece, blocks((8, 9), taken))
+    assert [int(size) for size in sizes] == [6, 6, 6]
+
+
+@pytest.mark.parametrize("on_edges", [True, False])
+def test_an_outline_does_not_make_a_smaller_piece_the_largest(on_edges):
+    large, small = (1, 4, 1, 4), (1, 3, 6, 8)   # 9 px and 4 px
+    mask = blocks((6, 10), large, small)
+    piece, _ = segment.largest_piece(mask, around(*small, on_edges=on_edges))
+    assert np.array_equal(piece, blocks((6, 10), large))
+
+
+@pytest.mark.parametrize("outline", [np.full((256, 2), np.nan), np.full((256, 2), 500.0), np.zeros((0, 2)),
+                                     np.array([[4.5, 0.5], [4.5, 5.5]])])
+def test_an_outline_along_none_of_the_equal_pieces_leaves_the_piece_that_is_taken_without_one(outline):
+    # No number (a lost frame), far away, no point, and two points in the free columns between
+    # the pieces: nothing says which piece, so it is the one that measure_mask takes.
+    mask = blocks((6, 9), (1, 3, 1, 3), (2, 4, 6, 8))
+    piece, sizes = segment.largest_piece(mask, outline)
+    without, _ = segment.largest_piece(mask)
+    assert np.array_equal(piece, without) and piece.sum() == 4
+    assert [int(size) for size in sizes] == [4, 4]

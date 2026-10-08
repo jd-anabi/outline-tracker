@@ -27,8 +27,8 @@ Which number comes from where:
   largest piece of the mask, the piece the outline goes around (`measure.largest_piece`), so that
   a few stray pixels far from the object cannot lengthen them. With one piece that is the full
   mask, and `cov_full` gives them. With more pieces (`n_components` > 1) the row's stored mask
-  crop is unpacked and its largest piece is measured; a crop without a pixel keeps the value of
-  `cov_full`.
+  crop is unpacked and its largest piece is measured: of pieces of equal size the one that the
+  row's stored outline runs along. A crop without a pixel keeps the value of `cov_full`.
 
 The polygon geometry is in `derive_outline`; its `radial_profile` and `feret_max` (the maximum
 Feret diameter of an outline, also for one in px) are offered here too. No Qt, no torch.
@@ -156,9 +156,9 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
         eccentricity = np.sqrt(1.0 - lambda2 / lambda1)   # no extent: NaN
         px_along_major = major / k
     for row in np.flatnonzero(visible & (arrays.n_components > 1)):   # several pieces: the largest one alone
-        crop, _ = arrays.mask(row)
+        crop, offset = arrays.mask(row)
         if crop.any():
-            px_along_major[row] = _largest_piece_px(crop)
+            px_along_major[row] = _largest_piece_px(crop, arrays.outline_px[row].astype(np.float64) - offset)
     with np.errstate(invalid="ignore", divide="ignore"):
         cells_along_major = px_along_major / arrays.cell_px
         shape_ok = np.minimum(px_along_major, cells_along_major) >= processing.shape_ok_min   # NaN: not ok
@@ -200,13 +200,14 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
     )
 
 
-def _largest_piece_px(crop: np.ndarray) -> float:
+def _largest_piece_px(crop: np.ndarray, outline: np.ndarray) -> float:
     """L1 = 4 sqrt(lambda1) in px of the largest piece of a stored mask crop [row, column] with at
     least one pixel: lambda1 is the larger eigenvalue of the covariance of the piece's pixel
-    centers, the formula of the full mask's major axis on fewer pixels. The piece is the one the
-    outline was taken from: `measure_mask` labels the mask with one pixel around it, so the crop
-    gets one too (see `measure.largest_piece`)."""
-    piece, _ = largest_piece(np.pad(crop, 1))
+    centers, the formula of the full mask's major axis on fewer pixels. `outline` is the stored
+    outline of the same row, (u, v) in px from the crop's top-left corner (the full-frame points
+    minus the crop's offset): of pieces of equal size it says which one the outline was taken
+    from, and that one is measured (see `measure.largest_piece`)."""
+    piece, _ = largest_piece(crop, outline)
     rows, cols = np.nonzero(piece)
     du, dv = cols - cols.mean(), rows - rows.mean()
     # (uu, uv, vv) in image px: only the eigenvalue is used, which is the same in image and world axes

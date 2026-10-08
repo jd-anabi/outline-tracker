@@ -127,7 +127,7 @@ def unpack_mask(bits: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
     return np.unpackbits(np.asarray(bits, np.uint8), count=rows * cols).reshape(rows, cols).astype(bool)
 
 
-def largest_piece(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def largest_piece(mask: np.ndarray, outline: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """The largest 8-connected piece of a non-empty boolean mask [row, column], and the pixel
     count of every piece.
 
@@ -136,15 +136,22 @@ def largest_piece(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     this piece, and `derive` takes the size check from it (`px_along_major`), so that both are of
     the same pixels.
 
-    Of pieces with exactly the same number of pixels, the first in OpenCV's label order is taken.
-    That order depends on the row the array begins with, because OpenCV labels in blocks of 2 x 2
-    pixels. `measure_mask` gives the mask's bounding box with one pixel around it. For the same
-    piece from a stored crop, give the crop with one pixel around it too (`np.pad(crop, 1)`). One
-    case stays open: a mask on the first row of the model's image had no row above it, and the
-    crop does not say so. Only there, and only between pieces of equal size, can the two differ.
+    Of pieces with exactly the same number of pixels, `measure_mask` (no `outline`) takes the
+    first in OpenCV's label order. That order depends on the free rows around the mask in the
+    array that is labelled (OpenCV labels in blocks of 2 x 2 pixels), and a stored mask crop does
+    not keep them. So `derive` gives `outline`, the outline that was stored with the mask: points
+    [n, 2] as (u, v) in px in the mask's own frame, pixel centers at +0.5. Then, of equal pieces,
+    the one that the outline runs along is taken, which is the piece `measure_mask` took: the
+    piece with the most points of the outline beside its pixels (`_points_beside`). If no point
+    is beside any of them, it is again the first in label order.
     """
     labels, sizes = _components(mask)
-    return labels == 1 + int(np.argmax(sizes)), sizes
+    largest = int(np.argmax(sizes))
+    if outline is not None:
+        equal = np.flatnonzero(sizes == sizes[largest])
+        if len(equal) > 1:
+            largest = int(equal[np.argmax(_points_beside(labels, outline, len(sizes))[equal])])
+    return labels == 1 + largest, sizes
 
 
 def measure_mask(result: MaskResult, frame: int, input_box: tuple[int, int, int, int], mode: str,
@@ -260,6 +267,31 @@ def _components(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     count of each label 1..n."""
     count, labels, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
     return labels, stats[1:count, cv2.CC_STAT_AREA]
+
+
+def _points_beside(labels: np.ndarray, outline: np.ndarray, count: int) -> np.ndarray:
+    """For each of the `count` pieces of `labels` (0 off the mask, 1..count on it): how many points
+    of `outline`, (u, v) in px in the array's frame, lie beside one of its pixels.
+
+    A point lies in a square whose corners are four neighboring pixel centers. An outline
+    (`_outline`) passes only through squares that have a pixel of its piece at a corner: with
+    logits it runs between a pixel of the piece and a neighbor off it, without logits from one
+    border pixel of the piece to the next. A pixel of another piece is never a corner of such a
+    square, because it would touch the piece. So each point counts for the one piece that has a
+    pixel at a corner of its square, and a stored outline counts for the piece it was taken
+    from. Points that are not numbers, or beside no pixel, count for no piece.
+    """
+    points = np.asarray(outline, np.float64).reshape(-1, 2)
+    points = points[np.isfinite(points).all(axis=1)]
+    # The square of a point (u, v) has its top-left corner at the pixel in column floor(u - 0.5)
+    # and row floor(v - 0.5). Two free pixels around the array: a square beyond it holds no pixel.
+    padded = np.pad(labels, 2)
+    col = np.clip(np.floor(points[:, 0] - 0.5), -2, labels.shape[1]).astype(np.int64) + 2
+    row = np.clip(np.floor(points[:, 1] - 0.5), -2, labels.shape[0]).astype(np.int64) + 2
+    # The four pixels of a square touch each other, so those on the mask have one label: the largest of the four.
+    beside = np.maximum(np.maximum(padded[row, col], padded[row, col + 1]),
+                        np.maximum(padded[row + 1, col], padded[row + 1, col + 1]))
+    return np.bincount(beside, minlength=count + 1)[1:]
 
 
 def _opening(mask: np.ndarray, radius: int) -> np.ndarray:

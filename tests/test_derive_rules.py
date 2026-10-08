@@ -1,6 +1,7 @@
 """Tests for outline_tracker.derive: the rules around the quantities of tests/test_derive.py:
 lost rows, the heading reference (decision X17), the head guess, shapes without an extent or a
-hull, the settings, a changed calibration, and speed.
+hull, the largest piece of a mask with several (the size check), the settings, a changed
+calibration, and speed.
 
 Tracks are analytic shapes sent through measure_mask (tests/derive_helpers.py). Shapes and clicks
 are in image px, angles of shapes in rad from +u toward +v; derived values are in mm and rad in
@@ -335,6 +336,89 @@ def test_of_two_equal_pieces_the_size_check_takes_the_one_the_outline_goes_aroun
     longest = 6 if span > 4.0 else 3   # pixels along the major axis of the piece with the outline
     track = h.derive([one], UPRIGHT)
     assert track.px_along_major[0] == pytest.approx(4.0 * np.sqrt((longest ** 2 - 1) / 12.0), rel=1e-9)
+
+
+def line_and_block(shape, line_at, block_at, *, logits, frame=0):
+    """The record of the two pieces of the test above (a line of 1 x 6 px, a block of 2 rows x 3
+    columns, top-left pixels at (row, column) `line_at` and `block_at`) in arrays of `shape` whose
+    first row and column are those of the full frame, and L1 in px of the piece that the stored
+    outline goes around. The outline says which piece that is by its width in u: without logits
+    it runs through the centers of the border pixels (5 px around the line, 2 px around the
+    block); with logits of +1 on the mask and -1 off it, along the pixel edges (6 px and 3 px,
+    less up to 0.1 px where none of the 256 points falls on an end of the line)."""
+    mask = shapes.blocks(shape, (line_at[0], line_at[0] + 1, line_at[1], line_at[1] + 6),
+                         (block_at[0], block_at[0] + 2, block_at[1], block_at[1] + 3))
+    one = measure_mask(shapes.pixel_result(mask, logits=logits), frame, h.FULL_HD, "coarse")
+    assert (one.area_px, one.n_components, one.second_fraction) == (12, 2, 1.0)
+    span = float(np.ptp(one.outline_px[:, 0]))
+    wide, narrow = (6.0, 3.0) if logits else (5.0, 2.0)
+    assert span == pytest.approx(wide, abs=0.1) or span == pytest.approx(narrow, abs=0.1)
+    longest = 6 if span > 4.0 else 3   # pixels along the major axis of the piece with the outline
+    return one, 4.0 * np.sqrt((longest ** 2 - 1) / 12.0)
+
+
+@pytest.mark.parametrize("logits", [False, True])
+@pytest.mark.parametrize("line_at, block_at", [((0, 7), (1, 1)), ((1, 0), (0, 8)), ((0, 0), (1, 8)),
+                                               ((2, 1), (0, 9))])
+def test_of_two_equal_pieces_on_the_first_row_of_the_models_image_the_size_check_follows_the_outline(
+        line_at, block_at, logits):
+    # The upper piece lies on row 0 of the arrays that measure_mask gets, as a mask on the first
+    # row of the model's image does. measure_mask then had no row above the mask, and which of two
+    # equal pieces it takes there is not what it takes when there is one (OpenCV labels in blocks
+    # of 2 x 2 pixels). The stored crop does not hold that row, but the stored outline holds the
+    # answer: the size check is of the piece the outline goes around, here too.
+    one, expected = line_and_block((6, 20), line_at, block_at, logits=logits)
+    assert one.mask_offset[1] == 0 and one.edge
+    track = h.derive([one], UPRIGHT)
+    assert track.px_along_major[0] == pytest.approx(expected, rel=1e-9)
+
+
+@pytest.mark.parametrize("logits", [False, True])
+def test_wherever_two_equal_pieces_lie_in_the_models_image_the_size_check_follows_the_outline(logits):
+    # Every place of the line and of the block in arrays of 4 rows x 12 columns in which they do
+    # not touch (also not at a corner), one frame per place: with and without a free row above
+    # the mask, a free column to its left, and so on. On every frame the size check is of the
+    # piece with the outline.
+    # Counted by hand: 4 * 7 places of the line times 3 * 10 of the block are 840. They touch
+    # unless a row or a column is free between them: 10 of the 12 pairs of rows leave no free
+    # row, and 3 + 2 + 1 + 0 + 1 + 2 + 3 = 12 of the 70 pairs of columns leave a free column, so
+    # 10 * 58 = 580 touch and 260 are left.
+    records, expected = [], []
+    for line_row, line_col, block_row, block_col in np.ndindex(4, 7, 3, 10):
+        free_row = block_row > line_row + 1 or line_row > block_row + 2
+        free_column = block_col > line_col + 6 or line_col > block_col + 3
+        if free_row or free_column:
+            one, length = line_and_block((4, 12), (line_row, line_col), (block_row, block_col), logits=logits,
+                                         frame=len(records))
+            records.append(one)
+            expected.append(length)
+    assert len(records) == 260 and len(set(expected)) == 2   # the outline is around the line on some frames
+    track = h.derive(records, UPRIGHT)
+    assert track.px_along_major == pytest.approx(np.array(expected), rel=1e-9)
+
+
+@pytest.mark.parametrize("logits", [False, True])
+def test_an_equal_piece_inside_a_ring_does_not_take_the_size_check_from_the_ring(logits):
+    # The 1 px thick border of a square of 13 x 13 px (13^2 - 11^2 = 48 px) and, inside it and not
+    # touching it, a block of 6 rows x 8 columns (48 px). The outline of the ring runs around the
+    # block too, but along the ring's pixels: the size check is the ring's.
+    # Ring, about its center: each of its two full rows gives 2 * (1 + 4 + 9 + 16 + 25 + 36) = 182
+    # and the 22 other pixels, 6 px from the center line, give 22 * 36 = 792; the variance is
+    # (2 * 182 + 792) / 48 = 1156 / 48 px^2 along u and, by symmetry, along v. Block: (8^2 - 1) / 12
+    # px^2 along its 8 columns.
+    ring = shapes.blocks((13, 13), (0, 13, 0, 13)) & ~shapes.blocks((13, 13), (1, 12, 1, 12))
+    mask = shapes.blocks((17, 17))
+    mask[2:15, 2:15] = ring
+    mask[5:11, 4:12] = True
+    assert (ring.sum(), mask.sum()) == (48, 96)
+    one = measure_mask(shapes.pixel_result(mask, offset=(700, 400), logits=logits), 0, h.FULL_HD, "coarse")
+    assert (one.n_components, one.second_fraction) == (2, 1.0)
+    span = float(np.ptp(one.outline_px[:, 0]))
+    ring_wide, block_wide = (13.0, 8.0) if logits else (12.0, 7.0)   # along pixel edges, or through pixel centers
+    assert span == pytest.approx(ring_wide, abs=0.1) or span == pytest.approx(block_wide, abs=0.1)
+    expected = 4.0 * np.sqrt(1156 / 48) if span > 10.0 else 4.0 * np.sqrt((8 ** 2 - 1) / 12.0)
+    track = h.derive([one], UPRIGHT)
+    assert track.px_along_major[0] == pytest.approx(expected, rel=1e-9)
 
 
 def test_only_a_mask_of_several_pieces_is_unpacked(monkeypatch):
