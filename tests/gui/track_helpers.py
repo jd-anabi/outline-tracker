@@ -184,6 +184,11 @@ def window_hint(panel) -> str:
     return panel.window().panels[6].hint.text()
 
 
+def ids(window) -> list[str]:
+    """The ids of the session's tracks, in the session's order."""
+    return [track.id for track in window.controller.session.tracks]
+
+
 def results_of(window) -> ResultsStore:
     """results.npz of the window's run folder, read now."""
     return ResultsStore.load(window.controller.run_folder / schema.RESULTS_NPZ)

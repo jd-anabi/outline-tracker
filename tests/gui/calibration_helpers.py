@@ -3,7 +3,7 @@
 Imported by name from the test files beside it. Points are (u, v) in px of the video frame
 (SPEC 3.1: u to the right, v down, pixel centers at +0.5); places in the view are Qt's
 device-independent px of its viewport. Where an image point lies on the screen is worked out by
-geometry (`fit_of`: the whole frame, in the middle of the view), not asked of the view.
+geometry (`gui_helpers.fit_of`: the whole frame, in the middle of the view), not asked of the view.
 """
 
 from __future__ import annotations
@@ -14,16 +14,12 @@ import math
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QApplication
 
-from gui_helpers import StandInSource, picture, pixels, show
+from gui_helpers import StandInSource, body, fit_of, picture, pixels, show
 from outline_tracker.session import Session
 
 LEFT, RIGHT = Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton
 NO_KEY = Qt.KeyboardModifier.NoModifier
-
-
-def body(window, number: int):
-    """The widget that the module of panel `number` built: the row under the panel's hint line."""
-    return window.panels[number - 1].body.itemAt(1).widget()
+SIX = (0, 60, 120, 180, 240, 300)  # degrees: six points spread evenly around the wall
 
 
 def opened(window, qtbot, clip, dark_frame: bool = False):
@@ -34,14 +30,6 @@ def opened(window, qtbot, clip, dark_frame: bool = False):
     picture(window, qtbot, clip, source)
     QApplication.processEvents()
     return body(window, 3), body(window, 4)
-
-
-def fit_of(view, size):
-    """Where a frame of `size` = (width, height) px lies in the view when all of it shows, by
-    geometry: (screen px per video px, left, top), the corner in the viewport's px."""
-    (width, height), room = size, view.viewport().size()
-    scale = min(room.width() / width, room.height() / height)
-    return scale, (room.width() - width * scale) / 2, (room.height() - height * scale) / 2
 
 
 def settle(view) -> None:
@@ -101,6 +89,12 @@ def on_circle(center, radius: float, degrees) -> list[list[float]]:
     clockwise on screen from the image's rightward direction); all in px of the video frame."""
     return [[center[0] + radius * math.cos(math.radians(a)), center[1] + radius * math.sin(math.radians(a))]
             for a in degrees]
+
+
+def wall(clip, degrees=SIX):
+    """Points on the true dish wall of a dish clip, px of the video frame."""
+    cu, cv, radius = clip.scene.dish
+    return on_circle((cu, cv), radius, degrees)
 
 
 def place(tool, points) -> None:

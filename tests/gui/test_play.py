@@ -15,7 +15,7 @@ import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QApplication
 
-from finish_helpers import row_parts
+from finish_helpers import is_paused, is_playing, row_parts, tick
 from gui_helpers import ClickRecorder, StandInSource, picture, show
 from outline_tracker.geometry import grid_frames
 from outline_tracker.gui import navigation
@@ -37,20 +37,6 @@ def bar(window, qtbot):
     made.set_grid(grid_frames(3, 40, 4))
     show(window, qtbot)
     return made
-
-
-def tick(bar, times: int = 1) -> None:
-    """Let the play timer fire `times` times, without waiting for it."""
-    for _ in range(times):
-        bar.play_timer.timeout.emit()
-
-
-def is_paused(bar) -> bool:
-    return not bar.playing and not bar.play_timer.isActive() and bar.play_button.text() == "Play"
-
-
-def is_playing(bar) -> bool:
-    return bar.playing and bar.play_timer.isActive() and bar.play_button.text() == "Pause"
 
 
 # ---------------------------------------------------------------------------------------------

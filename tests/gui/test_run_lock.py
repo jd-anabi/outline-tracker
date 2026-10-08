@@ -17,7 +17,7 @@ from last_controls_helpers import RUNNING, let_run_end, parked, press_track, rec
 from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import LEFT, NO_KEY, Gate
 from session_helpers import body
-from track_helpers import Tracked, ready_to_track, results_of, run_to_end
+from track_helpers import Tracked, ids, ready_to_track, results_of, run_to_end
 from tracking_helpers import center
 
 WAIT = "Wait until tracking has stopped."
@@ -33,10 +33,6 @@ def lockable(window) -> dict:
             "window": six.window_box, "Auto": six.auto_button, "name": one.name_edit, "start": one.start_box,
             "end": one.end_box, "step": one.step_box, "Open video": one.open_video_button,
             "Open session": one.open_session_button}
-
-
-def ids(window) -> list[str]:
-    return [track.id for track in window.controller.session.tracks]
 
 
 def a_run_with_a_second_object(window, qtbot, clip, gate):

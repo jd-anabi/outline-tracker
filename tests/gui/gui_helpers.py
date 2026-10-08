@@ -98,6 +98,19 @@ def show(window, qtbot):
     return window
 
 
+def shown(window, qtbot):
+    """Show the window (offscreen) and wait until it is on the screen. Unlike `show`, it does not
+    make the window the active one."""
+    with qtbot.waitExposed(window):
+        window.show()
+    return window
+
+
+def body(window, number: int):
+    """The widget that the module of panel `number` (1 to 9) put under the panel's hint line."""
+    return window.panels[number - 1].body.itemAt(1).widget()
+
+
 def picture(window, qtbot, clip, source=None):
     """Open `clip` (a GroundTruth with its `path`) in the window, show the window, and return its
     video view. With `source`, the view then shows frame 0 of that stand-in, whole."""
@@ -162,6 +175,14 @@ def drawn(view, color=MARK) -> Area | None:
     box = (columns.min(), columns.max() + 1, rows.min(), rows.max() + 1)
     solid = rows.size == (box[1] - box[0]) * (box[3] - box[2])
     return Area(*(float(edge) / ratio for edge in box), solid)
+
+
+def fit_of(view, size):
+    """Where a frame of `size` = (width, height) px lies in the view when all of it shows, by
+    geometry: (screen px per video px, left, top), the corner in the viewport's px."""
+    (width, height), room = size, view.viewport().size()
+    scale = min(room.width() / width, room.height() / height)
+    return scale, (room.width() - width * scale) / 2, (room.height() - height * scale) / 2
 
 
 def wheel(view, at: QPoint, notches: int = 1) -> None:

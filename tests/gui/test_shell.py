@@ -14,6 +14,7 @@ from PySide6.QtGui import QScreen
 from PySide6.QtWidgets import QApplication, QDockWidget, QWidget
 
 import helpers
+from gui_helpers import shown
 from outline_tracker.gui import main_window
 from outline_tracker.gui.panel import Panel
 
@@ -42,13 +43,6 @@ HINTS = {
     8: "Track first. The flags appear here.",
     9: "Export all writes the CSV files, the overlay video, the log and README.txt to the run folder.",
 }
-
-
-def shown(window, qtbot):
-    """Show the window (offscreen) and wait until it is on the screen."""
-    with qtbot.waitExposed(window):
-        window.show()
-    return window
 
 
 def test_the_window_opens_and_closes_offscreen(window, qtbot):

@@ -24,6 +24,7 @@ from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from track_helpers import Tracked
 
 REPO = Path(__file__).resolve().parents[2]
+PACKAGE = REPO / "outline_tracker"
 RUNNING = "Tracking is running."  # why a part is off during a run
 
 
@@ -114,3 +115,9 @@ def control_texts(window) -> set[str]:
     buttons = {button.text() for button in window.findChildren(QAbstractButton)}
     items = {item.text() for item in window.findChildren(QAction)}
     return {text for text in buttons | items if text}
+
+
+def modules() -> list[str]:
+    """Every module file of the package as the developer's page names it: its path under
+    outline_tracker/, with `/` (`gui/panels/track_panel.py`)."""
+    return sorted(path.relative_to(PACKAGE).as_posix() for path in PACKAGE.rglob("*.py"))

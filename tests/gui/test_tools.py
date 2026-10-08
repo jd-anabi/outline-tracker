@@ -19,22 +19,15 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
-from calibration_helpers import (LEFT, NO_KEY, RIGHT, click_at, fit_of, lit, on_circle, opened, outside_points,
-                                 place, restart, screen_point)
-from gui_helpers import ClickRecorder, StandInSource, drawn, picture
+from calibration_helpers import (LEFT, NO_KEY, RIGHT, SIX, click_at, lit, on_circle, opened, outside_points, place,
+                                 restart, screen_point, wall)
+from gui_helpers import ClickRecorder, StandInSource, drawn, fit_of, picture
 from outline_tracker import geometry
 
 SMALL = (320, 240)
-SIX = (0, 60, 120, 180, 240, 300)  # degrees: six points spread evenly around the wall
 FIRST_END = "Stick: click the first end on the ruler."
 SECOND_END = "Stick: click the second end."
 ZOOM_IN = " Scroll to zoom in for a precise click."
-
-
-def wall(clip, degrees=SIX):
-    """Points on the true dish wall of a dish clip, px of the video frame."""
-    cu, cv, radius = clip.scene.dish
-    return on_circle((cu, cv), radius, degrees)
 
 
 # ---------------------------------------------------------------------------------------------

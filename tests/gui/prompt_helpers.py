@@ -147,14 +147,6 @@ def at(view, u: float, v: float) -> QPoint:
     return view.mapFromScene(view.image_item.mapToScene(QPointF(u, v)))
 
 
-def fit_of(view, size):
-    """Where a frame of `size` = (width, height) px lies in the view when all of it shows, by
-    geometry: (screen px per video px, left, top), the corner in the viewport's px."""
-    (width, height), room = size, view.viewport().size()
-    scale = min(room.width() / width, room.height() / height)
-    return scale, (room.width() - width * scale) / 2, (room.height() - height * scale) / 2
-
-
 def double_click(view, point: QPoint, button=LEFT) -> None:
     """A double click as Qt delivers it to a widget: press, release, a second press that arrives
     as a double-click event, and its release, all at `point` of the view's viewport."""

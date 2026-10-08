@@ -27,7 +27,7 @@ from PySide6.QtGui import QBrush, QColor, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QGraphicsRectItem
 
 import helpers
-from gui_helpers import GREEN, ClickRecorder, StandInSource, drag, drawn, picture, shown_pixels, wheel
+from gui_helpers import GREEN, ClickRecorder, StandInSource, drag, drawn, fit_of, picture, shown_pixels, wheel
 from outline_tracker import video
 from outline_tracker.frame_source import FrameSource
 from outline_tracker.gui.video_view import VideoView
@@ -37,14 +37,6 @@ SCREEN_FACTOR = "OUTLINE_TRACKER_TEST_SCREEN_FACTOR"  # set for the runs on a 15
 LEFT, RIGHT = Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton
 NO_KEY = Qt.KeyboardModifier.NoModifier
 PAN_TEXT = "Pan: drag to move the picture. Scroll to zoom."
-
-
-def fit_of(view, size):
-    """Where a frame of `size` = (width, height) px lies in the view when all of it shows, by
-    geometry: (screen px per video px, left, top), the corner in the viewport's px."""
-    (width, height), room = size, view.viewport().size()
-    scale = min(room.width() / width, room.height() / height)
-    return scale, (room.width() - width * scale) / 2, (room.height() - height * scale) / 2
 
 
 # ---------------------------------------------------------------------------------------------

@@ -15,19 +15,12 @@ import shutil
 import pytest
 from PySide6.QtCore import Qt
 
-from calibration_helpers import body, on_circle, opened, place, restart
+from calibration_helpers import SIX, body, on_circle, opened, place, restart, wall
 from outline_tracker import geometry
 
 START_HINT = "Click Circle. Click 6 or more points on the inner wall of the dish, spread around it."
 NEEDS_THREE = "The circle needs 3 or more points. Click more points on the dish wall."
-SIX = (0, 60, 120, 180, 240, 300)
 STICK = [(50.5, 20.5), (250.5, 20.5)]  # 200 px: with 30 mm, 0.15 mm per px
-
-
-def wall(clip, degrees=SIX):
-    """Points on the true dish wall of a dish clip, px of the video frame."""
-    cu, cv, radius = clip.scene.dish
-    return on_circle((cu, cv), radius, degrees)
 
 
 # ---------------------------------------------------------------------------------------------

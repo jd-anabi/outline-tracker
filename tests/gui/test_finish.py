@@ -15,13 +15,12 @@ import re
 
 from PySide6.QtCore import QUrl
 
-from last_controls_helpers import REPO, control_texts, marked_names, quickstart
+from last_controls_helpers import REPO, control_texts, marked_names, modules, quickstart
 from outline_tracker.gui import menus
 from session_helpers import body, read_json, type_into
 
 README = REPO / "README.md"
 DEVELOPER = REPO / "docs" / "DEVELOPER.md"
-PACKAGE = REPO / "outline_tracker"
 
 
 # ---------------------------------------------------------------------------------------------
@@ -122,12 +121,6 @@ def test_help_quickstart_opens_the_quickstart_section_of_the_readme(window, monk
 
 # ---------------------------------------------------------------------------------------------
 # docs/DEVELOPER.md
-
-
-def modules() -> list[str]:
-    """Every module of the package as the developer's page names it: its path under
-    outline_tracker/, with `/` (`gui/panels/track_panel.py`)."""
-    return sorted(path.relative_to(PACKAGE).as_posix() for path in PACKAGE.rglob("*.py"))
 
 
 def test_the_developers_page_names_every_module_of_the_package():

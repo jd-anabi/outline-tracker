@@ -41,8 +41,8 @@ from gui_helpers import show
 from helpers import click
 from joins_helpers import (DAY, EXPORTING, RUNNING, WAIT_FOR_EXPORT, corrections, earlier_run, lockable, not_saying,
                            off, written_at)
-from last_controls_helpers import (REPO, choose, control_texts, let_run_end, marked_names, parked, press_track,
-                                   quickstart, record_confirm)
+from last_controls_helpers import (PACKAGE, REPO, choose, control_texts, let_run_end, marked_names, modules, parked,
+                                   press_track, quickstart, record_confirm)
 from outline_tracker import schema
 from outline_tracker.gui.worker import Worker, worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
@@ -50,7 +50,7 @@ from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from prompt_helpers import LEFT, NO_KEY, SAFETY_S, Gate, Watched, gui_thread, objects_panel, this_thread
 from review_helpers import listed, listed_by, opened_run, review_panel
 from session_helpers import body, read_json
-from track_helpers import Tracked, ready_to_track, results_of, run_to_end, track_panel, window_hint
+from track_helpers import Tracked, ids, ready_to_track, results_of, run_to_end, track_panel, window_hint
 from tracking_helpers import center
 
 NO_INTERNET = "The model files could not be downloaded."
@@ -64,7 +64,6 @@ RESULTS_NEWER = "The results changed after the last export. Click Export all aga
 SESSION_NEWER = "The session changed after the last export. Click Export all again."
 STACK_BYTES = 64 * 1024 * 1024  # of a thread the model is made or used in (decision X7: 64 MiB)
 DEVELOPER = REPO / "docs" / "DEVELOPER.md"
-PACKAGE = REPO / "outline_tracker"
 # What the two modules offered before they were split (as of the commit before task C9), private names too.
 PROMPTS_OFFERED = [
     "BLACK", "BUSY_TEXT", "CASING", "DoubleClickWatch", "Drawn", "Found", "KINDS", "LINE_WIDTHS", "LOADING_TEXT",
@@ -93,10 +92,6 @@ def exported_all(folder: Path, panel) -> bool:
     """Whether the run folder holds every file of SPEC 8.1 and the panel says what was written."""
     return ({entry.name for entry in folder.iterdir()} >= P0_FILES and set(files_listed(panel)) == WRITTEN
             and panel.message.kind == "success" and panel.message.text().startswith("Export all wrote 8 files in "))
-
-
-def ids(window) -> list[str]:
-    return [track.id for track in window.controller.session.tracks]
 
 
 def workers_thread(qtbot, worker) -> int:
@@ -681,12 +676,6 @@ def test_the_quickstart_names_the_buttons_of_panels_8_and_9_in_bold_and_each_is_
         assert [name for name in marked if name not in texts] == []
         unmarked = re.sub(r"\*\*[^*]+\*\*", "", steps[number])  # the step without what is in bold
         assert [text for text in buttons if text in unmarked] == [], number
-
-
-def modules() -> list[str]:
-    """Every module file of the package as the developer's page names it: its path under
-    outline_tracker/, with `/` (`gui/panels/track_panel.py`)."""
-    return sorted(path.relative_to(PACKAGE).as_posix() for path in PACKAGE.rglob("*.py"))
 
 
 def test_the_developers_page_names_every_module_file_in_a_table_and_every_module_it_names_exists():

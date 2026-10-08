@@ -9,12 +9,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
-
-def shown(window, qtbot):
-    """Show the window (offscreen) and wait until it is on the screen."""
-    with qtbot.waitExposed(window):
-        window.show()
-    return window
+from gui_helpers import shown
 
 
 def test_the_parts_carry_the_roles_the_style_sheet_selects(window):

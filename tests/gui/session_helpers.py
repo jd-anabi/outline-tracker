@@ -14,14 +14,11 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
+from gui_helpers import body
+
 NAME = "Ada Lovelace"
 FOLDER_OF_NAME = "dish_tracker_outline_Ada_Lovelace"  # SPEC 8.1: <video stem>_outline_<student>, blanks as _
 LEFT = Qt.MouseButton.LeftButton
-
-
-def body(window, number: int):
-    """The widget that the module of panel `number` (1 to 9) put under the panel's hint line."""
-    return window.panels[number - 1].body.itemAt(1).widget()
 
 
 def type_into(qtbot, field, text: str, enter: bool = True) -> None:
