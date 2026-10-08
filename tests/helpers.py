@@ -5,6 +5,8 @@ name. What tests import by name is here or in a helper module beside the tests, 
 conftest.py (tests/test_repo_rules.py says why).
 """
 
+import re
+
 # ---------------------------------------------------------------------------------------------
 # Synthetic clips with ground truth (outline_tracker/synthetic.py): the clip fixtures of
 # tests/conftest.py are made with these.
@@ -32,6 +34,9 @@ def frame_times(skip_before=(), n_frames=120, fps=240.0):
 # ---------------------------------------------------------------------------------------------
 # Tracker's export files (tests/test_tracker_io.py, tests/from_tracker_helpers.py)
 
+MM_PER_PX = 0.05  # the scale of the exports made with `tracker_map`, mm per px
+W, H = 320, 240  # the frame those exports belong to: width and height, px
+
 
 def java_sci(v):
     """A number the way Tracker writes it with Number Format "Full Precision" (Java's 0.000000E0)."""
@@ -39,6 +44,24 @@ def java_sci(v):
         return "0.000000E0"
     mantissa, exponent = f"{v:.6E}".split("E")
     return f"{mantissa}E{int(exponent)}"
+
+
+def tracker_map(px, py, angle_deg=0.0, origin=(160.0, 120.0)):
+    """Tracker's pixel -> mm map: origin at `origin` (pixels), x axis rotated by angle_deg, y up."""
+    import numpy as np
+
+    a = np.radians(angle_deg)
+    dx, dy = np.asarray(px) - origin[0], -(np.asarray(py) - origin[1])
+    return (MM_PER_PX * (np.cos(a) * dx + np.sin(a) * dy), MM_PER_PX * (-np.sin(a) * dx + np.cos(a) * dy))
+
+
+def export_text(rows, name="mass A"):
+    """One point mass as Tracker exports it (name line, header with trailing comma, full precision)."""
+    lines = [f",{name},,,,,", "t,frame,x,y,pixelx,pixely,"]
+    for t, f, px, py in rows:
+        x, y = tracker_map(px, py)
+        lines.append(",".join(java_sci(float(v)) for v in (t, f, x, y, px, py)) + ",")
+    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------------------------------
@@ -60,6 +83,17 @@ def _names(folder) -> list[str]:
 def normalized(text: str) -> str:
     """Whitespace collapsed to single spaces, so a wrapped paragraph can be searched."""
     return " ".join(text.split())
+
+
+# ---------------------------------------------------------------------------------------------
+# What never goes into a committed file (tests/test_repo_rules.py, tests/test_frozen_files.py)
+
+# A path under a home folder: the users folder of macOS or Windows followed by a name, or pytest's
+# per-user temp folder. The patterns are put together from pieces so that this file, which is
+# itself scanned, does not contain what it looks for.
+_USERS = "Users"
+_PYTEST_TMP = "pytest-of" + "-"
+HOME_PATH = re.compile(rf"[/\\]{_USERS}[/\\]+[^/\\\s]|{_PYTEST_TMP}[^/\\\s]")
 
 
 # ---------------------------------------------------------------------------------------------

@@ -19,14 +19,12 @@ import cv2
 import imageio_ffmpeg
 import numpy as np
 import pytest
-from helpers import GAPS_BEFORE, frame_times
+from frame_source_helpers import CLIPS, N, SKIPS, frames_to_test, same, shift_seeks
+from helpers import frame_times
 
 from outline_tracker import frame_source, video
 from outline_tracker.frame_source import FrameSource
 
-CLIPS = ["disk_clip", "gapped_clip"]
-SKIPS = {"disk_clip": (), "gapped_clip": GAPS_BEFORE}
-N = 120  # frames in each clip
 SHAPE = (240, 320, 3)  # rows, columns, RGB
 
 
@@ -45,16 +43,6 @@ def packet_times(path):
     return np.array(stamps) * int(numerator) / int(denominator)
 
 
-def frames_to_test(n=N, seed=13):
-    """20 seeded random frame numbers plus 0, 1, 23, 24, 25, n - 2, n - 1: 27 different ones, shuffled."""
-    fixed = [0, 1, 23, 24, 25, n - 2, n - 1]
-    rng = np.random.default_rng(seed)
-    others = [k for k in range(n) if k not in fixed]
-    frames = fixed + [int(k) for k in rng.choice(others, 20, replace=False)]
-    rng.shuffle(frames)
-    return frames
-
-
 def naive_seek_and_read(path, k, shift=0):
     """What plain OpenCV gives for frame k when the seek is `shift` frames off: RGB, or None."""
     capture = cv2.VideoCapture(str(path))
@@ -64,22 +52,6 @@ def naive_seek_and_read(path, k, shift=0):
     finally:
         capture.release()
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB) if ok else None
-
-
-def shift_seeks(source, shift, monkeypatch):
-    """Make every seek of `source` ask for a frame `shift` frames away; returns the list of its calls."""
-    calls, seek = [], source._seek
-
-    def shifted(frame):
-        calls.append(frame)
-        seek(max(frame + shift, 0))
-
-    monkeypatch.setattr(source, "_seek", shifted)
-    return calls
-
-
-def same(frame, expected):
-    return frame is not None and frame.dtype == np.uint8 and np.array_equal(frame, expected)
 
 
 @pytest.fixture(scope="session")

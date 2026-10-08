@@ -8,28 +8,9 @@ calibration, frame numbers, time, and the files written.
 import numpy as np
 import pandas as pd
 import pytest
-from helpers import java_sci
+from helpers import MM_PER_PX, H, W, export_text, java_sci, tracker_map
 
 from outline_tracker import tracker_io as segment
-
-MM_PER_PX = 0.05
-W, H = 320, 240
-
-
-def tracker_map(px, py, angle_deg=0.0, origin=(160.0, 120.0)):
-    """Tracker's pixel -> mm map: origin at `origin` (pixels), x axis rotated by angle_deg, y up."""
-    a = np.radians(angle_deg)
-    dx, dy = np.asarray(px) - origin[0], -(np.asarray(py) - origin[1])
-    return (MM_PER_PX * (np.cos(a) * dx + np.sin(a) * dy), MM_PER_PX * (-np.sin(a) * dx + np.cos(a) * dy))
-
-
-def export_text(rows, name="mass A"):
-    """One point mass as Tracker exports it (name line, header with trailing comma, full precision)."""
-    lines = [f",{name},,,,,", "t,frame,x,y,pixelx,pixely,"]
-    for t, f, px, py in rows:
-        x, y = tracker_map(px, py)
-        lines.append(",".join(java_sci(float(v)) for v in (t, f, x, y, px, py)) + ",")
-    return "\n".join(lines) + "\n"
 
 
 def test_read_one_point_mass_named_after_the_file(tmp_path):

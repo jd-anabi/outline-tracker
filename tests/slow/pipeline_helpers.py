@@ -9,6 +9,9 @@ scene's own scale, so the mm columns of the exports are the scene's mm.
 Units and coordinates (SPEC 3): px in Tracker's convention, u to the right, v downward, pixel
 (column c, row r) with its center at (c + 0.5, r + 0.5); mm in the session's axes, y up, origin at
 the middle of the frame; frames are video frame numbers; times in s. Nothing here imports torch.
+
+`_write_three_ellipse_clip` is the clip of the regression tests (tests/slow/test_regression_reference.py,
+test_regression_pipeline.py, test_frozen_reference.py); it has nothing to do with a session.
 """
 
 from __future__ import annotations
@@ -17,6 +20,8 @@ import faulthandler
 import json
 from types import SimpleNamespace
 
+import cv2
+import numpy as np
 from export_helpers import table
 from tracking_helpers import make_session
 
@@ -25,6 +30,7 @@ from outline_tracker.export import export_all
 from outline_tracker.tracking import Callbacks, Job, run_job
 
 STICK_PX = 1000.0  # length of the calibration stick of the sessions made here, px
+W, H = 1920, 1080  # the frame of the three-ellipse clip: width and height, px
 
 
 def expect_minutes() -> None:
@@ -86,3 +92,31 @@ def track_and_export(clip, session, run_folder, segmenter) -> SimpleNamespace:
     done.shapes = table(run_folder / schema.SHAPES_CSV)
     done.session = json.loads((run_folder / schema.SESSION_JSON).read_text(encoding="utf-8"))
     return done
+
+
+def _write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
+    """The selftest's recipe (1080p, 40 frames, mp4v, noise sigma 3, dark ellipses with semi-axes
+    8 and 3 px along their motion) with three ellipses on a background whose R, G and B differ.
+
+    Returns truth[object][frame] = (x, y) in array coordinates (pixel centers at integers).
+    """
+    n = 40
+    rng = np.random.default_rng(0)
+    yy, xx = np.mgrid[0:H, 0:W]
+    base = 205.0 - 15.0 * ((xx - W / 2) ** 2 + (yy - H / 2) ** 2) / (0.49 * H) ** 2
+    tint = np.array([0.80, 0.90, 1.00])  # blue, green, red
+    starts = [(500.0, 300.0), (1000.0, 600.0), (1400.0, 350.0)]  # at least 300 px apart at all times
+    steps = [(0.6, 0.2), (-0.5, 0.3), (0.2, -0.6)]  # px per frame
+    truth = [[(x0 + dx * f, y0 + dy * f) for f in range(n)] for (x0, y0), (dx, dy) in zip(starts, steps)]
+    out = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 240, (W, H))
+    for f in range(n):
+        img = base[:, :, None] * tint
+        for track, (dx, dy) in zip(truth, steps):
+            x, y = track[f]
+            angle = float(np.degrees(np.arctan2(dy, dx)))
+            cv2.ellipse(img, (int(round(x * 16)), int(round(y * 16))), (8 * 16, 3 * 16), angle, 0, 360,
+                        tuple(70.0 * tint), -1, cv2.LINE_AA, 4)
+        img = np.clip(img + rng.normal(0, 3.0, img.shape), 0, 255).astype(np.uint8)
+        out.write(img)
+    out.release()
+    return truth

@@ -2,7 +2,7 @@
 (tests/test_from_tracker*.py).
 
 `disk_video` is the helper of last week's tests, copied unchanged. `tracker_map`, `MM_PER_PX`, `W`
-and `H` are last week's too, taken from tests/test_tracker_io.py, where they are ported verbatim.
+and `H` are last week's too; they are in tests/helpers.py.
 
 Coordinates: a clip is 320 x 240 px at 240 frames per s. `disk_video` takes disk centers with pixel
 centers at whole numbers, so a disk drawn at (x, y) is at (x + 0.5, y + 0.5) px in Tracker's
@@ -17,8 +17,7 @@ import json
 import cv2
 import numpy as np
 import pandas as pd
-from helpers import java_sci
-from test_tracker_io import MM_PER_PX, H, W, tracker_map
+from helpers import MM_PER_PX, H, W, java_sci, tracker_map
 
 from outline_tracker.from_tracker import from_tracker
 from outline_tracker.segmenter.fake import ThresholdFake

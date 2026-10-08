@@ -1,8 +1,8 @@
-"""Fixtures for the tests of every folder: synthetic clips with ground truth, a tracked run folder,
-a file that another program holds open, the settings kept out of the user's own, the main window.
-pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says why).
-The plain helpers and values that tests import by name are in tests/helpers.py and in the helper
-modules beside it.
+"""Fixtures for the tests of every folder: synthetic clips with ground truth, the frames of two of them
+from the sequential decode, a tracked run folder, a file that another program holds open, the
+settings kept out of the user's own, the main window. pytest finds a fixture by its name; nothing
+imports this file (tests/test_repo_rules.py says why). The plain helpers and values that tests import
+by name are in tests/helpers.py and in the helper modules beside it.
 """
 
 import errno
@@ -19,6 +19,7 @@ import pytest
 # assert in it (`assert_empty_result`) still shows the values it compared.
 pytest.register_assert_rewrite("helpers")
 
+from frame_source_helpers import CLIPS, N  # noqa: E402
 from helpers import GAPS_BEFORE, ODD_FOLDER, SMALL, new_window  # noqa: E402
 
 # ---------------------------------------------------------------------------------------------
@@ -82,6 +83,27 @@ def gapped_clip(tmp_path_factory):
 
     path = tmp_path_factory.mktemp("gapped") / "gapped_tracker.mp4"
     return synthetic.render(synthetic.disk_scene(), path, crf=10, skip_before=GAPS_BEFORE)
+
+
+# ---------------------------------------------------------------------------------------------
+# The frames of two clips from the sequential decode, for the tests of the time stamps
+# (tests/test_frame_source_times.py, tests/test_frame_source_jumps.py)
+
+
+@pytest.fixture(scope="module")
+def sequential_frames(disk_clip, gapped_clip):
+    """Every frame of both clips from the sequential decode: {fixture name: [RGB frame 0, 1, ...]}.
+    Decoded once for each test module that asks for it."""
+    from outline_tracker import video
+
+    clips = {"disk_clip": disk_clip, "gapped_clip": gapped_clip}
+    return {name: [rgb for _, rgb in video.iter_rgb_frames(clip.path, range(N))] for name, clip in clips.items()}
+
+
+@pytest.fixture(params=CLIPS)
+def clip_with_frames(request, sequential_frames):
+    """(fixture name, path of the clip, its frames from the sequential decode) for each of the two clips."""
+    return request.param, request.getfixturevalue(request.param).path, sequential_frames[request.param]
 
 
 # ---------------------------------------------------------------------------------------------

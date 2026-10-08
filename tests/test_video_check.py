@@ -23,7 +23,7 @@ time); gray levels are on the 0-255 scale; speeds are px per frame along a circl
 import cv2
 import numpy as np
 import pytest
-from test_video import _circle_path, _write_video
+from video_helpers import _circle_path, _write_video
 
 from outline_tracker import video
 

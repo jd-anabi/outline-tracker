@@ -390,3 +390,26 @@ def compare_with_frozen(what: str, found, frozen, true, strict: bool) -> None:
           f"{LIMIT_PX} px was not measured for it; measured here: {from_frozen:.4f} px from the frozen positions")
     assert not lost.any(), f"{what}: {int(lost.sum())} rows are lost"
     assert from_truth < TRUTH_PX, f"{what}: {from_truth:.3f} px from the true centers (limit {TRUTH_PX:g} px)"
+
+
+def _frozen_positions(clip: str, frames, names) -> tuple[dict[str, str], np.ndarray]:
+    """The frozen table (tests/data/edgetam_cpu_positions.csv) for one of its clips: its header, and
+    positions[i][k] = (u_px, v_px) of the object names[k] on the frame frames[i], px in Tracker's
+    convention in the full frame. A frame or an object that the table does not hold is a KeyError."""
+    header, rows = read_positions()
+    table = {(row_clip, frame, track_id): (u_px, v_px) for row_clip, frame, track_id, u_px, v_px in rows}
+    return header, np.array([[table[clip, frame, name] for name in names] for frame in frames])
+
+
+def _compare_with_the_frozen_positions(what: str, clip: str, frames, names, found, true, weights_sha256) -> None:
+    """Judge the positions that a run found on a clip of the frozen table against that table
+    (`frozen_helpers.compare_with_frozen`, which also prints what it measured): the rows that are lost
+    are the table's, and every position is within 0.01 px of its frozen one on the machine that froze
+    them, with the weights whose hash is `weights_sha256` (`frozen_helpers.same_machine`); on another
+    machine no row is lost and every position is under 3 px from its true center.
+
+    found, true: [i][k] = (u_px, v_px) of names[k] on frames[i], what the run found (NaN, NaN where
+    lost) and the true center, px in Tracker's convention in the full frame.
+    """
+    header, frozen = _frozen_positions(clip, frames, names)
+    compare_with_frozen(what, found, frozen, true, same_machine(header, machine_here(weights_sha256)))

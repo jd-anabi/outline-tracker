@@ -22,8 +22,7 @@ import pytest
 from from_tracker_helpers import (FPS, MODEL, RUN_FILES, StopsAfter, disk_video, frame_sha256, mirrored_map,
                                   names_in, one_disk, read_track, rotated_map, run, session_json, two_disks,
                                   write_start_file)
-from helpers import java_sci
-from test_tracker_io import MM_PER_PX, tracker_map
+from helpers import MM_PER_PX, java_sci, tracker_map
 
 from outline_tracker import fileio, synthetic, video
 from outline_tracker.from_tracker_session import TRACK_COLORS

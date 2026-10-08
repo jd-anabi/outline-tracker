@@ -8,7 +8,6 @@ collected by the `qt_messages` fixture: a rule Qt cannot read is a message (one 
 such a message does arrive there).
 """
 
-import math
 import re
 from collections import Counter
 
@@ -16,6 +15,7 @@ import pytest
 from PySide6.QtCore import QPoint, Qt, qInstallMessageHandler
 from PySide6.QtGui import QPalette
 
+from gui_helpers import badge_pixels, inside_badge
 from outline_tracker.gui import theme
 
 BOTH = pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
@@ -54,25 +54,6 @@ def color_at(window, widget, point: QPoint) -> str:
     image = window.grab().toImage()
     at = widget.mapTo(window, point) * image.devicePixelRatio()
     return image.pixelColor(at).name().upper()
-
-
-def badge_pixels(window, badge) -> list[tuple[float, float, str]]:
-    """Every device pixel that `window` draws in `badge`'s square, row by row: (x, y, colour). x and y
-    are the pixel's centre in px from the badge's top left corner (x right, y down); the colour is
-    `#RRGGBB` in capitals."""
-    image = window.grab().toImage()
-    ratio = image.devicePixelRatio()
-    corner = badge.mapTo(window, QPoint(0, 0)) * ratio
-    return [((column + 0.5) / ratio, (row + 0.5) / ratio,
-             image.pixelColor(corner.x() + column, corner.y() + row).name().upper())
-            for row in range(round(badge.height() * ratio)) for column in range(round(badge.width() * ratio))]
-
-
-def inside_badge(x: float, y: float) -> bool:
-    """True for a pixel with its centre at (x, y), px from the top left corner of a badge, that lies
-    wholly inside the badge's outline ring. The badge is a circle 20 px across, so its centre is at
-    (10, 10) and the 1 px ring's inner edge 9 px from it; half the diagonal of a pixel is 0.71 px."""
-    return math.hypot(x - 10, y - 10) < 9 - 0.75
 
 
 def badge_fill(window, badge) -> str:

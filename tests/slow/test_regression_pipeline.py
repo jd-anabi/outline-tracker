@@ -5,7 +5,7 @@ real EdgeTAM on `cpu`: coarse, the whole frame (a Tracker export has no dish cir
 Two clips:
 1. last week's selftest clip (`synthetic.selftest_clip`: 1080p, one dark ellipse) with its export of
    one track on frames 0, 2, ..., 38;
-2. the three-ellipse clip of tests/slow/test_regression_reference.py with a `#multi` start file:
+2. the three-ellipse clip of tests/slow/pipeline_helpers.py with a `#multi` start file:
    three point masses marked once, on frame 0, tracked for 40 / 240 s at step 2.
 
 What is compared: the Tracker-format files `<run>/edgetam/<id>.csv` with the frozen table,
@@ -34,8 +34,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from from_tracker_helpers import write_start_file
-from test_regression_reference import _compare_with_the_frozen_positions, _write_three_ellipse_clip
-from test_tracker_io import tracker_map
+from frozen_helpers import _compare_with_the_frozen_positions
+from helpers import tracker_map
+from pipeline_helpers import _write_three_ellipse_clip
 
 from outline_tracker import synthetic
 from outline_tracker.from_tracker import from_tracker

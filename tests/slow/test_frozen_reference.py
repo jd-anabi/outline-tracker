@@ -11,7 +11,7 @@ them.
 The two clips, both 1920 x 1080 px and 40 frames, tracked on frames 0, 2, ..., 38 with one positive
 click per object on frame 0:
 1. `selftest`: `synthetic.selftest_clip`, one dark ellipse, with its Tracker export of one track;
-2. `three_ellipses`: the three-ellipse clip of tests/slow/test_regression_reference.py, with a
+2. `three_ellipses`: the three-ellipse clip of tests/slow/pipeline_helpers.py, with a
    `#multi` start file that marks A, B and C on frame 0.
 
 Two levels:
@@ -43,8 +43,8 @@ import pytest
 from from_tracker_helpers import write_start_file
 from frozen_helpers import (WEIGHTS, compare_with_frozen, machine_here, machine_of, read_frozen, read_positions,
                             same_machine)
-from test_regression_reference import _write_three_ellipse_clip
-from test_tracker_io import tracker_map
+from helpers import tracker_map
+from pipeline_helpers import _write_three_ellipse_clip
 
 from outline_tracker import synthetic, tracker_io, video
 from outline_tracker.from_tracker import from_tracker

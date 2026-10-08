@@ -5,7 +5,7 @@ frame times. tests/test_frame_source.py makes the seek wrong; here the evidence 
 table that is not this file's, a decoder that reports other times. `get(k)` must still be frame k
 of the sequential decode, bit for bit, by decoding from frame 0 wherever the two do not agree.
 
-The clips, the 27 frame numbers and the helpers are those of tests/test_frame_source.py. Frame
+The clips, the 27 frame numbers and the helpers are those of tests/frame_source_helpers.py. Frame
 numbers count from 0; times are s or ms of file time, as each name says; one frame step is 1/240 s,
 the shortest step between two frames of both clips. Expected frames come from the sequential decode
 `video.iter_rgb_frames`. The faults of the first two parts are injected: none of them was seen on a
@@ -18,35 +18,11 @@ import cv2
 import imageio_ffmpeg
 import numpy as np
 import pytest
+from frame_source_helpers import LATER, N, SKIPS, STEP_MS, STEP_S, change_the_table, every_tested_frame_is_exact, same
 from helpers import frame_times
-from test_frame_source import CLIPS, N, SKIPS, frames_to_test, same
 
 from outline_tracker import video
 from outline_tracker.frame_source import FrameSource
-
-STEP_S = 1.0 / 240.0  # one frame step in s
-STEP_MS = 1000.0 * STEP_S  # and in ms
-LATER = 50  # the faults that begin inside the clip begin at this frame
-FAR = N - 3  # read first: more than 64 frames ahead of where a source is after opening, so a jump
-
-
-@pytest.fixture(scope="module")
-def sequential(disk_clip, gapped_clip):
-    """Every frame of both clips from the sequential decode: {fixture name: [RGB frame 0, 1, ...]}."""
-    clips = {"disk_clip": disk_clip, "gapped_clip": gapped_clip}
-    return {name: [rgb for _, rgb in video.iter_rgb_frames(clip.path, range(N))] for name, clip in clips.items()}
-
-
-@pytest.fixture(params=CLIPS)
-def clip(request, sequential):
-    """(fixture name, path of the clip, its frames from the sequential decode) for each of the two clips."""
-    return request.param, request.getfixturevalue(request.param).path, sequential[request.param]
-
-
-def change_the_table(monkeypatch, change):
-    """Make `video.frame_timestamps` return `change(times_s)` of the file's real table."""
-    real = video.frame_timestamps
-    monkeypatch.setattr(video, "frame_timestamps", lambda path: change(real(path)))
 
 
 def change_the_decoder_times(monkeypatch, change):
@@ -72,14 +48,6 @@ def time_of_frame_0_ms(path):
         capture.release()
 
 
-def every_tested_frame_is_exact(source, frames):
-    """Read frame 117 (a jump, if the table is in use) and then the 27 frames in their shuffled
-    order, which begins with steps forward; `frames` is the clip's sequential decode."""
-    for k in [FAR, *frames_to_test()]:
-        assert same(source.get(k), frames[k]), f"frame {k} differs"
-    return True
-
-
 # ---------------------------------------------------------------------------------------------
 # A table that is not the decoder's
 
@@ -93,10 +61,10 @@ TABLES = {
 
 
 @pytest.mark.parametrize("fault", list(TABLES))
-def test_a_table_that_is_not_the_decoders_is_not_used(fault, clip, monkeypatch):
+def test_a_table_that_is_not_the_decoders_is_not_used(fault, clip_with_frames, monkeypatch):
     # Each table has the right length and increases, so only the decoder's own times can show that
     # it is wrong. Frames 0 and 1 show it when the file is opened.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     change_the_table(monkeypatch, TABLES[fault])
     with FrameSource(path) as source:
         assert every_tested_frame_is_exact(source, frames)
@@ -105,7 +73,7 @@ def test_a_table_that_is_not_the_decoders_is_not_used(fault, clip, monkeypatch):
 
 
 @pytest.mark.parametrize("fault_steps", [0.3, 1.0])
-def test_a_table_that_fits_only_the_first_frames_is_given_up(fault_steps, clip, monkeypatch):
+def test_a_table_that_fits_only_the_first_frames_is_given_up(fault_steps, clip_with_frames, monkeypatch):
     # From frame 50 on the table is 0.3 or 1 frame step late; frames 0 and 1 cannot show that.
     # Frame 60 is read 11 frames after frame 49, so it is reached by counting, and the count is
     # the truth: the table disagrees with it and is given up. (A jump instead would not be placed
@@ -113,7 +81,7 @@ def test_a_table_that_fits_only_the_first_frames_is_given_up(fault_steps, clip, 
     # whole step off is the time the table gives the frame before, which no single time stamp can
     # tell from the truth, and there the look at the far end of the file stops the jump:
     # tests/test_frame_source_jumps.py.)
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     change_the_table(monkeypatch, lambda times_s: times_s + fault_steps * STEP_S * (np.arange(N) >= LATER))
     with FrameSource(path) as source:
         for k in (20, LATER - 1):
@@ -126,10 +94,10 @@ def test_a_table_that_fits_only_the_first_frames_is_given_up(fault_steps, clip, 
         assert source.stats["seek"] == 0
 
 
-def test_a_table_that_stops_fitting_is_given_up_at_a_jump_too(clip, monkeypatch):
+def test_a_table_that_stops_fitting_is_given_up_at_a_jump_too(clip_with_frames, monkeypatch):
     # The same table, 0.3 of a step late from frame 50 on, met by jumps in the shuffled order: a
     # time 0.3 of a step away from every entry is no entry's time.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     change_the_table(monkeypatch, lambda times_s: times_s + 0.3 * STEP_S * (np.arange(N) >= LATER))
     with FrameSource(path) as source:
         assert source.timestamps_s is not None
@@ -142,10 +110,10 @@ def test_a_table_that_stops_fitting_is_given_up_at_a_jump_too(clip, monkeypatch)
 # A decoder that reports other times
 
 
-def test_decoder_times_that_start_elsewhere_are_placed_all_the_same(clip, monkeypatch):
+def test_decoder_times_that_start_elsewhere_are_placed_all_the_same(clip_with_frames, monkeypatch):
     # Not a fault: every time stamp is 1234.5 ms later (a file whose first frame is not at 0). Only
     # the time since frame 0 counts, so the verified seek stays in use.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     seen = change_the_decoder_times(monkeypatch, lambda real_ms: real_ms + 1234.5)
     with FrameSource(path) as source:
         assert every_tested_frame_is_exact(source, frames)
@@ -156,11 +124,11 @@ def test_decoder_times_that_start_elsewhere_are_placed_all_the_same(clip, monkey
 
 
 @pytest.mark.parametrize("fault_steps", [-2, -1, 1, 2])
-def test_a_wrong_time_for_frame_0_never_gives_a_wrong_frame(fault_steps, clip, monkeypatch):
+def test_a_wrong_time_for_frame_0_never_gives_a_wrong_frame(fault_steps, clip_with_frames, monkeypatch):
     # The time of frame 0 is the reading every other time is measured from. Here the decoder
     # reports it 1 or 2 frame steps early or late (as one that takes the first frame's time from
     # the order in which the frames are stored would), and every other frame's time correctly.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     first_ms = time_of_frame_0_ms(path)
     seen = change_the_decoder_times(
         monkeypatch, lambda real_ms: real_ms + fault_steps * STEP_MS if real_ms == first_ms else real_ms)
@@ -172,11 +140,11 @@ def test_a_wrong_time_for_frame_0_never_gives_a_wrong_frame(fault_steps, clip, m
 
 
 @pytest.mark.parametrize("fault_steps", [-1.0, -0.3, 0.3, 1.0, 2.0])
-def test_a_wrong_time_after_a_seek_never_gives_a_wrong_frame(fault_steps, clip, monkeypatch):
+def test_a_wrong_time_after_a_seek_never_gives_a_wrong_frame(fault_steps, clip_with_frames, monkeypatch):
     # The twin of the seek that lands elsewhere: the seek is right, and the time stamp read after
     # it is off. By 0.3 of a step it is no frame's time; by 1 or 2 steps it is another frame's.
     # Either way frame k then comes from frame 0 by counting, and the table, which is right, stays.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     seek, read = FrameSource._seek, FrameSource._time_ms
     state = {"just sought": False, "wrong readings": 0}
 
@@ -201,10 +169,10 @@ def test_a_wrong_time_after_a_seek_never_gives_a_wrong_frame(fault_steps, clip, 
         assert source.timestamps_s is not None
 
 
-def test_a_time_that_no_frame_has_is_not_given_to_the_nearest_frame(clip, monkeypatch):
+def test_a_time_that_no_frame_has_is_not_given_to_the_nearest_frame(clip_with_frames, monkeypatch):
     # From frame 50 on the decoder's times are 0.3 of a frame step late: nearer to the right entry
     # of the table than to any other, and still not that entry's time.
-    name, path, frames = clip
+    name, path, frames = clip_with_frames
     fault_from_ms = time_of_frame_0_ms(path) + 1000.0 * frame_times(SKIPS[name])[LATER] - 0.5 * STEP_MS
     seen = change_the_decoder_times(
         monkeypatch, lambda real_ms: real_ms + 0.3 * STEP_MS if real_ms > fault_from_ms else real_ms)

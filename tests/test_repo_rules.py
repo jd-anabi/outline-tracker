@@ -13,6 +13,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+from helpers import HOME_PATH, _PYTEST_TMP, _USERS
+
 import outline_tracker
 
 REPO = Path(__file__).resolve().parents[1]
@@ -27,13 +29,6 @@ HEAVY_MODULES = sorted(QT_MODULES | MODEL_MODULES)
 
 # Files that never go into git (SPEC 8.13, CLAUDE.md): videos, results, weights.
 FORBIDDEN_SUFFIXES = {".mp4", ".mov", ".npz", ".pt", ".safetensors"}
-
-# A path under a home folder: the users folder of macOS or Windows followed by a name, or pytest's
-# per-user temp folder. The patterns are put together from pieces so that this file, which is
-# itself scanned, does not contain what it looks for.
-_USERS = "Users"
-_PYTEST_TMP = "pytest-of" + "-"
-HOME_PATH = re.compile(rf"[/\\]{_USERS}[/\\]+[^/\\\s]|{_PYTEST_TMP}[^/\\\s]")
 
 
 def _run(args: list[str], timeout: float = 120) -> subprocess.CompletedProcess:
@@ -375,4 +370,45 @@ def test_no_fixture_is_imported_by_name(tmp_path):
         "gui/test_panel.py:1: imports own from panel_helpers",
         "gui/test_panel.py:2: imports shade from test_theme",
         "test_all.py:1: imports own from panel_helpers",
+    ]
+
+
+def _test_module_imports(folder: Path) -> list[str]:
+    """Scan every .py file under `folder`; return `file:line: imports module` for each import of a
+    module whose name begins with `test_`, at any depth (the three ways of `_imported_top_levels`)."""
+    found = []
+    for path in sorted(folder.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        found += [f"{path.relative_to(folder).as_posix()}:{line}: imports {top}"
+                  for line, top in _imported_top_levels(tree) if top.startswith("test_")]
+    return found
+
+
+def test_no_test_module_imports_from_a_test_module(tmp_path):
+    # A test file is pytest's: it is collected and run, split when it grows long, renamed with what it
+    # tests. A file that imports a name from it depends on all of that, and Python runs the whole test
+    # file to hand out the one name. What a second file needs is a helper, and its home is a helper module.
+    scanned = {path.relative_to(TESTS).as_posix() for path in TESTS.rglob("*.py")}
+    assert {"helpers.py", "gui/test_theme.py", "slow/pipeline_helpers.py"} <= scanned  # the real folder
+    assert _test_module_imports(TESTS) == []
+    # The scan finds every spelling, in a test file, a helper module and a conftest.py, in a folder below
+    # and inside a function; a name that only holds `test_`, or begins with `test` alone, is left alone.
+    sources = {
+        "test_a.py": "import os\nfrom test_b import one\n",
+        "test_b.py": "import pytest\nfrom b_helpers import one\nfrom latest_helpers import two\n",
+        "b_helpers.py": "def late():\n    import test_a.parts\n    return test_a\n",
+        "conftest.py": "import pytest\nfrom test_b import one, two\n",
+        "gui/test_c.py": "import importlib\nimport testing_tools\n\nfound = importlib.import_module('test_a')\n",
+        "slow/c_helpers.py": "from test_c import (found,\n                    other)\n",
+    }
+    for rel, text in sources.items():
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    assert _test_module_imports(tmp_path) == [
+        "b_helpers.py:2: imports test_a",
+        "conftest.py:2: imports test_b",
+        "gui/test_c.py:4: imports test_a",
+        "slow/c_helpers.py:1: imports test_c",
+        "test_a.py:2: imports test_b",
     ]

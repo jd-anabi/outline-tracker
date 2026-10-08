@@ -39,7 +39,7 @@ from frozen_helpers import (COLUMNS, DATA, GOLDEN, POSITIONS, SIDECAR, SWITCH, W
                             freeze_asked, frozen_files, frozen_text, header_lines, machine_here, machine_name,
                             machine_of, position_rows, read_frozen, read_positions, same_decoder, same_machine,
                             write_frozen, write_listing)
-from test_repo_rules import HOME_PATH
+from helpers import HOME_PATH
 
 from outline_tracker import provenance, video
 

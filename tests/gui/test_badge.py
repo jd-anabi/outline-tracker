@@ -21,8 +21,8 @@ from pathlib import Path
 import pytest
 from PySide6.QtGui import QFont, QFontDatabase, QFontInfo, QGuiApplication
 
+from gui_helpers import badge_pixels, inside_badge
 from outline_tracker.gui import theme
-from test_theme import badge_pixels, inside_badge
 
 SIZE = 20           # the badge: a circle this many px across
 MIDDLE = SIZE / 2   # its centre, px from its left and from its top edge; also the circle's radius

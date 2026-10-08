@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from test_tracker_io import MM_PER_PX, tracker_map  # the template's map, verbatim (0.05 mm per px)
+from helpers import MM_PER_PX, tracker_map  # the template's map, verbatim (0.05 mm per px)
 
 from outline_tracker import geometry, tracker_io
 from outline_tracker.geometry import WorldFrame

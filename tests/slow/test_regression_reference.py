@@ -33,11 +33,11 @@ import math
 import time
 from types import SimpleNamespace
 
-import cv2
 import numpy as np
 import pandas as pd
 import pytest
-from frozen_helpers import compare_with_frozen, machine_here, read_positions, same_machine
+from frozen_helpers import _compare_with_the_frozen_positions
+from pipeline_helpers import _write_three_ellipse_clip
 
 from outline_tracker import synthetic, tracker_io
 from outline_tracker.measure import mask_center
@@ -330,29 +330,6 @@ def _timing(seconds: np.ndarray) -> str:
     return f"{seconds.mean():.2f} s per frame (mean of {len(seconds)}; median {np.median(seconds):.2f})"
 
 
-def _frozen_positions(clip: str, frames, names) -> tuple[dict[str, str], np.ndarray]:
-    """The frozen table (tests/data/edgetam_cpu_positions.csv) for one of its clips: its header, and
-    positions[i][k] = (u_px, v_px) of the object names[k] on the frame frames[i], px in Tracker's
-    convention in the full frame. A frame or an object that the table does not hold is a KeyError."""
-    header, rows = read_positions()
-    table = {(row_clip, frame, track_id): (u_px, v_px) for row_clip, frame, track_id, u_px, v_px in rows}
-    return header, np.array([[table[clip, frame, name] for name in names] for frame in frames])
-
-
-def _compare_with_the_frozen_positions(what: str, clip: str, frames, names, found, true, weights_sha256) -> None:
-    """Judge the positions that a run found on a clip of the frozen table against that table
-    (`frozen_helpers.compare_with_frozen`, which also prints what it measured): the rows that are lost
-    are the table's, and every position is within 0.01 px of its frozen one on the machine that froze
-    them, with the weights whose hash is `weights_sha256` (`frozen_helpers.same_machine`); on another
-    machine no row is lost and every position is under 3 px from its true center.
-
-    found, true: [i][k] = (u_px, v_px) of names[k] on frames[i], what the run found (NaN, NaN where
-    lost) and the true center, px in Tracker's convention in the full frame.
-    """
-    header, frozen = _frozen_positions(clip, frames, names)
-    compare_with_frozen(what, found, frozen, true, same_machine(header, machine_here(weights_sha256)))
-
-
 @pytest.fixture(scope="module")
 def selftest_runs(loaded, tmp_path_factory):
     """The selftest clip with its Tracker export (`synthetic.selftest_clip`), and the backend on it:
@@ -409,34 +386,6 @@ def test_segmenter_reports_device_model_and_weights(selftest_runs):
             assert result.score > 0  # the presence logit: an object the model calls absent has no mask
     segmenter.close()
     assert segmenter.session is None
-
-
-def _write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
-    """The selftest's recipe (1080p, 40 frames, mp4v, noise sigma 3, dark ellipses with semi-axes
-    8 and 3 px along their motion) with three ellipses on a background whose R, G and B differ.
-
-    Returns truth[object][frame] = (x, y) in array coordinates (pixel centers at integers).
-    """
-    n = 40
-    rng = np.random.default_rng(0)
-    yy, xx = np.mgrid[0:H, 0:W]
-    base = 205.0 - 15.0 * ((xx - W / 2) ** 2 + (yy - H / 2) ** 2) / (0.49 * H) ** 2
-    tint = np.array([0.80, 0.90, 1.00])  # blue, green, red
-    starts = [(500.0, 300.0), (1000.0, 600.0), (1400.0, 350.0)]  # at least 300 px apart at all times
-    steps = [(0.6, 0.2), (-0.5, 0.3), (0.2, -0.6)]  # px per frame
-    truth = [[(x0 + dx * f, y0 + dy * f) for f in range(n)] for (x0, y0), (dx, dy) in zip(starts, steps)]
-    out = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 240, (W, H))
-    for f in range(n):
-        img = base[:, :, None] * tint
-        for track, (dx, dy) in zip(truth, steps):
-            x, y = track[f]
-            angle = float(np.degrees(np.arctan2(dy, dx)))
-            cv2.ellipse(img, (int(round(x * 16)), int(round(y * 16))), (8 * 16, 3 * 16), angle, 0, 360,
-                        tuple(70.0 * tint), -1, cv2.LINE_AA, 4)
-        img = np.clip(img + rng.normal(0, 3.0, img.shape), 0, 255).astype(np.uint8)
-        out.write(img)
-    out.release()
-    return truth
 
 
 def test_three_objects_match_the_reference(loaded, tmp_path):

@@ -10,7 +10,7 @@ the file, which is the frame after which none comes, whatever its number. `get(k
 of the sequential decode, bit for bit, in whatever order the frames are read (`read_orders`): which
 checks a read passes through depends on whether it is a step forward or a jump.
 
-The clips, the 27 frame numbers and the helpers are those of the two other files. Frame numbers
+The clips, the 27 frame numbers and the helpers are those of tests/frame_source_helpers.py. Frame numbers
 count from 0; times are s or ms of file time, as each name says; one frame step is 1/240 s. Expected
 frames come from the sequential decode `video.iter_rgb_frames`. Every fault here is injected: none
 was seen on a real file.
@@ -18,24 +18,10 @@ was seen on a real file.
 
 import numpy as np
 import pytest
-from test_frame_source import CLIPS, N, frames_to_test, same, shift_seeks
-from test_frame_source_times import FAR, LATER, STEP_MS, STEP_S, change_the_table, every_tested_frame_is_exact
+from frame_source_helpers import (FAR, LATER, N, STEP_MS, STEP_S, change_the_table, every_tested_frame_is_exact,
+                                  frames_to_test, same, shift_seeks)
 
-from outline_tracker import video
 from outline_tracker.frame_source import SEEK_BACK, FrameSource
-
-
-@pytest.fixture(scope="module")
-def sequential(disk_clip, gapped_clip):
-    """Every frame of both clips from the sequential decode: {fixture name: [RGB frame 0, 1, ...]}."""
-    clips = {"disk_clip": disk_clip, "gapped_clip": gapped_clip}
-    return {name: [rgb for _, rgb in video.iter_rgb_frames(clip.path, range(N))] for name, clip in clips.items()}
-
-
-@pytest.fixture(params=CLIPS)
-def clip(request, sequential):
-    """(fixture name, path of the clip, its frames from the sequential decode) for each of the two clips."""
-    return request.param, request.getfixturevalue(request.param).path, sequential[request.param]
 
 
 def read_orders():
@@ -57,12 +43,13 @@ def without_one_frame(times_s, first=80, last=99):
 
 
 @pytest.mark.parametrize("fault_steps", [1.0, 2.0])
-def test_a_table_that_is_late_from_some_frame_to_the_end_is_safe_in_any_read_order(fault_steps, clip, monkeypatch):
+def test_a_table_that_is_late_from_some_frame_to_the_end_is_safe_in_any_read_order(fault_steps, clip_with_frames,
+                                                                                   monkeypatch):
     # From frame 50 on every entry is one or two whole frame steps late. A time read there is another
     # entry's time, so no time stamp alone shows the fault, and a jump placed with this table would
     # deliver a neighbor of the frame asked for. The last frame of the file shows it: it does not
     # carry the table's last time. No jump is trusted before that was looked at.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     change_the_table(monkeypatch, lambda times_s: times_s + fault_steps * STEP_S * (np.arange(N) >= LATER))
     for order_name, order in read_orders().items():
         with FrameSource(path) as source:
@@ -73,12 +60,13 @@ def test_a_table_that_is_late_from_some_frame_to_the_end_is_safe_in_any_read_ord
 
 
 @pytest.mark.parametrize("fault_steps", [-2, 1])
-def test_times_that_change_after_the_file_was_opened_never_give_a_wrong_frame(fault_steps, clip, monkeypatch):
+def test_times_that_change_after_the_file_was_opened_never_give_a_wrong_frame(fault_steps, clip_with_frames,
+                                                                              monkeypatch):
     # What the opening of the file established (the time of frame 0, from which every other time is
     # measured, and that frame 1 comes one table step later) is 2 frame steps early or 1 late for
     # every time read afterwards. Each such time is another frame's time. A count shows it at the
     # first frame stepped to; a jump shows it at the far end of the file, before any frame is placed.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     read = FrameSource._time_ms
     for order_name, order in read_orders().items():
         with FrameSource(path) as source, monkeypatch.context() as patch:
@@ -90,13 +78,13 @@ def test_times_that_change_after_the_file_was_opened_never_give_a_wrong_frame(fa
 
 
 @pytest.mark.parametrize("fault_steps", [-1, 2])
-def test_times_that_shift_after_every_seek_never_give_a_wrong_frame(fault_steps, clip, monkeypatch):
+def test_times_that_shift_after_every_seek_never_give_a_wrong_frame(fault_steps, clip_with_frames, monkeypatch):
     # After a seek the decoder reports every time 1 frame step early or 2 late, until the file is
     # opened again. The times read after one seek agree with each other: the frame that arrived is
     # misplaced by whole frames, and the frame reached from it carries the time expected for frame
     # k. Counted from frame 0 nothing is wrong, so the table, which is right, stays; but no jump is
     # trusted, because the last frame of the file, reached by a seek, is not where the table ends.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     opened, seek, read = FrameSource._open, FrameSource._seek, FrameSource._time_ms
     state = {"sought": False, "shifted readings": 0}
 
@@ -126,12 +114,12 @@ def test_times_that_shift_after_every_seek_never_give_a_wrong_frame(fault_steps,
 
 
 @pytest.mark.parametrize("fault_steps", [-1.0, 0.3, 2.0])
-def test_a_wrong_time_after_a_later_seek_never_gives_a_wrong_frame(fault_steps, clip, monkeypatch):
+def test_a_wrong_time_after_a_later_seek_never_gives_a_wrong_frame(fault_steps, clip_with_frames, monkeypatch):
     # As test_a_wrong_time_after_a_seek_never_gives_a_wrong_frame in the other file, but the first
     # jump goes well, so jumps are trusted when the fault begins: the one wrong reading after each
     # seek then meets the placing of the frame that arrived and the comparison at every frame
     # stepped to, not the look at the far end.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     seek, read = FrameSource._seek, FrameSource._time_ms
     state = {"just sought": False, "wrong readings": 0}
 
@@ -163,10 +151,10 @@ def test_a_wrong_time_after_a_later_seek_never_gives_a_wrong_frame(fault_steps, 
 # The look at the far end, the count on the way, and the cache
 
 
-def test_the_far_end_of_the_table_is_looked_at_once_before_the_first_jump(disk_clip, sequential, monkeypatch):
+def test_the_far_end_of_the_table_is_looked_at_once_before_the_first_jump(disk_clip, sequential_frames, monkeypatch):
     # On a healthy file the look at the far end costs one seek, at the first jump, and none later.
     # It asks for the frame `SEEK_BACK` before the last one (115), as a jump to the last frame would.
-    frames = sequential["disk_clip"]
+    frames = sequential_frames["disk_clip"]
     with FrameSource(disk_clip.path) as source:
         asked = shift_seeks(source, 0, monkeypatch)  # every seek as it is, and the list of them
         for k in (20, 40):  # steps forward: no seek, and the far end is left alone
@@ -178,11 +166,11 @@ def test_the_far_end_of_the_table_is_looked_at_once_before_the_first_jump(disk_c
         assert len(asked) >= 7 and source.stats["from_zero"] == 0
 
 
-def test_a_seek_that_lands_after_the_last_frame_is_asked_again_earlier(clip, monkeypatch):
+def test_a_seek_that_lands_after_the_last_frame_is_asked_again_earlier(clip_with_frames, monkeypatch):
     # A seek to one of the last frames lands 10 frames late here, which is after the end: no frame
     # comes. That is no reason to distrust the table: the seek is asked again for an earlier frame,
     # as when it lands after frame k, so the look at the far end succeeds and jumps stay fast.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     seek, late = FrameSource._seek, []
 
     def seek_late_near_the_end(self, frame):
@@ -199,13 +187,13 @@ def test_a_seek_that_lands_after_the_last_frame_is_asked_again_earlier(clip, mon
         assert source.stats["seek"] > len(late) and source.stats["from_zero"] == 0
 
 
-def test_frames_placed_with_a_table_found_wrong_later_are_not_served_again(clip, monkeypatch):
+def test_frames_placed_with_a_table_found_wrong_later_are_not_served_again(clip_with_frames, monkeypatch):
     # The limit of the method (stated in frame_source.py): this table fits the decoder at both ends
     # of the file and at every frame compared on the way to frame 90, and still numbers frames 81
     # to 99 one too low. What the jump to frame 90 returns is therefore not asserted. What is: once
     # a count shows the table wrong (the steps from frame 70 to 85 pass frame 80), nothing that was
     # placed with it is served again, from the cache or otherwise.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     change_the_table(monkeypatch, without_one_frame)
     with FrameSource(path) as source:
         source.get(90)  # a jump, placed with the table
@@ -217,11 +205,11 @@ def test_frames_placed_with_a_table_found_wrong_later_are_not_served_again(clip,
         assert every_tested_frame_is_exact(source, frames)
 
 
-def test_a_count_that_passes_over_wrong_entries_gives_the_table_up(clip, monkeypatch):
+def test_a_count_that_passes_over_wrong_entries_gives_the_table_up(clip_with_frames, monkeypatch):
     # The same table. Frames 70 and 105 are where it is right; the steps from 70 to 105 pass over
     # frames 80 to 99, whose times it has wrong. Every time read on the way is compared, not only
     # the last, so the table is given up there, before a jump into that stretch can be misplaced.
-    _, path, frames = clip
+    _, path, frames = clip_with_frames
     change_the_table(monkeypatch, without_one_frame)
     with FrameSource(path) as source:
         assert same(source.get(70), frames[70])
