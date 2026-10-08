@@ -102,20 +102,12 @@ def assert_recorded_now(correction):
     assert abs((datetime.now().astimezone() - when).total_seconds()) < 60
 
 
-@pytest.fixture(scope="module")
-def tracked_folder(dish_clip, tmp_path_factory):
-    """A run folder in which A, B and C of the dish clip are tracked on every grid frame."""
-    folder = tmp_path_factory.mktemp("tracked")
-    assert run(dish_clip, abc_session(dish_clip, folder), folder, ExactFake(dish_clip))[0] == "complete"
-    return folder
-
-
 @pytest.fixture
-def tracked(tracked_folder, tmp_path):
-    """This test's own copy of that run, in a folder named with a space and non-ASCII characters:
-    (run folder, session, store)."""
+def tracked(tracked_dish_folder, tmp_path):
+    """This test's own copy of the tracked run (`tracked_dish_folder`, tests/conftest.py), in a folder
+    named with a space and non-ASCII characters: (run folder, session, store)."""
     folder = tmp_path / ODD_FOLDER
-    shutil.copytree(tracked_folder, folder)
+    shutil.copytree(tracked_dish_folder, folder)
     session = Session.load(folder / "session.json")
     assert session.complete is True
     return folder, session, ResultsStore.load(folder / "results.npz")

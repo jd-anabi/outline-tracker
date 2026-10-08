@@ -21,17 +21,15 @@ Tracker's convention (SPEC 3.1).
 
 import os
 import re
-import shutil
 
 import numpy as np
 import pytest
-from helpers import ODD_FOLDER
-from tracking_helpers import Recorder, Watched, abc_session, center, clicks_at, make_session, run, table_truth, track
+from tracking_helpers import Recorder, Watched, center, clicks_at, make_session, run, table_truth, track
 
 from outline_tracker.results import ResultsStore
-from outline_tracker.schema import RESULTS_KEYS, RESULTS_NPZ, SESSION_JSON
+from outline_tracker.schema import RESULTS_KEYS, RESULTS_NPZ
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Prompt, Session
+from outline_tracker.session import Prompt
 from outline_tracker.tracking_edit import (
     add_object,
     add_prompt,
@@ -45,23 +43,6 @@ from outline_tracker.tracking_edit import (
 GRID = list(range(0, 120, 2))  # `dish_clip` has 120 frames; the sessions here take every 2nd
 K = 40                         # the frame of a re-track: row 20 of every track
 NEW_NPZ = "results.new.npz"    # where a save goes while results.npz stays locked (`fileio.new_name`)
-
-
-@pytest.fixture(scope="module")
-def tracked_folder(dish_clip, tmp_path_factory):
-    """A run folder in which A, B and C of the dish clip are tracked on every grid frame."""
-    folder = tmp_path_factory.mktemp("tracked")
-    assert run(dish_clip, abc_session(dish_clip, folder), folder, ExactFake(dish_clip))[0] == "complete"
-    return folder
-
-
-@pytest.fixture
-def tracked(tracked_folder, tmp_path):
-    """This test's own copy of that run, in a folder named with a space and non-ASCII characters:
-    (run folder, session, store)."""
-    folder = tmp_path / ODD_FOLDER
-    shutil.copytree(tracked_folder, folder)
-    return folder, Session.load(folder / SESSION_JSON), ResultsStore.load(folder / RESULTS_NPZ)
 
 
 def frames_on_disk(folder, name=RESULTS_NPZ):
@@ -119,7 +100,7 @@ def stops_at_6(request, dish_clip, tmp_path):
         assert run(dish_clip, session, folder, ExactFake(dish_clip), Recorder(cancel_after_frame=6))[0] == "cancelled"
         store = ResultsStore.load(folder / RESULTS_NPZ)
     else:
-        folder, session, store = request.getfixturevalue("tracked")
+        folder, session, store = request.getfixturevalue("tracked_dish_run")
         retrack_a(session, store, dish_clip, folder, 8)
         assert undo_prompt(session, store, "A") is True
     # the track is cut before frame 8, and nothing is pending
@@ -177,9 +158,9 @@ def test_after_a_refusal_a_click_on_the_first_frame_after_the_last_record_leaves
     assert session.complete is True
 
 
-def test_a_track_without_results_starts_on_any_frame(tracked):
+def test_a_track_without_results_starts_on_any_frame(tracked_dish_run):
     # no record, no gap: the first click sets the start
-    folder, session, store = tracked
+    folder, session, store = tracked_dish_run
     first, second = add_object(session).id, add_object(session).id
     add_prompt(session, store, first, 100, (30.5, 40.5), 1, None, None)
     retrack_from(session, store, [second], 60, {second: Prompt(points_px=[[30.5, 40.5]], labels=[1])}, folder)
@@ -211,9 +192,9 @@ EDITS = {"retrack_from": (retrack_c, {"A": GRID, "B": GRID, "C": GRID[:20]}),
 
 
 @pytest.mark.parametrize("name", EDITS)
-def test_with_store_none_an_edit_keeps_the_records_a_job_wrote_since(tracked, dish_clip, name):
+def test_with_store_none_an_edit_keeps_the_records_a_job_wrote_since(tracked_dish_run, dish_clip, name):
     # The stale store: loaded before a job, used after it. The job reads and writes results.npz itself.
-    folder, session, stale = tracked
+    folder, session, stale = tracked_dish_run
     retrack_a(session, stale, dish_clip, folder, K)
     assert run(dish_clip, session, folder, ExactFake(dish_clip))[0] == "complete"
     assert stale.arrays("A").frames.tolist() == GRID[:20]  # the premise: this store lacks what the job tracked
@@ -228,8 +209,8 @@ def test_with_store_none_an_edit_keeps_the_records_a_job_wrote_since(tracked, di
 
 @pytest.mark.parametrize("given", [True, False], ids=["a store given", "store=None"])
 @pytest.mark.parametrize("name", ["retrack_from", "end_track"])
-def test_the_edit_carries_the_store_that_was_saved(tracked, dish_clip, name, given):
-    folder, session, store = tracked
+def test_the_edit_carries_the_store_that_was_saved(tracked_dish_run, dish_clip, name, given):
+    folder, session, store = tracked_dish_run
     edit, left = EDITS[name]
     done = edit(session, store if given else None, dish_clip, folder)
     assert done.results_file == folder / RESULTS_NPZ and frames_on_disk(folder) == left
@@ -257,9 +238,9 @@ def test_with_store_none_and_no_results_file_an_edit_starts_from_empty_results(d
                          ids=["results.npz locked", "results.new.npz locked too"])
 @pytest.mark.parametrize("given", [True, False], ids=["a store given", "store=None"])
 @pytest.mark.parametrize("name", EDITS)
-def test_an_edit_whose_save_does_not_land_raises_and_changes_nothing(tracked, dish_clip, monkeypatch, lock_file, name,
-                                                                     given, locked):
-    folder, session, store = tracked
+def test_an_edit_whose_save_does_not_land_raises_and_changes_nothing(tracked_dish_run, dish_clip, monkeypatch,
+                                                                     lock_file, name, given, locked):
+    folder, session, store = tracked_dish_run
     edit, left = EDITS[name]
     before, results, files = session.to_json(), (folder / RESULTS_NPZ).read_bytes(), files_of(folder)
 
@@ -279,12 +260,12 @@ def test_an_edit_whose_save_does_not_land_raises_and_changes_nothing(tracked, di
 
 
 @pytest.fixture
-def left_aside(tracked, dish_clip, lock_file):
+def left_aside(tracked_dish_run, dish_clip, lock_file):
     """A run folder in which a job could not write results.npz: (run folder, session, store).
     Track A was re-tracked from frame 40 while another program held results.npz open, so the job
     left its results in results.new.npz (A, B and C on every grid frame), and results.npz still
     has A on frames 0 to 38 only, as `store` does. That program still holds results.npz."""
-    folder, session, store = tracked
+    folder, session, store = tracked_dish_run
     retrack_a(session, store, dish_clip, folder, K)
     lock_file(folder / RESULTS_NPZ)
     status, seen = run(dish_clip, session, folder, ExactFake(dish_clip))
@@ -357,8 +338,8 @@ def test_an_edit_with_nothing_to_remove_is_refused_too_while_results_new_npz_is_
 
 
 @pytest.mark.parametrize("undone", [0, 1], ids=["both clicks", "one after undo_prompt"])
-def test_the_clicks_of_two_retracks_from_the_same_frame_add_up(tracked, dish_clip, undone):
-    folder, session, store = tracked
+def test_the_clicks_of_two_retracks_from_the_same_frame_add_up(tracked_dish_run, dish_clip, undone):
+    folder, session, store = tracked_dish_run
     first = clicks_at(dish_clip, "A", K)
     second = Prompt(frame=K, frame_hash=first.frame_hash, decoder=first.decoder, points_px=[[30.5, 40.5]], labels=[0])
     retrack_from(session, store, ["A"], K, {"A": first}, folder)

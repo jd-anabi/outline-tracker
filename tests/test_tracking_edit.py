@@ -10,19 +10,15 @@ each other in frame 60), and the rules of SPEC 9 applied to shapes whose flags a
 numbers; points are px in Tracker's convention (SPEC 3.1); times are s.
 """
 
-import shutil
-
 import numpy as np
 import pytest
-from helpers import ODD_FOLDER
 from results_helpers import lost, measured, read_npz
-from tracking_helpers import abc_session, center, clicks_at, make_session, run, track
+from tracking_helpers import center, clicks_at, make_session, track
 
 from outline_tracker.derive import derive_track
 from outline_tracker.qc import compute_flags
 from outline_tracker.results import ResultsStore
 from outline_tracker.schema import FLAG_SEPARATOR, FLAGS, RESULTS_NPZ, SESSION_JSON
-from outline_tracker.segmenter.fake import ExactFake
 from outline_tracker.session import Clip, Prompt, Session, TimeSettings, Track, VideoRef
 from outline_tracker.tracking_edit import (
     TRACK_COLORS,
@@ -40,23 +36,6 @@ from outline_tracker.tracking_plan import plan_runs
 
 GRID = list(range(0, 120, 2))
 FPS = 240.0  # the synthetic clips' frame rate, and fps_true of the sessions here
-
-
-@pytest.fixture(scope="module")
-def tracked_folder(dish_clip, tmp_path_factory):
-    """A run folder in which A, B and C of the dish clip are tracked on every grid frame."""
-    folder = tmp_path_factory.mktemp("tracked")
-    assert run(dish_clip, abc_session(dish_clip, folder), folder, ExactFake(dish_clip))[0] == "complete"
-    return folder
-
-
-@pytest.fixture
-def tracked(tracked_folder, tmp_path):
-    """This test's own copy of that run, in a folder named with a space and non-ASCII characters:
-    (run folder, session, store)."""
-    folder = tmp_path / ODD_FOLDER
-    shutil.copytree(tracked_folder, folder)
-    return folder, Session.load(folder / SESSION_JSON), ResultsStore.load(folder / RESULTS_NPZ)
 
 
 def frames_of(folder, track_id):
@@ -100,8 +79,8 @@ def test_add_object_refuses_an_unknown_mode():
     assert session.tracks == []
 
 
-def test_remove_object_takes_the_track_out_of_the_session_and_the_results(tracked):
-    folder, session, store = tracked
+def test_remove_object_takes_the_track_out_of_the_session_and_the_results(tracked_dish_run):
+    folder, session, store = tracked_dish_run
     before = read_npz(folder / RESULTS_NPZ)
     saved = remove_object(session, store, "B", folder)
     assert saved == folder / RESULTS_NPZ
@@ -115,8 +94,8 @@ def test_remove_object_takes_the_track_out_of_the_session_and_the_results(tracke
     assert add_object(session).id == "D"  # B was tracked once: its name is not given to another object
 
 
-def test_remove_object_of_an_object_without_results_does_not_write_the_results(tracked):
-    folder, session, store = tracked
+def test_remove_object_of_an_object_without_results_does_not_write_the_results(tracked_dish_run):
+    folder, session, store = tracked_dish_run
     name = add_object(session).id
     add_prompt(session, store, name, 20, (30.5, 40.5), 1, None, None)
     assert session.complete is False  # D has a click and waits
@@ -164,8 +143,8 @@ def test_an_object_that_waits_takes_no_clicks_on_another_frame(dish_clip, tmp_pa
     assert session.tracks[0].start_frame == 10 and [prompt.frame for prompt in session.tracks[0].prompts] == [10]
 
 
-def test_a_track_that_waits_for_a_retrack_takes_clicks_on_that_frame_only(tracked, dish_clip):
-    folder, session, store = tracked
+def test_a_track_that_waits_for_a_retrack_takes_clicks_on_that_frame_only(tracked_dish_run, dish_clip):
+    folder, session, store = tracked_dish_run
     clicks = clicks_at(dish_clip, "A", 40)
     retrack_from(session, store, ["A"], 40, {"A": clicks}, folder)
     with pytest.raises(ValueError, match="clicks on frame 40 that are not tracked yet"):
@@ -181,8 +160,8 @@ def test_a_track_that_waits_for_a_retrack_takes_clicks_on_that_frame_only(tracke
     ("A", 6, True, "1 .positive. or 0 .negative."),
     ("B", 52, 1, "ended at frame 50"),
 ], ids=["unknown track", "label 2", "label True", "after the track's end"])
-def test_add_prompt_refuses_what_it_cannot_use_and_changes_nothing(tracked, track_id, frame, label, message):
-    folder, session, store = tracked
+def test_add_prompt_refuses_what_it_cannot_use_and_changes_nothing(tracked_dish_run, track_id, frame, label, message):
+    folder, session, store = tracked_dish_run
     end_track(session, store, "B", 50, folder)
     before = session.to_json()
     with pytest.raises(ValueError, match=message):
@@ -211,8 +190,8 @@ def test_add_prompt_checks_the_click_before_it_changes_the_session(dish_clip, tm
     assert session.complete is True and pending_runs(session, store) == []
 
 
-def test_undo_prompt_removes_the_newest_click_and_keeps_the_earlier_frames(tracked, dish_clip):
-    folder, session, store = tracked
+def test_undo_prompt_removes_the_newest_click_and_keeps_the_earlier_frames(tracked_dish_run, dish_clip):
+    folder, session, store = tracked_dish_run
     start = session.tracks[0].prompts[0]
     add_prompt(session, store, "A", 40, (30.5, 40.5), 1, None, None)
     add_prompt(session, store, "A", 40, (31.5, 40.5), 0, None, None)
@@ -251,8 +230,8 @@ def test_set_head_needs_a_track_that_was_clicked_on(dish_clip, tmp_path):
     assert session.tracks[0].head_px is None
 
 
-def test_a_new_start_frame_drops_the_head_click_of_the_old_one(tracked, dish_clip):
-    folder, session, store = tracked
+def test_a_new_start_frame_drops_the_head_click_of_the_old_one(tracked_dish_run, dish_clip):
+    folder, session, store = tracked_dish_run
     session.tracks[1] = track(dish_clip, "B", frame=20)  # B was started on frame 20 ...
     set_head(session, "B", 20, (12.5, 30.25))
     retrack_from(session, store, ["B"], 10, {"B": clicks_at(dish_clip, "B", 10)}, folder)  # ... and now from 10
@@ -274,8 +253,8 @@ def test_pending_runs_are_the_runs_track_would_start(dish_clip, tmp_path):
         (("A", "C"), 0, "coarse", 60), (("B",), 0, "fine", 60)]
 
 
-def test_nothing_is_pending_when_every_click_is_tracked(tracked):
-    _, session, store = tracked
+def test_nothing_is_pending_when_every_click_is_tracked(tracked_dish_run):
+    _, session, store = tracked_dish_run
     assert pending_runs(session, store) == []
 
 
@@ -283,8 +262,8 @@ def test_nothing_is_pending_when_every_click_is_tracked(tracked):
 # The flags table
 
 
-def test_flags_table_lists_every_flag_of_every_frame_by_track_then_frame(tracked):
-    folder, session, store = tracked
+def test_flags_table_lists_every_flag_of_every_frame_by_track_then_frame(tracked_dish_run):
+    folder, session, store = tracked_dish_run
     rows = flags_table(folder)
     assert all(type(name) is str and type(frame) is int and type(t_s) is float and code in FLAGS
                for name, frame, t_s, code in rows)
@@ -313,8 +292,8 @@ def test_flags_table_lists_every_flag_of_every_frame_by_track_then_frame(tracked
                     for code in cell.split(FLAG_SEPARATOR) if code]
 
 
-def test_flags_table_follows_the_session_and_the_results_in_the_folder(tracked):
-    folder, session, store = tracked
+def test_flags_table_follows_the_session_and_the_results_in_the_folder(tracked_dish_run):
+    folder, session, store = tracked_dish_run
     set_head(session, "A", 0, [10.5, 10.5])
     end_track(session, store, "B", 50, folder)
     add_object(session)  # D: in the table of objects, without results

@@ -1,7 +1,8 @@
-"""Fixtures for the tests of every folder: synthetic clips with ground truth, a file that another
-program holds open, the settings kept out of the user's own, the main window. pytest finds a fixture
-by its name; nothing imports this file (tests/test_repo_rules.py says why). The plain helpers and
-values that tests import by name are in tests/helpers.py and in the helper modules beside it.
+"""Fixtures for the tests of every folder: synthetic clips with ground truth, a tracked run folder,
+a file that another program holds open, the settings kept out of the user's own, the main window.
+pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says why).
+The plain helpers and values that tests import by name are in tests/helpers.py and in the helper
+modules beside it.
 """
 
 import errno
@@ -81,6 +82,36 @@ def gapped_clip(tmp_path_factory):
 
     path = tmp_path_factory.mktemp("gapped") / "gapped_tracker.mp4"
     return synthetic.render(synthetic.disk_scene(), path, crf=10, skip_before=GAPS_BEFORE)
+
+
+# ---------------------------------------------------------------------------------------------
+# A tracked run folder, for the tests that change a run after it was tracked (tests/test_corrections.py,
+# tests/test_corrections_gaps.py, tests/test_tracking_edit.py)
+
+
+@pytest.fixture(scope="module")
+def tracked_dish_folder(dish_clip, tmp_path_factory):
+    """A run folder in which A, B and C of the dish clip are tracked on every grid frame. Made once for
+    each test module that asks for it; a test changes a copy of it (`tracked_dish_run`), never this folder."""
+    from outline_tracker.segmenter.fake import ExactFake
+    from tracking_helpers import abc_session, run
+
+    folder = tmp_path_factory.mktemp("tracked")
+    assert run(dish_clip, abc_session(dish_clip, folder), folder, ExactFake(dish_clip))[0] == "complete"
+    return folder
+
+
+@pytest.fixture
+def tracked_dish_run(tracked_dish_folder, tmp_path):
+    """This test's own copy of that run, in a folder named with a space and non-ASCII characters:
+    (run folder, session, store)."""
+    from outline_tracker.results import ResultsStore
+    from outline_tracker.schema import RESULTS_NPZ, SESSION_JSON
+    from outline_tracker.session import Session
+
+    folder = tmp_path / ODD_FOLDER
+    shutil.copytree(tracked_dish_folder, folder)
+    return folder, Session.load(folder / SESSION_JSON), ResultsStore.load(folder / RESULTS_NPZ)
 
 
 # ---------------------------------------------------------------------------------------------
