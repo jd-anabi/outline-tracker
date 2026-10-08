@@ -241,15 +241,16 @@ The window and the project:
       lock for runs and exports, the model box after results). It changed decision X7: the model
       is made in a short-lived thread of its own and used in the one worker thread, so that an
       export can run while a model loads. Checked with the real model on a Mac only.
-- [x] After that merge, the numbers of this file were counted again. All seven tests the
-      follow-up marked have successors (decision 3).
+- [x] After that merge, the numbers of this file were counted again.
+- [x] Decisions 1, 3 and 4 (2026-10-07): LICENSE and NOTICE added; the 24 superseded tests
+      deleted (three layout checks that only one of them held went into its successor).
 - [x] The README carries the advice on fine mode for a lost object (in Troubleshooting).
 - [x] The owner's check on the Mac is recorded in `docs/VALIDATION.md` (section 6.4).
 - [ ] Both CI systems are green on the merged commit.
 - [ ] The owner's check on a Windows machine, on the commit that will be tagged: install,
       selftest, the window opens, "Model ready" appears, a short run and an export finish.
-- [ ] Decisions 1 and 4; then a LICENSE file, the tag `v0.1.0`, both install lines of the README
-      with the tag.
+- [ ] The tag `v0.1.0`; both install lines of the README name it (written as
+      `refs/tags/v0.1.0`, with `--python 3.12`).
 - [x] This file, `docs/roadmap/` and `docs/design/gui_design.md` are committed and pushed.
 - [ ] The repository is made public.
 
@@ -257,10 +258,11 @@ The window and the project:
 
 Goal: no marked tests, no template in the tree, rules that fit a general tool. Why first: the
 port-fidelity tests pin the source text of functions that hold the class's words, so W3 cannot
-change them until the template is retired. Start: 25 strict `xfail` marks (20 superseded
-everywhere, 2 on some systems only, 3 real findings about the model); 25 helper files in three
-test folders; the lock simulation written in 11 files; 22 test files over 400 lines; three GUI
-tests open a gate from a timer thread and one sleeps.
+change them until the template is retired. Start: 3 strict `xfail` marks, all under
+`tests/slow/` (real findings about the model; the 24 superseded tests were deleted in W0); 25
+helper files in three test folders; the lock simulation written in 11 files; 22 test
+files over 400 lines; three GUI tests open a gate from a timer thread and one sleeps. The
+inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
 
 - [ ] 0. The version becomes `0.2.0.dev0` (`pyproject.toml`, `outline_tracker/__init__.py`, the
       test of the version line, the README's example line). CI also runs for pushes that change
@@ -269,8 +271,10 @@ tests open a gate from a timer thread and one sleeps.
       `docs/DEVELOPER.md` where it repeats the rules. `tests/gui/test_finish.py` pins phrases of
       `docs/DEVELOPER.md`, among them the xfail rule: change that test first. Done when the
       owner has approved the new `CLAUDE.md`.
-- [ ] 2. Delete the superseded tests (decision 3); correct the texts that mention them. Done
-      when the fast suite reports 0 xfailed on macOS, Linux and Windows.
+- [x] 2. Delete the superseded tests (decision 3). Done in W0: the fast suite reports 0
+      xfailed. Left for this workstream: a few comments in tests still name a deleted test as
+      the one their test follows, and `tests/gui/export_panel_helpers.py::set_times` is used by
+      no test now.
 - [ ] 3. Carry out decisions 26 and 27: rewrite the slow tests to the decided rules, and record
       the limits in `docs/VALIDATION.md`.
 - [ ] 4. Freeze reference numbers while the template is still there: the positions of the two
@@ -519,3 +523,5 @@ One line per session: date, workstream, what was done, the last commit.
   checked once against the code and by a cold read.
 - 2026-10-07: W0: the last follow-up of the first build merged (`f69afb7`); numbers counted
   again; README advice on fine mode; the owner's Mac check recorded.
+- 2026-10-07: W0: decisions 1, 3 and 4 answered; LICENSE and NOTICE; the 24 superseded tests
+  deleted; install lines with the tag.

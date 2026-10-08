@@ -218,6 +218,7 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   not yet on Windows: the Windows check of go/no-go 2 covers it (the status bar must reach
   "Model ready" and a run must finish). Default: keep it; the alternative is the simpler
   form, in which an export pressed during a load is written when the load has ended.
+  Done 2026-10-07: the seven tests were deleted on J's word. The change of X7 stands until J says otherwise.
   Done 2026-10-07: deleted on J's word.
 - **Wed 15:15, a finding worth telling the students: fine mode rescues a small object that
   coarse tracking loses.** With the real model through the window on the synthetic dish clip
@@ -253,7 +254,8 @@ _(the agent adds disputed tests, cut decisions and steps left for J here, newest
   `tests/gui/test_menus.py::test_the_menu_bar_has_file_and_help_with_the_specs_items` and
   `::test_open_video_and_open_session_are_the_file_menus_items_and_panel_1s_buttons`.
   Default: J says "delete them" and they go.
-  Done 2026-10-07: deleted on J's word. Three checks of (1) went with it and are in no test: slider top 8, height 20; flag strip top 30, height 6; slider 8 px in from each side.
+  Done 2026-10-07: deleted on J's word. Three checks that only test (1) held (slider top 8 and height 20; flag strip
+  top 30 and height 6; slider 8 px in from each side) were added to its successor in `tests/gui/test_play.py`.
 - **Wed 12:00, C2: two superseded tests marked `xfail(strict=True)`, for J to confirm their
   removal, and one choice to confirm.** (1) `tests/gui/test_controller.py::test_a_session_file_is_only_named_until_sessions_can_be_opened`
   pinned C1's stand-in behavior for a `.json` (only its name in the status bar); sessions open

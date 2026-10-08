@@ -58,13 +58,16 @@ def is_playing(bar) -> bool:
 
 
 def test_the_row_has_play_between_the_steps_back_and_the_steps_forward(bar):
-    # follows test_the_bar_is_laid_out_as_the_design_note_says of tests/gui/test_navigation.py
+    # the bar as the design note lays it out (docs/design/gui_design.md): slider, flag strip, the row
     assert bar.height() == 76
+    assert (bar.slider.geometry().top(), bar.slider.height()) == (8, 20)
+    assert (bar.flag_strip.geometry().top(), bar.flag_strip.height()) == (8 + 20 + 2, 6)
     buttons = row_parts(bar)[:7]
     assert [button.text() for button in buttons] == ["First", "−10", "−1", "Play", "+1", "+10", "Last"]
     assert {button.height() for button in buttons} == {28}
     row_top = 8 + 20 + 2 + 6 + 4
     assert {button.mapTo(bar, QPoint(0, 0)).y() for button in buttons} == {row_top}
+    assert row_top + 28 + 8 == 76
     lefts = [button.mapTo(bar, QPoint(0, 0)).x() for button in buttons]
     assert lefts[0] == 8  # the bar's padding
     gaps = [right - (left + button.width()) for button, left, right in zip(buttons, lefts, lefts[1:])]
@@ -74,6 +77,7 @@ def test_the_row_has_play_between_the_steps_back_and_the_steps_forward(bar):
     time_left = bar.time_label.mapTo(bar, QPoint(0, 0)).x()
     assert lefts[-1] + buttons[-1].width() < box_left < box_left + 96 <= time_left
     assert time_left + bar.time_label.width() == bar.width() - 8
+    assert bar.slider.geometry().left() == 8 and bar.slider.geometry().right() + 1 == bar.width() - 8
     assert bar.play_button.toolTip() == "Play or pause (Space)"
 
 
