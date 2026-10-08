@@ -10,7 +10,6 @@ without a warning). Frames are video frame numbers counted from 0; fps_true is i
 """
 
 import threading
-import time
 from pathlib import Path
 
 import cv2
@@ -22,7 +21,8 @@ from PySide6.QtWidgets import QApplication, QLabel
 import helpers
 from gui_helpers import record_dialogs, show
 from outline_tracker import video
-from outline_tracker.gui.panels import time_panel
+from outline_tracker.gui.panels import time_panel, video_panel
+from prompt_helpers import Gate
 from session_helpers import FOLDER_OF_NAME, LEFT, NAME, body, settle, type_into, wait_for_check, write_manifest
 
 pytestmark = pytest.mark.usefixtures("own_settings")  # every test here has a settings folder of its own
@@ -189,19 +189,27 @@ def test_with_a_name_and_a_video_without_warnings_the_panel_is_done(window, qtbo
 
 def test_the_check_runs_off_the_gui_thread_and_is_over_when_the_window_has_closed(window, qtbot, clip_in_odd_folder,
                                                                                   monkeypatch):
-    real, started, seen = video.check_video, threading.Event(), []
+    real, wait = video.check_video, video_panel.CheckThread.wait
+    started, seen, waits = threading.Event(), [], []
+    with Gate() as gate:
+        def slow(path):  # a check that is still at work when the window closes, as on a long video
+            started.set()
+            check = real(path)
+            gate.park()
+            seen.append((threading.current_thread() is threading.main_thread(), path))
+            return check
 
-    def slow(path):  # a check that takes a while, as on a long video
-        started.set()
-        check = real(path)
-        time.sleep(0.2)
-        seen.append((threading.current_thread() is threading.main_thread(), path))
-        return check
+        def waited_for(thread, *args):  # where closing waits for a check: only from here on can this one end
+            waits.append((threading.current_thread() is threading.main_thread(), list(seen)))
+            gate.open()
+            return wait(thread, *args)
 
-    monkeypatch.setattr(video, "check_video", slow)
-    window.open_path(clip_in_odd_folder.path)
-    assert started.wait(10)  # at work, in its own thread
-    assert window.close()  # closing waits for the check: the file is not held open afterwards
+        monkeypatch.setattr(video, "check_video", slow)
+        monkeypatch.setattr(video_panel.CheckThread, "wait", waited_for)
+        window.open_path(clip_in_odd_folder.path)
+        assert started.wait(10)  # at work, in its own thread
+        assert window.close()  # closing waits for the check: the file is not held open afterwards
+    assert waits == [(True, [])]  # one wait for the one check, in the GUI thread, and the check was not over then
     assert seen == [(False, clip_in_odd_folder.path)]
     clip_in_odd_folder.path.unlink()  # Windows refuses this while a file is open
 
