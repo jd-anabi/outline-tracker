@@ -1,5 +1,6 @@
 """Tests for the CONTACT flag (SPEC 9, decision X6): the distance between two outlines, the limit
-of a pair of tracks from their grid cell sizes, the frames that count, and speed.
+of a pair of tracks from their grid cell sizes, the frames that count, and how many frames are
+compared exactly (counted, not timed).
 
 Distances are in px in the image plane. Polygons are closed (the last point joined to the first).
 The tracks are disks with analytic logits or rectangles of pixels without logits, whose stored
@@ -9,7 +10,6 @@ of the two model inputs): 15 px in the full frame (cells of 7.5 px), 3 px betwee
 """
 
 import dataclasses
-import time
 
 import cv2
 import numpy as np
@@ -17,7 +17,7 @@ import pytest
 import qc_helpers as q
 from qc_helpers import CENTER, CLOSE, FULL_HD, WORLD
 
-from outline_tracker import qc
+from outline_tracker import qc, qc_contact
 
 DISH_CROP = (404, 0, 1112, 1080)   # a dish crop: grid cells of 1112 / 256 = 4.34 px, two of them 8.69 px
 
@@ -194,10 +194,14 @@ def test_three_tracks_are_compared_pair_by_pair():
     assert [q.rows_with("CONTACT", flags[name]) for name in "ABC"] == [[1], [1, 3], [3]]
 
 
-# --------------------------------------------------------------------------- speed
+# --------------------------------------------------------------------------- how many frames are compared exactly
 
 
-def test_ten_tracks_over_1200_frames_take_well_under_a_second():
+def test_of_ten_tracks_over_1200_frames_only_the_200_frames_with_near_boxes_are_compared_exactly(monkeypatch):
+    # Counted, not timed (docs/ROADMAP.md, section 2, rule 6). Comparing two outlines exactly takes
+    # every point of one against every edge of the other, and ten tracks over 1200 frames are 45
+    # pairs on 1200 frames each: 54000 comparisons, were every one made. The boxes around the
+    # outlines say where none is needed.
     # Ten disks of radius 7 px in the full frame (limit 15 px), 170 px apart, each going round a
     # circle of 20 px. Track 1 sits 22 px from track 0 on frames 400 to 499 (8 px of water:
     # contact). Track 3 sits (24, 24) px from track 2 on frames 800 to 899: their bounding boxes
@@ -207,13 +211,14 @@ def test_ten_tracks_over_1200_frames_take_well_under_a_second():
         {"A": [dataclasses.replace(q.disk(0, home, 7.0), frame=i) for i in range(n)]})
     one, rows = base_arrays["A"], np.arange(n)
     wobble = 20.0 * np.column_stack([np.cos(rows / 30.0), np.sin(rows / 30.0)])
-    derived, arrays = {}, {}
+    derived, arrays, centers = {}, {}, []
     for j in range(10):
         at = np.array([150.0 + 170.0 * j, 300.0]) + wobble
         if j == 1:
             at[400:500] = np.array([150.0 + 22.0, 300.0]) + wobble[400:500]
         if j == 3:
             at[800:900] = np.array([490.0 + 24.0, 300.0 + 24.0]) + wobble[800:900]
+        centers.append(at)
         # the same disk moved from `home` to `at`: centroids and outlines move with it (the mask
         # crops stay behind: no flag reads them)
         move = at - home
@@ -224,10 +229,34 @@ def test_ten_tracks_over_1200_frames_take_well_under_a_second():
         arrays[f"T{j}"] = moved
         derived[f"T{j}"] = dataclasses.replace(base_derived["A"], track_id=f"T{j}", x_mm=x, y_mm=y, u_px=moved.u,
                                                v_px=moved.v)
-    start = time.perf_counter()
+
+    # Which pairs come near on which frames, worked out from the scene. A disk of radius 7 px fills a
+    # box of 14 px, so the boxes of two disks whose centers are (du, dv) apart are (|du| - 14, |dv| - 14)
+    # apart, where that is positive. T0 and T1 on frames 400 to 499: (22 - 14, 0), 8 px. T2 and T3 on
+    # frames 800 to 899: (10, 10), 14.1 px. Both are within the 15 px. Nothing else is nearer than
+    # 156 px (two neighbours in the row: 170 - 14). So 100 + 100 frames are compared exactly.
+    # (The stored outline lies within 0.05 px of the disk's circle, asserted here; the nearest case has
+    # 0.8 px to spare.)
+    assert np.abs(np.hypot(*(one.outline_px[0] - home).T) - 7.0).max() < 0.05
+    near = {}
+    for a in range(10):
+        for b in range(a + 1, 10):
+            between = np.maximum(np.abs(centers[a] - centers[b]) - 14.0, 0.0)
+            frames = np.flatnonzero(np.hypot(between[:, 0], between[:, 1]) <= 15.0).tolist()
+            if frames:
+                near[a, b] = frames
+    assert near == {(0, 1): list(range(400, 500)), (2, 3): list(range(800, 900))}
+
+    compared = []   # the frames that each call of the exact comparison got
+    exact = qc_contact._distances
+
+    def counted(p, other):
+        compared.append(len(p))
+        return exact(p, other)
+
+    monkeypatch.setattr(qc_contact, "_distances", counted)
     flags = qc.compute_flags(derived, arrays, WORLD, processing)
-    seconds = time.perf_counter() - start
     touching = list(range(400, 500))
     assert [q.rows_with("CONTACT", flags[f"T{j}"]) for j in range(10)] == [touching, touching] + [[]] * 8
     assert all(len(flags[f"T{j}"]) == n for j in range(10))
-    assert seconds < 3.0   # the limit leaves room for a slow test machine
+    assert sum(compared) == 200   # of the 54000

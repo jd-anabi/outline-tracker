@@ -1,7 +1,7 @@
 """Tests for outline_tracker.derive: the rules around the quantities of tests/test_derive.py:
 lost rows, the heading reference (decision X17), the head guess, shapes without an extent or a
 hull, the largest piece of a mask with several (the size check), the settings, a changed
-calibration, and speed.
+calibration, and how much geometry a frame costs (counted, not timed).
 
 Tracks are analytic shapes sent through measure_mask (tests/derive_helpers.py). Shapes and clicks
 are in image px, angles of shapes in rad from +u toward +v; derived values are in mm and rad in
@@ -9,7 +9,6 @@ the world frame, y up, where an image angle a is the world angle -(a + alpha) (S
 """
 
 import dataclasses
-import time
 
 import analytic_shapes as shapes
 import derive_helpers as h
@@ -17,7 +16,7 @@ import numpy as np
 import pytest
 from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 
-from outline_tracker import derive
+from outline_tracker import derive, derive_outline
 from outline_tracker.derive_outline import hull_area_and_feret
 from outline_tracker.measure import measure_mask
 from outline_tracker.results import TrackArrays
@@ -477,15 +476,31 @@ def test_a_shorter_stick_scales_lengths_and_leaves_angles_and_ratios():
         assert getattr(new, name) == pytest.approx(getattr(old, name), rel=1e-11, abs=1e-13), name
 
 
-def test_1200_frames_take_well_under_a_second():
-    # Eight different shapes, repeated: the cost per frame is what a fine track's export pays.
+def test_1200_frames_cost_one_hull_and_one_set_of_rays_each(monkeypatch):
+    # Counted, not timed (docs/ROADMAP.md, section 2, rule 6). Eight different shapes, repeated: the
+    # cost per frame is what a fine track's export pays. The costly geometry of a frame is the convex
+    # hull of its stored outline (256 points) and its rays against the outline's segments: the 72 rays
+    # of the radial profile, one every 5 degrees, and the head ray. Every one of the 1200 rows is found,
+    # so the track costs 1200 hulls and 1200 * 73 rays, however the frames are grouped. A second pass
+    # over the outlines, for the Feret diameter or for the head ray alone, would show in a count.
     kinds = [tilted(0, 20.0 * i) for i in range(4)] + [h.record(
         lambda u, v, a=a: shapes.body_with_rods(u, v, CENTER, a)[0], 0, CENTER, half=90) for a in (0.3, 1.1, 2.0, 4.0)]
     arrays = h.arrays_of([dataclasses.replace(kinds[i % 8], frame=i) for i in range(1200)])
     track = h.Track(id="A", head_px=list(CENTER))
-    h.derive(kinds[:1])   # the first call loads scipy's hull code: not part of the cost per frame
-    start = time.perf_counter()
+    hulls, rays = [], []   # the points of each hull; the rays of each call, over all its frames
+    hull, crossings = derive_outline.hull_area_and_feret, derive_outline.farthest_crossings
+
+    def counted_hull(points):
+        hulls.append(len(points))
+        return hull(points)
+
+    def counted_crossings(polygon, origin, directions):
+        rays.append(int(np.prod(np.shape(directions)[:-1])))   # directions is [frames, rays, 2]
+        return crossings(polygon, origin, directions)
+
+    monkeypatch.setattr(derive_outline, "hull_area_and_feret", counted_hull)
+    monkeypatch.setattr(derive_outline, "farthest_crossings", counted_crossings)
     derived = derive.derive_track(arrays, track, TILTED, FPS, DISH, h.Processing())
-    seconds = time.perf_counter() - start
     assert len(derived.frame) == 1200 and np.isfinite(derived.radial_mm).all()
-    assert seconds < 3.0   # 0.35 s on a laptop; the limit leaves room for a slow test machine
+    assert hulls == [256] * 1200
+    assert sum(rays) == 1200 * (360 // 5 + 1) == 87600
