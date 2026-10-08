@@ -20,6 +20,3 @@ if sys.platform == "win32":
         import torch  # noqa: F401
     except Exception:  # not installed, or its DLLs failed to load: fast tests still run
         pass
-
-# Shared fixtures live in tests/helpers.py.
-pytest_plugins = ["helpers"]

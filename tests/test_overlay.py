@@ -27,7 +27,7 @@ from outline_tracker.results import ResultsStore
 from outline_tracker.session import Session
 from outline_tracker.synthetic import GroundTruth
 
-# The scenes of the session's clips (tests/helpers.py), for the tests that need no video file.
+# The scenes of the session's clips (tests/conftest.py), for the tests that need no video file.
 DISH = GroundTruth(synthetic.dish_scene(size=SMALL, n_frames=120))  # 320 x 240 px: the overlay is 3 times larger
 SHAPES = GroundTruth(synthetic.shapes_scene())                      # 640 x 480 px: 1.5 times
 RUN_FILES = ["results.npz", "session.json"]  # what `make_run` writes

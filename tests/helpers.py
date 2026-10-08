@@ -1,69 +1,16 @@
-"""Helpers and fixtures shared by the tests (registered in the root conftest.py).
+"""Helpers shared by the tests of every folder: plain functions and values, imported by name.
 
-What tests import by name is here or in a helper module beside the tests, never in a conftest.py
-(tests/test_repo_rules.py says why).
+Fixtures are not here: the ones for every test are in tests/conftest.py, where pytest finds them by
+name. What tests import by name is here or in a helper module beside the tests, never in a
+conftest.py (tests/test_repo_rules.py says why).
 """
 
-import shutil
-from dataclasses import replace
-
-import pytest
-
 # ---------------------------------------------------------------------------------------------
-# Synthetic clips with ground truth (outline_tracker/synthetic.py). Each is rendered once per test
-# session; a test must not write next to these files (use `clip_in_odd_folder` for that).
+# Synthetic clips with ground truth (outline_tracker/synthetic.py): the clip fixtures of
+# tests/conftest.py are made with these.
 
 SMALL = (320, 240)  # frame size of the fast tests' clips: (width, height) in px
 ODD_FOLDER = "vidéo test ü"  # a space and non-ASCII characters (review focus 1)
-
-
-@pytest.fixture(scope="session")
-def dish_clip(tmp_path_factory):
-    """`dish_scene` at 320 x 240 px, 120 frames (0.5 s), H.264: the GroundTruth with its `path`."""
-    from outline_tracker import synthetic
-
-    scene = synthetic.dish_scene(size=SMALL, n_frames=120)
-    return synthetic.render(scene, tmp_path_factory.mktemp("dish") / "dish_tracker.mp4")
-
-
-@pytest.fixture(scope="session")
-def closeup_clip(tmp_path_factory):
-    """`closeup_scene` at 320 x 240 px, 120 frames (0.5 s), H.264: the GroundTruth with its `path`."""
-    from outline_tracker import synthetic
-
-    scene = synthetic.closeup_scene(size=SMALL, n_frames=120)
-    return synthetic.render(scene, tmp_path_factory.mktemp("closeup") / "closeup_tracker.mp4")
-
-
-@pytest.fixture(scope="session")
-def disk_clip(tmp_path_factory):
-    """`disk_scene` (320 x 240 px, 120 frames) encoded with crf 10, as `ThresholdFake` needs."""
-    from outline_tracker import synthetic
-
-    return synthetic.render(synthetic.disk_scene(), tmp_path_factory.mktemp("disks") / "disks_tracker.mp4", crf=10)
-
-
-@pytest.fixture(scope="session")
-def shapes_clip(tmp_path_factory):
-    """`shapes_scene` (640 x 480 px, 60 frames), H.264: the GroundTruth with its `path`."""
-    from outline_tracker import synthetic
-
-    return synthetic.render(synthetic.shapes_scene(), tmp_path_factory.mktemp("shapes") / "shapes_tracker.mp4")
-
-
-@pytest.fixture
-def clip_in_odd_folder(tmp_path, dish_clip):
-    """The dish clip inside a fresh folder named with a space and non-ASCII characters.
-
-    Returns the GroundTruth with `path` = `<tmp_path>/vidéo test ü/dish_tracker.mp4`. The folder is
-    this test's own, so run folders and exports may be written next to the clip.
-    """
-    folder = tmp_path / ODD_FOLDER
-    folder.mkdir()
-    path = folder / dish_clip.path.name
-    shutil.copyfile(dish_clip.path, path)
-    return replace(dish_clip, path=path)
-
 
 # ---------------------------------------------------------------------------------------------
 # A clip whose timestamps have gaps (tests/test_frame_source.py), as a phone video with dropped
@@ -71,16 +18,6 @@ def clip_in_odd_folder(tmp_path, dish_clip):
 
 # Frame numbers before which one frame duration is skipped (72 twice: two durations). Three gaps.
 GAPS_BEFORE = (30, 72, 72, 101)
-
-
-@pytest.fixture(scope="session")
-def gapped_clip(tmp_path_factory):
-    """The frames of `disk_clip` (320 x 240 px, 120 frames, crf 10, B-frames) with three gaps in the
-    timestamps, before frames 30, 72 and 101: frame k is shown at (k + gaps so far) / 240 s."""
-    from outline_tracker import synthetic
-
-    path = tmp_path_factory.mktemp("gapped") / "gapped_tracker.mp4"
-    return synthetic.render(synthetic.disk_scene(), path, crf=10, skip_before=GAPS_BEFORE)
 
 
 def frame_times(skip_before=(), n_frames=120, fps=240.0):
@@ -139,16 +76,6 @@ def assert_empty_result(result):
 # The main window (tests/gui/)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def settings_out_of_the_users_own(tmp_path_factory):
-    """What the window remembers between sittings (QSettings, an INI file in the user's scope) goes
-    to a temporary folder for the whole test run, so that no test reads or writes the settings of
-    the person who runs the tests. A test that needs a folder of its own sets one after this."""
-    from PySide6.QtCore import QSettings
-
-    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path_factory.mktemp("settings")))
-
-
 def stand_in_segmenter(model, device):
     """What a GUI test gives the window in place of the real model's factory: a `ThresholdFake`, whatever
     the model key and the device are (images and prompts in px of the image given, segmenter/base.py).
@@ -158,11 +85,11 @@ def stand_in_segmenter(model, device):
     return ThresholdFake()
 
 
-@pytest.fixture
-def window(qtbot):
-    """A `MainWindow` made with `stand_in_segmenter`, not shown yet. It is closed after the test,
-    whatever happened in it, and the video it had open is released (Windows cannot delete a file
-    that is open): every GUI test gets its window from here."""
+def new_window(qtbot):
+    """Make a `MainWindow` with `stand_in_segmenter`, not shown yet, and close it afterwards: a
+    generator for a fixture to `yield from`, which hands out the window once. Run on after the test,
+    it closes the window and then the window's controller, which releases the video. The `window`
+    fixture of tests/conftest.py is this, and so is a second window that a test asks for."""
     from outline_tracker.gui.main_window import MainWindow
 
     made = MainWindow(segmenter_factory=stand_in_segmenter)

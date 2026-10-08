@@ -232,7 +232,7 @@ def test_dish_is_drawn_lighter_inside_than_outside():
 
 
 # ---------------------------------------------------------------------------------------------
-# Encoded clips (session fixtures of tests/helpers.py)
+# Encoded clips (session fixtures of tests/conftest.py)
 
 CLIPS = ["dish_clip", "closeup_clip", "disk_clip", "shapes_clip"]
 

@@ -4,7 +4,7 @@ The expected values are the spec's (the order and the titles of the nine panels,
 design note's layout numbers: minimum window 960 x 600, dock 400 wide (340 to 520), 8 px around and
 between the panels, bottom bar 76 high, the hint each panel shows while nothing is done, and the
 window's start (1440 x 900 in the middle of the screen with its title bar inside, else maximized).
-Sizes are Qt's device-independent px. The window comes from the `window` fixture (tests/helpers.py),
+Sizes are Qt's device-independent px. The window comes from the `window` fixture (tests/conftest.py),
 which closes it.
 """
 

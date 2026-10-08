@@ -4,8 +4,8 @@ Imported by name from tests/gui/test_export_panel.py, tests/gui/test_joins.py an
 tests/gui/test_smoke.py; the last two import the fixture too (a fixture imported into a test module
 is that module's own). Nothing here imports torch.
 
-- `second_window` is a second window for one test, made and closed by the function of the `window`
-  fixture of tests/helpers.py: a saved session reopens in it.
+- `second_window` is a second window for one test, made and closed as the `window` fixture's is
+  (`new_window` of tests/helpers.py): a saved session reopens in it.
 - `ExportWatch` stands where panel 9 calls `export.export_all`: it keeps how it was called, can say
   lines and wait at a `Gate` (tests/gui/prompt_helpers.py) first, and then calls the real one. No
   helper waits with a delay.
@@ -54,9 +54,9 @@ EXPORT_TIP = "Write the CSV files, the overlay video, the log and README.txt to 
 @pytest.fixture
 def second_window(qtbot):
     """A second `MainWindow` for the same test, not shown yet: made and closed by the very function
-    of the `window` fixture (tests/helpers.py), so it has the stand-in's factory, and after the
-    test its worker is stopped and its video released."""
-    yield from helpers.window.__wrapped__(qtbot)
+    of the `window` fixture (`new_window`, tests/helpers.py), so it has the stand-in's factory, and
+    after the test its worker is stopped and its video released."""
+    yield from helpers.new_window(qtbot)
 
 
 def export_panel(window):

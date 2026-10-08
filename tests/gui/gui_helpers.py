@@ -1,6 +1,6 @@
 """What the tests of the video view, the navigation and the opening of a video share (task C1 on).
 
-Imported by name from the test files beside it. Fixtures are not here: they are in tests/helpers.py.
+Imported by name from the test files beside it. Fixtures are not here: they are in tests/conftest.py.
 
 Where a part of the picture is on the screen is read from the drawn widget (`drawn`), never from
 the view's own numbers: a stand-in frame has one block of pixels in a colour that nothing else
