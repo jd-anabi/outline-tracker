@@ -4,7 +4,8 @@
 Students' own loaders read every .csv and .txt file of that folder as a track, so it may hold
 nothing but `<id>.csv`: no temporary file and no fallback file there ends in .csv or .txt, and the
 files of tracks that no longer exist are removed. The files are read back with last week's
-unmodified `shrimp.segment.read_tracker_export` (tests/reference).
+unmodified `shrimp.segment.read_tracker_export` (tests/reference), and by pandas alone
+(`read_with_pandas`), so that the check of the writer rests on no reader of the tool.
 
 Coordinates: x, y in mm in the user's axes (y up), pixelx, pixely in px (Tracker's convention).
 """
@@ -15,6 +16,7 @@ import shutil
 import time
 
 import numpy as np
+import pandas as pd
 import pytest
 from export_helpers import MODEL, RUN_FILES, coarse_run, load, store_run, table
 from overlay_helpers import record
@@ -41,6 +43,14 @@ def run_folder(tracked, tmp_path):
 
 def silent(_line):
     """A log that keeps nothing."""
+
+
+def read_with_pandas(path):
+    """A Tracker-format file read by pandas alone: (the name in its first line, its rows as a table
+    with the columns of its second line; an empty cell is NaN)."""
+    with open(path, encoding="utf-8") as file:
+        name = file.readline().split(",")[1]
+    return name, pd.read_csv(path, skiprows=1)
 
 
 def _lock(monkeypatch, *names):
@@ -74,6 +84,11 @@ def test_tracker_files_parse_with_last_weeks_reader_and_agree_with_positions(run
         # the same numbers written with the same decimals: the same values, not merely close ones
         for theirs, ours in (("x", "x_mm"), ("y", "y_mm"), ("pixelx", "u_px"), ("pixely", "v_px"), ("t", "t_s")):
             np.testing.assert_array_equal(read[theirs].to_numpy(), mine[ours].to_numpy(), err_msg=theirs)
+        # the same, read by pandas alone: the name of the first line, every frame, the same values
+        name, rows = read_with_pandas(path)
+        assert name == track_id and list(rows.frame) == list(mine.frame) == GRID
+        for theirs, ours in (("x", "x_mm"), ("y", "y_mm"), ("pixelx", "u_px"), ("pixely", "v_px"), ("t", "t_s")):
+            np.testing.assert_array_equal(rows[theirs].to_numpy(), mine[ours].to_numpy(), err_msg=theirs)
 
 
 def test_each_track_is_written_by_the_ported_writer_to_a_name_no_loader_reads(run_folder, monkeypatch):
@@ -168,6 +183,9 @@ def test_locked_files_get_the_new_data_next_to_them_and_a_warning(run_folder, mo
     assert {path.name for path in (run_folder / MODEL).iterdir()} == {"A.csv", "A.csv.new", "B.csv", "C.csv"}
     (name, read), = reference.read_tracker_export(_as_csv(run_folder / MODEL / "A.csv.new")).items()
     np.testing.assert_array_equal(read.x.to_numpy(), new_positions[new_positions.track_id == "A"].x_mm.to_numpy())
+    name, rows = read_with_pandas(run_folder / MODEL / "A.csv.new")  # pandas reads it under the name it has
+    assert name == "A"
+    np.testing.assert_array_equal(rows.x.to_numpy(), new_positions[new_positions.track_id == "A"].x_mm.to_numpy())
     for locked, fallback in (("positions.csv", "positions.new.csv"), ("A.csv", "A.csv.new")):
         assert any(locked in warning and fallback in warning for warning in report.warnings), report.warnings
         assert any(fallback in line for line in lines)

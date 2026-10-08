@@ -4,14 +4,16 @@ pure drawing, and `write_overlay`, which decodes the clip again and draws what r
 Expected values: where an outline, a dot or an id must be comes from the records the test made of
 the synthetic ground truth (tests/overlay_helpers.py), scaled to the overlay; a frame without
 tracks must be last week's overlay frame (`shrimp.segment._overlay`, the reference copy), which
-fixes the size, the resizing and the stamp. Colors are asserted on drawn arrays only, never on a
-decoded video: compression changes them. Positions are px, pixel centers at +0.5; colors are RGB.
+fixes the size, the resizing and the stamp, and it must follow the rule itself: the frame resized,
+and nothing but the stamp drawn on it (`stamp_box`). Colors are asserted on drawn arrays only, never
+on a decoded video: compression changes them. Positions are px, pixel centers at +0.5; colors are RGB.
 """
 
 import errno
 import warnings
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 from helpers import SMALL
@@ -81,6 +83,19 @@ def test_the_id_is_written_next_to_the_dot_in_the_tracks_color():
     assert lettered[rows, cols].all()
 
 
+def stamp_box(frame: int, t_s: float) -> tuple[int, int, int, int]:
+    """The rectangle of an overlay frame that holds its stamp: (left, top, right, bottom) in whole px
+    of the overlay, counted from its top-left corner, right and bottom not included.
+
+    The stamp is the text `t = 1.234 s   frame 296`, written with `cv2.putText` from (10, 22), the
+    left end of the line the letters stand on, in OpenCV's Hershey Simplex font at scale 0.6 with a
+    line 2 px thick. `cv2.getTextSize` gives the box of such a text: how far it reaches to the right
+    of that point, how far above it, and how far below. 3 px are added on every side for the thick
+    line and its soft edge, and the rectangle ends at the frame's top."""
+    (width, height), below = cv2.getTextSize(f"t = {t_s:.3f} s   frame {frame}", cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+    return 10 - 3, max(22 - height - 3, 0), 10 + width + 3, 22 + below + 3
+
+
 @pytest.mark.parametrize("size, shape, frame, t_s", [
     ((320, 240), (720, 960, 3), 0, 0.0),
     ((1920, 1080), (540, 960, 3), 1438, 6.0016694),
@@ -91,6 +106,16 @@ def test_a_frame_without_tracks_is_last_weeks_overlay_frame(size, shape, frame, 
     rgb = np.random.default_rng(3).integers(0, 256, (size[1], size[0], 3), dtype=np.uint8)
     image = draw_overlay_frame(rgb, [], frame, t_s)
     assert image.dtype == np.uint8 and image.shape == shape
+    # The rule, without last week's script: the frame resized to the overlay's size with OpenCV's
+    # bilinear interpolation, and nothing drawn on it but the stamp. Outside the stamp's rectangle
+    # the two are the same picture; inside it the stamp has changed pixels.
+    resized = cv2.resize(rgb, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
+    left, top, right, bottom = stamp_box(frame, t_s)
+    stamp = np.zeros(shape[:2], bool)
+    stamp[top:bottom, left:right] = True
+    assert stamp.sum() < 0.02 * stamp.size  # a small corner of the frame: nearly all of it is compared
+    assert np.array_equal(image[~stamp], resized[~stamp])
+    assert (image[stamp] != resized[stamp]).any()
     assert np.array_equal(image, reference._overlay(rgb, [], [], [], frame, t_s))
 
 

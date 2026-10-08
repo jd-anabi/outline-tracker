@@ -14,7 +14,8 @@ computer, and the CHECK messages the same list.
 The fourth compares what `from_tracker` writes with the frozen files of the same three cases,
 tests/data/tracker_format/<case>/<name>.csv, and needs nothing of the template. The third is what
 writes them, only when asked and only after the template and the package agreed in that run
-(tests/frozen_helpers.py).
+(tests/frozen_helpers.py). The plan and the CHECK messages of each case are typed values
+(`REPORTED`): the fourth holds the tool's run to them, and the third the template's.
 
 The frozen bytes belong to the decoder that made them. The positions come from a clip that OpenCV
 encodes and decodes on the computer that runs the test, and another build of OpenCV gives other digits
@@ -35,12 +36,13 @@ drawn at (x, y) by `disk_video` is at (x + 0.5, y + 0.5) px. Frames are video fr
 """
 
 import os
+import re
 
 import numpy as np
 import pandas as pd
 import pytest
 from conftest import java_sci
-from from_tracker_helpers import disk_video, write_start_file
+from from_tracker_helpers import FPS, disk_video, write_start_file
 from frozen_helpers import (GOLDEN, SIDECAR, compare_with_golden, frozen_files, read_frozen, same_decoder,
                             write_frozen, write_listing)
 from test_tracker_io import MM_PER_PX, export_text, tracker_map
@@ -160,6 +162,33 @@ def _every_frame_and_a_jump(folder):
 
 CASES = [_one_track, _start_file_and_a_lost_disk, _every_frame_and_a_jump]
 
+# What a run of each case reports besides its files: the plan as (start, step, n), and its CHECK
+# messages as patterns that a whole message must fit.
+# - `_one_track`: marked on every 4th frame from 40 to 160: (160 - 40) / 4 + 1 = 31 frames;
+# - `_start_file_and_a_lost_disk`: marked on frame 40, tracked with step 4 for 100 / 240 s at 240 frames
+#   per s: 100 / 4 = 25 frames, 40 to 136. B is gone from frame 100 on: the 10 frames 100 to 136, the
+#   first at t = 100 / 240 = 0.417 s;
+# - `_every_frame_and_a_jump`: marked on every frame from 10 to 40: 31 frames. From frame 25 on the disk
+#   is 12 px further right, so it moves 12.5 px in that one frame: 0.625 mm at 0.05 mm per px, at
+#   t = 25 / 240 = 0.104 s. The stand-in finds each center within 0.25 px: 0.60 to 0.65 mm.
+REPORTED = {
+    "_one_track": ((40, 4, 31), []),
+    "_start_file_and_a_lost_disk": ((40, 4, 25), [r"B: lost in 10 of 25 frames \(first at t = 0\.417 s\)"]),
+    "_every_frame_and_a_jump": ((10, 1, 31),
+                                [r"A: jumps 0\.6[0-5] mm at t = 0\.104 s \(frame 25\): check the video there"]),
+}
+
+
+def assert_the_plan_and_the_messages(case, plan, flags) -> None:
+    """A run of a case reported what `REPORTED` holds for it: the plan's start, step and n, 240
+    frames per s, and its CHECK messages, one for each pattern and in that order."""
+    frames, messages = REPORTED[case.__name__]
+    assert (plan.start, plan.step, plan.n) == frames
+    # Two of the cases take fps_true from the times of their export, which have 7 digits there
+    # (`java_sci`): 240 to a few parts in a million, not to the last bit.
+    assert plan.fps == pytest.approx(FPS, rel=1e-5)
+    assert len(flags) == len(messages) and all(map(re.fullmatch, messages, flags)), flags
+
 
 def as_written_here(frozen: bytes) -> bytes:
     """The bytes of a frozen Tracker-format file (LF line ends) with this system's line ends, which is
@@ -173,10 +202,11 @@ def golden_decoder_here() -> bool:
     return same_decoder(read_frozen(GOLDEN / SIDECAR)[0], decoder_tag())
 
 
-def run_and_compare(folder, case, strict: bool) -> None:
+def run_and_compare(folder, case, strict: bool):
     """Run a case with the stand-in model in `folder` and judge its Tracker-format files against the
     case's golden files: the names, then each file by its bytes when `strict` (this is the decoder that
-    froze them), and by what holds with every decoder otherwise (`compare_with_golden`)."""
+    froze them), and by what holds with every decoder otherwise (`compare_with_golden`). Returns what
+    `from_tracker` returned."""
     video, export, options, names = case(folder)
     new = from_tracker(video, export, model="stand-in", segmenter=ThresholdFake(), overlay=False,
                        out=folder / "new", log=lambda *a: None, **options)
@@ -188,6 +218,7 @@ def run_and_compare(folder, case, strict: bool) -> None:
         else:
             compare_with_golden(f"{case.__name__}, {new_file.name}", new_file, frozen / new_file.name,
                                 true_center(case, new_file.stem), tracker_map)
+    return new
 
 
 @pytest.mark.parametrize("case", CASES)
@@ -208,6 +239,8 @@ def test_the_tracker_format_files_are_last_weeks_bytes(tmp_path, case):
     assert new.flags == old["flags"]
     assert (new.plan.start, new.plan.step, new.plan.n, new.plan.fps) == (
         old["plan"].start, old["plan"].step, old["plan"].n, old["plan"].fps)
+    # the typed values of the next test, proved here against the template's own run
+    assert_the_plan_and_the_messages(case, old["plan"], old["flags"])
     # The template and the package agree. Only now, and only when asked, their bytes are frozen (with LF).
     frozen = GOLDEN / case.__name__
     for new_file in new.files:
@@ -226,7 +259,8 @@ def test_the_tracker_format_files_are_last_weeks_bytes(tmp_path, case):
 @pytest.mark.parametrize("case", CASES)
 def test_the_tracker_format_files_are_the_frozen_bytes(tmp_path, case):
     # the bytes with the decoder that froze them; with another, the fixed text and the true centers
-    run_and_compare(tmp_path, case, strict=golden_decoder_here())
+    new = run_and_compare(tmp_path, case, strict=golden_decoder_here())
+    assert_the_plan_and_the_messages(case, new.plan, new.flags)
 
 
 @pytest.mark.parametrize("case", CASES)
