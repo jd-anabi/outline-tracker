@@ -1,8 +1,9 @@
 """EdgeTAM: Meta's original checkpoint converted for Hugging Face transformers.
 
-Ported from the course's shrimp._edgetam; the constants and functions it had are unchanged. No test
-holds the two renaming tables themselves: a slow test compares the hash of the converted file with
-the frozen one (tests/data/edgetam_weights.txt). Meta publishes EdgeTAM as a PyTorch file
+Ported from the course's shrimp._edgetam; the constants and functions it had are unchanged. A slow
+test holds what they give: tests/slow/test_edgetam_conversion.py converts Meta's checkpoint again,
+into an empty folder, and on the machine that froze them the new model.safetensors must have the
+hash and size of tests/data/edgetam_weights.txt. Meta publishes EdgeTAM as a PyTorch file
 (facebook/EdgeTAM on Hugging Face, also in github.com/facebookresearch/EdgeTAM). transformers can
 run EdgeTAM but needs the weights renamed; the renaming below is taken from transformers' own
 conversion script (src/transformers/models/edgetam_video/convert_edgetam_video_to_hf.py, Apache
