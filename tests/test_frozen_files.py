@@ -17,7 +17,8 @@ centers at +0.5, u to the right, v downward) in the full 1920 x 1080 frame; fram
 numbers. The slow tests that run the model against the two files (tests/slow/test_frozen_reference.py)
 leave two decisions to the helper, and both are tested here with made-up headers and positions: on which
 machine the limit of 0.01 px is asserted (`same_machine`), and how positions are judged
-(`compare_with_frozen`).
+(`compare_with_frozen`). So is the reason that one of those tests is skipped with where the limit was
+not asserted (`why_the_limit_was_not_asserted`).
 
 The test after those is about the golden Tracker-format files (tests/data/tracker_format/): with which
 decoder their bytes are asserted (`same_decoder`), on made-up decoder tags. How a file is judged with
@@ -44,7 +45,7 @@ import pytest
 from frozen_helpers import (COLUMNS, DATA, GOLDEN, POSITIONS, SIDECAR, SWITCH, WEIGHTS, compare_with_frozen,
                             freeze_asked, frozen_files, frozen_text, header_lines, machine_here, machine_name,
                             machine_of, position_rows, read_frozen, read_positions, read_weights, same_decoder,
-                            same_machine, write_frozen, write_listing)
+                            same_machine, why_the_limit_was_not_asserted, write_frozen, write_listing)
 from helpers import HOME_PATH
 
 from outline_tracker import provenance, video
@@ -370,6 +371,57 @@ def test_the_limit_is_asserted_only_on_the_machine_that_froze_the_numbers():
     # the two frozen files hold every fact that the rule asks them for
     assert [key for key, value in machine_of(read_positions()[0]).items() if not value] == []
     assert [key for key, value in machine_of(read_frozen(WEIGHTS)[0]).items() if not value] == ["weights sha256"]
+
+
+def test_the_reason_names_each_fact_in_which_this_machine_is_not_the_headers():
+    # a made-up header, and machines as `machine_here` would describe them
+    header = {"machine": "Apple M1 Max", "decoder": "opencv-5.0.0/darwin/arm64",
+              "libraries": "torch 2.14.1; torchvision 0.29.1; numpy 2.5.3", "weights sha256": "ab" * 32}
+    here = {"platform": "darwin", "architecture": "arm64", "chip": "Apple M1 Max", "torch": "2.14.1",
+            "weights sha256": "ab" * 32}
+    # the machine that froze the numbers: the limit was asserted, and there is no reason to give
+    assert same_machine(header, here) is True
+    assert why_the_limit_was_not_asserted(header, here) == ""
+
+    # another machine, one fact at a time: the whole reason for the first, typed by hand
+    assert why_the_limit_was_not_asserted(header, {**here, "chip": "Apple M3 Pro"}) == (
+        "The limit of 0.01 px was not asserted: this is not the machine that froze the numbers (chip: Apple M3 Pro "
+        "here, Apple M1 Max in the header). The position tests asserted instead that no row is lost and that every "
+        "position is under 3 px from its true center, and printed the distance from the frozen positions (shown "
+        "with -rP).")
+    others = {
+        "chip": ("Apple M3 Pro", "chip: Apple M3 Pro here, Apple M1 Max in the header"),
+        "torch": ("2.15.0", "torch: 2.15.0 here, 2.14.1 in the header"),
+        "weights sha256": ("cd" * 32, f"hash of the weights: {'cd' * 32} here, {'ab' * 32} in the header"),
+        "platform": ("linux", "operating system: linux here, darwin in the header"),
+        "architecture": ("x86_64", "architecture: x86_64 here, arm64 in the header"),
+    }
+    for key, (value, named) in others.items():
+        reason = why_the_limit_was_not_asserted(header, {**here, key: value})
+        assert f"({named})" in reason, key  # this fact and no other
+        assert reason.startswith("The limit of 0.01 px was not asserted: ") and "under 3 px" in reason, key
+        assert same_machine(header, {**here, key: value}) is False, key
+
+    # a test machine of CI: every fact differs, and each is named, in the order of `machine_here`
+    ci = {"platform": "linux", "architecture": "x86_64", "chip": "AMD EPYC 7763 64-Core Processor",
+          "torch": "2.14.1+cpu", "weights sha256": "cd" * 32}
+    reason = why_the_limit_was_not_asserted(header, ci)
+    assert "(operating system: linux here, darwin in the header; architecture: x86_64 here, arm64 in the header; " in reason
+    assert "; chip: AMD EPYC 7763 64-Core Processor here, Apple M1 Max in the header; " in reason
+    assert f"; torch: 2.14.1+cpu here, 2.14.1 in the header; hash of the weights: {'cd' * 32} here, " in reason
+
+    # a fact that the header does not hold, and one that this machine could not read: named as such, never passed over
+    no_hash = {key: value for key, value in header.items() if key != "weights sha256"}
+    assert f"(hash of the weights: {'ab' * 32} here, not named in the header)" in why_the_limit_was_not_asserted(no_hash, here)
+    assert "(chip: not known here, Apple M1 Max in the header)" in why_the_limit_was_not_asserted(header, {**here, "chip": ""})
+    # asked without the hash, as the rule may be: the hash is no reason
+    without = {key: value for key, value in here.items() if key != "weights sha256"}
+    assert why_the_limit_was_not_asserted({**header, "weights sha256": "cd" * 32}, without) == ""
+
+    # a reason is given exactly where the rule says "another machine"
+    for machine in (here, ci, without, {**here, "chip": ""}, *({**here, key: value} for key, (value, _) in others.items())):
+        for made in (header, no_hash):
+            assert (why_the_limit_was_not_asserted(made, machine) == "") is same_machine(made, machine)
 
 
 def test_positions_are_judged_by_the_frozen_numbers_here_and_by_the_truth_elsewhere(capsys):

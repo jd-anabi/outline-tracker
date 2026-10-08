@@ -26,6 +26,10 @@ The machine rule (`frozen_helpers.same_machine`): the limit of 0.01 px and the w
 asserted on the machine that froze the numbers. On another machine the position tests assert that
 no row is lost and that every position is under 3 px from its true center, and print the distance
 from the frozen numbers as measured; the weights test is skipped, and its reason names both hashes.
+The position tests pass either way, and pytest hides what a passing test prints. So one more test
+says in the summary which it was: it passes where the limit of 0.01 px was asserted, and is skipped
+elsewhere with a reason that names each fact in which this machine is not the header's and what
+the position tests asserted instead (`frozen_helpers.why_the_limit_was_not_asserted`).
 
 Lines printed with the prefix `VALIDATION` are the numbers of docs/VALIDATION.md; show them with
 `uv run pytest -m slow tests/slow/test_frozen_reference.py -q -rPs` (`s` adds the reason of a skipped
@@ -43,7 +47,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from from_tracker_helpers import write_start_file
-from frozen_helpers import compare_with_the_frozen_positions, machine_here, machine_of, read_weights, same_machine
+from frozen_helpers import (compare_with_the_frozen_positions, machine_here, machine_of, read_positions,
+                            read_weights, same_machine, why_the_limit_was_not_asserted)
 from helpers import tracker_map
 from pipeline_helpers import position, write_three_ellipse_clip
 
@@ -143,6 +148,18 @@ def test_the_pipelines_tracker_files_equal_the_frozen_numbers(loaded, clips, nam
     found = np.stack([table[["pixelx", "pixely"]].to_numpy(float) for table in tables], axis=1)
     compare_with_the_frozen_positions(f"{name}, pipeline (from_tracker) on cpu", name, FRAMES, clip.names, found,
                                       clip.true, segmenter.weights_sha256)
+
+
+def test_the_limit_of_0_01_px_was_asserted_on_this_machine(loaded):
+    # The four tests above pass on every machine, with the limit of 0.01 px or with the 3 px of the
+    # other branch. This one asks the machine rule as they do, with the hash of the loaded weights:
+    # it passes where they asserted the limit, and elsewhere it is skipped with what differs here.
+    header = read_positions()[0]
+    here = machine_here(_segmenter(loaded).weights_sha256)
+    reason = why_the_limit_was_not_asserted(header, here)
+    if reason:
+        pytest.skip(reason)
+    assert same_machine(header, here)
 
 
 def test_the_weights_are_the_frozen_file(loaded):

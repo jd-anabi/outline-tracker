@@ -860,7 +860,14 @@ machine that froze the numbers when its operating system's family, its architect
 torch version and the hash of its weights are the header's. Only then the limit is asserted.
 Anywhere else the position tests assert that no row is lost and that every position is under 3 px
 from its true center, and they print the distance from the frozen numbers with the sentence that
-the limit was not measured for that machine. The weights test asks the rule without the hash: on
+the limit was not measured for that machine. The position tests pass either way, and pytest hides
+what a passing test prints. So one more test of the file shows in the summary of a run which it was
+(since 2026-10-08, after the review of W1): `test_the_limit_of_0_01_px_was_asserted_on_this_machine`
+passes where the limit was asserted, and is skipped elsewhere with a reason that names each fact in
+which the machine is not the header's and what the position tests asserted instead. Measured on
+2026-10-08 on the machine that froze the numbers: the file gave `6 passed`; with the chip's name
+changed in a copy of the header, that test was skipped and its reason named the chip here and the
+one in the header. The weights test asks the rule without the hash: on
 the freezing machine other weights fail it, and on another machine it is skipped with both hashes
 in the reason (the converted file is written on each machine, so its hash may differ there for a
 reason that is no fault). No other machine has run these tests: what they measure there is not

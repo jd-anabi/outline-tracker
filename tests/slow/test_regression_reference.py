@@ -4,8 +4,9 @@ criterion of SPEC 13.4. Every test here is slow: it needs torch.
 Three groups:
 1. no weights (seconds): the real processor and session, with the network replaced by a stand-in
    that returns given logits: the clicks as the session holds them, scaled to the model's
-   1024 x 1024 input; the mask as logits > 0 and the crop rule; and, for logits that draw a known
-   disk, its center and area in the frame;
+   1024 x 1024 input; the mask as logits > 0 and the crop rule; for logits that draw a known
+   disk, its center and area in the frame; and for random logits, that each mask covers half of
+   the frame and no two objects have the same;
 2. the real EdgeTAM on `cpu`: ONE loaded model, on the selftest clip (one object) and on a
    three-object clip made with the same recipe: what the segmenter reports, the clip's own
    properties, and the selftest criterion (max error < 3 px against the true positions). The first
@@ -254,11 +255,47 @@ def _assert_the_disk_of_the_blob_logits(result) -> None:
     assert v_px == pytest.approx(120.5 * cell_h, abs=0.5 + 4 * center_sd * cell_h)
 
 
+def _assert_half_of_the_frame_each_and_no_two_alike(results) -> None:
+    """The masks of `_random_logits`, held to what those logits are: for each of the three objects a
+    draw of its own, cell by cell, from a distribution that is symmetric about 0.
+
+    So each mask covers close to half of the frame. And the masks of two objects agree (a pixel is in
+    both or in neither) on close to half of the frame: no object got the mask of another, which would
+    agree everywhere.
+
+    How close: the pixels are not independent, so the bound comes from the cells and not from the
+    number of pixels. The processor interpolates the 256 x 256 cells of the model's grid to the frame
+    (bilinear): a pixel's logit is a weighted mean, with weights of one sign, of the up to four cells
+    around it. Cut the frame along the lines through the cells' centers, into rectangles of
+    1920 / 256 = 7.5 px by 1080 / 256 = 4.21875 px (half as wide or high at the frame's border). All
+    pixels of a rectangle come from the same four cells (two or one at the border), and a rectangle
+    holds at most 8 x 5 = 40 pixel centers.
+    - The share of a rectangle's pixels that are in the mask lies between 0 and 1, and its mean is
+      1/2: the draw with every sign changed is as likely and gives the complement. So its variance
+      is at most 1/4, and so is its covariance with the share of another rectangle.
+    - Two rectangles that share no cell are independent, and a rectangle shares a cell only with
+      itself and its 8 neighbours.
+    The covered share of the frame, N = 1920 x 1080 pixels, is the mean of the rectangles' shares
+    weighted with their pixels, so its variance is at most 9 * 40 / (4 N) = 90 / N: a standard
+    deviation of at most 0.0066. Four are allowed: 2.6 % of the frame. (Independent pixels would give
+    0.5 / sqrt(N) = 0.00035.) The same bound holds for the share on which two masks agree: changing
+    every sign of one of the two draws turns agreement into disagreement.
+    """
+    most_px = math.ceil(W / 256) * math.ceil(H / 256)  # pixel centers in one rectangle, at most
+    limit = 4 * math.sqrt(9 * most_px / (4 * W * H))
+    full = [_full(result) for result in results]
+    for name, mask in zip(NAMES, full):
+        assert mask.mean() == pytest.approx(0.5, abs=limit), name
+    for a, b in ((0, 1), (0, 2), (1, 2)):
+        assert (full[a] == full[b]).mean() == pytest.approx(0.5, abs=limit), (NAMES[a], NAMES[b])
+
+
 @pytest.mark.parametrize("make_logits", [_random_logits, _blob_logits], ids=["random", "blobs"])
 def test_per_object_logits_give_the_reference_masks(processor, make_logits):
     # Until W1 step 5 the masks were compared with those that last week's script made of the same logits,
-    # pixel for pixel. What needs no script is asserted: the rule that makes a mask of logits and crops it,
-    # and, for the logits that draw a known disk, where that disk is.
+    # pixel for pixel. What needs no script is asserted: the rule that makes a mask of logits and crops it;
+    # for the logits that draw a known disk, where that disk is; and for the random logits, how much of
+    # the frame each mask covers and that the three objects have masks of their own.
     from outline_tracker.segmenter import hf
 
     image = np.zeros((H, W, 3), np.uint8)
@@ -278,6 +315,8 @@ def test_per_object_logits_give_the_reference_masks(processor, make_logits):
         assert results[0].mask.size < 0.01 * H * W  # a real crop, not the whole frame
         assert [bool(result.mask.any()) for result in results] == [True, True, False]  # the third object is absent
         _assert_the_disk_of_the_blob_logits(results[0])
+    else:
+        _assert_half_of_the_frame_each_and_no_two_alike(results)
     # The session counts its own frames 0, 1, 2, ...: never the video's frame numbers.
     assert model.frame_indices == [0, 1, 2]
 

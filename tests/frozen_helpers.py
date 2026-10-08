@@ -27,7 +27,8 @@ hash and size of the weights that gave them. A position is (u_px, v_px): px in T
 The slow tests that compare a run with them (tests/slow/test_frozen_reference.py) leave two decisions to
 this module: on which machine the limit of 0.01 px is asserted (`same_machine`), and how positions are
 judged (`compare_with_frozen`). They ask both with one call for a clip of the table
-(`compare_with_the_frozen_positions`).
+(`compare_with_the_frozen_positions`). Where the limit was not asserted, one test of that file is
+skipped, and this module words its reason (`why_the_limit_was_not_asserted`).
 
 The golden Tracker-format files are files of the second layout (the part before the last): `GOLDEN`,
 what the tool wrote for three cases with the stand-in model. The tests that compare a run with them
@@ -359,6 +360,11 @@ def machine_of(header: dict[str, str]) -> dict[str, str]:
             "torch": libraries.get("torch", ""), "weights sha256": header.get("weights sha256", "")}
 
 
+# The facts of `machine_here`, as a sentence names them.
+_FACTS = {"platform": "operating system", "architecture": "architecture", "chip": "chip", "torch": "torch",
+          "weights sha256": "hash of the weights"}
+
+
 def same_machine(header: dict[str, str], here: dict[str, str]) -> bool:
     """The machine rule: whether `here` (`machine_here`) is the machine that made the frozen file with
     this header.
@@ -371,6 +377,25 @@ def same_machine(header: dict[str, str], here: dict[str, str]) -> bool:
     """
     made = machine_of(header)
     return all(value and made.get(key) == value for key, value in here.items())
+
+
+def why_the_limit_was_not_asserted(header: dict[str, str], here: dict[str, str]) -> str:
+    """What a run says where the machine rule gives "another machine": "" when `same_machine(header,
+    here)`, where `LIMIT_PX` was asserted; otherwise the reason, in two sentences. The first names
+    each fact of `here` (`machine_here`) that is not the header's, this machine's value before the
+    header's, in the order of `here`; a fact that could not be read here is "not known", one that the
+    header does not hold is "not named". The second says what the position tests asserted instead
+    (`compare_with_frozen`). A passing test prints nothing that pytest's summary shows, so the slow
+    tests skip one test with this reason (tests/slow/test_frozen_reference.py)."""
+    made = machine_of(header)
+    other = [f"{_FACTS[key]}: {value or 'not known'} here, {made.get(key) or 'not named'} in the header"
+             for key, value in here.items() if not value or made.get(key) != value]
+    if not other:
+        return ""
+    return (f"The limit of {LIMIT_PX} px was not asserted: this is not the machine that froze the numbers "
+            f"({'; '.join(other)}). The position tests asserted instead that no row is lost and that every position "
+            f"is under {TRUTH_PX:g} px from its true center, and printed the distance from the frozen positions "
+            "(shown with -rP).")
 
 
 def compare_with_frozen(what: str, found, frozen, true, strict: bool) -> None:
