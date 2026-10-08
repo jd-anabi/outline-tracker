@@ -104,7 +104,7 @@ def look(qapp):
     yield
     qapp.setStyleSheet(sheet)
     qapp.setPalette(palette)
-    if style:
+    if style:  # no name: a style sheet was in place before the test, and its wrapper cannot be asked
         qapp.setStyle(style)
 
 

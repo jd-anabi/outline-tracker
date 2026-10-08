@@ -35,17 +35,6 @@ def contrast(one: str, other: str) -> float:
 
 
 @pytest.fixture
-def look(qapp):
-    """Put the application's style, palette and style sheet back after the test."""
-    style, palette, sheet = qapp.style().name(), QPalette(qapp.palette()), qapp.styleSheet()
-    yield
-    qapp.setStyleSheet(sheet)
-    qapp.setPalette(palette)
-    if style:  # no name: a style sheet was in place before the test, and its wrapper cannot be asked
-        qapp.setStyle(style)
-
-
-@pytest.fixture
 def qt_messages():
     """Every message Qt writes during the test, as text (its warnings about a style sheet among them)."""
     seen = []

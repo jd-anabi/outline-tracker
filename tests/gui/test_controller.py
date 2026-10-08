@@ -17,7 +17,7 @@ import cv2
 import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QKeySequence
-from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QPushButton
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton
 
 import helpers
 from gui_helpers import picture, record_dialogs, show
@@ -316,16 +316,6 @@ def test_closing_the_window_releases_the_video(window, qtbot, dish_clip, tmp_pat
 
 # ---------------------------------------------------------------------------------------------
 # The dialogs themselves
-
-
-@pytest.fixture
-def never_blocking(monkeypatch):
-    """Make `exec`, which would wait for the user and never return here, an error."""
-    def blocked(*_):
-        raise AssertionError("A dialog was run with exec(): it blocks the window. Use open().")
-
-    for kind in (QDialog, QMessageBox, QFileDialog):
-        monkeypatch.setattr(kind, "exec", blocked)
 
 
 @pytest.mark.parametrize("kind, icon", [("info", QMessageBox.Icon.Information),
