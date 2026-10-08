@@ -7,6 +7,20 @@ repository (`vX.Y.Z`).
 
 Development version `0.2.0.dev0`. The files it writes say so.
 
+### Changed
+
+- The size check of a shape is now of the largest connected piece of the mask, not of the whole
+  mask. Three columns of `shapes.csv` changed: `px_along_major`, `cells_along_major` and
+  `shape_ok`, and with them the flag `LOWRES`. The formula in words: take the pixels of the
+  largest piece, then the larger eigenvalue lambda1 of the covariance of their centers;
+  `px_along_major` is 4 sqrt(lambda1) in camera pixels, `cells_along_major` is that length
+  divided by the size of one model grid cell, and `shape_ok` is 1 if the smaller of the two
+  reaches 20. Before, two stray pixels far from a body 15 px long made the whole mask read
+  135 px, and the frame lost its `LOWRES` flag. The position, the area, `major_mm`, `minor_mm`
+  and `eccentricity` are of the whole mask, as before. A run folder made by 0.1.0 shows the new
+  values at its next export on the frames whose mask has more than one piece (`n_components`
+  above 1); every other row is unchanged. No file format changed: nothing is tracked again.
+
 ## 0.1.0 (2026-10-07)
 
 ### Added

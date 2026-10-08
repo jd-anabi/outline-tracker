@@ -256,6 +256,56 @@ def test_shape_ok_needs_camera_pixels_and_grid_cells():
     assert resolution(40.0, 15.0, (580, 280, 240, 240), "fine")[2] == 1
 
 
+def test_stray_pixels_do_not_lengthen_the_size_check():
+    # A body of 6 rows x 15 columns of pixels, seen with grid cells of 1002 / 256 px; on the second
+    # row of the track the mask also holds 2 pixels 240 columns away (h.stray_pixel_records). The
+    # size check is of the largest piece, the body: n pixel centers in a row have the variance
+    # (n^2 - 1) / 12, so L1 = 4 sqrt((15^2 - 1) / 12) = 17.28 px, which is 4.4 cells: too small on
+    # every row. Over all 92 pixels the second row would read 146 px and 37 cells.
+    track = h.derive(h.stray_pixel_records(), TILTED)
+    body_px = 4.0 * np.sqrt((15 ** 2 - 1) / 12.0)
+    assert track.n_components.tolist() == [1, 2, 1]
+    assert track.px_along_major == pytest.approx([body_px] * 3, rel=1e-9)
+    assert track.cells_along_major == pytest.approx([body_px / (1002 / 256)] * 3, rel=1e-9)
+    assert track.shape_ok.tolist() == [0, 0, 0]
+    # Everything else on the second row is still of the whole mask. Its 92 pixel centers, in px
+    # from the body's top-left corner: the body's 90 and the two stray ones.
+    u = np.concatenate([np.tile(np.arange(15) + 0.5, 6), [255.5, 256.5]])
+    v = np.concatenate([np.repeat(np.arange(6) + 0.5, 15), [2.5, 2.5]])
+    assert (len(u), u.sum(), v.sum()) == (92, 1187.0, 275.0)
+    assert track.u_px[1] == pytest.approx(h.STRAY_AT[0] + 1187 / 92, abs=1e-9)
+    assert track.v_px[1] == pytest.approx(h.STRAY_AT[1] + 275 / 92, abs=1e-9)
+    du, dv = u - 1187 / 92, v - 275 / 92
+    uu, uv, vv = np.mean(du * du), np.mean(du * dv), np.mean(dv * dv)
+    lambda1 = (uu + vv) / 2 + np.hypot((uu - vv) / 2, uv)
+    lambda2 = (uu + vv) / 2 - np.hypot((uu - vv) / 2, uv)
+    assert 4.0 * np.sqrt(lambda1) == pytest.approx(145.96, abs=0.01)
+    assert track.major_mm[1] / K == pytest.approx(4.0 * np.sqrt(lambda1), rel=1e-9)
+    assert track.minor_mm[1] / K == pytest.approx(4.0 * np.sqrt(lambda2), rel=1e-9)
+    assert track.eccentricity[1] == pytest.approx(np.sqrt(1.0 - lambda2 / lambda1), rel=1e-9)
+    assert track.area_mm2[1] == pytest.approx(K ** 2 * 92, rel=1e-12)
+
+
+def test_a_far_piece_of_two_pixels_does_not_lengthen_an_ellipse():
+    # The a = 40, b = 15 px ellipse at 30 degrees, alone and with a piece of 2 px that lies 300 px to
+    # its right. The second moment of a uniform ellipse along its major axis is a^2 / 4, so L1 = 2a
+    # = 80 px, with the piece as without it (2% as for the moments above). Over all pixels the row
+    # with the piece would read 87 px.
+    a = np.radians(30.0)
+    column, row = int(CENTER[0]) + 300, int(CENTER[1])   # the first of the piece's two pixels
+
+    def with_piece(u, v):
+        piece = shapes.box(u, v, (column + 1.0, row + 0.5), 1.0, 0.5, 0.0)   # two pixel centers lie inside
+        return shapes.union(shapes.ellipse(u, v, CENTER, 40.0, 15.0, a), piece)
+
+    records = [h.ellipse_record(0, CENTER, 40.0, 15.0, a), h.record(with_piece, 1, CENTER, half=320)]
+    assert records[1].area_px == records[0].area_px + 2
+    track = h.derive(records, TILTED)
+    assert track.n_components.tolist() == [1, 2]
+    assert track.px_along_major[1] == pytest.approx(80.0, rel=0.02)
+    assert track.px_along_major[0] == track.major_mm[0] / K   # one piece: the full mask's value, to the bit
+
+
 # --------------------------------------------------------------------------- dish wall
 
 

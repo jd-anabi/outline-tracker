@@ -73,6 +73,20 @@ def test_lowres_is_on_the_frames_whose_shape_is_not_ok(a, b, box, settings, cell
     assert q.flags_of({"A": records}, {"A": q.head()}, **settings) == {"A": [cell] * 3}
 
 
+def test_two_stray_pixels_do_not_switch_lowres_off():
+    # A body of 6 rows x 15 columns of pixels with grid cells of 3.9 px, no head click: 17 px and 4.4
+    # cells along its major axis, so LOWRES and HEADGUESS on every row. On the second row the mask
+    # also holds 2 pixels 240 columns away (h.stray_pixel_records). They are 2 / 90 = 2.2% of the
+    # body, under the 10% of MULTI, and the size check is of the body, the largest piece: still
+    # LOWRES. ORIENT is right there: the core was stored at tracking time with an opening radius
+    # from the whole mask, 146 px long (radius 15 px against a body 6 px wide), so it fell back.
+    records = h.stray_pixel_records()
+    assert [one.n_components for one in records] == [1, 2, 1]
+    assert [one.second_fraction for one in records] == pytest.approx([0.0, 2 / 90, 0.0])
+    assert [(one.core_r_px, one.core_fallback) for one in records] == [(2, False), (15, True), (2, False)]
+    assert q.flags_of({"A": records}) == {"A": ["LOWRES;HEADGUESS", "LOWRES;ORIENT;HEADGUESS", "LOWRES;HEADGUESS"]}
+
+
 # --------------------------------------------------------------------------- EDGE, MULTI, ORIENT
 
 
@@ -101,6 +115,20 @@ def test_multi_marks_a_second_piece_of_at_least_a_tenth_of_the_largest():
     records = [q.ellipse(0), with_piece(2, 10.0), q.ellipse(4), with_piece(6, 5.0), q.ellipse(8)]
     assert [one.n_components for one in records] == [1, 2, 1, 2, 1]
     assert q.flags_of({"A": records}, {"A": q.head()}) == {"A": ["", "MULTI", "", "", ""]}
+
+
+def test_a_mask_with_a_large_second_piece_is_multi_and_is_sized_by_its_largest_piece():
+    # The ellipse of pi x 40 x 15 = 1885 px and, 55 px below it, a disk of radius 10 px: 314 px, 17%
+    # of the ellipse, so MULTI. The size check is of the ellipse alone, whose L1 is 2a = 80 px (the
+    # second moment of a uniform ellipse along its major axis is a^2 / 4); over both pieces
+    # together the major axis would read 88 px.
+    below = (CENTER[0], CENTER[1] + 55.0)
+    both = h.record(lambda u, v: shapes.union(shapes.ellipse(u, v, CENTER, 40.0, 15.0, TILT),
+                                              shapes.disk(u, v, below, 10.0)), 2, CENTER, half=80, input_box=CLOSE)
+    assert both.n_components == 2 and both.second_fraction == pytest.approx(314 / 1885, abs=0.01)
+    derived, arrays, processing = q.tracks({"A": [q.ellipse(0), both, q.ellipse(4)]}, {"A": q.head()})
+    assert qc.compute_flags(derived, arrays, WORLD, processing) == {"A": ["", "MULTI", ""]}
+    assert derived["A"].px_along_major == pytest.approx([80.0] * 3, rel=0.02)
 
 
 def test_multi_starts_at_exactly_ten_percent():

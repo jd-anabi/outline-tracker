@@ -21,8 +21,14 @@ Which number comes from where:
   outline polygon instead.
 - Perimeter, Feret diameter, wall distance of the outline and the radial rays use the stored
   256-point outline, mapped to world coordinates and turned counterclockwise there.
-- `major_mm`, `minor_mm`, `eccentricity` and the resolution indicators come from the full mask's
-  moments; the heading and `core_x_mm`, `core_y_mm` from the core's (`derive_heading`).
+- `major_mm`, `minor_mm` and `eccentricity` come from the full mask's moments (the stored
+  `cov_full`); the heading and `core_x_mm`, `core_y_mm` from the core's (`derive_heading`).
+- The resolution indicators `px_along_major`, `cells_along_major` and `shape_ok` are of the
+  largest piece of the mask, the piece the outline goes around (`measure.largest_piece`), so that
+  a few stray pixels far from the object cannot lengthen them. With one piece that is the full
+  mask, and `cov_full` gives them. With more pieces (`n_components` > 1) the row's stored mask
+  crop is unpacked and its largest piece is measured; a crop without a pixel keeps the value of
+  `cov_full`.
 
 The polygon geometry is in `derive_outline`; its `radial_profile` and `feret_max` (the maximum
 Feret diameter of an outline, also for one in px) are offered here too. No Qt, no torch.
@@ -38,6 +44,7 @@ import numpy as np
 from outline_tracker.derive_heading import principal_axes, track_headings
 from outline_tracker.derive_outline import feret_max, outline_quantities, radial_profile, ray_angles
 from outline_tracker.geometry import WorldFrame
+from outline_tracker.measure import largest_piece
 from outline_tracker.results import TrackArrays
 from outline_tracker.session import Circle, Processing, Track
 
@@ -58,8 +65,9 @@ class DerivedTrack:
     - theta_rad: the heading, rad counterclockwise from +x in world coordinates, unwrapped.
       core_x_mm, core_y_mm: the core centroid, world mm. core_frac, n_components,
       largest_fraction: as stored.
-    - px_along_major: major axis in camera px. cells_along_major: in model grid cells. shape_ok:
-      1 if the smaller of the two reaches `shape_ok_min`, else 0.
+    - px_along_major: the major axis 4 sqrt(lambda1) of the largest piece of the mask, in camera
+      px (with one piece: of the full mask). cells_along_major: the same in model grid cells.
+      shape_ok: 1 if the smaller of the two reaches `shape_ok_min`, else 0.
     - wall_dist_centroid_mm, wall_dist_min_mm: dish radius minus the centroid's distance, and
       minus the outline's largest distance, from the dish center, mm; negative outside the
       circle; NaN without a circle.
@@ -117,6 +125,7 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
     """Every world quantity of one track (SPEC 7.1-7.9) from its pixel records.
 
     arrays: the track's records from the results store, in image px, one row per tracked frame.
+    A stored mask crop is unpacked only on a row whose mask has more than one piece.
     track: its entry in the session; `head_px` (the head click, image px, or None) and
     `start_frame` (the frame the click belongs to) fix the head side, `id` names the result.
     world_frame: the calibration: scale in mm per px, origin in px, axis angle in rad.
@@ -146,6 +155,11 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
     with np.errstate(invalid="ignore", divide="ignore"):
         eccentricity = np.sqrt(1.0 - lambda2 / lambda1)   # no extent: NaN
         px_along_major = major / k
+    for row in np.flatnonzero(visible & (arrays.n_components > 1)):   # several pieces: the largest one alone
+        crop, _ = arrays.mask(row)
+        if crop.any():
+            px_along_major[row] = _largest_piece_px(crop)
+    with np.errstate(invalid="ignore", divide="ignore"):
         cells_along_major = px_along_major / arrays.cell_px
         shape_ok = np.minimum(px_along_major, cells_along_major) >= processing.shape_ok_min   # NaN: not ok
 
@@ -184,3 +198,17 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
         outline_xieta_mm=xieta, radial_mm=shape.radial, heading=headings.heading, orient=headings.orient,
         headguess=np.full(len(arrays), headings.headguess),
     )
+
+
+def _largest_piece_px(crop: np.ndarray) -> float:
+    """L1 = 4 sqrt(lambda1) in px of the largest piece of a stored mask crop [row, column] with at
+    least one pixel: lambda1 is the larger eigenvalue of the covariance of the piece's pixel
+    centers, the formula of the full mask's major axis on fewer pixels. The piece is the one the
+    outline was taken from: `measure_mask` labels the mask with one pixel around it, so the crop
+    gets one too (see `measure.largest_piece`)."""
+    piece, _ = largest_piece(np.pad(crop, 1))
+    rows, cols = np.nonzero(piece)
+    du, dv = cols - cols.mean(), rows - rows.mean()
+    # (uu, uv, vv) in image px: only the eigenvalue is used, which is the same in image and world axes
+    lambda1, _, _ = principal_axes([np.mean(du * du), np.mean(du * dv), np.mean(dv * dv)])
+    return 4.0 * math.sqrt(lambda1)

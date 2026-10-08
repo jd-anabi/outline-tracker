@@ -19,6 +19,7 @@ from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 from outline_tracker import derive
 from outline_tracker.derive_outline import hull_area_and_feret
 from outline_tracker.measure import measure_mask
+from outline_tracker.results import TrackArrays
 from outline_tracker.session import Circle
 
 DISH = Circle(center_px=[900.2, 520.7], radius_px=400.0)
@@ -311,6 +312,46 @@ def test_feret_max_is_the_largest_distance_between_two_outline_points():
     assert derive.feret_max(stored) == pytest.approx(47.0, rel=0.005)
     assert np.isnan(derive.feret_max(h.lost_record(0).outline_px))                    # an empty preview mask
     assert np.isnan(derive.feret_max(np.array([[0.0, 0.0], [3.0, 4.0]])))             # no hull
+
+
+# --------------------------------------------------------------------------- the largest piece (size check)
+
+
+@pytest.mark.parametrize("line_at, block_at", [((3, 15), (4, 5)), ((4, 5), (3, 15)), ((3, 5), (3, 15)),
+                                               ((5, 15), (3, 5))])
+def test_of_two_equal_pieces_the_size_check_takes_the_one_the_outline_goes_around(line_at, block_at):
+    # Two pieces of 6 px each, their top-left pixels at (row, column) `line_at` and `block_at`: a
+    # line of 1 x 6 px, L1 = 4 sqrt((6^2 - 1) / 12) = 6.83 px, and a block of 2 rows x 3 columns,
+    # L1 = 4 sqrt((3^2 - 1) / 12) = 3.27 px. Neither is the larger one. The stored outline goes
+    # around one of them, and the size check must be of that same piece. Without logits an outline
+    # runs through the centers of the border pixels: it spans 5 px in u around the line and 2 px
+    # around the block.
+    mask = shapes.blocks((10, 30), (line_at[0], line_at[0] + 1, line_at[1], line_at[1] + 6),
+                         (block_at[0], block_at[0] + 2, block_at[1], block_at[1] + 3))
+    one = measure_mask(shapes.pixel_result(mask, offset=(700, 400)), 0, h.FULL_HD, "coarse")
+    assert (one.area_px, one.n_components, one.second_fraction) == (12, 2, 1.0)
+    span = float(np.ptp(one.outline_px[:, 0]))
+    assert span == pytest.approx(5.0, abs=1e-3) or span == pytest.approx(2.0, abs=1e-3)
+    longest = 6 if span > 4.0 else 3   # pixels along the major axis of the piece with the outline
+    track = h.derive([one], UPRIGHT)
+    assert track.px_along_major[0] == pytest.approx(4.0 * np.sqrt((longest ** 2 - 1) / 12.0), rel=1e-9)
+
+
+def test_only_a_mask_of_several_pieces_is_unpacked(monkeypatch):
+    # Counted, not timed: a track whose masks all have one piece costs no unpacking of a stored
+    # mask, lost rows included; of the three rows with the stray pixels only the second is looked at.
+    unpacked = []
+    stored_mask = TrackArrays.mask
+
+    def counted(self, row):
+        unpacked.append(int(row))
+        return stored_mask(self, row)
+
+    monkeypatch.setattr(TrackArrays, "mask", counted)
+    h.derive([tilted(0, 20.0), tilted(1, 30.0), h.lost_record(2), tilted(3, 40.0)])
+    assert unpacked == []
+    h.derive(h.stray_pixel_records())
+    assert unpacked == [1]
 
 
 # --------------------------------------------------------------------------- settings and calibration

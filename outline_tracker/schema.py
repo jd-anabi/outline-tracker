@@ -113,7 +113,7 @@ SHAPES: list[Column] = [
     _float("feret_max_mm", "mm", 6, "largest distance between two points of the outline"),
     _int("n_components", "number of connected pieces of the mask (0 if the track is lost)"),
     _float("largest_fraction", "", 6, "area of the largest piece / area of the mask"),
-    _float("px_along_major", "px", 3, "camera pixels along the major axis of the full mask (L1 / k)"),
+    _float("px_along_major", "px", 3, "camera pixels along the major axis of the largest piece of the mask (L1 / k)"),
     _float("cells_along_major", "cells", 3, "model grid cells along the major axis, (L1 / k) / cell, "
            "with cell = max(width, height) / 256 px of the image the model saw"),
     _int("shape_ok", "1 if min(px_along_major, cells_along_major) >= 20 (setting shape_ok_min), else 0"),

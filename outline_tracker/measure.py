@@ -15,7 +15,8 @@ pixel in column c and row r has its center at (c + 0.5, r + 0.5) (SPEC 3.1). Sec
 px^2, in the same (u, v) axes.
 
 Rules fixed here; they are frozen into results.npz at tracking time:
-- Components are 8-connected everywhere: two pixels that touch at a corner belong together.
+- Components are 8-connected everywhere: two pixels that touch at a corner belong together. The
+  largest one is what `largest_piece` returns.
 - The core (SPEC 7.3) is the largest component of the mask's opening with the disk of pixels
   (x, y), x^2 + y^2 <= r^2, r = max(1, floor(core_open_frac * L1 + 0.5)) px, L1 = 4 sqrt(lambda1)
   of the full mask. If the opening removes more than half of the mask's pixels, the core is the
@@ -126,6 +127,26 @@ def unpack_mask(bits: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
     return np.unpackbits(np.asarray(bits, np.uint8), count=rows * cols).reshape(rows, cols).astype(bool)
 
 
+def largest_piece(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The largest 8-connected piece of a non-empty boolean mask [row, column], and the pixel
+    count of every piece.
+
+    Returns (piece, sizes): `piece` has the mask's shape and is true on the pixels of the piece
+    with the most pixels; `sizes` holds one count per piece. `measure_mask` takes the outline from
+    this piece, and `derive` takes the size check from it (`px_along_major`), so that both are of
+    the same pixels.
+
+    Of pieces with exactly the same number of pixels, the first in OpenCV's label order is taken.
+    That order depends on the row the array begins with, because OpenCV labels in blocks of 2 x 2
+    pixels. `measure_mask` gives the mask's bounding box with one pixel around it. For the same
+    piece from a stored crop, give the crop with one pixel around it too (`np.pad(crop, 1)`). One
+    case stays open: a mask on the first row of the model's image had no row above it, and the
+    crop does not say so. Only there, and only between pieces of equal size, can the two differ.
+    """
+    labels, sizes = _components(mask)
+    return labels == 1 + int(np.argmax(sizes)), sizes
+
+
 def measure_mask(result: MaskResult, frame: int, input_box: tuple[int, int, int, int], mode: str,
                  core_open_frac: float = 0.1) -> PixelRecord:
     """Measure one object's mask on one frame: its pixel-space record (SPEC 7.1-7.4, 7.8, 8.12).
@@ -177,9 +198,8 @@ def measure_mask(result: MaskResult, frame: int, input_box: tuple[int, int, int,
     u, v, area = mask_center(work)
     cov_full = _covariance(work)
 
-    labels, sizes = _components(work)
+    largest, sizes = largest_piece(work)
     ordered = np.sort(sizes)[::-1]
-    largest = labels == 1 + int(np.argmax(sizes))
 
     radius = max(1, math.floor(core_open_frac * _major_axis(cov_full) + 0.5))
     opened = _opening(work, radius)

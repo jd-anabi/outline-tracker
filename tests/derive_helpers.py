@@ -50,6 +50,22 @@ def lost_record(frame, mode="coarse"):
     return measure_mask(shapes.pixel_result(np.zeros((0, 0), bool)), frame, FULL_HD, mode)
 
 
+STRAY_BOX = (0, 0, 1002, 1002)   # the model input of `stray_pixel_records`: grid cells of 1002 / 256 = 3.9 px
+STRAY_AT = (300, 400)            # (column, row) of the top-left pixel of its body in the full frame
+
+
+def stray_pixel_records():
+    """The records of video frames 0, 1 and 2 of a body of 6 rows x 15 columns of pixels, its
+    top-left pixel at `STRAY_AT`, seen through `STRAY_BOX`, without logits. On frame 1 the mask
+    also holds 2 stray pixels: in the body's third row, 240 columns to the right of the body
+    (columns 255 and 256 counted from the body's first). The real model once returned such a mask
+    for a body 14.5 px long (docs/VALIDATION.md, section 4.3)."""
+    body, stray = (0, 6, 0, 15), (2, 3, 255, 257)
+    masks = [shapes.blocks((6, 257), body), shapes.blocks((6, 257), body, stray), shapes.blocks((6, 257), body)]
+    return [measure_mask(shapes.pixel_result(mask, offset=STRAY_AT), frame, STRAY_BOX, "coarse")
+            for frame, mask in enumerate(masks)]
+
+
 def arrays_of(records):
     """The records as the arrays of one track of the results store."""
     store = ResultsStore()

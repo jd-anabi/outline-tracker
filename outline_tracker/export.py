@@ -91,7 +91,8 @@ def derive_all(session: Session, store: ResultsStore) -> ExportData:
 
     session: its calibration, axes, fps_true (frames per s), circle and settings are used as they
     are now. store: the pixel-space records (image px, video frame numbers). Nothing is read from
-    disk and no mask is measured again.
+    disk. A stored mask is measured again only on a frame whose mask has more than one piece: its
+    largest piece gives the size check (`derive.derive_track`).
 
     Raises ValueError, with a message for the user, when the session has no fps_true or no scale,
     when `radial_step_deg` is not 5 (radial.csv has 72 fixed columns), when the clip's step is not

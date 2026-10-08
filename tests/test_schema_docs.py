@@ -44,8 +44,13 @@ REPO = Path(__file__).resolve().parents[1]
 # its unit (the Tracker-format columns t, x, y, pixelx, pixely; px_along_major, cells_along_major; the 72
 # radius columns; the probe means), read from the tables. The text before this change had the hash
 # 662e5f73c9a1dd0331dba2cfc656c20c957bbde680a0f916cd2d6d379d5ba1df (14498 characters, 259 lines); the text
-# now has 14831 characters and 262 lines.
-README_SHA256 = "174e5877b06aea49446e8119a18822f08f475a051ef7885507b799ca6a1f94c0"
+# then had 14831 characters and 262 lines.
+# Decision 26 of docs/ROADMAP.md (W1 step 3) changed one description: px_along_major is of "the largest piece
+# of the mask", no longer of "the full mask". The diff of the old and the new text was read and shows that
+# entry and nothing else (its two lines, wrapped again). The text before this change had the hash
+# 174e5877b06aea49446e8119a18822f08f475a051ef7885507b799ca6a1f94c0 (14831 characters, 262 lines); the text
+# now has 14847 characters and 262 lines.
+README_SHA256 = "0a3d0042970e10beaaee704d18ef648c6203ee8ac68af5600c0ccdc4dccfe098"
 
 # Every public name that schema.py had before the move (dir() of the unmodified module, without the
 # imported helpers). Other modules import these by name, so each must still be importable.
@@ -292,6 +297,17 @@ def test_core_frac_is_described_for_the_fallback_case(readme):
     assert normalized(shapes) != "core area / full mask area"
     assert normalized(stored) != "core area / mask area"
     assert normalized(shapes) in normalized(readme)  # the README is built from the table
+
+
+def test_px_along_major_is_described_for_the_largest_piece(readme, outputs):
+    """Decision 26 of docs/ROADMAP.md: the size checks are of the largest piece of the mask, so that a few
+    stray pixels far from the object cannot lengthen them. The three axis columns stay on the full mask."""
+    meanings = {c.name: normalized(c.meaning) for c in schema.SHAPES}
+    assert "largest piece" in meanings["px_along_major"] and "full mask" not in meanings["px_along_major"]
+    for name in ("major_mm", "minor_mm", "eccentricity"):
+        assert "full mask" in meanings[name], name
+    assert meanings["px_along_major"] in normalized(readme)  # both texts are built from the table
+    assert meanings["px_along_major"] in plain(outputs)
 
 
 # ---------------------------------------------------------------------------------------------
