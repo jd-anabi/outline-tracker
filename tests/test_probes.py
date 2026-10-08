@@ -29,6 +29,7 @@ DISH_BOX = (150, 110, 170, 130)  # inside the dish, away from the LED
 NAN = float("nan")
 
 
+# Overrides the shared `frames` of tests/conftest.py: it asserts the number of frames only, not the scene's LED.
 @pytest.fixture(scope="module")
 def frames(dish_clip):
     """The 120 frames of the dish clip, decoded here and not by the package."""

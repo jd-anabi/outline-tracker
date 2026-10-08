@@ -1,9 +1,9 @@
 """Fixtures for the tests of every folder: synthetic clips with ground truth, the frames of two of them
-from the sequential decode, a tracked run folder, a test's own copy of the run folder its module
-tracked, a file that another program holds open, the settings kept out of the user's own, the main
-window. pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says
-why). The plain helpers and values that tests import by name are in tests/helpers.py and in the helper
-modules beside it.
+from the sequential decode and those of the dish clip from OpenCV alone, a tracked run folder, a test's
+own copy of the run folder its module tracked, a file that another program holds open, the settings
+kept out of the user's own, the main window. pytest finds a fixture by its name; nothing imports this
+file (tests/test_repo_rules.py says why). The plain helpers and values that tests import by name are in
+tests/helpers.py and in the helper modules beside it.
 """
 
 import errno
@@ -105,6 +105,23 @@ def sequential_frames(disk_clip, gapped_clip):
 def clip_with_frames(request, sequential_frames):
     """(fixture name, path of the clip, its frames from the sequential decode) for each of the two clips."""
     return request.param, request.getfixturevalue(request.param).path, sequential_frames[request.param]
+
+
+# ---------------------------------------------------------------------------------------------
+# The frames of the dish clip as OpenCV alone decodes them, for the tests of the `probe` command
+# (tests/test_cli_probe.py, tests/test_cli_probe_session.py)
+
+
+@pytest.fixture(scope="module")
+def frames(dish_clip):
+    """The 120 frames of the dish clip, decoded by `decode` of tests/cli_probe_helpers.py and not by the
+    package. Decoded once for each test module that asks for it. tests/test_probes.py has a `frames` of
+    its own, which overrides this one there."""
+    from cli_probe_helpers import LED_BOX, N, ONSET, decode
+
+    decoded = decode(dish_clip.path)
+    assert len(decoded) == N and dish_clip.scene.led.box_px == LED_BOX and dish_clip.scene.led.onset_frame == ONSET
+    return decoded
 
 
 # ---------------------------------------------------------------------------------------------

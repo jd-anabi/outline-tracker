@@ -12,21 +12,13 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from cli_probe_helpers import (COLUMNS, FPS, LED, LED_BOX, N, ONSET, UNKNOWN_FPS, WALL, WALL_BOX, assert_rows, decode,
+from cli_probe_helpers import (COLUMNS, FPS, LED, LED_BOX, N, ONSET, UNKNOWN_FPS, WALL, WALL_BOX, assert_rows,
                                onset_frame, probe, table, write_manifest)
 from helpers import error_line
 
 from outline_tracker import cli, video
 
 REPO = Path(__file__).resolve().parents[1]
-
-
-@pytest.fixture(scope="module")
-def frames(dish_clip):
-    """The 120 frames of the dish clip, decoded here and not by the package."""
-    decoded = decode(dish_clip.path)
-    assert len(decoded) == N and dish_clip.scene.led.box_px == LED_BOX and dish_clip.scene.led.onset_frame == ONSET
-    return decoded
 
 
 @pytest.fixture

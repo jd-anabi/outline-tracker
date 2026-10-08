@@ -61,6 +61,7 @@ class Receiver(QObject):
         self.threads.append(this_thread())
 
 
+# Overrides the shared `worker` of tests/gui/conftest.py: this one also keeps what it reports, in `worker.heard`.
 @pytest.fixture
 def worker(qtbot):
     """A worker of its own, not started; its thread is stopped after the test."""

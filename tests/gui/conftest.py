@@ -1,9 +1,9 @@
 """Fixtures for the tests of the window (tests/gui/): larger clips, a tracked run folder, a second
-window, a settings folder of the test's own, the bottom bar on a grid of frames, and two guards (the
-application's look is put back; a dialog that would block is an error). pytest finds a fixture by its
-name; nothing imports this file (tests/test_repo_rules.py says why). The fixtures for the tests of
-every folder, `window` among them, are in tests/conftest.py; plain helpers are in the helper modules
-beside this file.
+window, a settings folder of the test's own, the bottom bar on a grid of frames, a worker without a
+window, and two guards (the application's look is put back; a dialog that would block is an error).
+pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says why). The
+fixtures for the tests of every folder, `window` among them, are in tests/conftest.py; plain helpers
+are in the helper modules beside this file.
 """
 
 import shutil
@@ -109,6 +109,21 @@ def bar(window, qtbot):
     made.set_grid(grid_frames(3, 40, 4))
     show(window, qtbot)
     return made
+
+
+# ---------------------------------------------------------------------------------------------
+# A worker without a window (tests/gui/test_joins.py, tests/gui/test_model_choice.py)
+
+
+@pytest.fixture
+def worker(qtbot):
+    """A worker of its own, not started; its thread is stopped after the test. tests/gui/test_worker.py
+    has a `worker` of its own, which overrides this one there."""
+    from outline_tracker.gui.worker import Worker
+
+    made = Worker()
+    yield made
+    made.stop()
 
 
 # ---------------------------------------------------------------------------------------------

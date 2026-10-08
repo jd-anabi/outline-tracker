@@ -9,20 +9,12 @@ import re
 import shutil
 
 import pytest
-from cli_probe_helpers import (FPS, LED, LED_BOX, N, ONSET, WALL, WALL_BOX, assert_rows, decode, onset_frame, probe,
-                               table, write_manifest)
+from cli_probe_helpers import (FPS, LED, LED_BOX, N, ONSET, WALL, WALL_BOX, assert_rows, onset_frame, probe, table,
+                               write_manifest)
 from helpers import error_line
 
 from outline_tracker import __version__, provenance
 from outline_tracker.session import Clip, ProbeBox, Session, TimeSettings, VideoRef
-
-
-@pytest.fixture(scope="module")
-def frames(dish_clip):
-    """The 120 frames of the dish clip, decoded here and not by the package."""
-    decoded = decode(dish_clip.path)
-    assert len(decoded) == N and dish_clip.scene.led.box_px == LED_BOX and dish_clip.scene.led.onset_frame == ONSET
-    return decoded
 
 
 def make_session(video_path, name="session.json", **changes):

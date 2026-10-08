@@ -44,7 +44,7 @@ from joins_helpers import (DAY, EXPORTING, RUNNING, WAIT_FOR_EXPORT, corrections
 from last_controls_helpers import (PACKAGE, REPO, choose, control_texts, let_run_end, marked_names, modules, parked,
                                    press_track, quickstart, record_confirm)
 from outline_tracker import schema
-from outline_tracker.gui.worker import Worker, worker_of
+from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from prompt_helpers import LEFT, NO_KEY, SAFETY_S, Gate, Watched, gui_thread, objects_panel, this_thread
@@ -78,14 +78,6 @@ VIDEO_PANEL_OFFERED = [
     "QSizePolicy", "QSpinBox", "QThread", "QVBoxLayout", "QWidget", "Qt", "RUNNING", "SESSION_FILTERS", "SPACING",
     "Signal", "VideoPanel", "_WheelGuard", "build", "clip_problem", "cv2", "dialogs", "field_label", "field_rows",
     "guard_wheel", "jobs_of", "size_text", "theme", "video"]
-
-
-@pytest.fixture
-def worker(qtbot):
-    """A worker of its own, not started; its thread is stopped after the test."""
-    made = Worker()
-    yield made
-    made.stop()
 
 
 def exported_all(folder: Path, panel) -> bool:

@@ -30,7 +30,6 @@ from gui_helpers import picture, record_dialogs, show
 from helpers import click
 from last_controls_helpers import OnDevice, choose
 from outline_tracker.gui.panels.track_panel import devices_for
-from outline_tracker.gui.worker import Worker
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from prompt_helpers import Gate, Watched, objects_panel
 from session_helpers import body, read_json
@@ -394,14 +393,6 @@ def test_the_engine_is_in_its_own_file_and_both_files_are_under_400_lines():
     for module in (worker, worker_engine):
         lines = Path(module.__file__).read_text(encoding="utf-8").splitlines()
         assert len(lines) < 400, f"{Path(module.__file__).name} has {len(lines)} lines"
-
-
-@pytest.fixture
-def worker(qtbot):
-    """A worker of its own, not started; its thread is stopped after the test."""
-    made = Worker()
-    yield made
-    made.stop()
 
 
 def test_the_workers_device_is_none_before_a_model_is_loaded_and_the_models_afterwards(worker, qtbot):
