@@ -1,7 +1,7 @@
-"""Helpers and fixtures shared by the new tests (registered in the root conftest.py).
+"""Helpers and fixtures shared by the tests (registered in the root conftest.py).
 
-New test helpers go here, not into tests/conftest.py, which holds the helpers that the ported tests
-import by name.
+What tests import by name is here or in a helper module beside the tests, never in a conftest.py
+(tests/test_repo_rules.py says why).
 """
 
 import shutil
@@ -90,6 +90,18 @@ def frame_times(skip_before=(), n_frames=120, fps=240.0):
 
     frames = np.arange(n_frames)
     return (frames + sum((frames >= before).astype(int) for before in skip_before)) / fps
+
+
+# ---------------------------------------------------------------------------------------------
+# Tracker's export files (tests/test_tracker_io.py, tests/from_tracker_helpers.py)
+
+
+def java_sci(v):
+    """A number the way Tracker writes it with Number Format "Full Precision" (Java's 0.000000E0)."""
+    if v == 0:
+        return "0.000000E0"
+    mantissa, exponent = f"{v:.6E}".split("E")
+    return f"{mantissa}E{int(exponent)}"
 
 
 # ---------------------------------------------------------------------------------------------

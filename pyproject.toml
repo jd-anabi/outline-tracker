@@ -46,7 +46,7 @@ packages = ["outline_tracker"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# tests/ holds helpers.py and the ported conftest helpers.
+# tests/ holds helpers.py and the other helper modules that tests import by name.
 pythonpath = ["tests"]
 norecursedirs = [".*", "build", "dist"]
 addopts = "-ra --strict-markers"

@@ -1,4 +1,5 @@
-"""Rules of the repository itself: entry point, import boundaries, no private data, when CI runs.
+"""Rules of the repository itself: entry point, import boundaries, no private data, when CI runs, how
+the tests share helpers and fixtures.
 
 Checks that a command "loads neither torch nor Qt" run that command in a subprocess: pytest-qt has
 already imported PySide6 into the test process.
@@ -16,6 +17,7 @@ import outline_tracker
 
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "outline_tracker"
+TESTS = REPO / "tests"
 WORKFLOW = REPO / ".github" / "workflows" / "tests.yml"
 
 # Import boundaries (SPEC 12, CLAUDE.md). Top-level module names.
@@ -261,3 +263,43 @@ def test_ci_runs_for_every_push_to_main():
     assert _path_filters("on:\n  push:\n    paths:\n      - outline_tracker/**\n") == ["paths:"]
     assert _path_filters('on: {push: {branches: [main], "paths": ["tests/**"]}}\n') != []
     assert _path_filters("on:\n  push:\n    branches: [main]\n  pull_request:\n") == []
+
+
+# ---------------------------------------------------------------------------------------------
+# How the tests share helpers and fixtures
+
+
+def _conftest_imports(folder: Path) -> list[str]:
+    """Scan every .py file under `folder`; return `file:line` for each import of a module named
+    conftest, at any depth (the three ways of `_imported_top_levels`)."""
+    found = []
+    for path in sorted(folder.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        found += [f"{path.relative_to(folder).as_posix()}:{line}"
+                  for line, top in _imported_top_levels(tree) if top == "conftest"]
+    return found
+
+
+def test_no_module_under_tests_imports_conftest(tmp_path):
+    # A conftest.py is pytest's: it holds fixtures, and pytest finds it by its folder. Python keeps one
+    # module under that name, so with a second conftest.py below tests/ an import by that name gets the
+    # wrong file in a run of the whole suite, while a run of the one file passes (measured with pytest
+    # 9.1.1). What tests import by name is in a helper module.
+    scanned = {path.relative_to(TESTS).as_posix() for path in TESTS.rglob("*.py")}
+    assert {"conftest.py", "helpers.py", "test_tracker_io.py", "gui/gui_helpers.py"} <= scanned  # the real folder
+    assert _conftest_imports(TESTS) == []
+    # The scan finds every spelling, also inside a function and in a folder below, and not the word alone.
+    # The name is put in here, so that a search of tests/ for such an import finds nothing in this file.
+    name = "conftest"
+    sources = {
+        "test_a.py": f"import os\nfrom {name} import java_sci\n",
+        "helpers.py": f"def late():\n    import {name}\n    return {name}\n",
+        "gui/test_b.py": f"import importlib\n\nfound = importlib.import_module('{name}')\n",
+        "gui/conftest.py": f"import pytest\nfrom helpers import late  # used by this {name}.py\n",
+        "test_c.py": f"from {name}_helpers import late\n",
+    }
+    for rel, text in sources.items():
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    assert _conftest_imports(tmp_path) == ["gui/test_b.py:3", "helpers.py:2", "test_a.py:2"]

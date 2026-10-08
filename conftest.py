@@ -21,6 +21,5 @@ if sys.platform == "win32":
     except Exception:  # not installed, or its DLLs failed to load: fast tests still run
         pass
 
-# Shared fixtures live in tests/helpers.py. No conftest.py may be added below tests/ other than
-# tests/conftest.py: the ported tests import helpers from it by name.
+# Shared fixtures live in tests/helpers.py.
 pytest_plugins = ["helpers"]

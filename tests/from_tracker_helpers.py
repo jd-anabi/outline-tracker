@@ -17,7 +17,7 @@ import json
 import cv2
 import numpy as np
 import pandas as pd
-from conftest import java_sci
+from helpers import java_sci
 from test_tracker_io import MM_PER_PX, H, W, tracker_map
 
 from outline_tracker.from_tracker import from_tracker

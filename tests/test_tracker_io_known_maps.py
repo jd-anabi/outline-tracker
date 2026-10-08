@@ -22,7 +22,7 @@ in mm.
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import java_sci
+from helpers import java_sci
 
 from outline_tracker import tracker_io
 

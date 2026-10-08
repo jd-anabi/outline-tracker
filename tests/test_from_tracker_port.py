@@ -35,9 +35,9 @@ import re
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import java_sci
 from from_tracker_helpers import FPS, disk_video, write_start_file
 from frozen_helpers import GOLDEN, SIDECAR, compare_with_golden, frozen_files, read_frozen, same_decoder
+from helpers import java_sci
 from test_tracker_io import MM_PER_PX, export_text, tracker_map
 
 from outline_tracker.from_tracker import _flags, from_tracker
