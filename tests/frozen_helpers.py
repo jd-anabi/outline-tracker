@@ -22,14 +22,22 @@ hash and size of the weights that gave them. A position is (u_px, v_px): px in T
 The slow tests that compare a run with them leave two decisions to this module: on which machine the
 limit of 0.01 px is asserted (`same_machine`), and how positions are judged (`compare_with_frozen`).
 
-This is a helper of the tests, not a part of the package. It imports no torch. Apart from that last
-part there are no units or coordinates here: text and bytes only.
+The golden Tracker-format files are files of the second layout (the part before the last): `GOLDEN`,
+what the tool wrote for three cases with the stand-in model. The tests that compare a run with them
+leave two decisions of the same kind to this module: with which decoder their bytes are asserted
+(`same_decoder`), and how a file is judged with another decoder (`compare_with_golden`). There a
+position is (pixelx, pixely), px in Tracker's convention too, and x, y are mm in the axes of the
+case's export, y up.
+
+This is a helper of the tests, not a part of the package. It imports no torch. Apart from those two
+parts there are no units or coordinates here: text and bytes only.
 """
 
 import hashlib
 import math
 import os
 import platform
+import re
 import subprocess
 import sys
 from datetime import date
@@ -53,6 +61,10 @@ WEIGHTS = DATA / "edgetam_weights.txt"  # the hash and size of the weights that 
 COLUMNS = "clip,frame,track_id,u_px,v_px"  # the column line of the positions table
 LIMIT_PX = 0.01  # on the machine that froze them, a position is at most this far from its frozen one, px
 TRUTH_PX = 3.0  # on every machine, a found center is under this far from the true one, px (SPEC 13.4)
+
+GOLDEN = DATA / "tracker_format"  # the golden Tracker-format files, <case>/<name>.csv, and their HEADER.txt
+STAND_IN_PX = 0.25  # with every decoder, the stand-in finds a disk at most this far from its true center, px
+_FLOAT_MM = 1e-9  # what floating point may add to a calibrated value, mm: far below a file's last decimal
 
 
 def header_lines(command: str, extra: dict[str, str] | None = None) -> list[str]:
@@ -183,6 +195,99 @@ def _git(*args: str) -> str:
     if done.returncode != 0:
         raise RuntimeError(f"git {args[0]} failed: {done.stderr.strip()}")
     return done.stdout.rstrip()
+
+
+# ---------------------------------------------------------------------------------------------
+# The golden Tracker-format files
+
+
+def same_decoder(header: dict[str, str], here: str) -> bool:
+    """The decoder rule: whether `here` (`video.decoder_tag()` on this computer) is the decoder that
+    made the frozen files with this header.
+
+    The golden Tracker-format files hold positions that were found in a clip which OpenCV encodes and
+    decodes on the computer that runs the test, and another build of OpenCV gives slightly other pixels
+    on some frames. Measured on 2026-10-08 with files frozen on macOS, arm64: the test computers with
+    Linux and Windows wrote the same digits as each other, and in the three files that the log shows,
+    2 to 5 of their 25 to 31 rows differ from the frozen ones, by about 0.05 px. Decision X8 of the
+    first build says the same of frame hashes (docs/PLAN.md). The owner's rule for this outcome
+    (2026-10-07): "Bytes asserted on the system that froze them, the 0.25 px truth criterion elsewhere."
+
+    So a test asserts the golden bytes only where this is true: the header has a `decoder` line, and
+    `here` is that line, character for character: OpenCV's version, the system and the architecture.
+    Everything else is another decoder: there the test asserts what holds with every decoder
+    (`compare_with_golden`).
+    """
+    return bool(here) and header.get("decoder") == here
+
+
+def compare_with_golden(what: str, written, golden, true_px, to_mm) -> None:
+    """Judge a Tracker-format file that a run wrote against its golden file, where the decoder is not
+    the one that froze the golden bytes (`same_decoder`): a position may then differ in its last
+    digits, and this asserts what holds with every decoder.
+
+    `written`: the run's file, which has this system's line ends. `golden`: the golden file (LF line
+    ends). `true_px(frame)`: (pixelx, pixely) of the object's true center on a video frame, px in
+    Tracker's convention (pixel centers at +0.5), or None where the clip does not show the object.
+    `to_mm(pixelx, pixely)`: the calibration that the case's export defines, as (x, y) in mm with y up.
+    `what` names the file in the messages.
+
+    Asserted:
+    - the text that does not come from pixels is the golden file's: the line ends are this system's,
+      the two lines above the rows, the number of rows, and `t` and `frame` of every row; a row is
+      lost (its four position cells are empty) where the golden row is, and nowhere else;
+    - every number of a found row has as many decimals as in the golden file;
+    - `pixelx`, `pixely` are at most `STAND_IN_PX` from the true center on that frame;
+    - `x`, `y` are what `to_mm` gives for the row's own `pixelx`, `pixely`, as far as the rounding of
+      the cells allows: a written number stands for every value within half a step of its last
+      decimal. So the mm columns need no limit of their own.
+    """
+    lines = Path(written).read_bytes().decode("ascii").split(os.linesep)
+    assert lines[-1] == "" and not any("\r" in line or "\n" in line for line in lines), (
+        f"{what}: the line ends are not this system's, or the last line has none")
+    rows = [line.split(",") for line in lines[:-1]]
+    golden_rows = [line.split(",") for line in Path(golden).read_bytes().decode("ascii").splitlines()]
+    assert rows[:2] == golden_rows[:2], f"{what}: the two lines above the rows are {lines[:2]}"
+    assert len(rows) == len(golden_rows), f"{what}: {len(rows) - 2} rows, the golden file has {len(golden_rows) - 2}"
+    for cells, golden_cells in zip(rows[2:], golden_rows[2:], strict=True):
+        where = f"{what}, frame {golden_cells[1]}"
+        assert cells[:2] == golden_cells[:2], (
+            f"{where}: t and frame are {cells[:2]}, the golden file has {golden_cells[:2]}")
+        lost, golden_lost = (positions[2:] == [""] * 4 for positions in (cells, golden_cells))
+        assert lost == golden_lost, (
+            f"{where}: {'lost' if lost else 'found'} here, {'lost' if golden_lost else 'found'} in the golden file")
+        if lost:
+            continue
+        decimals = [_decimals(cell) for cell in cells]
+        assert None not in decimals and decimals == [_decimals(cell) for cell in golden_cells], (
+            f"{where}: other decimals than the golden row: {cells}, the golden file has {golden_cells}")
+        x_mm, y_mm, u_px, v_px = (float(cell) for cell in cells[2:])
+        true = true_px(int(cells[1]))
+        assert true is not None, f"{where}: found, but the clip does not show the object on this frame"
+        distance = math.hypot(u_px - true[0], v_px - true[1])
+        assert distance <= STAND_IN_PX, f"{where}: {distance:.3f} px from the true center (limit {STAND_IN_PX} px)"
+        # The two pixel cells stand for a small square of positions. A calibration is a scale, a
+        # rotation and a shift, so over that square its smallest and its largest x, and y, are at the
+        # four corners.
+        half_u, half_v = (_half_step(count) for count in decimals[4:])
+        corners = [to_mm(u_px + i * half_u, v_px + j * half_v) for i in (-1, 1) for j in (-1, 1)]
+        xs_mm, ys_mm = zip(*corners, strict=True)
+        for name, value, count, possible in (("x", x_mm, decimals[2], xs_mm), ("y", y_mm, decimals[3], ys_mm)):
+            slack = _half_step(count) + _FLOAT_MM
+            assert min(possible) - slack <= value <= max(possible) + slack, (
+                f"{where}: {name} = {value} mm is not what the calibration gives for pixelx, pixely = {u_px}, {v_px}")
+
+
+def _decimals(cell: str) -> int | None:
+    """How many digits a written number has after its point (0 for a whole number); None when the cell
+    is not a plain decimal number: empty, with an exponent, `nan`."""
+    number = re.fullmatch(r"-?\d+(?:\.(\d+))?", cell)
+    return len(number.group(1) or "") if number else None
+
+
+def _half_step(decimals: int) -> float:
+    """Half a step of the last decimal of a number that is written with `decimals` decimals."""
+    return 0.5 * 10.0 ** -decimals
 
 
 # ---------------------------------------------------------------------------------------------

@@ -18,6 +18,10 @@ numbers. The slow tests that run the model against the two files (tests/slow/tes
 leave two decisions to the helper, and both are tested here with made-up headers and positions: on which
 machine the limit of 0.01 px is asserted (`same_machine`), and how positions are judged
 (`compare_with_frozen`).
+
+The last test is about the golden Tracker-format files (tests/data/tracker_format/): with which decoder
+their bytes are asserted (`same_decoder`), on made-up decoder tags. How a file is judged with another
+decoder is tested where the three cases are (tests/test_from_tracker_port.py).
 """
 
 import hashlib
@@ -31,9 +35,10 @@ from importlib import metadata
 import frozen_helpers
 import numpy as np
 import pytest
-from frozen_helpers import (COLUMNS, DATA, POSITIONS, SIDECAR, SWITCH, WEIGHTS, compare_with_frozen, freeze_asked,
-                            frozen_files, frozen_text, header_lines, machine_here, machine_name, machine_of,
-                            position_rows, read_frozen, read_positions, same_machine, write_frozen, write_listing)
+from frozen_helpers import (COLUMNS, DATA, GOLDEN, POSITIONS, SIDECAR, SWITCH, WEIGHTS, compare_with_frozen,
+                            freeze_asked, frozen_files, frozen_text, header_lines, machine_here, machine_name,
+                            machine_of, position_rows, read_frozen, read_positions, same_decoder, same_machine,
+                            write_frozen, write_listing)
 from test_repo_rules import HOME_PATH
 
 from outline_tracker import provenance, video
@@ -403,3 +408,27 @@ def test_positions_are_judged_by_the_frozen_numbers_here_and_by_the_truth_elsewh
         judge(lost, strict=False)
     with pytest.raises(AssertionError, match="lost"):
         judge(lost, strict=False, frozen=lost)  # the same rows as the frozen table, but a row is lost
+
+
+def test_the_golden_bytes_are_asserted_only_with_the_decoder_that_froze_them():
+    # a made-up header; a tag is what `video.decoder_tag()` gives: OpenCV's version, the system, the architecture
+    header = {"machine": "Apple M1 Max", "decoder": "opencv-5.0.0/darwin/arm64"}
+    assert same_decoder(header, "opencv-5.0.0/darwin/arm64") is True
+    others = {
+        "another OpenCV version": "opencv-5.1.0/darwin/arm64",
+        "another system": "opencv-5.0.0/linux/arm64",
+        "another architecture": "opencv-5.0.0/darwin/x86_64",
+    }
+    for what, tag in others.items():
+        assert same_decoder(header, tag) is False, what
+    # the rule asks for the decoder and for nothing else: another chip with the same decoder asserts the bytes
+    assert same_decoder({**header, "machine": "Apple M3 Pro"}, "opencv-5.0.0/darwin/arm64") is True
+    # a header without the line names no decoder, and neither does an empty tag on both sides
+    assert same_decoder({"machine": "Apple M1 Max"}, "opencv-5.0.0/darwin/arm64") is False
+    assert same_decoder({**header, "decoder": ""}, "") is False
+
+    # a header made here names this machine's decoder
+    made_here = dict(line.split(": ", 1) for line in header_lines(COMMAND))
+    assert same_decoder(made_here, video.decoder_tag()) is True
+    # the header of the golden files has the line that the rule asks for, and it is a tag
+    assert re.fullmatch(r"opencv-[\d.]+/\w+/\w+", read_frozen(GOLDEN / SIDECAR)[0]["decoder"])
