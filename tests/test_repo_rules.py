@@ -1,5 +1,5 @@
 """Rules of the repository itself: entry point, import boundaries, no private data, when CI runs, how
-the tests share helpers and fixtures.
+the tests share helpers and fixtures, and that no test waits by a delay.
 
 Checks that a command "loads neither torch nor Qt" run that command in a subprocess: pytest-qt has
 already imported PySide6 into the test process.
@@ -412,3 +412,115 @@ def test_no_test_module_imports_from_a_test_module(tmp_path):
         "slow/c_helpers.py:1: imports test_c",
         "test_a.py:2: imports test_b",
     ]
+
+
+# ---------------------------------------------------------------------------------------------
+# No test waits by a delay
+
+# What waits for a time when it is called, by the last part of its name: `time.sleep` and a bare `sleep`,
+# `QThread.msleep` and `usleep`, `QTest.qWait` and `qSleep`, `threading.Timer` and a bare `Timer`.
+DELAY_NAMES = {"sleep", "msleep", "usleep", "qWait", "qSleep", "Timer"}
+# The delays that stay, {file: what it calls there}. There is one: the steps of a mouse drag are 20 ms
+# apart, because pyqtgraph drops a mouse move that follows another one sooner (`drag`).
+ALLOWED_DELAYS = {"tests/gui/gui_helpers.py": ["QTest.qWait"]}
+
+
+def _delay_calls(source: str) -> list[tuple[int, str]]:
+    """(line, what is called) for every call in the Python text `source` that waits for a time, in the
+    order of the lines: a call of a name in `DELAY_NAMES`, alone or as the last part of a dotted name,
+    and a call of `wait` on pytest-qt's `qtbot`, which waits for a number of ms. The `wait` of an event
+    or of a thread is not one: it waits for that event or thread. The line is the one the call begins in.
+
+    The scan reads names, not objects: it does not find a wait that is called under another name, and
+    it takes a function for a wait that only has one of the names.
+    """
+    def last(name: ast.expr) -> str | None:  # `sleep` of `fileio.time.sleep` and of `sleep`
+        return name.attr if isinstance(name, ast.Attribute) else getattr(name, "id", None)
+
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Call):
+            on_qtbot = isinstance(node.func, ast.Attribute) and last(node.func.value) == "qtbot"
+            if last(node.func) in DELAY_NAMES or (last(node.func) == "wait" and on_qtbot):
+                found.append((node.lineno, ast.unparse(node.func)))
+    return sorted(found)
+
+
+def test_no_test_waits_by_a_delay():
+    # A wait for a fixed time is too long on a fast machine and too short on a busy one: the test then
+    # fails, or it passes without showing what it is there for. A test waits for the thing itself: a
+    # condition (`qtbot.waitUntil`), an event with a safety bound, a stand-in parked on a gate
+    # (tests/gui/prompt_helpers.py, `Gate`).
+    files = [REPO / "conftest.py", *sorted(TESTS.rglob("*.py"))]
+    found = {path.relative_to(REPO).as_posix(): _delay_calls(path.read_text(encoding="utf-8")) for path in files}
+    assert {"conftest.py", "tests/conftest.py", "tests/gui/gui_helpers.py", "tests/gui/test_worker_jobs.py",
+            "tests/slow/conftest.py"} <= set(found)  # the real folders
+    assert [f"{name}:{line}: calls {called}" for name, calls in found.items() for line, called in calls
+            if called not in ALLOWED_DELAYS.get(name, [])] == []
+    # a delay that stays is there as often as the list says: one more of its kind in that file is a finding too
+    assert {name: [called for _, called in calls] for name, calls in found.items() if calls} == ALLOWED_DELAYS
+
+
+def test_the_delay_scan_flags_each_kind():
+    # The rule test above shows that the scan finds the drag step in the tests and nothing else, not that
+    # it would find a wait of another kind: check it on a text that waits in each way once, and on a text
+    # that only looks so. The two words are put in here, so that a search of tests/ for a call of them
+    # finds nothing in this file. The lines are counted by hand.
+    sleep, timer = "sleep", "Timer"
+    waits = "\n".join([
+        "import threading",                                   # line 1
+        "import time",
+        f"from threading import {timer}",
+        f"from time import {sleep}",
+        "",                                                   # line 5
+        "from PySide6.QtCore import QThread",
+        "from PySide6.QtTest import QTest",
+        "",
+        "",
+        "def test_closing(qtbot, window, gate):",             # line 10
+        f"    time.{sleep}(0.2)",
+        f"    opener = threading.{timer}(0.2, gate.open)",
+        "    opener.start()",
+        f"    {timer}(0.2, gate.open).start()",
+        "    QTest.qWait(20)",                                # line 15
+        "    qtbot.wait(",
+        "        200)",
+        f"    QThread.m{sleep}(200)",
+        "",
+        "    def check(path):",                               # line 20
+        f"        {sleep}(0.2)",
+        f"        return [QThread.u{sleep}(200) for _ in range(2)]",
+        "",
+        "    QTest.qSleep(20)",
+        "    window.close()",                                 # line 25
+        "",
+    ])
+    assert _delay_calls(waits) == [
+        (11, f"time.{sleep}"), (12, f"threading.{timer}"), (14, timer), (15, "QTest.qWait"), (16, "qtbot.wait"),
+        (18, f"QThread.m{sleep}"), (21, sleep), (22, f"QThread.u{sleep}"), (24, "QTest.qSleep")]
+    waits_for_events = "\n".join([
+        f'"""No test here waits by a delay: time.{sleep}(0.2) and threading.{timer}(0.2, gate.open) are words."""',
+        "import threading",
+        "import time",
+        "",
+        "from PySide6.QtCore import QTimer",
+        "",
+        "from outline_tracker import fileio",
+        "",
+        "SAFETY_S = 30",
+        "",
+        "",
+        "def test_closing(qtbot, monkeypatch, worker, thread):",
+        f'    monkeypatch.setattr(fileio.time, "{sleep}", lambda seconds: None)  # replaced, and never called',
+        f"    real = time.{sleep}  # named, and not called",
+        "    started = threading.Event()",
+        "    assert not started.wait(SAFETY_S)  # an event, with a bound",
+        "    worker.stopping.wait(SAFETY_S)",
+        "    thread.wait()",
+        "    QTimer.singleShot(0, started.set)  # a probe that the event loop runs",
+        "    qtbot.waitUntil(started.is_set)",
+        f'    said = "QTest.qWait(20), qtbot.wait(200) and {sleep}(1) are words here too"',
+        f"    # time.{sleep}(0.2) would wait here, and so would QTest.qWait(20)",
+        "",
+    ])
+    assert _delay_calls(waits_for_events) == []
