@@ -300,13 +300,23 @@ inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
       its next export. 26b: three clicks, and the limit asked of the variation; measured
       0.0072 (processor) and 0.0068 (Apple GPU) against 0.02. No `xfail` mark is left.
       Decision 27 is recorded in `docs/VALIDATION.md` after section 4.3.
-- [ ] 4. Freeze reference numbers while the template is still there: the positions of the two
+- [x] 4. Freeze reference numbers while the template is still there: the positions of the two
       slow regression runs, the Tracker-format golden files, the weights' hash, as small text
       files under `tests/data/` with a header that says how each was made (commit, machine,
       system, library versions). They come from a run on the processor in which the template's
       code still agrees within 0.01 px. Done when the old comparison and the new test both pass
       in the same run. The limit is 0.01 px on the machine that froze the numbers; on another
       machine it is measured, not assumed. Mind the line ends of the golden files on Windows.
+      Done 2026-10-08. Frozen under `tests/data/`, each with its header: the positions of both
+      clips on the processor (80 rows; the template agreed within 0.0005 px in the run that
+      wrote them; 0.46 and 1.04 px from the true centers), the hash of the weights, and the
+      four Tracker-format files of the three stand-in cases. Measured in CI: the bytes of
+      those files depend on the system's video decoder (Linux and Windows write other digits
+      on a few frames than the Mac that froze them). So the bytes are asserted where the
+      decoder is the header's; elsewhere the fixed text of the files and every position
+      within 0.25 px of the true center. The 0.01 px limit of the positions is asserted on
+      the machine that froze them; another machine asserts 3 px to the truth and prints the
+      difference.
 - [ ] 5. Remove `tests/reference/`, the port-fidelity tests and what else imports the template
       (14 test files); keep their value as tests against the frozen numbers. `CLAUDE.md` loses
       the two port rules in the same commit.
