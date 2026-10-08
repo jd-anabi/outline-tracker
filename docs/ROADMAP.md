@@ -259,7 +259,7 @@ The window and the project:
 - [x] The tag `v0.1.0` (on the commit that holds this line); both install lines of the README
       name it (written as `refs/tags/v0.1.0`, with `--python 3.12`).
 - [x] This file, `docs/roadmap/` and `docs/design/gui_design.md` are committed and pushed.
-- [ ] The repository is made public.
+- [x] The repository is made public (2026-10-08, by the owner).
 
 ### W1. A clean base (inventory: `docs/roadmap/tests.md`)
 
@@ -331,10 +331,21 @@ inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
       and held by no test (the gray weights and the 0.25 scale in `video.py`, the shortest file
       that gets a slow-motion ratio, two details of how `fps_true` is read from an export);
       they wait for the owner's word on what the rule is.
-- [ ] 6. Ordinary `conftest.py` files for the fixtures; the duplicated helpers joined where they
+- [x] 6. Ordinary `conftest.py` files for the fixtures; the duplicated helpers joined where they
       are (their move into one folder is W2 step 3); one lock simulation as a fixture. The
       shapes: keep `outline_tracker/synthetic_shapes.py` and delete `tests/analytic_shapes.py`
       only after a test shows that they give the same shapes.
+      Done 2026-10-08. Fixtures live in `tests/conftest.py`, `tests/gui/conftest.py` and
+      `tests/slow/conftest.py`; none is imported by name, and no test module imports a test
+      module (rule tests hold both). One fixture, `lock_file`, stands in for a locked file at
+      all eleven sites; with the retry of `fileio` broken by hand the same 49 tests fail
+      before and after. The duplicated helpers have one home each; left on purpose: the
+      two-line `measure` of three modules, and four fixtures that a module overrides with a
+      variant of its own (each says so). The slow tests compare a run with the frozen
+      positions in one place. The shapes, on the owner's word: the disk and the ellipse of
+      the tests are the package's shapes, held to geometry by `tests/test_shapes_agree.py`;
+      the other functions of `tests/analytic_shapes.py` have no equivalent in the package, so
+      that file stays, smaller.
 - [ ] 7. Replace the timer threads and the one `sleep` in GUI tests by events; test the bottom
       row by rule (nothing clipped, nothing overlapping at 960 px with each CI system's font).
 - [ ] 8. CI: a macOS job; the slow tests that need no weights.
