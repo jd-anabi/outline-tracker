@@ -1,0 +1,94 @@
+# made: 2026-10-08
+# commit: 98fc8e0
+# tool: outline-tracker 0.2.0.dev0 (commit 98fc8e0)
+# system: macOS-27.0.1-arm64-arm-64bit; Python 3.12.15
+# machine: Apple M1 Max
+# decoder: opencv-5.0.0/darwin/arm64
+# libraries: torch 2.14.1; torchvision 0.29.1; transformers 5.18.0; timm 1.0.30; safetensors 0.8.0; numpy 2.5.3; opencv-python-headless 5.0.0.93; scikit-image 0.26.0
+# command: OUTLINE_TRACKER_FREEZE=1 uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP -p no:cacheprovider
+# device: cpu
+# torch threads: 8
+# weights sha256: 8858f8e4757b0b96dab8763f296ecffd845efbbbf698f64163cfa20a63d5fff4
+# agreement with the template: 0.0005 px at most over the 80 rows (limit 0.01 px), asserted in the run that wrote this file
+# largest distance from the true centers: selftest 0.460 px; three_ellipses 1.042 px (limit 3 px)
+clip,frame,track_id,u_px,v_px
+selftest,0,selftest,700.4174,500.5413
+selftest,2,selftest,701.8050,500.9255
+selftest,4,selftest,702.5146,501.2007
+selftest,6,selftest,703.7411,501.6135
+selftest,8,selftest,704.8582,501.9701
+selftest,10,selftest,706.0926,502.5148
+selftest,12,selftest,707.5071,502.9357
+selftest,14,selftest,708.8185,503.4111
+selftest,16,selftest,710.1115,503.6942
+selftest,18,selftest,711.0461,503.8475
+selftest,20,selftest,712.2730,504.6418
+selftest,22,selftest,713.7273,505.0530
+selftest,24,selftest,714.5949,505.4051
+selftest,26,selftest,715.8643,505.7286
+selftest,28,selftest,717.2444,506.2218
+selftest,30,selftest,718.7590,506.7806
+selftest,32,selftest,720.0294,507.1176
+selftest,34,selftest,721.0603,507.6348
+selftest,36,selftest,722.3623,508.0000
+selftest,38,selftest,723.3286,508.1929
+three_ellipses,0,A,500.8571,300.5390
+three_ellipses,0,B,1000.0177,600.6206
+three_ellipses,0,C,1400.4730,350.6419
+three_ellipses,2,A,501.9267,301.0200
+three_ellipses,2,B,999.3286,601.0143
+three_ellipses,2,C,1400.7013,349.3117
+three_ellipses,4,A,502.9539,301.5461
+three_ellipses,4,B,998.5072,601.7086
+three_ellipses,4,C,1401.2346,348.7346
+three_ellipses,6,A,504.2244,301.8526
+three_ellipses,6,B,997.4675,602.1688
+three_ellipses,6,C,1401.3466,347.4206
+three_ellipses,8,A,505.0294,302.0817
+three_ellipses,8,B,996.6046,602.7353
+three_ellipses,8,C,1401.8598,346.7134
+three_ellipses,10,A,506.3439,302.8584
+three_ellipses,10,B,995.5176,603.6118
+three_ellipses,10,C,1402.4793,344.4171
+three_ellipses,12,A,507.3047,303.1568
+three_ellipses,12,B,994.4877,604.2485
+three_ellipses,12,C,1402.6451,343.3964
+three_ellipses,14,A,508.1782,303.5000
+three_ellipses,14,B,993.6856,604.8892
+three_ellipses,14,C,1402.9257,342.8119
+three_ellipses,16,A,509.7216,303.9886
+three_ellipses,16,B,992.4458,605.3976
+three_ellipses,16,C,1403.0251,341.0890
+three_ellipses,18,A,510.7604,304.2929
+three_ellipses,18,B,991.4578,606.0120
+three_ellipses,18,C,1403.4900,339.8831
+three_ellipses,20,A,512.3488,304.7791
+three_ellipses,20,B,990.5222,606.4944
+three_ellipses,20,C,1404.1741,338.8170
+three_ellipses,22,A,513.6446,305.3373
+three_ellipses,22,B,988.8736,607.2308
+three_ellipses,22,C,1404.5181,337.8303
+three_ellipses,24,A,514.4068,305.4814
+three_ellipses,24,B,988.0257,607.8771
+three_ellipses,24,C,1404.9771,336.4358
+three_ellipses,26,A,516.0311,305.7938
+three_ellipses,26,B,987.3402,608.2278
+three_ellipses,26,C,1405.2156,335.3178
+three_ellipses,28,A,516.7604,306.0740
+three_ellipses,28,B,986.1962,608.8987
+three_ellipses,28,C,1405.8395,334.2953
+three_ellipses,30,A,518.3876,307.0225
+three_ellipses,30,B,985.2485,609.6228
+three_ellipses,30,C,1406.0973,333.1681
+three_ellipses,32,A,519.5000,307.3800
+three_ellipses,32,B,984.1962,610.0063
+three_ellipses,32,C,1406.8171,331.4268
+three_ellipses,34,A,520.7303,307.7809
+three_ellipses,34,B,983.7083,610.4702
+three_ellipses,34,C,1407.0146,330.8932
+three_ellipses,36,A,521.9500,308.0389
+three_ellipses,36,B,982.6617,611.2246
+three_ellipses,36,C,1407.2874,329.8237
+three_ellipses,38,A,522.9261,308.4545
+three_ellipses,38,B,981.5568,611.6023
+three_ellipses,38,C,1407.7385,328.1651

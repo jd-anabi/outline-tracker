@@ -6,19 +6,28 @@ A frozen file holds what the code itself gave, in a run that an independent chec
 or, for files that are compared byte for byte, in a `HEADER.txt` beside them that also lists each
 file's size and SHA-256. Every file is ASCII with LF line ends, in every checkout (`.gitattributes`).
 
-The files of the first three tests are made up in the test's own temporary folder; the last test reads
-tests/data/ itself. No units or coordinates here: text and bytes only.
+The files of the first three tests are made up in the test's own temporary folder; the fourth reads
+tests/data/ itself. Those four hold text and bytes only.
+
+The tests after them are about the frozen numbers of the real model: where EdgeTAM found each object of
+two synthetic clips on the processor (tests/data/edgetam_cpu_positions.csv) and the hash of its weights
+(tests/data/edgetam_weights.txt). No model runs here: the table is compared with the clips' true centers,
+worked out from the recipes that draw the clips. Positions are in px in Tracker's convention (pixel
+centers at +0.5, u to the right, v downward) in the full 1920 x 1080 frame; frames are video frame
+numbers.
 """
 
 import hashlib
+import math
 import re
 from datetime import date
 from importlib import metadata
 
 import frozen_helpers
 import pytest
-from frozen_helpers import (DATA, SIDECAR, SWITCH, freeze_asked, frozen_files, frozen_text, header_lines, machine_name,
-                            read_frozen, write_frozen, write_listing)
+from frozen_helpers import (COLUMNS, DATA, POSITIONS, SIDECAR, SWITCH, WEIGHTS, freeze_asked, frozen_files, frozen_text,
+                            header_lines, machine_name, position_rows, read_frozen, read_positions, write_frozen,
+                            write_listing)
 from test_repo_rules import HOME_PATH
 
 from outline_tracker import provenance, video
@@ -27,9 +36,29 @@ COMMAND = "OUTLINE_TRACKER_FREEZE=1 uv run pytest tests/test_frozen_files.py -q"
 NEEDED = ("made", "commit", "tool", "system", "machine", "libraries", "command")  # every header has these keys
 HEADER = "".join(f"# {key}: made up\n" for key in NEEDED).encode("ascii")  # a header that keeps the rule
 
+FRAMES = list(range(0, 40, 2))  # the tracked frames of both clips: 0, 2, ..., 38
+# Where the clips' recipes draw each object: (center on frame 0, step per frame), in array coordinates
+# (pixel centers at whole numbers), px. The selftest clip: outline_tracker/synthetic.py, `selftest_clip`.
+# The three ellipses: `starts` and `steps` of `_write_three_ellipse_clip` in
+# tests/slow/test_regression_reference.py.
+RECIPES = {
+    ("selftest", "selftest"): ((700.0, 500.0), (0.6, 0.2)),
+    ("three_ellipses", "A"): ((500.0, 300.0), (0.6, 0.2)),
+    ("three_ellipses", "B"): ((1000.0, 600.0), (-0.5, 0.3)),
+    ("three_ellipses", "C"): ((1400.0, 350.0), (0.2, -0.6)),
+}
+TRUTH_LIMIT_PX = 3.0  # the selftest criterion of SPEC 13.4: every found center under 3 px from the true one
+
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def true_center(clip: str, track_id: str, frame: int) -> tuple[float, float]:
+    """(u_px, v_px) of an object's true center on a frame, in Tracker's convention: where the recipe
+    draws it, plus 0.5."""
+    (x0, y0), (dx, dy) = RECIPES[clip, track_id]
+    return x0 + dx * frame + 0.5, y0 + dy * frame + 0.5
 
 
 def rule_breaks(folder) -> list[str]:
@@ -210,3 +239,68 @@ def test_every_file_under_tests_data_has_lf_line_ends_and_is_listed():
         "tracker_format/_start_file_and_a_lost_disk/A.csv",
         "tracker_format/_start_file_and_a_lost_disk/B.csv",
     ]
+    # and the two files of the real model's numbers, each with a header of its own
+    assert [name for name in names if "/" not in name] == ["edgetam_cpu_positions.csv", "edgetam_weights.txt"]
+
+
+def test_a_positions_table_is_written_with_4_decimals_and_read_back(tmp_path):
+    # made-up positions, px: two frames, two objects; B is lost on frame 2
+    nan = float("nan")
+    found = [[(700.5, 500.25), (1000.123449, 600.99995)], [(701.7, 500.65), (nan, nan)]]
+    rows = position_rows("made_up", [0, 2], ["A", "B"], found)
+    assert rows == [
+        "made_up,0,A,700.5000,500.2500",
+        "made_up,0,B,1000.1234,601.0000",
+        "made_up,2,A,701.7000,500.6500",
+        "made_up,2,B,,",  # a lost row: two empty cells
+    ]
+    table = tmp_path / "table.csv"
+    table.write_bytes(frozen_text(["made: made up", "device: cpu"], [COLUMNS, *rows]))
+    header, read = read_positions(table)
+    assert header == {"made": "made up", "device": "cpu"}
+    assert read[:3] == [("made_up", 0, "A", 700.5, 500.25), ("made_up", 0, "B", 1000.1234, 601.0),
+                        ("made_up", 2, "A", 701.7, 500.65)]
+    assert read[3][:3] == ("made_up", 2, "B") and math.isnan(read[3][3]) and math.isnan(read[3][4])
+    assert len(read) == 4
+    # a table with other columns is not read as this one
+    table.write_bytes(frozen_text(["made: made up"], ["clip,frame,track_id,v_px,u_px", *rows]))
+    with pytest.raises(ValueError, match="clip,frame,track_id,u_px,v_px"):
+        read_positions(table)
+
+
+def test_the_frozen_positions_are_within_3_px_of_the_clips_true_centers():
+    header, rows = read_positions()
+    # 20 rows of the selftest clip (one object), then 60 of the three ellipses (A, B, C on every frame)
+    assert [row[:3] for row in rows] == ([("selftest", frame, "selftest") for frame in FRAMES]
+                                         + [("three_ellipses", frame, name) for frame in FRAMES for name in "ABC"])
+    farthest = {"selftest": 0.0, "three_ellipses": 0.0}  # px from the true centers
+    for clip, frame, track_id, u_px, v_px in rows:
+        assert not math.isnan(u_px) and not math.isnan(v_px), f"{clip}, {track_id}, frame {frame}: a lost row"
+        true_u, true_v = true_center(clip, track_id, frame)
+        distance = math.hypot(u_px - true_u, v_px - true_v)
+        assert distance < TRUTH_LIMIT_PX, f"{clip}, {track_id}, frame {frame}: {distance:.3f} px from the true center"
+        farthest[clip] = max(farthest[clip], distance)
+
+    # the text: the column line, then numbers with 4 decimals
+    text = read_frozen(POSITIONS)[1]
+    assert text[0] == COLUMNS == "clip,frame,track_id,u_px,v_px" and len(text) == 1 + 20 + 60
+    assert [row for row in text[1:] if not re.fullmatch(r"\w+,\d+,\w+,\d+\.\d{4},\d+\.\d{4}", row)] == []
+
+    # the header says how the numbers were made, and what it says about the truth is what the table gives
+    assert list(header) == [*NEEDED[:5], "decoder", *NEEDED[5:], "device", "torch threads", "weights sha256",
+                            "agreement with the template", "largest distance from the true centers"]
+    assert header["device"] == "cpu" and int(header["torch threads"]) >= 1
+    assert float(header["agreement with the template"].partition(" px")[0]) <= 0.01
+    said = dict(re.findall(r"(\w+) (\d+\.\d+) px", header["largest distance from the true centers"]))
+    assert sorted(said) == sorted(farthest)
+    for clip, distance in farthest.items():  # the table has 4 decimals and the line 3: equal within 0.001 px
+        assert abs(float(said[clip]) - distance) < 0.001, clip
+
+
+def test_the_frozen_weights_file_names_the_weights_of_the_frozen_positions():
+    header, rows = read_frozen(WEIGHTS)
+    assert [key for key in NEEDED if key not in header] == []
+    facts = dict(row.split(": ", 1) for row in rows)
+    assert list(facts)[:2] == ["sha256", "bytes"]
+    assert re.fullmatch(r"[0-9a-f]{64}", facts["sha256"]) and int(facts["bytes"]) > 0
+    assert facts["sha256"] == read_positions()[0]["weights sha256"]  # one run froze both files

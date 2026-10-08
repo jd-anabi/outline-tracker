@@ -1,0 +1,15 @@
+# made: 2026-10-08
+# commit: 98fc8e0
+# tool: outline-tracker 0.2.0.dev0 (commit 98fc8e0)
+# system: macOS-27.0.1-arm64-arm-64bit; Python 3.12.15
+# machine: Apple M1 Max
+# decoder: opencv-5.0.0/darwin/arm64
+# libraries: torch 2.14.1; torchvision 0.29.1; transformers 5.18.0; timm 1.0.30; safetensors 0.8.0; numpy 2.5.3; opencv-python-headless 5.0.0.93; scikit-image 0.26.0
+# command: OUTLINE_TRACKER_FREEZE=1 uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP -p no:cacheprovider
+# model: facebook/EdgeTAM (edgetam), converted on first use; the tool loads the converted model.safetensors
+# sha256, bytes: of that model.safetensors; HFSegmenter.weights_sha256 reports this hash, and the run that wrote this file took it again from the file's bytes
+# original checkpoint, original revision: Meta's edgetam.pt as the Hugging Face cache of this machine held it; for information, never asserted
+sha256: 8858f8e4757b0b96dab8763f296ecffd845efbbbf698f64163cfa20a63d5fff4
+bytes: 55912824
+original checkpoint: edgetam.pt of facebook/EdgeTAM, 56116523 bytes
+original revision: 14d7ecc48c656b94e5184519f698cd5386c5a2bf

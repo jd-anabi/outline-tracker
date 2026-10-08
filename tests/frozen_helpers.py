@@ -15,11 +15,17 @@ Every frozen file is ASCII with LF line ends; `.gitattributes` keeps it so in ev
 holds no path under a home or temp folder and no user or computer name: write `command` relative to
 the repository. tests/test_frozen_files.py holds the rules as tests.
 
-This is a helper of the tests, not a part of the package. It imports no torch. No units or
-coordinates here: text and bytes only.
+The frozen numbers of the real model are two such text files (the last part of this module):
+`POSITIONS`, where EdgeTAM found each object of two synthetic clips on the processor, and `WEIGHTS`, the
+hash and size of the weights that gave them. A position is (u_px, v_px): px in Tracker's convention
+(pixel centers at +0.5, u to the right, v downward) in the full frame; a frame is a video frame number.
+
+This is a helper of the tests, not a part of the package. It imports no torch. Apart from that last
+part there are no units or coordinates here: text and bytes only.
 """
 
 import hashlib
+import math
 import os
 import platform
 import subprocess
@@ -37,6 +43,10 @@ LIBRARIES = ("torch", "torchvision", "transformers", "timm", "safetensors", "num
              "scikit-image")  # named in a header, as far as installed
 LEFT_BY_A_SYSTEM = (".DS_Store", "Thumbs.db", "desktop.ini")  # not frozen files (.gitignore has the same names)
 _TIMEOUT_S = 30.0
+
+POSITIONS = DATA / "edgetam_cpu_positions.csv"  # where the real model found each object, on the processor
+WEIGHTS = DATA / "edgetam_weights.txt"  # the hash and size of the weights that gave those positions
+COLUMNS = "clip,frame,track_id,u_px,v_px"  # the column line of the positions table
 
 
 def header_lines(command: str, extra: dict[str, str] | None = None) -> list[str]:
@@ -167,3 +177,34 @@ def _git(*args: str) -> str:
     if done.returncode != 0:
         raise RuntimeError(f"git {args[0]} failed: {done.stderr.strip()}")
     return done.stdout.rstrip()
+
+
+# ---------------------------------------------------------------------------------------------
+# The frozen numbers of the real model
+
+
+def position_rows(clip: str, frames, names, positions) -> list[str]:
+    """The rows of the positions table for one clip, in the order of `COLUMNS`: one row per frame and
+    object, the frames in the given order and on each frame the objects in the order of `names`.
+    `positions[i][k]` is (u_px, v_px) of the object `names[k]` on the frame `frames[i]`, or NaN, NaN
+    where it was not found. A position is written with 4 decimals; a lost row has two empty cells."""
+    rows = []
+    for frame, found in zip(frames, positions, strict=True):
+        for name, (u_px, v_px) in zip(names, found, strict=True):
+            lost = math.isnan(u_px) or math.isnan(v_px)
+            rows.append(f"{clip},{int(frame)},{name}," + ("," if lost else f"{u_px:.4f},{v_px:.4f}"))
+    return rows
+
+
+def read_positions(path=POSITIONS) -> tuple[dict[str, str], list[tuple[str, int, str, float, float]]]:
+    """A positions table as (header, rows): the header as `read_frozen` gives it, and each row as
+    (clip, frame, track_id, u_px, v_px) in the file's order, with NaN, NaN for a lost row. Raises
+    ValueError when the line after the header is not `COLUMNS`."""
+    header, lines = read_frozen(path)
+    if not lines or lines[0] != COLUMNS:
+        raise ValueError(f"{Path(path).name}: the line after the header is not {COLUMNS}")
+    rows = []
+    for line in lines[1:]:
+        clip, frame, track_id, u_px, v_px = line.split(",")
+        rows.append((clip, int(frame), track_id, float(u_px or "nan"), float(v_px or "nan")))
+    return header, rows

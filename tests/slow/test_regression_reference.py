@@ -13,6 +13,13 @@ Three groups:
 Lines printed with the prefix `VALIDATION` are the numbers of docs/VALIDATION.md; show them with
 `uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP`.
 
+With `OUTLINE_TRACKER_FREEZE=1` the tests of group 2 also write the frozen numbers of
+tests/slow/test_frozen_reference.py: the new backend's positions on both clips
+(tests/data/edgetam_cpu_positions.csv) and the weights' hash (tests/data/edgetam_weights.txt). Each
+test hands its numbers over after its own assertions have passed, so the files hold only what last
+week's code and the true positions confirmed in that run (tests/frozen_helpers.py). Without the
+switch nothing is written.
+
 Coordinates: positions are in px in Tracker's convention (pixel centers at +0.5, SPEC 3.1), in the
 full frame: `mask_center` of a result's cropped mask plus its offset (col0, row0). Clips are 1080p.
 """
@@ -21,12 +28,15 @@ from __future__ import annotations
 
 import hashlib
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import cv2
 import numpy as np
 import pandas as pd
 import pytest
+from frozen_helpers import (COLUMNS, POSITIONS, REPO, WEIGHTS, freeze_asked, frozen_text, header_lines, position_rows,
+                            write_frozen)
 
 from outline_tracker.measure import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
@@ -262,6 +272,81 @@ def _timing(seconds: np.ndarray) -> str:
     return f"{seconds.mean():.2f} s per frame (mean of {len(seconds)}; median {np.median(seconds):.2f})"
 
 
+FREEZE_COMMAND = ("OUTLINE_TRACKER_FREEZE=1 uv run pytest -m slow tests/slow/test_regression_reference.py -q -rP "
+                  "-p no:cacheprovider")  # what writes the two frozen files
+_handed_over = {}  # what the tests of a freeze run have handed over: "selftest", "three_ellipses", "weights"
+
+
+def _hand_over_positions(clip, frames, names, positions, difference, error) -> None:
+    """Take one clip's positions of the new backend for the frozen table, after the assertions of its
+    test have passed. Does nothing unless this run was asked to freeze (tests/frozen_helpers.py).
+
+    positions[i][k]: (u_px, v_px) of the object names[k] on the frame frames[i], px in Tracker's
+    convention in the full frame. difference, error: each found row's distance in px from last week's
+    position and from the true center. What these two checks do not confirm is refused: a row more
+    than 0.01 px from last week's, or 3 px or more from the truth.
+    """
+    if not freeze_asked():
+        return
+    worst, farthest = float(np.nanmax(difference)), float(np.nanmax(error))
+    assert worst <= 0.01 and farthest < 3.0, (
+        f"Nothing was frozen: {clip} is {worst:.4f} px from last week's and {farthest:.3f} px from the truth.")
+    _handed_over[clip] = SimpleNamespace(rows=position_rows(clip, frames, names, positions), worst=worst,
+                                         farthest=farthest)
+    _freeze_when_complete()
+
+
+def _hand_over_weights(sha256: str, size: int) -> None:
+    """Take the hash and the size in bytes of the weights file that the loaded model was read from,
+    after the test has hashed the file again. Does nothing unless this run was asked to freeze."""
+    if not freeze_asked():
+        return
+    _handed_over["weights"] = SimpleNamespace(sha256=sha256, size=size)
+    _freeze_when_complete()
+
+
+def _freeze_when_complete() -> None:
+    """Write the two frozen files once both clips and the weights have been handed over in this run:
+    one loaded model on cpu made all of it. A run of a part of this file writes nothing."""
+    if set(_handed_over) != {"selftest", "three_ellipses", "weights"}:
+        return
+    import torch
+
+    clips = {name: _handed_over[name] for name in ("selftest", "three_ellipses")}
+    weights = _handed_over["weights"]
+    rows = [row for clip in clips.values() for row in clip.rows]
+    write_frozen(POSITIONS, frozen_text(header_lines(FREEZE_COMMAND, {
+        "device": "cpu",
+        "torch threads": str(torch.get_num_threads()),
+        "weights sha256": weights.sha256,
+        "agreement with the template": f"{max(clip.worst for clip in clips.values()):.4f} px at most over the "
+                                       f"{len(rows)} rows (limit 0.01 px), asserted in the run that wrote this file",
+        "largest distance from the true centers": "; ".join(f"{name} {clip.farthest:.3f} px"
+                                                            for name, clip in clips.items()) + " (limit 3 px)",
+    }), [COLUMNS, *rows]))
+    write_frozen(WEIGHTS, frozen_text(header_lines(FREEZE_COMMAND, {
+        "model": "facebook/EdgeTAM (edgetam), converted on first use; the tool loads the converted model.safetensors",
+        "sha256, bytes": "of that model.safetensors; HFSegmenter.weights_sha256 reports this hash, and the run that "
+                         "wrote this file took it again from the file's bytes",
+        "original checkpoint, original revision": "Meta's edgetam.pt as the Hugging Face cache of this machine held "
+                                                  "it; for information, never asserted",
+    }), [f"sha256: {weights.sha256}", f"bytes: {weights.size}", *_original_checkpoint()]))
+    print(f"FROZEN {len(rows)} rows in {POSITIONS.relative_to(REPO).as_posix()}; the weights' hash in "
+          f"{WEIGHTS.relative_to(REPO).as_posix()}")
+
+
+def _original_checkpoint() -> list[str]:
+    """Meta's checkpoint as the Hugging Face cache of this computer holds it: a line with its name and
+    its size in bytes, and a line with its revision. Nothing when the cache does not hold it."""
+    from huggingface_hub import try_to_load_from_cache
+
+    found = try_to_load_from_cache("facebook/EdgeTAM", "edgetam.pt")
+    if not isinstance(found, str):
+        return []
+    return [f"original checkpoint: edgetam.pt of facebook/EdgeTAM, {Path(found).stat().st_size} bytes",
+            f"original revision: {Path(found).parent.name}"]
+
+
 @pytest.fixture(scope="module")
 def selftest_runs(loaded, tmp_path_factory):
     """Last week's selftest with the reference segmenter, then the new backend on the same clip."""
@@ -300,6 +385,10 @@ def test_selftest_clip_positions_equal_the_reference_csv(selftest_runs):
           f"{np.nanmax(difference):.4f} px; lost frames: reference {int(lost_old.sum())}, new {int(lost_new.sum())}")
     assert np.array_equal(lost_new, lost_old)
     assert np.nanmax(difference) <= 0.01
+    # Last week's code agrees. Only now, and only when asked, the positions go to the frozen table.
+    true = s.truth[["pixelx", "pixely"]].to_numpy(float)
+    _hand_over_positions("selftest", s.plan.frames, ["selftest"], s.positions[:, None, :], difference,
+                         np.hypot(*(s.positions - true).T))
 
 
 def test_selftest_clip_within_3_px_of_truth_on_cpu(selftest_runs):
@@ -331,6 +420,7 @@ def test_segmenter_reports_device_model_and_weights(selftest_runs):
             assert result.score > 0  # the presence logit: an object the model calls absent has no mask
     segmenter.close()
     assert segmenter.session is None
+    _hand_over_weights(segmenter.weights_sha256, saved.stat().st_size)  # frozen only when asked
 
 
 def _write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
@@ -409,6 +499,11 @@ def test_three_objects_match_the_reference(loaded, tmp_path):
     assert not lost_old[0].any()  # the reference found every ellipse at its click
     assert np.array_equal(lost_new, lost_old)
     assert difference[found].max() <= 0.01
+    # the selftest criterion (SPEC 13.4) for this clip too: every found position under 3 px from the
+    # true center, which the clip's recipe gives
+    assert error[found].max() < 3.0
+    positions = np.array([[_position(result)[:2] for result in results] for results in run.results])
+    _hand_over_positions("three_ellipses", frames, NAMES, positions, difference, error)
 
 
 # ---------------------------------------------------------------------------------------------
