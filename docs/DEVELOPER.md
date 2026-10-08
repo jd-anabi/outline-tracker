@@ -127,6 +127,7 @@ How the tests are laid out:
 - One test file per module in `tests/`; the window's tests in `tests/gui/`; the real model's in `tests/slow/`.
 - `tests/conftest.py` is last week's file, unchanged. Shared fixtures are in `tests/helpers.py`. No other `conftest.py` below `tests/`.
 - `tests/reference/` holds last week's code, unmodified. The package never imports it.
+- `tests/data/` holds frozen reference files: what the code gave in a run that an independent check confirmed, each with a header that says how it was made (commit, machine, system, library versions). A test never rewrites them. The command in a file's header makes it again: it sets `OUTLINE_TRACKER_FREEZE=1`, the switch without which nothing is written, and the package must be as committed (`tests/frozen_helpers.py`).
 - The window's tests run offscreen with stand-in segmenters (`segmenter/fake.py`), so none of them imports torch. Every test gets its window from the `window` fixture, which closes it and stops the worker thread.
 - A test that depends on what a thread is doing parks the stand-in on a gate (`tests/gui/prompt_helpers.py`, `Gate`) and waits for a condition. No test sleeps.
 - Dialogs are replaced by a recorder (`tests/gui/gui_helpers.py`, `record_dialogs`), so no test waits for a click.
