@@ -19,13 +19,12 @@ Expected values: the dish scene's clip has 120 frames, so a clip at step 2 has t
 the true mask (tests/tracking_helpers.py, `table_truth`). A stand-in parked in its call for the
 6th tracked frame has returned 5 frames; when the gate opens the 6th is stored, and a job that was
 cancelled meanwhile stops before the 7th: frames 0, 2, 4, 6, 8, 10. A gate is a `threading.Event`
-(tests/gui/prompt_helpers.py); no test waits with a delay, except the one that closes the window,
-whose gate is opened by a timer thread while the GUI thread waits in `close()`.
+(tests/gui/prompt_helpers.py); no test waits with a delay. In the two tests that close the window
+the GUI thread waits in `close()`, so another thread opens the gate, once the worker has been told
+to stop (its `stopping`).
 
 Coordinates: px in Tracker's convention (SPEC 3.1). Frames are video frame numbers.
 """
-
-import threading
 
 import numpy as np
 from PySide6.QtCore import QTimer
@@ -154,8 +153,7 @@ def test_closing_the_window_during_a_run_cancels_it_and_ends_the_worker_thread(w
     with Gate() as gate:
         panel, segmenter, heard = parked_in_frame_6(window, qtbot, clip_in_odd_folder, gate)
         worker, run_folder = worker_of(window), window.controller.run_folder
-        opener = threading.Timer(0.2, gate.open)  # the GUI thread waits in close(): another thread opens the gate
-        opener.start()
+        opener = gate.open_when(worker.stopping)  # the GUI thread waits in close(): another thread opens the gate
         window.close()
         opener.join()
     assert not worker.is_running() and worker.state == "stopped"
@@ -393,9 +391,8 @@ def test_what_a_cancelled_job_said_is_in_run_log_too(window, qtbot, clip_in_odd_
 def test_closing_the_window_during_a_run_leaves_what_the_job_said_in_run_log(window, qtbot, clip_in_odd_folder):
     with Gate() as gate:
         panel = parked_with_a_note(window, qtbot, clip_in_odd_folder, gate)
-        run_folder = window.controller.run_folder
-        opener = threading.Timer(0.2, gate.open)  # the GUI thread waits in close(): another thread opens the gate
-        opener.start()
+        worker, run_folder = worker_of(window), window.controller.run_folder
+        opener = gate.open_when(worker.stopping)  # the GUI thread waits in close(): another thread opens the gate
         window.close()
         opener.join()
     assert not panel.jobs.running and panel.jobs.status == "cancelled"

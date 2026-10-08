@@ -17,7 +17,6 @@ Frames are video frame numbers; sizes are bytes; times are s.
 """
 
 import json
-import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -283,8 +282,7 @@ def test_closing_the_window_during_an_export_waits_for_it_and_ends_the_thread(wi
         watch = watch_export(monkeypatch, gate=gate)
         panel.export_button.click()
         qtbot.waitUntil(gate.parked.is_set)
-        opener = threading.Timer(0.2, gate.open)  # the GUI thread waits in close(): another thread opens the gate
-        opener.start()
+        opener = gate.open_when(worker.stopping)  # the GUI thread waits in close(): another thread opens the gate
         window.close()
         opener.join()
     assert not worker.is_running() and worker.traces == []

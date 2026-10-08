@@ -5,7 +5,9 @@ Imported by name from the test files beside it. Nothing here imports torch.
 - `Gate` parks a call of a stand-in on a `threading.Event`: a test waits for `gate.parked`
   (`qtbot.waitUntil`), does what it has to do while the worker thread stands still, and opens the
   gate. No test waits with a delay. The gate opens by itself when its `with` block ends, so a test
-  that fails inside it leaves no thread parked.
+  that fails inside it leaves no thread parked. A test whose own thread cannot open the gate,
+  because it waits in `window.close()` for the thread that is parked, has it opened by another
+  thread once an event is set (`gate.open_when`).
 - `Watched` is a stand-in segmenter (a `ThresholdFake` unless another is given) that writes down
   every preview asked of it and in which thread, and parks the chosen calls on a gate.
 - `panel_with` opens a clip in the window, shows the window and waits until the model is ready.
@@ -48,6 +50,19 @@ class Gate:
 
     def open(self) -> None:
         self._open.set()
+
+    def open_when(self, event: threading.Event) -> threading.Thread:
+        """Open the gate once `event` is set, from a thread of its own, and return that thread
+        (started) for the test to join. With the worker's `stopping` the gate opens when the worker
+        has been told to stop, and not before. If the event is not set within SAFETY_S the gate
+        stays shut and the thread ends: the parked call gives up as with any gate nobody opens."""
+        def opener() -> None:
+            if event.wait(SAFETY_S):
+                self.open()
+
+        thread = threading.Thread(target=opener, daemon=True)  # a test that fails before the event leaves it behind
+        thread.start()
+        return thread
 
     def __enter__(self) -> Gate:
         return self
