@@ -34,7 +34,6 @@ SCANNED = (PACKAGE_NAME, "tests")
 OVER_400: dict[str, str] = {
     # 6b: the tests of core/ and segmenter/
     "tests/core/test_fileio.py": "6b",
-    "tests/core/test_geometry.py": "6b",
     "tests/core/test_schema.py": "6b",
     "tests/core/test_schema_docs.py": "6b",
     "tests/core/test_tracker_io_known_maps.py": "6b",
