@@ -33,7 +33,6 @@ SCANNED = (PACKAGE_NAME, "tests")
 # entry, the second for an entry whose file is no longer long.
 OVER_400: dict[str, str] = {
     # 6b: the tests of core/ and segmenter/
-    "tests/core/test_fileio.py": "6b",
     "tests/core/test_tracker_io_known_maps.py": "6b",
     # 6c: the tests of repo/, support/, tracking/, synthetic/, measure/ and slow/
     "tests/measure/test_derive_rules.py": "6c",
