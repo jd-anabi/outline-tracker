@@ -1,6 +1,6 @@
 """What a job does around the frames (SPEC 6.4, 6.5): cancel, autosave, progress, the session changes
 it hands over, the checks before a run, and what is kept when the model fails. The positions
-themselves are checked in tests/tracking/test_tracking_coarse.py.
+themselves are checked in tests/tracking/test_tracking_coarse_positions.py.
 
 Expected values are counts of frames worked out from the clip (120 frames, or 210 for the autosave
 clip) and the session's frame grid, and the ground truth of outline_tracker/synthetic/clips.py. Frames
