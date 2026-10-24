@@ -4,7 +4,7 @@ For whoever changes the code. Students read [README.md](../../README.md); the fi
 
 ## Where what is
 
-The package is `outline_tracker/`. The core has no window: everything outside `gui/` runs from the command line and never imports Qt. Paths below are relative to `outline_tracker/`.
+The package is `outline_tracker/`. The core has no window: everything outside `gui/` runs from the command line and never imports Qt. A path of a module, such as `gui/panels/`, is relative to `outline_tracker/`; other paths are relative to the repository.
 
 Which module holds what is in [modules.md](modules.md): one row for each module, with the first line of its docstring. The page is generated from those first lines, and a test fails when it is out of date; write it again with `uv run python tests/support/module_index.py docs/developer/modules.md`. A new module therefore starts with a docstring whose first line is a sentence of its own.
 

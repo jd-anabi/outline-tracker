@@ -87,7 +87,7 @@ def choose(box, key: str) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# README.md and docs/developer/README.md as data
+# README.md's Quickstart as data
 
 
 def quickstart(text: str) -> str:
