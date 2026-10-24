@@ -134,6 +134,7 @@ def test_the_two_modules_are_each_under_420_lines(schema_docs):
         "import outline_tracker.schema_docs, outline_tracker.schema",
         "from outline_tracker.schema import readme_text",
     ],
+    ids=["schema", "schema_docs", "schema_docs and schema", "readme_text from schema"],
 )
 def test_importing_either_module_loads_neither_pandas_torch_nor_qt(imports):
     done = python(LIGHT_CHECK.format(imports=imports))
@@ -147,6 +148,7 @@ def test_importing_either_module_loads_neither_pandas_torch_nor_qt(imports):
         "import outline_tracker.schema_docs as d; import outline_tracker.schema as s",
         "import outline_tracker.schema as s; import outline_tracker.schema_docs as d",
     ],
+    ids=["schema_docs first", "schema first"],
 )
 def test_import_order_does_not_matter(imports):
     """schema_docs reads the tables of schema, and schema hands out readme_text from schema_docs:
