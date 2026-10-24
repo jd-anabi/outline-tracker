@@ -2,7 +2,7 @@
 window, a settings folder of the test's own, the bottom bar on a grid of frames, a larger font for
 the application, a worker without a window, a results file that cannot be opened at this moment,
 and two guards (the application's look is put back; a dialog that would block is an error).
-pytest finds a fixture by its name; nothing imports this file (tests/repo/test_repo_rules.py says why). The
+pytest finds a fixture by its name; nothing imports this file (tests/repo/test_repo_rules_test_code.py says why). The
 fixtures for the tests of every folder, `window` among them, are in tests/conftest.py; plain helpers
 are in the helper modules beside this file.
 """

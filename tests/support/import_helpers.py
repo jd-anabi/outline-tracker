@@ -1,8 +1,8 @@
 """The scan of the imports in a parsed Python file, shared by the rule tests of tests/repo/.
 
-tests/repo/test_repo_rules.py (the boundaries of Qt and the model libraries, the imports of conftest.py
-and of test modules) and tests/repo/test_layers.py (the layers of the package) both read imports through
-`imports`. A test module imports nothing from another test module, so the scan lies here.
+tests/repo/test_repo_rules.py (the boundaries of Qt and the model libraries), tests/repo/test_repo_rules_test_code.py
+(the imports of conftest.py and of test modules) and tests/repo/test_layers.py (the layers of the package) all
+read imports through `imports`. A test module imports nothing from another test module, so the scan lies here.
 """
 
 import ast

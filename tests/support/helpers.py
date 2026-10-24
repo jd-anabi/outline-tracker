@@ -2,7 +2,7 @@
 
 Fixtures are not here: the ones for every test are in tests/conftest.py, where pytest finds them by
 name. What tests import by name is here or in a helper module beside the tests, never in a
-conftest.py (tests/repo/test_repo_rules.py says why).
+conftest.py (tests/repo/test_repo_rules_test_code.py says why).
 """
 
 import re

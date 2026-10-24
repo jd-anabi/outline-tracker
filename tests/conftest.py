@@ -2,7 +2,7 @@
 from the sequential decode and those of the dish clip from OpenCV alone, a tracked run folder, a test's
 own copy of the run folder its module tracked, a file that another program holds open, the settings
 kept out of the user's own, the main window. pytest finds a fixture by its name; nothing imports this
-file (tests/repo/test_repo_rules.py says why). The plain helpers and values that tests import by name are in
+file (tests/repo/test_repo_rules_test_code.py says why). The plain helpers and values that tests import by name are in
 tests/support/helpers.py and in the helper modules beside it.
 """
 
