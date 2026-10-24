@@ -1,6 +1,6 @@
 """Tests of outline_tracker/core/session.py: session.json <-> dataclasses, and finding the video again.
 
-Expected values come from SPEC.md itself (the session.json example of section 8.10 is read from the
+Expected values come from docs/design/SPEC-v0.1.md itself (the session.json example of section 8.10 is read from the
 file and must come back unchanged), from decision X18 (the optional keys), from SPEC 3.2 and 4.2
 worked by hand (the world frame), and from hashlib (the video's identity). Nothing is copied from
 the output of the code under test.
@@ -53,7 +53,7 @@ VIDEO_NAME = "groupB_2026-10-06_1325_main_tracker.mp4"
 
 
 def spec_example() -> dict:
-    """The session.json example of SPEC 8.10, parsed from SPEC.md."""
+    """The session.json example of SPEC 8.10, parsed from docs/design/SPEC-v0.1.md."""
     text = table_path("spec").read_text(encoding="utf-8")
     section = text.split("### 8.10 session.json", 1)[1]
     return json.loads(section.split("```json", 1)[1].split("```", 1)[0])

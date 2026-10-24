@@ -219,7 +219,7 @@ def same_decoder(header: dict[str, str], here: str) -> bool:
     on some frames. Measured on 2026-10-08 with files frozen on macOS, arm64: the test computers with
     Linux and Windows wrote the same digits as each other, and in the three files that the log shows,
     2 to 5 of their 25 to 31 rows differ from the frozen ones, by about 0.05 px. Decision X8 of the
-    first build says the same of frame hashes (docs/PLAN.md). The owner's rule for this outcome
+    first build says the same of frame hashes (docs/design/decisions.md). The owner's rule for this outcome
     (2026-10-07): "Bytes asserted on the system that froze them, the 0.25 px truth criterion elsewhere."
 
     So a test asserts the golden bytes only where this is true: the header has a `decoder` line, and

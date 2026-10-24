@@ -15,7 +15,8 @@ How to use it:
   own decisions, sections 3 to 5 of this file replace them.
 - Tick the boxes as steps finish, write the owner's answers under the decisions of section 3, and
   add one line to the log in section 7 at the end of every session. This file is the plan now;
-  `docs/PLAN.md` is the history of the first build.
+  `docs/design/decisions.md` holds the decisions of the first build; its plan, `docs/PLAN.md`, is
+  in the git history.
 - The session that closes a workstream deletes that workstream's inventory from the tree. It
   stays in the git history.
 
@@ -59,18 +60,18 @@ Where things are written down:
 | document | what it is |
 |---|---|
 | `README.md` | install, Quickstart, fallback commands; written for the first class of users |
-| `docs/DEVELOPER.md` | module map, tests, rules, how to add a panel or a model |
+| `docs/developer/README.md` | module map, tests, rules, how to add a panel or a model |
 | `docs/OUTPUTS.md` | every output file and column; generated from `outline_tracker/schema.py` |
 | `docs/VALIDATION.md` | what was measured, and how |
-| `SPEC.md` | the specification of version 0.1.0, written for one lab class |
-| `docs/PLAN.md` | the build plan of 0.1.0: decisions X1 to X22 (section 4), open points ("Raised during the work") |
+| `docs/design/SPEC-v0.1.md` | the specification of version 0.1.0, written for one lab class; frozen |
+| `docs/design/decisions.md` | the decisions X1 to X22 of the first build; its plan, `docs/PLAN.md`, left the tree in W2 |
 | `CLAUDE.md` | rules for coding agents, rewritten for this phase in W1 step 1; section 2 holds them in full |
 | `docs/design/gui_design.md` | the design note of the window: spacing, colors, wording rules |
 | `docs/roadmap/*.md` | the inventories behind this roadmap, one for each workstream that is still open |
 
 ## 2. Ground rules for this phase
 
-`CLAUDE.md` states these rules in short (rewritten in W1 step 1), and `docs/DEVELOPER.md` points
+`CLAUDE.md` states these rules in short (rewritten in W1 step 1), and `docs/developer/README.md` points
 to them. Where they, or an inventory, say otherwise, this section wins.
 
 1. **Version 0.1.0 is not disturbed.**
@@ -443,7 +444,9 @@ helpers, for step 3: one function under two names in two helper modules (`_names
 two `W, H` with different values, `position` twice, and helpers that several modules share
 under private names. Two fragile tests were never looked at: pixel reads of lower panels in a
 600 px high window without scrolling, and a test that starts pytest inside pytest with
-`QT_SCALE_FACTOR`. Lists that planned features change are pinned in tests: the models of
+`QT_SCALE_FACTOR`. Both were looked at in step 3a2 and made firm: the window is scrolled to a
+panel before its pixels are read, and the inner run is named by the test's own file and name.
+Lists that planned features change are pinned in tests: the models of
 panel 7, the items of the File menu, the nine panels, the ten Quickstart steps.
 
 Decided with the owner on 2026-10-24, where the inventory proposed and this section left open:
@@ -467,12 +470,20 @@ Decided with the owner on 2026-10-24, where the inventory proposed and this sect
   its tables of modules. No `docs/user/` in W2: it is for material of the README (W3 step 8).
 - All six steps in one session, in this order.
 
-- [ ] 1. Re-key the tests that pin paths (`tests/test_repo_rules.py`, the DEVELOPER page test,
+- [x] 1. Re-key the tests that pin paths (`tests/test_repo_rules.py`, the DEVELOPER page test,
       the import-order tests) so that they follow a table, before anything moves.
+      Done 2026-10-24: `tests/support/layout_helpers.py` holds the one table of the paths that
+      tests name (found from `pyproject.toml`, not from a test's own place); 15 new tests in
+      `tests/repo/test_layout.py`, among them every relative link of every page.
 - [ ] 2. Commit 1: the package into subpackages, with `git mv` and the import lines, nothing
       else. The proposed mapping of every module is in the inventory, section 1.2 (`cli/`,
       `core/`, `video/`, `measure/`, `tracking/`, `segmenter/`, `export/`, `workflows/`,
       `synthetic/`, `gui/`). Done when the fast suite gives the same counts.
+      Done 2026-10-24 (`d22877f`): 43 modules into eight subpackages; every import, and 20
+      imports written in strings of tests, follows; nothing else but the new `__init__.py` files,
+      `cli/__main__.py` and the strings that name a moved module. The same counts, the same list
+      of every test's fixtures; the real model's 40 slow tests give the same numbers. Comments and
+      docstrings follow in the next commit.
 - [ ] 3. Commit 2: tests into the same subjects, helpers into one folder. Commit 3: documents
       (`docs/user/`, `docs/developer/`, `docs/design/`; decision 15).
 - [ ] 4. Make the layers true, one small commit each: the constants and helpers that the library
@@ -496,7 +507,7 @@ synthetic scenes.
 From W1: decision 30 (behaviors of ported code that wait for a rule). About 24 test names still
 say "last week" or "the reference" although nothing compares with the template any more (step
 6). The README tests ask for exactly two install lines and a tag of the form `vX.Y.Z` (step 8).
-`SPEC.md` 7.8 and 13.4 state the rules that decision 26 changed; code comments still point to
+`docs/design/SPEC-v0.1.md` 7.8 and 13.4 state the rules that decision 26 changed; code comments still point to
 them (decision 15: `docs/design/decisions.md`).
 
 - [ ] 1. `session.json` version 2 (decision 12): the table goes into `docs/design/formats.md`
@@ -511,7 +522,7 @@ them (decision 15: `docs/design/decisions.md`).
 - [ ] 4. Frame rate sources (decision 10), the phone-video checks (decision 11), the switch for
       the Tracker-format export (decision 7), and what else goes (decision 14).
 - [ ] 5. Texts: the window, command help, console lines, generated descriptions, docstrings and
-      comments, `docs/VALIDATION.md`, `docs/DEVELOPER.md`, `CHANGELOG.md`, `pyproject.toml`, the
+      comments, `docs/VALIDATION.md`, `docs/developer/README.md`, `CHANGELOG.md`, `pyproject.toml`, the
       CI file; neutral defaults (decision 13); "object" everywhere (decision 5); the track
       colors (decision 25).
 - [ ] 6. Neutral names inside: the synthetic scenes and shapes, the selftest's wording and its
@@ -683,8 +694,9 @@ makes it a general, open-source tool.
 Your workstream: W_ (as named in docs/ROADMAP.md section 4).
 
 Read first, in this order: CLAUDE.md, docs/ROADMAP.md (all of it), the inventory of your
-workstream in docs/roadmap/, docs/DEVELOPER.md. Section 2 of docs/ROADMAP.md holds the rules of
-this phase; where CLAUDE.md, docs/DEVELOPER.md or an inventory says otherwise, section 2 wins.
+workstream in docs/roadmap/, docs/developer/README.md. Section 2 of docs/ROADMAP.md holds the rules
+of this phase; where CLAUDE.md, docs/developer/README.md or an inventory says otherwise, section 2
+wins.
 
 Before any change:
 1. Check the start: `git tag -l v0.1.0` prints the tag, `git status` is clean, and the

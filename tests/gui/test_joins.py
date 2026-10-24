@@ -11,7 +11,7 @@ Panels 5 to 9 were built side by side. These tests hold the places where two of 
    function, `Jobs.writing()`, says whether and why.
 3. Once a track has stored frames, the model of the session is fixed; the device is not.
 4. Panel 9 needs attention when session.json or results.npz is newer than positions.csv.
-5. The Quickstart marks the buttons of panels 8 and 9 in bold; docs/DEVELOPER.md names every
+5. The Quickstart marks the buttons of panels 8 and 9 in bold; docs/developer/README.md names every
    module file, and no file that is not there.
 6. gui/prompts.py and gui/panels/video_panel.py were split: what they offered is still there.
 

@@ -424,7 +424,7 @@ def test_each_model_key_names_its_repository_on_the_hugging_face_hub():
 
     # Typed from NOTICE, which names the models that the tool downloads: "EdgeTAM (facebook/EdgeTAM) and
     # SAM 2.1 (facebook/sam2.1-hiera-tiny, facebook/sam2.1-hiera-small)". Of the two SAM 2.1 models
-    # `sam2` is the tiny one (SPEC.md, decision D1: "SAM 2.1 tiny stays available as an option") and
+    # `sam2` is the tiny one (docs/design/SPEC-v0.1.md, decision D1: "SAM 2.1 tiny stays available as an option") and
     # `sam2-small` the small one.
     assert hf.MODELS == {
         "edgetam": "facebook/EdgeTAM",

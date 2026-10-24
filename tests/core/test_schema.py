@@ -1,7 +1,7 @@
 """Tests of outline_tracker/core/schema.py, the single source of truth for every output file (SPEC 8, 9).
 
 Expected values come from the specification: column lists typed from SPEC 8.2, 8.4, 8.5, 8.7, the
-SPEC.md tables parsed directly, and rows built cell by cell by hand. Nothing is copied from the
+docs/design/SPEC-v0.1.md tables parsed directly, and rows built cell by cell by hand. Nothing is copied from the
 output of the code under test.
 """
 
@@ -71,7 +71,7 @@ EXTRA_RESULTS_KEYS = ["core_fallback", "second_fraction", "core_r_px", "mask_bit
 
 
 def spec_section(heading_start: str) -> list[str]:
-    """Lines of SPEC.md from the heading that starts with `heading_start` to the next heading."""
+    """Lines of docs/design/SPEC-v0.1.md from the heading that starts with `heading_start` to the next heading."""
     lines = table_path("spec").read_text(encoding="utf-8").splitlines()
     start = next(i for i, line in enumerate(lines) if line.startswith(heading_start))
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#")), len(lines))
@@ -79,7 +79,7 @@ def spec_section(heading_start: str) -> list[str]:
 
 
 def spec_table(heading_start: str) -> list[list[str]]:
-    """Body rows of the first markdown table of a SPEC.md section, as lists of stripped cells."""
+    """Body rows of the first markdown table of a section of docs/design/SPEC-v0.1.md, as lists of stripped cells."""
     rows = []
     for line in spec_section(heading_start):
         if line.startswith("|"):

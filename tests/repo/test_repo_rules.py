@@ -266,7 +266,7 @@ def _path_filters(workflow: str) -> list[str]:
 
 
 def test_ci_runs_for_every_push_to_main():
-    # Fast tests read documents (README.md, SPEC.md, docs/), so a push that changes only documents must
+    # Fast tests read documents (README.md, docs/), so a push that changes only documents must
     # start a run too (docs/ROADMAP.md, section 2, rule 2).
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert re.search(r"^ *push:\n *branches: *\[main\]", workflow, re.MULTILINE)  # the trigger is there

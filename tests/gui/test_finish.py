@@ -6,7 +6,7 @@
 - README.md has the section "Quickstart": ten numbered steps. Every control it marks (in bold or
   in backticks) is held against the texts of the window's own buttons and menu items, so the page
   cannot name a button the window does not have. Help > Quickstart opens that section.
-- docs/DEVELOPER.md names every module of the package.
+- docs/developer/README.md names every module of the package.
 
 The README's own shape (ten steps, its commands) is checked in tests/repo/test_readme.py, without Qt.
 """
@@ -124,7 +124,7 @@ def test_help_quickstart_opens_the_quickstart_section_of_the_readme(window, monk
 
 
 # ---------------------------------------------------------------------------------------------
-# docs/DEVELOPER.md
+# docs/developer/README.md
 
 
 def link_to(role: str) -> str:
