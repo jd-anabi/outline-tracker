@@ -22,14 +22,14 @@ Two levels:
 - the whole pipeline: `from_tracker`. A position is `pixelx`, `pixely` of a Tracker-format file,
   which has 3 decimals: up to 0.0005 px per axis from the table's 4 decimals.
 
-The machine rule (`frozen_helpers.same_machine`): the limit of 0.01 px and the weights' hash are
+The machine rule (`frozen_numbers_helpers.same_machine`): the limit of 0.01 px and the weights' hash are
 asserted on the machine that froze the numbers. On another machine the position tests assert that
 no row is lost and that every position is under 3 px from its true center, and print the distance
 from the frozen numbers as measured; the weights test is skipped, and its reason names both hashes.
 The position tests pass either way, and pytest hides what a passing test prints. So one more test
 says in the summary which it was: it passes where the limit of 0.01 px was asserted, and is skipped
 elsewhere with a reason that names each fact in which this machine is not the header's and what
-the position tests asserted instead (`frozen_helpers.why_the_limit_was_not_asserted`).
+the position tests asserted instead (`frozen_numbers_helpers.why_the_limit_was_not_asserted`).
 
 Lines printed with the prefix `VALIDATION` are the numbers of docs/VALIDATION.md; show them with
 `uv run pytest -m slow tests/slow/test_frozen_reference.py -q -rPs` (`s` adds the reason of a skipped
@@ -47,8 +47,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from from_tracker_helpers import write_start_file
-from frozen_helpers import (compare_with_the_frozen_positions, machine_here, machine_of, read_positions,
-                            read_weights, same_machine, why_the_limit_was_not_asserted)
+from frozen_numbers_helpers import (compare_with_the_frozen_positions, machine_here, machine_of, read_positions,
+                                    read_weights, same_machine, why_the_limit_was_not_asserted)
 from helpers import tracker_map
 from pipeline_helpers import position, write_three_ellipse_clip
 
@@ -111,7 +111,7 @@ def _segmenter_level(loaded, clips, name) -> None:
     """Track the clip `name` with the segmenter alone, on the frames and from the clicks that
     `make_plan` reads from the clip's export, and judge the positions against the frozen ones: the
     table's rows of this clip, by the machine rule with the hash of the weights that the segmenter
-    reports (`frozen_helpers.compare_with_the_frozen_positions`)."""
+    reports (`frozen_numbers_helpers.compare_with_the_frozen_positions`)."""
     clip = clips[name]
     plan = tracker_io.make_plan(clip.export, fps=FPS, **clip.options)
     assert plan.frames == FRAMES and plan.names == clip.names

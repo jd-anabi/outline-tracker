@@ -42,10 +42,11 @@ import cv2
 import frozen_helpers
 import numpy as np
 import pytest
-from frozen_helpers import (COLUMNS, DATA, GOLDEN, POSITIONS, SIDECAR, SWITCH, WEIGHTS, compare_with_frozen,
-                            freeze_asked, frozen_files, frozen_text, header_lines, machine_here, machine_name,
-                            machine_of, position_rows, read_frozen, read_positions, read_weights, same_decoder,
-                            same_machine, why_the_limit_was_not_asserted, write_frozen, write_listing)
+from frozen_helpers import (DATA, GOLDEN, SIDECAR, SWITCH, freeze_asked, frozen_files, frozen_text, header_lines,
+                            machine_name, read_frozen, same_decoder, write_frozen, write_listing)
+from frozen_numbers_helpers import (COLUMNS, POSITIONS, WEIGHTS, compare_with_frozen, machine_here, machine_of,
+                                    position_rows, read_positions, read_weights, same_machine,
+                                    why_the_limit_was_not_asserted)
 from helpers import HOME_PATH
 
 from outline_tracker.core import provenance

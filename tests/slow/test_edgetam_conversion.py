@@ -23,7 +23,7 @@ test runs, so this computer's own model folder (~/.cache/shrimp-models) is not w
 asserts that its files are the same afterwards. Meta's checkpoint is read from the Hugging Face
 cache; a computer that does not have it downloads it (56 MB).
 
-The machine rule (`frozen_helpers.same_machine`), as for the weights test of
+The machine rule (`frozen_numbers_helpers.same_machine`), as for the weights test of
 tests/slow/test_frozen_reference.py: the hash and the size are asserted on the machine that froze
 them. On another machine the conversion has to succeed, and then the test is skipped; its reason
 names both hashes.
@@ -38,7 +38,7 @@ No quantities here: no units and no coordinates.
 from __future__ import annotations
 
 import pytest
-from frozen_helpers import machine_here, machine_of, read_weights, same_machine
+from frozen_numbers_helpers import machine_here, machine_of, read_weights, same_machine
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]
 

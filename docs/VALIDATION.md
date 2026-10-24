@@ -855,7 +855,7 @@ that the header names.
   number (1.042 px).
 
 **The limit.** 0.01 px holds on the machine that froze the numbers; on another machine it is
-measured, not assumed. The tests decide by one rule (`frozen_helpers.same_machine`): this is the
+measured, not assumed. The tests decide by one rule (`frozen_numbers_helpers.same_machine`): this is the
 machine that froze the numbers when its operating system's family, its architecture, its chip, its
 torch version and the hash of its weights are the header's. Only then the limit is asserted.
 Anywhere else the position tests assert that no row is lost and that every position is under 3 px
