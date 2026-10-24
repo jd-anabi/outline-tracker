@@ -62,6 +62,11 @@ GOLDEN = DATA / "tracker_format"  # the golden Tracker-format files, <case>/<nam
 STAND_IN_PX = 0.25  # with every decoder, the stand-in finds a disk at most this far from its true center, px
 _FLOAT_MM = 1e-9  # what floating point may add to a calibrated value, mm: far below a file's last decimal
 
+# Made-up values for the tests of the frozen files, which tests/repo/test_frozen_files.py and
+# tests/repo/test_frozen_numbers.py both use.
+COMMAND = "OUTLINE_TRACKER_FREEZE=1 uv run pytest tests/test_frozen_files.py -q"  # made up, for the headers here
+NEEDED = ("made", "commit", "tool", "system", "machine", "libraries", "command")  # every header has these keys
+
 
 def header_lines(command: str, extra: dict[str, str] | None = None) -> list[str]:
     """How a frozen file was made, one `key: value` per line, in this order: `made` (today's date),

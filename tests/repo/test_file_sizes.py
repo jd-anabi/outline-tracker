@@ -35,7 +35,6 @@ SCANNED = (PACKAGE_NAME, "tests")
 OVER_400: dict[str, str] = {
     # 6c: the tests of repo/, support/, tracking/, synthetic/, measure/ and slow/
     "tests/measure/test_derive_rules.py": "6c",
-    "tests/repo/test_frozen_files.py": "6c",
     "tests/slow/test_real_model.py": "6c",
     "tests/slow/test_regression_reference.py": "6c",
     "tests/synthetic/test_synthetic.py": "6c",
