@@ -15,17 +15,18 @@ import tomllib
 from pathlib import Path
 
 from helpers import HOME_PATH, VERSION, _PYTEST_TMP, _USERS
+from layout_helpers import PATHS, REPO, below, module
 
 import outline_tracker
 
-REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "outline_tracker"
 TESTS = REPO / "tests"
 WORKFLOW = REPO / ".github" / "workflows" / "tests.yml"
 
 # Import boundaries (SPEC 12, CLAUDE.md). Top-level module names.
 QT_MODULES = {"PySide6", "pyqtgraph"}  # only inside outline_tracker/gui/
-MODEL_MODULES = {"torch", "torchvision", "transformers", "timm"}  # only segmenter/ and gui/app.py
+MODEL_MODULES = {"torch", "torchvision", "transformers", "timm"}  # only segmenter/ and the window's entry point
+MODEL_ENTRY_POINTS = below(PACKAGE, "window entry point")  # it imports torch before PySide6 (CLAUDE.md)
 HEAVY_MODULES = sorted(QT_MODULES | MODEL_MODULES)
 
 # Files that never go into git (SPEC 8.13, CLAUDE.md): videos, results, weights.
@@ -118,7 +119,7 @@ def _import_violations(package: Path) -> list[tuple[str, int, str]]:
     for path in sorted(package.rglob("*.py")):
         rel = path.relative_to(package)
         qt_allowed = rel.parts[0] == "gui"
-        model_allowed = rel.parts[0] == "segmenter" or rel.as_posix() == "gui/app.py"
+        model_allowed = rel.parts[0] == "segmenter" or rel.as_posix() in MODEL_ENTRY_POINTS
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for line, top in _imported_top_levels(tree):
             if (top in QT_MODULES and not qt_allowed) or (top in MODEL_MODULES and not model_allowed):
@@ -128,7 +129,7 @@ def _import_violations(package: Path) -> list[tuple[str, int, str]]:
 
 def test_import_boundaries():
     scanned = {p.relative_to(PACKAGE).as_posix() for p in PACKAGE.rglob("*.py")}
-    assert {"__init__.py", "cli.py"} <= scanned  # the scan looks at the real package
+    assert {"__init__.py", *below(PACKAGE, "command line")} <= scanned  # the scan looks at the real package
     found = _import_violations(PACKAGE)
     assert [f"outline_tracker/{file}:{line}: imports {top}" for file, line, top in found] == []
 
@@ -196,7 +197,7 @@ def test_core_does_not_load_torch():
         if parts[-1] == "__init__":
             parts = parts[:-1]
         modules.append(".".join(("outline_tracker", *parts)))
-    assert {"outline_tracker", "outline_tracker.cli"} <= set(modules)
+    assert {"outline_tracker", module("command line")} <= set(modules)
     done = _run([sys.executable, "-c", _IMPORT_PROBE, json.dumps(HEAVY_MODULES), *modules])
     assert done.returncode == 0, done.stderr
     assert json.loads(done.stdout) == {}, "module -> heavy modules its import loaded"
@@ -388,7 +389,8 @@ def test_no_module_under_tests_imports_conftest(tmp_path):
     # wrong file in a run of the whole suite, while a run of the one file passes (measured with pytest
     # 9.1.1). What tests import by name is in a helper module.
     scanned = {path.relative_to(TESTS).as_posix() for path in TESTS.rglob("*.py")}
-    assert {"conftest.py", "helpers.py", "test_tracker_io.py", "gui/gui_helpers.py"} <= scanned  # the real folder
+    real_files = {"conftest.py", *below(TESTS, "test helpers", "tracker io test", "window helpers")}
+    assert real_files <= scanned  # the real folder
     assert _conftest_imports(TESTS) == []
     # The scan finds every spelling, also inside a function and in a folder below, and not the word alone.
     # The name is put in here, so that a search of tests/ for such an import finds nothing in this file.
@@ -456,7 +458,8 @@ def test_no_fixture_is_imported_by_name(tmp_path):
     # that asks for it shadows the imported name. So a fixture is defined in a conftest.py, or in the
     # test module that uses it.
     scanned = {path.relative_to(TESTS).as_posix() for path in TESTS.rglob("*.py")}
-    assert {"conftest.py", "helpers.py", "gui/session_helpers.py", "gui/test_theme.py"} <= scanned  # the real folder
+    real_files = {"conftest.py", *below(TESTS, "test helpers", "session helpers", "theme test")}
+    assert real_files <= scanned  # the real folder
     assert _fixtures_out_of_place(TESTS) == []
     # the scan finds a fixture in a helper module, and its import by name, over several lines and with a
     # star; it leaves alone the fixtures of a conftest.py and of a test module, and the import of a function
@@ -507,7 +510,7 @@ def test_no_test_module_imports_from_a_test_module(tmp_path):
     # tests. A file that imports a name from it depends on all of that, and Python runs the whole test
     # file to hand out the one name. What a second file needs is a helper, and its home is a helper module.
     scanned = {path.relative_to(TESTS).as_posix() for path in TESTS.rglob("*.py")}
-    assert {"helpers.py", "gui/test_theme.py", "slow/pipeline_helpers.py"} <= scanned  # the real folder
+    assert below(TESTS, "test helpers", "theme test", "slow test helpers") <= scanned  # the real folder
     assert _test_module_imports(TESTS) == []
     # The scan finds every spelling, in a test file, a helper module and a conftest.py, in a folder below
     # and inside a function; a name that only holds `test_`, or begins with `test` alone, is left alone.
@@ -548,10 +551,10 @@ DELAY_NAMES = {"sleep", "msleep", "usleep", "qWait", "qSleep", "Timer"}
 ALLOWED_DELAYS = {
     # A real delay, the one exception: the steps of a mouse drag are 20 ms apart, because pyqtgraph drops a
     # mouse move that follows another one sooner (`drag`).
-    "tests/gui/gui_helpers.py": ["QTest.qWait"],
+    PATHS["window helpers"]: ["QTest.qWait"],
     # Not a delay: the fixture `lock_file` has put its recorder in place of the wait, and the test that calls
     # it asserts that nothing was waited (`test_lock_file_skips_the_waits_between_the_tries_and_records_them`).
-    "tests/test_fileio.py": ["fileio.time.sleep"],
+    PATHS["fileio test"]: ["fileio.time.sleep"],
 }
 
 
@@ -585,8 +588,8 @@ def test_no_test_waits_by_a_delay():
     # (tests/gui/prompt_helpers.py, `Gate`).
     files = [REPO / "conftest.py", *sorted(TESTS.rglob("*.py"))]
     found = {path.relative_to(REPO).as_posix(): _delay_calls(path.read_text(encoding="utf-8")) for path in files}
-    assert {"conftest.py", "tests/conftest.py", "tests/gui/gui_helpers.py", "tests/gui/test_worker_jobs.py",
-            "tests/slow/conftest.py"} <= set(found)  # the real folders
+    assert {"conftest.py", "tests/conftest.py", "tests/slow/conftest.py",
+            *below(REPO, "window helpers", "worker jobs test")} <= set(found)  # the real folders
     assert [f"{name}:{line}: calls {called}" for name, calls in found.items() for line, called in calls
             if called not in ALLOWED_DELAYS.get(name, [])] == []
     # a listed call is there as often as the list says: one more of its kind in that file is a finding too

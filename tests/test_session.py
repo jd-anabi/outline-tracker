@@ -23,6 +23,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from helpers import _names
+from layout_helpers import path as table_path
 from results_helpers import names_number
 
 import outline_tracker
@@ -48,13 +49,12 @@ from outline_tracker.session import (
     WrongVideoError,
 )
 
-REPO = Path(__file__).resolve().parents[1]
 VIDEO_NAME = "groupB_2026-10-06_1325_main_tracker.mp4"
 
 
 def spec_example() -> dict:
     """The session.json example of SPEC 8.10, parsed from SPEC.md."""
-    text = (REPO / "SPEC.md").read_text(encoding="utf-8")
+    text = table_path("spec").read_text(encoding="utf-8")
     section = text.split("### 8.10 session.json", 1)[1]
     return json.loads(section.split("```json", 1)[1].split("```", 1)[0])
 

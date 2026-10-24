@@ -15,11 +15,10 @@ file the window was started with (its name, never its folder).
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 import helpers
+from layout_helpers import REPO
 
-REPO = Path(__file__).resolve().parents[2]
 EXIT_CODE = 5  # what the stand-in event loop returns: not 0, so that a constant 0 is not taken for it
 
 _PROBE = """

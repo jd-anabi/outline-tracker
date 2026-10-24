@@ -14,11 +14,11 @@ frame, `size` = (width, height). A result's own offset is in px of the view.
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 from helpers import SMALL, assert_empty_result, click, mask_in_image
+from layout_helpers import REPO
 
 from outline_tracker import synthetic, video
 from outline_tracker.measure import mask_center
@@ -27,7 +27,6 @@ from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from outline_tracker.synthetic import GroundTruth, Scene, SceneObject
 from outline_tracker.synthetic_shapes import Disk, Straight
 
-REPO = Path(__file__).resolve().parents[1]
 FRAME = (120, 90)  # (width, height) of the hand-made scene, px
 
 

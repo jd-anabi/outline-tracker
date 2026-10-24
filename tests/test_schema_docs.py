@@ -21,10 +21,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from helpers import normalized
+from layout_helpers import REPO, module
+from layout_helpers import path as table_path
 
 from outline_tracker import schema, tracker_io
-
-REPO = Path(__file__).resolve().parents[1]
 
 # SHA-256 of the UTF-8 bytes of readme_text(), computed with
 #   uv run python -c "import hashlib; from outline_tracker import schema; \
@@ -81,7 +81,7 @@ LIGHT_CHECK = (
 @pytest.fixture(scope="module")
 def schema_docs():
     """The module under test, imported here so that a missing module fails the tests that need it."""
-    return importlib.import_module("outline_tracker.schema_docs")
+    return importlib.import_module(module("schema docs"))
 
 
 def python(code: str) -> subprocess.CompletedProcess:
@@ -325,7 +325,7 @@ def test_px_along_major_is_described_for_the_largest_piece(readme, outputs):
 # docs/OUTPUTS.md: outputs_markdown(), the contract for the analysis template (SPEC 8.1, 16)
 
 OUTPUTS_MD = REPO / "docs" / "OUTPUTS.md"
-REGENERATE = "uv run python -m outline_tracker.schema_docs docs/OUTPUTS.md"
+REGENERATE = f"uv run python -m {module('schema docs')} docs/OUTPUTS.md"
 
 # SPEC 8.1, in the order of the tree drawn there.
 FILE_ORDER = [
@@ -429,7 +429,7 @@ def test_the_decimals_of_each_number_are_given_in_the_type_cell(outputs):
 
 def test_the_positions_table_agrees_with_the_spec_table(outputs):
     """The same names, types and units as the table in SPEC 8.2 itself."""
-    spec = (REPO / "SPEC.md").read_text(encoding="utf-8").splitlines()
+    spec = table_path("spec").read_text(encoding="utf-8").splitlines()
     start = next(i for i, line in enumerate(spec) if line.startswith("### 8.2"))
     end = next(i for i in range(start + 1, len(spec)) if spec[i].startswith("#"))
     spec_rows = [cells(line) for line in spec[start:end] if line.startswith("|")][2:]
@@ -632,7 +632,7 @@ def test_docs_outputs_md_is_the_current_output(outputs):
 def test_the_command_writes_the_file(tmp_path):
     target = tmp_path / "OUTPUTS.md"
     done = subprocess.run(
-        [sys.executable, "-m", "outline_tracker.schema_docs", str(target)],
+        [sys.executable, "-m", module("schema docs"), str(target)],
         capture_output=True, text=True, cwd=REPO, timeout=60,
     )
     assert done.returncode == 0, done.stderr
@@ -642,7 +642,7 @@ def test_the_command_writes_the_file(tmp_path):
 
 def test_the_command_needs_one_path():
     done = subprocess.run(
-        [sys.executable, "-m", "outline_tracker.schema_docs"], capture_output=True, text=True, cwd=REPO, timeout=60
+        [sys.executable, "-m", module("schema docs")], capture_output=True, text=True, cwd=REPO, timeout=60
     )
     assert done.returncode == 2
     assert "usage" in done.stderr.lower() and "OUTPUT.md" in done.stderr

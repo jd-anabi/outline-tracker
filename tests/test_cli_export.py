@@ -16,7 +16,6 @@ import json
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -24,11 +23,11 @@ from cli_export_helpers import edit_session, export, listing, one_error, within_
 from cli_probe_helpers import decode
 from export_helpers import K, MODEL, coarse_run, load, table, world
 from helpers import ODD_FOLDER
+from layout_helpers import REPO
 from tracking_helpers import DISH_BOX, box_truth
 
 from outline_tracker import cli
 
-REPO = Path(__file__).resolve().parents[1]
 GRID = list(range(0, 120, 2))  # the dish clip has 120 frames; the sessions take every 2nd
 FILES = {"positions.csv", "shapes.csv", "radial.csv", "outlines.npz", "README.txt", "run.log",
          f"{MODEL}/A.csv", f"{MODEL}/B.csv", f"{MODEL}/C.csv"}  # what an export lists for the tracks A, B, C

@@ -17,9 +17,8 @@ This test process has PySide6 loaded already (pytest-qt), so nothing about impor
 import json
 import subprocess
 import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+from layout_helpers import REPO, module
 
 _RECORDER = """
 import importlib.abc, importlib.machinery, json, sys
@@ -125,8 +124,7 @@ def test_the_entry_point_asks_for_torch_before_it_touches_anything_of_qt():
 
 def test_the_gui_package_imports_without_torch_and_creates_no_qt_object():
     seen = _probe(_PACKAGE_PROBE)
-    wanted = {"outline_tracker.gui", "outline_tracker.gui.app", "outline_tracker.gui.main_window",
-              "outline_tracker.gui.panel", "outline_tracker.gui.theme"}
+    wanted = {module(role) for role in ("window package", "window entry point", "main window", "panel frame", "theme")}
     assert wanted <= set(seen["modules"])  # the scan looked at the real package
     assert seen["scan_sees_a_qt_object"]
     assert seen["torch"] is False

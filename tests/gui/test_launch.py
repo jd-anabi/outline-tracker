@@ -9,16 +9,15 @@ is loaded (checked in a subprocess: this process has PySide6 loaded by pytest-qt
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
 
 import pytest
 
 import helpers
+from layout_helpers import REPO
 from outline_tracker import cli, cli_gui, launch
 from outline_tracker.gui import app
 from outline_tracker.provenance import tool_version
 
-REPO = Path(__file__).resolve().parents[2]
 HEAVY = {"PySide6", "pyqtgraph", "torch", "torchvision", "transformers", "timm"}
 
 

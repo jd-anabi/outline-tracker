@@ -26,19 +26,18 @@ from __future__ import annotations
 import subprocess
 import sys
 import time
-from pathlib import Path
 from types import SimpleNamespace
 
 import cv2
 import numpy as np
 import pytest
+from layout_helpers import REPO
 from pipeline_helpers import H, W, position
 
 from outline_tracker.segmenter.base import ObjectPrompt
 
 pytestmark = pytest.mark.slow
 
-REPO = Path(__file__).resolve().parents[2]
 DARK = 70.0  # gray value of an ellipse, as in the selftest
 TINT = np.array([1.00, 0.90, 0.80])  # red, green, blue: the three channels differ
 

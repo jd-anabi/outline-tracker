@@ -8,17 +8,15 @@ a command line argparse cannot read is exit code 2. The session form is in tests
 import subprocess
 import sys
 from dataclasses import replace
-from pathlib import Path
 
 import pandas as pd
 import pytest
 from cli_probe_helpers import (COLUMNS, FPS, LED, LED_BOX, N, ONSET, UNKNOWN_FPS, WALL, WALL_BOX, assert_rows,
                                onset_frame, probe, table, write_manifest)
 from helpers import error_line
+from layout_helpers import REPO
 
 from outline_tracker import cli, video
-
-REPO = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture

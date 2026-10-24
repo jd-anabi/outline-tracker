@@ -9,16 +9,15 @@ in Tracker's image coordinates (SPEC 3.1); frames are the video's own frame numb
 
 import subprocess
 import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 from cli_compare_helpers import (B_START, FRAMES, OK_AT_0_3, SHIFT, cells, compare, folders, jump_on_136, line_of,
                                  no_ok, path_px, printed, write_track)
+from layout_helpers import REPO
 
 from outline_tracker import cli
 
-REPO = Path(__file__).resolve().parents[1]
 HEADER = ["track", "old_track", "common", "first", "last", "rms_px", "max_px", "at_frame"]
 
 

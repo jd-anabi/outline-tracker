@@ -15,15 +15,14 @@ Frames are video frame numbers; "tracked frame n" counts the frames a job gave t
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QAbstractButton
 
+from layout_helpers import REPO
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from track_helpers import Tracked
 
-REPO = Path(__file__).resolve().parents[2]
 PACKAGE = REPO / "outline_tracker"
 RUNNING = "Tracking is running."  # why a part is off during a run
 

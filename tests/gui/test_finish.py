@@ -11,16 +11,20 @@
 The README's own shape (ten steps, its commands) is checked in tests/test_readme.py, without Qt.
 """
 
+import os
 import re
+from pathlib import Path
 
 from PySide6.QtCore import QUrl
 
-from last_controls_helpers import REPO, control_texts, marked_names, modules, quickstart
+from last_controls_helpers import PACKAGE, control_texts, marked_names, modules, quickstart
+from layout_helpers import REPO, below
+from layout_helpers import path as table_path
 from outline_tracker.gui import menus
 from session_helpers import body, read_json, type_into
 
 README = REPO / "README.md"
-DEVELOPER = REPO / "docs" / "DEVELOPER.md"
+DEVELOPER = table_path("developer page")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -123,17 +127,24 @@ def test_help_quickstart_opens_the_quickstart_section_of_the_readme(window, monk
 # docs/DEVELOPER.md
 
 
+def link_to(role: str) -> str:
+    """The link target `(path)` that the developer page writes for the document of this role: the path from
+    the page's own folder, with `/`, so that it follows a move of the page."""
+    return f"({Path(os.path.relpath(table_path(role), DEVELOPER.parent)).as_posix()})"
+
+
 def test_the_developers_page_names_every_module_of_the_package():
     text = DEVELOPER.read_text(encoding="utf-8")
     named = set(re.findall(r"`([\w/]+\.py)`", text))
-    assert {"cli.py", "gui/worker.py", "gui/worker_engine.py", "gui/panels/track_panel.py"} <= set(modules())
+    assert below(PACKAGE, "command line", "worker", "worker engine", "tracking panel") <= set(modules())
     assert [module for module in modules() if module not in named] == []
 
 
 def test_the_developers_page_says_how_to_test_how_to_add_a_panel_and_who_writes_which_file():
     text = DEVELOPER.read_text(encoding="utf-8")
     for needed in ('uv run pytest -m "not slow"', "uv run pytest -m slow", "build(window)", "gui/panels/",
-                   "session.json", "results.npz", "worker thread", "GUI thread", "(../CLAUDE.md)", "(ROADMAP.md)"):
+                   "session.json", "results.npz", "worker thread", "GUI thread", link_to("agent rules"),
+                   link_to("roadmap")):
         assert needed in text, needed
     # the rules are in CLAUDE.md and in section 2 of the roadmap: the page links to both and repeats none
     assert "Questions for J" not in text

@@ -30,10 +30,11 @@ from collections.abc import Iterable
 from importlib import metadata
 from pathlib import Path
 
+import outline_tracker
 from outline_tracker import __version__
 
 DISTRIBUTION = "outline-tracker"                 # the name the tool is installed under
-PACKAGE_FOLDER = Path(__file__).resolve().parent  # the package's source folder
+PACKAGE_FOLDER = Path(outline_tracker.__file__).resolve().parent  # the package's source folder
 LIBRARIES = ("torch", "transformers", "numpy", "opencv-python-headless", "scikit-image")  # named in run.log
 _COMMIT = re.compile(r"[0-9a-f]{7,40}")
 _SHORT = 7  # hex digits of a commit taken from direct_url.json, as `git rev-parse --short` gives

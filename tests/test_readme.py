@@ -34,6 +34,7 @@ import cv2
 import numpy as np
 import pytest
 from from_tracker_helpers import two_disks
+from layout_helpers import REPO
 
 from outline_tracker import __version__, cli, fileio, schema
 from outline_tracker.from_tracker import from_tracker
@@ -41,7 +42,6 @@ from outline_tracker.provenance import tool_version
 from outline_tracker.segmenter.fake import ThresholdFake
 from outline_tracker.selftest import selftest
 
-REPO = Path(__file__).resolve().parents[1]
 README = REPO / "README.md"
 
 TITLES = ["If the app does not open", "Troubleshooting", "Getting the original video off your phone"]

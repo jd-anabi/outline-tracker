@@ -8,15 +8,13 @@ the template's `main` functions, whose messages the subcommands keep. Errors bec
 import io
 import subprocess
 import sys
-from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
+from layout_helpers import REPO
 
 from outline_tracker import cli, video
-
-REPO = Path(__file__).resolve().parents[1]
 
 
 def _write_clip(path, n_frames, fps, size):

@@ -20,21 +20,15 @@ numbers. torch is imported inside the test that asks for the Apple GPU, never at
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pytest
+from gui_helpers import show
+from pipeline_helpers import expect_minutes
+from prompt_helpers import gui_thread, objects_panel
+from track_helpers import NAME, Heard, results_of, track_panel
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "gui"))  # the helpers of tests/gui, by name
-
-from gui_helpers import show  # noqa: E402
-from pipeline_helpers import expect_minutes  # noqa: E402
-from prompt_helpers import gui_thread, objects_panel  # noqa: E402
-from track_helpers import NAME, Heard, results_of, track_panel  # noqa: E402
-
-from outline_tracker.from_tracker import load_segmenter  # noqa: E402
-from outline_tracker.synthetic import selftest_clip  # noqa: E402
+from outline_tracker.from_tracker import load_segmenter
+from outline_tracker.synthetic import selftest_clip
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]
 

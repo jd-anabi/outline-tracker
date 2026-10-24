@@ -24,20 +24,19 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import replace
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from from_tracker_helpers import Loaded, StopsAfter, read_track, session_json
 from helpers import error_line
+from layout_helpers import REPO
 
 from outline_tracker import cli, from_tracker
 from outline_tracker.segmenter.base import crop_to_bbox
 from outline_tracker.segmenter.fake import ThresholdFake
 from outline_tracker.selftest import selftest
 
-REPO = Path(__file__).resolve().parents[1]
 RUN_FOLDER = "selftest_tracker_outline_selftest"  # SPEC 8.1: <video stem>_outline_<student>, next to the clip
 CLIP_FILES = ["selftest_tracker.mp4", "selftest.csv"]  # the clip and its Tracker export, as last week
 MODEL_MODULES = ("torch", "torchvision", "transformers", "timm")

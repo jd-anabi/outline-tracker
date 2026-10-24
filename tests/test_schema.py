@@ -10,16 +10,16 @@ import math
 import re
 import subprocess
 import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 from helpers import normalized
+from layout_helpers import REPO
+from layout_helpers import path as table_path
 
 from outline_tracker import schema, tracker_io
 
-REPO = Path(__file__).resolve().parents[1]
 NAN = float("nan")
 
 # ---------------------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ EXTRA_RESULTS_KEYS = ["core_fallback", "second_fraction", "core_r_px", "mask_bit
 
 def spec_section(heading_start: str) -> list[str]:
     """Lines of SPEC.md from the heading that starts with `heading_start` to the next heading."""
-    lines = (REPO / "SPEC.md").read_text(encoding="utf-8").splitlines()
+    lines = table_path("spec").read_text(encoding="utf-8").splitlines()
     start = next(i for i, line in enumerate(lines) if line.startswith(heading_start))
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#")), len(lines))
     return lines[start + 1 : end]

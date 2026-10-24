@@ -36,6 +36,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from layout_helpers import path as table_path
 from memory_child import NAMES, ten_ellipse_scene
 from pipeline_helpers import expect_minutes
 
@@ -101,8 +102,9 @@ def test_ten_coarse_objects_at_1080p_stay_under_3_gb_and_flat(tmp_path):
     assert apart[apart > 0].min() > 250.0  # well apart, at the start and at the end (the paths are straight)
 
     samples = tmp_path / "samples.json"
+    helper_folders = dict.fromkeys([table_path("test helpers").parent, table_path("slow test helpers").parent])
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(
-        [str(SLOW.parent), str(SLOW)] + [path for path in [os.environ.get("PYTHONPATH")] if path])}
+        [str(folder) for folder in helper_folders] + [path for path in [os.environ.get("PYTHONPATH")] if path])}
     child = subprocess.run([sys.executable, str(SLOW / "memory_child.py"), str(clip.path), str(tmp_path / "run"),
                             str(samples)], env=env, capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=570)

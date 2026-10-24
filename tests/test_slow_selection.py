@@ -18,9 +18,8 @@ No quantities here: no units and no coordinates.
 
 import subprocess
 import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+from layout_helpers import REPO
 
 # The slow tests that load no model, each read with its fixtures for the calls named above (2026-10-08).
 WITHOUT_WEIGHTS = [

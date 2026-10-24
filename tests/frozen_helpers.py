@@ -52,10 +52,10 @@ from datetime import date
 from pathlib import Path
 
 import numpy as np
+from layout_helpers import REPO
 
 from outline_tracker import provenance, video
 
-REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "tests" / "data"
 SWITCH = "OUTLINE_TRACKER_FREEZE"  # the environment variable; `1` asks for the frozen files to be written
 SIDECAR = "HEADER.txt"  # the header and the list of the files that have no header inside

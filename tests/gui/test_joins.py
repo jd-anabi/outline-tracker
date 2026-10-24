@@ -41,8 +41,10 @@ from gui_helpers import show
 from helpers import click
 from joins_helpers import (DAY, EXPORTING, RUNNING, WAIT_FOR_EXPORT, corrections, earlier_run, lockable, not_saying,
                            off, written_at)
-from last_controls_helpers import (PACKAGE, REPO, choose, control_texts, let_run_end, marked_names, modules, parked,
+from last_controls_helpers import (PACKAGE, choose, control_texts, let_run_end, marked_names, modules, parked,
                                    press_track, quickstart, record_confirm)
+from layout_helpers import REPO, below, module
+from layout_helpers import path as table_path
 from outline_tracker import schema
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
@@ -63,7 +65,7 @@ MODEL_FIXED = "The results were made with EdgeTAM. For another model, remove the
 RESULTS_NEWER = "The results changed after the last export. Click Export all again."
 SESSION_NEWER = "The session changed after the last export. Click Export all again."
 STACK_BYTES = 64 * 1024 * 1024  # of a thread the model is made or used in (decision X7: 64 MiB)
-DEVELOPER = REPO / "docs" / "DEVELOPER.md"
+DEVELOPER = table_path("developer page")
 # What the two modules offered before they were split (as of the commit before task C9), private names too.
 PROMPTS_OFFERED = [
     "BLACK", "BUSY_TEXT", "CASING", "DoubleClickWatch", "Drawn", "Found", "KINDS", "LINE_WIDTHS", "LOADING_TEXT",
@@ -514,10 +516,10 @@ def test_during_an_export_a_correction_is_refused_and_nothing_else_changes_its_i
 def test_no_other_module_of_the_window_names_panel_9_for_the_lock():
     """Every panel asks `Jobs.writing()`; none reads another panel's attribute."""
     gui = PACKAGE / "gui"
-    others = [path for path in gui.rglob("*.py") if path.name != "export_panel.py"]
+    others = [path for path in gui.rglob("*.py") if path != table_path("export panel")]
     naming = [path.relative_to(gui).as_posix() for path in others
               if re.search(r"ExportPanel|export_panel import|\.exporting\b", path.read_text(encoding="utf-8"))]
-    assert naming == ["worker_jobs.py"]  # which keeps the lock: `Jobs.exporting`
+    assert naming == sorted(below(gui, "worker jobs"))  # which keeps the lock: `Jobs.exporting`
 
 
 # ---------------------------------------------------------------------------------------------
@@ -673,7 +675,7 @@ def test_the_quickstart_names_the_buttons_of_panels_8_and_9_in_bold_and_each_is_
 def test_the_developers_page_names_every_module_file_in_a_table_and_every_module_it_names_exists():
     text = DEVELOPER.read_text(encoding="utf-8")
     rows = re.findall(r"^\| `([\w/]+\.py)` \|", text, flags=re.MULTILINE)  # the first cell of a table's row
-    assert {"gui/prompts.py", "gui/panels/video_panel.py", "gui/review_table.py"} <= set(modules())
+    assert below(PACKAGE, "prompts", "video panel", "review table") <= set(modules())
     assert [module for module in modules() if module not in rows] == []
     assert [row for row in rows if rows.count(row) > 1] == []
     # none that does not exist: a path the page names is a file of the package, or of the repository
@@ -686,8 +688,8 @@ def test_the_developers_page_names_every_module_file_in_a_table_and_every_module
 # 6. The two files that were split
 
 
-@pytest.mark.parametrize("name, offered", [("outline_tracker.gui.prompts", PROMPTS_OFFERED),
-                                           ("outline_tracker.gui.panels.video_panel", VIDEO_PANEL_OFFERED)],
+@pytest.mark.parametrize("name, offered", [(module("prompts"), PROMPTS_OFFERED),
+                                           (module("video panel"), VIDEO_PANEL_OFFERED)],
                          ids=["prompts.py", "video_panel.py"])
 def test_every_name_a_split_module_offered_is_still_importable_from_it_and_it_is_under_400_lines(name, offered):
     import importlib

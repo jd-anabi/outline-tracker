@@ -19,10 +19,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 from helpers import VERSION
+from layout_helpers import REPO
 
 from outline_tracker import cli, provenance
 
-REPO = Path(__file__).resolve().parents[1]
 LINE = re.compile("outline-tracker " + re.escape(VERSION) + r" \(commit ([0-9a-f]{7,40}|unknown)\)")
 GIT_INSTALL = {"url": "https://github.com/jd-anabi/outline-tracker",
                "vcs_info": {"vcs": "git", "commit_id": "abc1234def5678900987654321abcdefabcdef12",

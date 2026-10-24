@@ -20,10 +20,10 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from layout_helpers import REPO
 
 from outline_tracker.measure import mask_center
 
-REPO = Path(__file__).resolve().parents[1]
 HEAVY_MODULES = ["PySide6", "pyqtgraph", "timm", "torch", "torchvision", "transformers"]
 
 # SHA-256 of the three bytes "abc" (the test vector of FIPS 180-2, appendix B.1).

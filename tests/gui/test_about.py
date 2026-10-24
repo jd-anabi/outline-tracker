@@ -13,17 +13,16 @@ import platform
 import subprocess
 import sys
 from importlib import metadata
-from pathlib import Path
 
 import numpy
 import PySide6
 import pyqtgraph
 
 from finish_helpers import record_every_dialog
+from layout_helpers import REPO
 from outline_tracker import provenance
 from outline_tracker.gui import about
 
-REPO = Path(__file__).resolve().parents[2]
 NAMES = ("Python", "PySide6", "pyqtgraph", "numpy", "OpenCV", "torch", "transformers")
 
 
