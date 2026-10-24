@@ -6,19 +6,19 @@
 - README.md has the section "Quickstart": ten numbered steps. Every control it marks (in bold or
   in backticks) is held against the texts of the window's own buttons and menu items, so the page
   cannot name a button the window does not have. Help > Quickstart opens that section.
-- docs/developer/README.md names every module of the package.
+- docs/developer/README.md says how to test, how to add a panel and who writes which file. The module index
+  that it links to is held by tests/repo/test_module_index.py.
 
 The README's own shape (ten steps, its commands) is checked in tests/repo/test_readme.py, without Qt.
 """
 
 import os
-import re
 from pathlib import Path
 
 from PySide6.QtCore import QUrl
 
-from last_controls_helpers import PACKAGE, control_texts, marked_names, modules, quickstart
-from layout_helpers import REPO, below
+from last_controls_helpers import control_texts, marked_names, quickstart
+from layout_helpers import REPO
 from layout_helpers import path as table_path
 from outline_tracker.gui import menus
 from session_helpers import body, read_json, type_into
@@ -131,13 +131,6 @@ def link_to(role: str) -> str:
     """The link target `(path)` that the developer page writes for the document of this role: the path from
     the page's own folder, with `/`, so that it follows a move of the page."""
     return f"({Path(os.path.relpath(table_path(role), DEVELOPER.parent)).as_posix()})"
-
-
-def test_the_developers_page_names_every_module_of_the_package():
-    text = DEVELOPER.read_text(encoding="utf-8")
-    named = set(re.findall(r"`([\w/]+\.py)`", text))
-    assert below(PACKAGE, "command line", "worker", "worker engine", "tracking panel") <= set(modules())
-    assert [module for module in modules() if module not in named] == []
 
 
 def test_the_developers_page_says_how_to_test_how_to_add_a_panel_and_who_writes_which_file():

@@ -114,9 +114,3 @@ def control_texts(window) -> set[str]:
     buttons = {button.text() for button in window.findChildren(QAbstractButton)}
     items = {item.text() for item in window.findChildren(QAction)}
     return {text for text in buttons | items if text}
-
-
-def modules() -> list[str]:
-    """Every module file of the package as the developer's page names it: its path under
-    outline_tracker/, with `/` (`gui/panels/track_panel.py`)."""
-    return sorted(path.relative_to(PACKAGE).as_posix() for path in PACKAGE.rglob("*.py"))

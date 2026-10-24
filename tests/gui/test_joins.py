@@ -11,8 +11,7 @@ Panels 5 to 9 were built side by side. These tests hold the places where two of 
    function, `Jobs.writing()`, says whether and why.
 3. Once a track has stored frames, the model of the session is fixed; the device is not.
 4. Panel 9 needs attention when session.json or results.npz is newer than positions.csv.
-5. The Quickstart marks the buttons of panels 8 and 9 in bold; docs/developer/README.md names every
-   module file, and no file that is not there.
+5. The Quickstart marks the buttons of panels 8 and 9 in bold.
 6. gui/view/prompts.py and gui/panels/video_panel.py were split: what they offered is still there.
 
 Expected values are the brief's sentences and SPEC 8.1's list of files, never the panels' own
@@ -41,8 +40,8 @@ from gui_helpers import show
 from helpers import click
 from joins_helpers import (DAY, EXPORTING, RUNNING, WAIT_FOR_EXPORT, corrections, earlier_run, lockable, not_saying,
                            off, written_at)
-from last_controls_helpers import (PACKAGE, choose, control_texts, let_run_end, marked_names, modules, parked,
-                                   press_track, quickstart, record_confirm)
+from last_controls_helpers import (PACKAGE, choose, control_texts, let_run_end, marked_names, parked, press_track,
+                                   quickstart, record_confirm)
 from layout_helpers import REPO, below, module
 from layout_helpers import path as table_path
 from outline_tracker.core import schema
@@ -65,7 +64,6 @@ MODEL_FIXED = "The results were made with EdgeTAM. For another model, remove the
 RESULTS_NEWER = "The results changed after the last export. Click Export all again."
 SESSION_NEWER = "The session changed after the last export. Click Export all again."
 STACK_BYTES = 64 * 1024 * 1024  # of a thread the model is made or used in (decision X7: 64 MiB)
-DEVELOPER = table_path("developer page")
 # What the two modules offered before they were split (as of the commit before task C9), private names too.
 PROMPTS_OFFERED = [
     "BLACK", "BUSY_TEXT", "CASING", "DoubleClickWatch", "Drawn", "Found", "KINDS", "LINE_WIDTHS", "LOADING_TEXT",
@@ -651,7 +649,7 @@ def test_an_export_on_the_disk_is_done_when_its_session_is_opened(window, second
 
 
 # ---------------------------------------------------------------------------------------------
-# 5. The two documents
+# 5. The Quickstart
 
 
 def steps_of_the_quickstart() -> dict[int, str]:
@@ -670,18 +668,6 @@ def test_the_quickstart_names_the_buttons_of_panels_8_and_9_in_bold_and_each_is_
         assert [name for name in marked if name not in texts] == []
         unmarked = re.sub(r"\*\*[^*]+\*\*", "", steps[number])  # the step without what is in bold
         assert [text for text in buttons if text in unmarked] == [], number
-
-
-def test_the_developers_page_names_every_module_file_in_a_table_and_every_module_it_names_exists():
-    text = DEVELOPER.read_text(encoding="utf-8")
-    rows = re.findall(r"^\| `([\w/]+\.py)` \|", text, flags=re.MULTILINE)  # the first cell of a table's row
-    assert below(PACKAGE, "prompts", "video panel", "review table") <= set(modules())
-    assert [module for module in modules() if module not in rows] == []
-    assert [row for row in rows if rows.count(row) > 1] == []
-    # none that does not exist: a path the page names is a file of the package, or of the repository
-    named = set(re.findall(r"`([\w/]+\.py)`", text))
-    assert [name for name in sorted(named) if not (PACKAGE / name).is_file() and not (REPO / name).is_file()] == []
-    assert "tasks of their own" not in text  # panels 8 and 9 are in the table now
 
 
 # ---------------------------------------------------------------------------------------------
