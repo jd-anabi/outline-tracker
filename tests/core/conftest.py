@@ -1,8 +1,9 @@
 """Fixtures of the tests of tests/core/ that more than one test file needs.
 
-`schema_docs` is the module core/schema_docs.py, `readme` the text of README.txt that it builds and
-`outputs` the text of docs/OUTPUTS.md. They are used by tests/core/test_schema_docs.py,
-tests/core/test_schema_docs_readme.py and tests/core/test_schema_docs_outputs.py.
+`schema_docs` is the module core/schema_docs.py; the three files tests/core/test_schema_docs.py,
+test_schema_docs_readme.py and test_schema_docs_outputs.py use it. `readme` is the text of README.txt that it
+builds and `outputs` the text of docs/OUTPUTS.md; the last two files use them. tests/core/test_schema_texts.py
+has a fixture `readme` of its own (the text of `schema.readme_text()`), which is the one its tests get.
 """
 
 import importlib

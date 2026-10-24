@@ -1,7 +1,8 @@
 """Tests of outline_tracker/core/geometry.py: the calibration tools, stick, tape check, stopwatch and circle fit.
 
-Expected values come from SPEC 4.1-4.4 worked by hand, from brute force over the definition, and
-from synthetic points whose truth is known. Nothing is copied from the output of the code under test.
+Expected values come from SPEC 4.1-4.4 worked by hand, from the definition of the least-squares
+circle, and from synthetic points whose truth is known. Nothing is copied from the output of the code
+under test.
 
 Coordinates: (u, v) are image pixels in Tracker's convention (origin at the top-left corner of the
 frame, u to the right, v down, pixel centers at +0.5); lengths are in mm.

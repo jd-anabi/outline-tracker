@@ -1,8 +1,8 @@
 """Tests of outline_tracker/core/geometry.py: the image <-> world transform and its tie to Tracker's calibration.
 
 Expected values come from SPEC 3.2 and 7.3 worked by hand, from the template's `tracker_map`, from
-brute force over the definition, and from synthetic points whose truth is known. Nothing is copied
-from the output of the code under test.
+the covariance of the mapped points computed directly, and from synthetic points whose truth is
+known. Nothing is copied from the output of the code under test.
 
 Coordinates: (u, v) are image pixels in Tracker's convention (origin at the top-left corner of the
 frame, u to the right, v down, pixel centers at +0.5); (x, y) are mm in the user's axes, y up.

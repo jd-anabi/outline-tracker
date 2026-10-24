@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/core/session.py: the file on disk, its version, files that are no session, what is not saved.
+"""Tests of outline_tracker/core/session.py: the file on disk, its version, odd files, what is not saved.
 
 Expected values are the session.json example of SPEC 8.10 (read from docs/design/SPEC-v0.1.md) and values
 typed in each test. Nothing is copied from the output of the code under test.

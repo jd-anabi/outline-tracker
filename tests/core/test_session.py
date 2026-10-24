@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/core/session.py: session.json <-> dataclasses, the optional and unknown keys, and the world frame.
+"""Tests of outline_tracker/core/session.py: session.json <-> dataclasses, optional and unknown keys, world frame.
 
 Expected values come from docs/design/SPEC-v0.1.md itself (the session.json example of section 8.10 is
 read from the file and must come back unchanged), from decision X18 (the optional keys), and from
