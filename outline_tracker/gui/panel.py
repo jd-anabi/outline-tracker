@@ -23,6 +23,8 @@ STATE_WORDS = {"todo": "Not started", "done": "Done", "attention": "Needs attent
 HEADER_HEIGHT = 32   # the header row
 BADGE_SIZE = 20      # the round number badge
 PADDING = 12         # around the body: left, right, bottom; and left and right of the header row
+# This `SPACING` is the frame's own gap. The gap between the rows inside a panel is `SPACING` of
+# gui/panel_parts.py: the same 8 today, but another thing, so each is defined where it is used.
 SPACING = 8          # between two rows of the body, and between the parts of the header row
 
 

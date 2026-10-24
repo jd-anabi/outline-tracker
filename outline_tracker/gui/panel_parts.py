@@ -26,7 +26,8 @@ from outline_tracker.gui.navigation import numeric_font
 LABEL_WIDTH = 120     # the column of the field labels
 BOX_WIDTH = 104       # the least width of a number box
 SPACING = 8           # between two rows, and between two buttons
-CONTROL_HEIGHT = 28   # a field, a box
+CONTROL_HEIGHT = 28   # a field, a box, a button
+PRIMARY_HEIGHT = 32   # the button of the next step
 GROUP_GAP = 16        # between two groups of one panel
 WIDEST = 1e6          # a number box takes any value up to here: what can be used is decided where it is typed
 DASH = "–"            # in place of a value there is none of

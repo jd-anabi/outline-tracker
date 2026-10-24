@@ -33,15 +33,14 @@ from PySide6.QtWidgets import QCheckBox, QLabel, QSizePolicy, QWidget
 
 from outline_tracker.tracking import job as tracking
 from outline_tracker.gui import dialogs, estimate
-from outline_tracker.gui.panel_parts import CONTROL_HEIGHT, GROUP_GAP, IconMessage, button, column, row
+from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, GROUP_GAP, PRIMARY_HEIGHT, IconMessage, button, column,
+                                             row)
 from outline_tracker.gui.prompts import Prompts
 from outline_tracker.gui.review_table import FlagsModel, FlagsView, Listing, listed, meaning
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import NO_MODEL, jobs_of
 from outline_tracker.measure.results import ResultsStore
 from outline_tracker.tracking.ids import next_piece_id
-
-PRIMARY_HEIGHT = 32
 
 NOT_STARTED = "Track first. The flags appear here."
 NO_FLAGS = "No flags on positions. Play the video once and look at the outlines."

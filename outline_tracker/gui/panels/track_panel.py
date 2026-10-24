@@ -53,8 +53,8 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QProgressBar, QWid
 
 from outline_tracker.gui import dialogs, estimate
 from outline_tracker.gui.overlays import Overlays
-from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, SPACING, IconMessage, button, column, field_rows,
-                                             guard_wheel)
+from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, PRIMARY_HEIGHT, SPACING, IconMessage, button, column,
+                                             field_rows, guard_wheel)
 from outline_tracker.gui.session_controller import VIDEO_FIRST
 from outline_tracker.gui.worker import NO_FACTORY, worker_of
 from outline_tracker.gui.worker_jobs import EXPORT_RUNNING, NOTHING_LEFT, RUNNING, STOPPED, jobs_of
@@ -62,7 +62,6 @@ from outline_tracker.measure.results import ResultsStore
 from outline_tracker.core.session import Processing
 from outline_tracker.tracking.job import CANCELLED, COMPLETE, partial_tracks
 
-PRIMARY_HEIGHT = 32
 LINE_EVERY_MS = 250  # the progress line is written at most 4 times a second
 
 # What the two boxes show for a key of `session.processing`; a key that is not here shows as it is.

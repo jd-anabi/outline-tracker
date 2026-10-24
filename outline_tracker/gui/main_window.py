@@ -23,6 +23,7 @@ from outline_tracker.gui import dialogs, panels
 from outline_tracker.gui.menus import Menus
 from outline_tracker.gui.navigation import NavigationBar
 from outline_tracker.gui.panel import Panel
+from outline_tracker.gui.panel_parts import CONTROL_HEIGHT, PRIMARY_HEIGHT
 from outline_tracker.gui.prompts import Prompts
 from outline_tracker.gui.session_controller import SessionController
 from outline_tracker.gui.status_bar import Readouts
@@ -37,7 +38,6 @@ FRAME_ALLOWANCE = (16, 40)       # room for the system's frame around that: its 
 DOCK_WIDTHS = (340, 400, 520)    # smallest, at start, largest
 DOCK_MARGIN = 8                  # around the panels, and between two of them
 VIEW_BAR_HEIGHT = 32             # above the picture: the tool's line, Fill, Fit, 1:1, the zoom
-CONTROL_HEIGHT, PRIMARY_HEIGHT = 28, 32  # a button; the button of the next step
 
 START_TITLE = "Open a video to start."
 START_HINT = "Then follow panels 1 to 9 at the right."

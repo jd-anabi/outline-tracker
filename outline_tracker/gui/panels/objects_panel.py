@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QFormLayout, QHBoxL
 from outline_tracker.tracking import job as tracking
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.estimate import counted
+from outline_tracker.gui.panel_parts import CONTROL_HEIGHT, PRIMARY_HEIGHT, SPACING
 from outline_tracker.gui.prompts import BUSY_TEXT, LOADING_TEXT, Prompts, colour_of
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
@@ -43,8 +44,6 @@ from outline_tracker.tracking.plan import pending_from
 COLUMNS = ("Object", "Mode", "Window", "Start", "Status")
 NONE = "–"                 # a cell that has no value: the window of a coarse object, the start of one without clicks
 ROWS_SHOWN, ROW_HEIGHT = 4, 24
-CONTROL_HEIGHT, PRIMARY_HEIGHT = 28, 32
-SPACING = 8                # between two rows, and between two buttons
 LARGEST_WINDOW = 4096      # px: only a wide limit of the box; tracking uses the window as it is typed
 
 ADD_HINT = "Click Add. Then click on one animal in the video. An outline appears."
