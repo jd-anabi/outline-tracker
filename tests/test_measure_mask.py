@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.measure: measure_mask and PixelRecord, the record itself (SPEC 7.1,
+"""Tests for outline_tracker.measure.mask: measure_mask and PixelRecord, the record itself (SPEC 7.1,
 7.2, 7.8, 8.12, 9 EDGE).
 
 What a record holds and how it is stored, the arguments measure_mask refuses, the border of the

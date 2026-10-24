@@ -5,7 +5,7 @@ tests/test_tracking_fine_cases.py.
 
 Expected values come from the rule W = clip(ceil(3 F), 96, 512) worked out by hand, from shapes of
 known size (tests/analytic_shapes.py), from the scenes' stated paths, and from the ground truth of
-outline_tracker/synthetic.py. `ExactFake` returns that ground truth in whatever view the runner
+outline_tracker/synthetic/clips.py. `ExactFake` returns that ground truth in whatever view the runner
 names, so a position that is off shows a wrong crop corner or a wrong shift back.
 
 The close-up scene at 320 x 240 px (`closeup_clip`, 120 frames):

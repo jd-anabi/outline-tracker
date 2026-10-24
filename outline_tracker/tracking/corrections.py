@@ -2,10 +2,10 @@
 ("End track here") and `new_piece` ("Continue as new track"). Each adds an entry to `session.corrections`
 (SPEC 8.10).
 
-The rest of the edit API is in outline_tracker/tracking_edit.py, which this module imports from: the object
+The rest of the edit API is in outline_tracker/tracking/edit.py, which this module imports from: the object
 table (`add_object`, `remove_object`), the clicks, `pending_runs`, the `Edit` that every edit returns, and the
 helpers that find a track, move a frame onto the grid and read and save the results. The three functions are
-importable from there and from outline_tracker.tracking too. "The module's text" in the docstrings below means
+importable from there and from outline_tracker.tracking.job too. "The module's text" in the docstrings below means
 this text.
 
 Who writes what. These functions change the `Session` they are given and never save it: saving

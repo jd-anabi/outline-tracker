@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.qc: the nine quality flags of SPEC 9, each on exactly the frames
+"""Tests for outline_tracker.measure.qc: the nine quality flags of SPEC 9, each on exactly the frames
 where it belongs (SPEC 13.1 Flags), the rules taken over from last week's `_flags` (JUMP, SIZE)
 and the text of a flags cell.
 

@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.measure: the ported mask_center (SPEC 3.1, 7.1, 13.1 Centroid).
+"""Tests for outline_tracker.measure.mask: the ported mask_center (SPEC 3.1, 7.1, 13.1 Centroid).
 
 The first test is last week's, unchanged but for its import line. The others check the same
 convention from geometry: a mask's center is the mean of its pixel centers, and the pixel

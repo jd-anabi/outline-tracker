@@ -32,7 +32,7 @@ show them with `uv run pytest -m slow tests/slow/test_fine_mode.py -q -rP`.
 
 Coordinates: px in Tracker's convention (pixel centers at +0.5, SPEC 3.1), in the full frame;
 frames are video frame numbers; t_s = frame / 240. A body frame is the scene's
-(outline_tracker/synthetic_shapes.py): its origin at the center of the object, xi toward the head,
+(outline_tracker/synthetic/shapes.py): its origin at the center of the object, xi toward the head,
 eta 90 degrees counterclockwise from xi on screen, px. Every test here is slow: it needs torch.
 """
 

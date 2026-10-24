@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.derive: the rules around the quantities of tests/test_derive.py:
+"""Tests for outline_tracker.measure.derive: the rules around the quantities of tests/test_derive.py:
 lost rows, the heading reference (decision X17), the head guess, shapes without an extent or a
 hull, the largest piece of a mask with several (the size check), the settings, a changed
 calibration, and how much geometry a frame costs (counted, not timed).

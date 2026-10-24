@@ -1,6 +1,6 @@
-"""Tests of outline_tracker/schema_docs.py: the text builders of README.txt and docs/OUTPUTS.md (SPEC 8.11, 16).
+"""Tests of outline_tracker/core/schema_docs.py: the text builders of README.txt and docs/OUTPUTS.md (SPEC 8.11, 16).
 
-The builders used to live in schema.py. They moved out (task B6a) because schema.py had grown to 591
+The builders used to live in core/schema.py. They moved out (task B6a) because core/schema.py had grown to 591
 lines and SPEC 12 says to split past about 400. The first group of tests pins what must not change in
 the move (the text, the names, the sizes, the imports); the second group tests the wording of the README
 text; the third tests outputs_markdown() and the committed docs/OUTPUTS.md, the contract for the analysis
@@ -29,8 +29,8 @@ from outline_tracker.core import schema, tracker_io
 # SHA-256 of the UTF-8 bytes of readme_text(), computed with
 #   uv run python -c "import hashlib; from outline_tracker import schema; \
 #       print(hashlib.sha256(schema.readme_text().encode('utf-8')).hexdigest())"
-# Commit 1 of task B6a moved the builders out of schema.py without changing a character. Its pinned value
-# was computed from the unmodified schema.py of commit e49a088, before the move:
+# Commit 1 of task B6a moved the builders out of core/schema.py without changing a character. Its pinned value
+# was computed from the unmodified core/schema.py of commit e49a088, before the move:
 #   9cede8f4c9ba9cc98f4ee3ebbdb1907aa992700e9bde43c2013131705109b57b   (13751 characters, 249 lines)
 # Commit 2 changed the wording of four places (the intro, Units, Rows and the core_frac entry, see the
 # tests below). The value pinned now was computed after that change, and the diff between the two texts was
@@ -59,7 +59,7 @@ from outline_tracker.core import schema, tracker_io
 # now has 14877 characters and 262 lines.
 README_SHA256 = "20ec79686c3b77a80a5966f7d1e929274861aaf07c3956d8d88a8a5435ce7c73"
 
-# Every public name that schema.py had before the move (dir() of the unmodified module, without the
+# Every public name that core/schema.py had before the move (dir() of the unmodified module, without the
 # imported helpers). Other modules import these by name, so each must still be importable.
 PUBLIC_NAMES_OF_SCHEMA = [
     "ArrayKey", "CSV_ENCODING", "CSV_NEWLINE", "Column", "FILES", "FLAGS", "FLAG_INFO", "FLAG_SEPARATOR",

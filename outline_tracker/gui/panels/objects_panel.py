@@ -3,7 +3,7 @@ the selected object, and the buttons of the point tools Positive, Negative and H
 
 What a click on the video does, and what is drawn there, is in gui/prompts.py (`Prompts`); the
 model that makes the outlines runs in the worker thread (gui/worker.py). This module is the
-panel's controls. Every edit of the object table goes through `outline_tracker.tracking`
+panel's controls. Every edit of the object table goes through `outline_tracker.tracking.job`
 (`add_object`, `remove_object`): ids and colours are decided there. `remove_object` gets None for
 the results, so it reads results.npz as it is now and saves it without the object's records. After
 an edit the controller's `touch()` tells the rest of the window. A refusal is shown in the panel

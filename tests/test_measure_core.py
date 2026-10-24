@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.measure: the second moments and the core of a mask (SPEC 7.3; 13.1
+"""Tests for outline_tracker.measure.mask: the second moments and the core of a mask (SPEC 7.3; 13.1
 Moments and Core).
 
 Every shape is an implicit function rasterized at the pixel centers (tests/analytic_shapes.py),

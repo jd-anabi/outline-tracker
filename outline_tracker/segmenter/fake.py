@@ -8,7 +8,7 @@ positive part is exactly the mask, and without a score (None: there is no model)
 - `ThresholdFake` is the template's `DiskFinder` (the stand-in of last week's tests) behind the
   protocol: for each object, the dark pixels around its last position. It reads the image and
   nothing else, so it works on any clip of dark objects on a light background.
-- `ExactFake` returns the ground truth of a synthetic clip (outline_tracker/synthetic.py). It does
+- `ExactFake` returns the ground truth of a synthetic clip (outline_tracker/synthetic/clips.py). It does
   not read the image: the runner tells it which frame, and which part of it, the image shows, by
   calling `set_view` before `start`, `step` or `preview`.
 
@@ -153,7 +153,7 @@ def _whole(value, what: str) -> int:
 class ExactFake:
     """Returns the ground truth of a synthetic clip, in whatever part of the frame it is shown.
 
-    `ground_truth` is the `GroundTruth` of the clip (outline_tracker/synthetic.py); an object's
+    `ground_truth` is the `GroundTruth` of the clip (outline_tracker/synthetic/clips.py); an object's
     `obj_id` is the `track_id` of the scene's object it stands for. The image itself is not read,
     only its size is checked: before `start`, `step` or `preview`, the runner says what the image
     shows with `set_view(frame, offset, size)`. The full-frame ground-truth mask and the analytic

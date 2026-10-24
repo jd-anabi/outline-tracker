@@ -1,7 +1,7 @@
 """What the installed command `outline-tracker` starts (SPEC 11).
 
 With no arguments at all it opens the window: it runs the `gui` command. With any argument it is
-the command line of outline_tracker/cli.py, unchanged. Nothing heavy is imported here: torch and
+the command line of outline_tracker/cli/main.py, unchanged. Nothing heavy is imported here: torch and
 Qt are loaded only when the window really opens (outline_tracker/gui/app.py).
 """
 

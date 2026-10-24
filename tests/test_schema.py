@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/schema.py, the single source of truth for every output file (SPEC 8, 9).
+"""Tests of outline_tracker/core/schema.py, the single source of truth for every output file (SPEC 8, 9).
 
 Expected values come from the specification: column lists typed from SPEC 8.2, 8.4, 8.5, 8.7, the
 SPEC.md tables parsed directly, and rows built cell by cell by hand. Nothing is copied from the

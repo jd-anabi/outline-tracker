@@ -16,7 +16,7 @@ import re
 VERSION = "0.2.0a2.dev0"
 
 # ---------------------------------------------------------------------------------------------
-# Synthetic clips with ground truth (outline_tracker/synthetic.py): the clip fixtures of
+# Synthetic clips with ground truth (outline_tracker/synthetic/clips.py): the clip fixtures of
 # tests/conftest.py are made with these.
 
 SMALL = (320, 240)  # frame size of the fast tests' clips: (width, height) in px

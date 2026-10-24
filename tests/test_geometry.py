@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/geometry.py: the image <-> world transform and the calibration tools.
+"""Tests of outline_tracker/core/geometry.py: the image <-> world transform and the calibration tools.
 
 Expected values come from SPEC 3.2, 3.4 and 4.1-4.5 worked by hand, from the template's
 `tracker_map`, from brute force over the definition, and from synthetic points whose truth is

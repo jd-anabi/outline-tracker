@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/results.py: the store behind results.npz (SPEC 8.12, 6.6; X5, X15): `put`,
+"""Tests of outline_tracker/measure/results.py: the store behind results.npz (SPEC 8.12, 6.6; X5, X15): `put`,
 `arrays` and `TrackArrays`, the two corrections `replace_from` and `truncate_after`, and saving
 and loading. What may go wrong with the file is in tests/test_results_file.py.
 

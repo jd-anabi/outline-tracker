@@ -1,4 +1,4 @@
-"""The two texts that describe a run folder, built from the tables of `outline_tracker.schema`.
+"""The two texts that describe a run folder, built from the tables of `outline_tracker.core.schema`.
 
 `readme_text()` is README.txt (SPEC 8.11), written into every run folder. `outputs_markdown()` is docs/OUTPUTS.md (SPEC
 8.1 and 16), the contract for the analysis template; the committed file is its output, and a test fails when it is
@@ -7,9 +7,9 @@ stale. Regenerate it after a change of the schema with `uv run python -m outline
 Both texts say the same things: the prose is written once below, with code marks (backticks) that the plain-text README
 drops. Every file, column, flag, key and number comes from the schema tables, so a new column or flag appears in both
 without editing prose. This module only builds text; it does no geometry and reads no file. It was split out of
-schema.py (SPEC 12: split past about 400 lines); `outline_tracker.schema.readme_text` is still importable and is the
-same function. Units: every number is given with its unit, and the Units convention lists each column whose name does
-not show it (SPEC 3).
+core/schema.py (SPEC 12: split past about 400 lines); `outline_tracker.core.schema.readme_text` is still
+importable and is the same function. Units: every number is given with its unit, and the Units convention lists
+each column whose name does not show it (SPEC 3).
 """
 
 from __future__ import annotations

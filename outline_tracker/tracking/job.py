@@ -1,11 +1,11 @@
 """Tracking jobs: from a session with prompts to the pixel-space records of results.npz (SPEC 6).
 
 `run_job` is the one entry point, for the command line and for the GUI's worker thread. It plans
-the runs (outline_tracker/tracking_plan.py), checks the start frames (tracking_guard.py), and
+the runs (outline_tracker/tracking/plan.py), checks the start frames (tracking/guard.py), and
 tracks each run: every frame of the run is decoded, cut to the part the model sees, given to the
 segmenter, measured (`measure.measure_mask`) and discarded. A coarse run shows the model one fixed
 part of the frame, for all its objects; a fine run shows it a window that follows its one object
-(outline_tracker/tracking_fine.py).
+(outline_tracker/tracking/fine.py).
 
 Who writes what: `run_job` works on a copy of the job's session and writes only results.npz.
 Every change it makes to the session (a run's record, whether the results are complete, a frame
@@ -13,7 +13,7 @@ hash made anew on this computer, a fine window it chose) is handed to `Callbacks
 a `SessionChanges`, so that session.json has one writer.
 
 The edits between jobs (objects, clicks, "Re-track from here", "End track here", "Continue as new
-track", the flags table) are in outline_tracker/tracking_edit.py; its names are importable from
+track", the flags table) are in outline_tracker/tracking/edit.py; its names are importable from
 here too, so that the GUI's panels need this one module.
 
 Units and coordinates (SPEC 3.1): records are in px in the full frame, Tracker's convention, the

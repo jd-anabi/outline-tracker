@@ -1,4 +1,4 @@
-"""What video.py adds to last week's functions (SPEC 3.5; decisions X4 and X8): the sequential decode
+"""What video/reader.py adds to last week's functions (SPEC 3.5; decisions X4 and X8): the sequential decode
 that defines frame numbers, the table of frame timestamps, the frame hash and the decoder tag.
 
 The ported functions are tested in tests/test_video.py (the template's file) and `FrameSource` in

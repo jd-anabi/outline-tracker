@@ -188,7 +188,7 @@ def test_a_seek_that_lands_after_the_last_frame_is_asked_again_earlier(clip_with
 
 
 def test_frames_placed_with_a_table_found_wrong_later_are_not_served_again(clip_with_frames, monkeypatch):
-    # The limit of the method (stated in frame_source.py): this table fits the decoder at both ends
+    # The limit of the method (stated in video/frame_source.py): this table fits the decoder at both ends
     # of the file and at every frame compared on the way to frame 90, and still numbers frames 81
     # to 99 one too low. What the jump to frame 90 returns is therefore not asserted. What is: once
     # a count shows the table wrong (the steps from frame 70 to 85 pass frame 80), nothing that was

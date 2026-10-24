@@ -5,7 +5,7 @@ hash guard in tests/test_tracking_guard.py.
 
 Expected values come from geometry written out here (the dish square of SPEC 6.2, where an ellipse
 meets a crop's border), from the scenes' stated paths, and from the ground truth of
-outline_tracker/synthetic.py. `ExactFake` returns that ground truth in whatever view the runner
+outline_tracker/synthetic/clips.py. `ExactFake` returns that ground truth in whatever view the runner
 names, so a position that is off shows a wrong crop corner or a wrong shift; `ThresholdFake` reads
 the image itself, so it shows whether the right pixels were cut out.
 

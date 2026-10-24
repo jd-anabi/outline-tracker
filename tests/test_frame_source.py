@@ -6,7 +6,7 @@ and `gapped_clip`, the same frames with three gaps in its timestamps. Frame numb
 decoding order from the start of the file; times are s of file time, 1/240 s per frame. Expected
 timestamps come from how the clips are written (`GAPS_BEFORE`, `frame_times`), expected frames
 from the sequential decode `video.iter_rgb_frames`: decoded frames are compared with decoded
-frames, never with drawn ones (the codec changes the levels). What video.py itself adds is tested
+frames, never with drawn ones (the codec changes the levels). What video/reader.py itself adds is tested
 in tests/test_video_frames.py; a wrong table and wrong time stamps from the decoder (here only the
 seek is made wrong) in tests/test_frame_source_times.py and tests/test_frame_source_jumps.py.
 """

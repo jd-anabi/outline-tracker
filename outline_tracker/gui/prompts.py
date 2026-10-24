@@ -5,7 +5,7 @@ Negative, Head), undo, the marks of the clicks on the frame shown, and the outli
 gives for them (the preview), with the window of a fine object. The table and the buttons are in
 gui/panels/objects_panel.py; the items that are drawn are made in gui/prompt_drawing.py.
 
-- Every edit goes through `outline_tracker.tracking` (`add_prompt`, `undo_prompt`, `set_head`):
+- Every edit goes through `outline_tracker.tracking.job` (`add_prompt`, `undo_prompt`, `set_head`):
   the frame grid, the frame hash and the rule against a gap inside a track are decided there. A
   refusal is shown in that function's words (`message`) and changes nothing. After an edit the
   controller's `touch()` tells the rest of the window.

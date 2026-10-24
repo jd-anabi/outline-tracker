@@ -5,7 +5,7 @@ This re-encodes the ORIGINAL video to H.264 with every frame kept, in order, wit
 or dropped and the phone's rotation applied. The slow motion is not "baked in": frame n of the
 copy is frame n of the original.
 
-The command is `outline-tracker convert VIDEO...` (cli.py); the functions here are last week's,
+The command is `outline-tracker convert VIDEO...` (cli/main.py); the functions here are last week's,
 moved over unchanged, and last week's tests of them are tests/test_convert.py. Frame counts
 are frames, frame rates are frames per second of file time.
 

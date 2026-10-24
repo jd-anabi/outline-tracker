@@ -3,13 +3,13 @@
 Nothing heavy is imported here: torch, transformers and Qt are loaded only by the commands that
 need them, so `--version`, `export` and `probe` start at once. The commands that read or write
 videos (`convert`, `check`, `probe`, `synth`) import OpenCV only when they run. `probe` itself is in
-outline_tracker/cli_probe.py; its parser is here with the others. `export` is in
-outline_tracker/cli_export.py and `from-tracker` in outline_tracker/cli_from_tracker.py, each with
-its parser. `selftest` is in outline_tracker/cli_selftest.py, with its parser too. `gui` (the window)
-is in outline_tracker/cli_gui.py, with its parser.
+outline_tracker/cli/probe.py; its parser is here with the others. `export` is in
+outline_tracker/cli/export.py and `from-tracker` in outline_tracker/cli/from_tracker.py, each with
+its parser. `selftest` is in outline_tracker/cli/selftest.py, with its parser too. `gui` (the window)
+is in outline_tracker/cli/gui.py, with its parser.
 
 `synth` is a hidden command (not listed in `--help`): it writes one of the synthetic test clips of
-outline_tracker/synthetic.py, for checking an installation by hand. `compare-tracks` is the other
+outline_tracker/synthetic/clips.py, for checking an installation by hand. `compare-tracks` is the other
 hidden command (decision X10): it compares the Tracker-format track files of two folders, in px.
 `check VIDEO --seek` is a hidden option: it also checks that jumping to a frame gives the frame the
 tracker would read.

@@ -57,7 +57,7 @@ HEADER = "".join(f"# {key}: made up\n" for key in NEEDED).encode("ascii")  # a h
 
 FRAMES = list(range(0, 40, 2))  # the tracked frames of both clips: 0, 2, ..., 38
 # Where the clips' recipes draw each object: (center on frame 0, step per frame), in array coordinates
-# (pixel centers at whole numbers), px. The selftest clip: outline_tracker/synthetic.py, `selftest_clip`.
+# (pixel centers at whole numbers), px. The selftest clip: outline_tracker/synthetic/clips.py, `selftest_clip`.
 # The three ellipses: `starts` and `steps` of `write_three_ellipse_clip` in
 # tests/slow/pipeline_helpers.py.
 RECIPES = {

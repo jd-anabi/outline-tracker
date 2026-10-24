@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.measure: the outline and the components of a mask (SPEC 7.4).
+"""Tests for outline_tracker.measure.mask: the outline and the components of a mask (SPEC 7.4).
 
 Every shape is an implicit function rasterized at the pixel centers (tests/analytic_shapes.py),
 and every expected value below comes from the shape's geometry or from counting pixels by hand.

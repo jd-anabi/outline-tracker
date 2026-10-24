@@ -1,7 +1,7 @@
 """The disk and the ellipse are held to geometry, and the rasterizer to them (docs/ROADMAP.md, W1 step 6).
 
-There is one family of shapes: the classes of outline_tracker/synthetic_shapes.py, in a body frame, which
-outline_tracker/synthetic.py puts on the pixel grid. `disk` and `ellipse` of tests/analytic_shapes.py are
+There is one family of shapes: the classes of outline_tracker/synthetic/shapes.py, in a body frame, which
+outline_tracker/synthetic/clips.py puts on the pixel grid. `disk` and `ellipse` of tests/analytic_shapes.py are
 the package's shapes in image axes: functions of points (u, v) that call those classes. Two tests:
 
 1. the anchor: the two shapes are held to geometry, asked through the functions and through the classes.
@@ -43,7 +43,7 @@ def body_frame(u, v, center, heading: float):
     """(xi, eta) of the points (u, v), px in the full frame, in the body frame of an object at `center`
     (u, v) whose head points along `heading` (rad, counterclockwise on screen): xi toward the head,
     eta 90 degrees counterclockwise from xi, px. Written out from the frame's definition
-    (outline_tracker/synthetic_shapes.py), not taken from the package's code."""
+    (outline_tracker/synthetic/shapes.py), not taken from the package's code."""
     x, y = u - center[0], -(v - center[1])  # y up
     return x * np.cos(heading) + y * np.sin(heading), -x * np.sin(heading) + y * np.cos(heading)
 

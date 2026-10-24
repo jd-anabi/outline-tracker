@@ -2,7 +2,7 @@
 rules both share. tests/test_fakes_threshold.py checks `ThresholdFake` on hand-made images.
 
 Expected values come from geometry written out here (a disk's inequality, bounding boxes worked out
-by hand), from the scenes' stated paths, and from the ground truth of outline_tracker/synthetic.py,
+by hand), from the scenes' stated paths, and from the ground truth of outline_tracker/synthetic/clips.py,
 which tests/test_synthetic.py checks against exact inequalities.
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,

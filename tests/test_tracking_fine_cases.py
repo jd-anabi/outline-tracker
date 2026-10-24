@@ -5,7 +5,7 @@ the positions are in tests/test_tracking_fine.py, the frame's border in
 tests/test_tracking_fine_border.py.
 
 Expected values come from the scenes' stated paths and sizes, worked out in the comments, and from
-the ground truth of outline_tracker/synthetic.py: what a model can see of an object in a window is
+the ground truth of outline_tracker/synthetic/clips.py: what a model can see of an object in a window is
 the part of its true mask inside that window and inside the frame (`truth_in_box`).
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,

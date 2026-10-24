@@ -24,7 +24,7 @@ from frame_source_helpers import CLIPS, N  # noqa: E402
 from helpers import GAPS_BEFORE, ODD_FOLDER, SMALL, new_window  # noqa: E402
 
 # ---------------------------------------------------------------------------------------------
-# Synthetic clips with ground truth (outline_tracker/synthetic.py). Each is rendered once per test
+# Synthetic clips with ground truth (outline_tracker/synthetic/clips.py). Each is rendered once per test
 # session; a test must not write next to these files (use `clip_in_odd_folder` for that).
 
 
@@ -174,7 +174,7 @@ def run_folder(tracked, tmp_path):
 # ---------------------------------------------------------------------------------------------
 # A file that another program holds open (Windows: a CSV open in a spreadsheet program, a file being
 # synced). The package renames a finished file onto its target with `os.replace`, in
-# outline_tracker/fileio.py only; a locked target is an `os.replace` that raises.
+# outline_tracker/core/fileio.py only; a locked target is an `os.replace` that raises.
 
 
 class LockedFiles:

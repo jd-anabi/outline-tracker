@@ -9,7 +9,7 @@ A move of files changes the table and the import lines, and no test body. These 
   because such a line breaks when the test moves;
 - every relative link in a tracked .md file points to a file or folder that exists, so that a move of
   a document cannot leave a dead link;
-- `provenance.PACKAGE_FOLDER` comes from the imported package, not from the file of provenance.py.
+- `provenance.PACKAGE_FOLDER` comes from the imported package, not from the file of core/provenance.py.
 
 The scans are checked on small made-up files in `tmp_path`, so that a scan that never finds anything
 would show up here. Paths in this file are repository paths; no units or coordinates.
@@ -290,11 +290,11 @@ def test_the_link_scan_finds_a_dead_link_and_skips_the_rest(tmp_path):
 
 
 # ---------------------------------------------------------------------------------------------
-# provenance.py
+# core/provenance.py
 
 
 def test_provenance_names_the_folder_of_the_imported_package():
     # `PACKAGE_FOLDER` is where `git rev-parse` looks for the checkout. It is the folder of the imported
-    # package, which stays the package's top folder wherever provenance.py lies in it. This holds before
+    # package, which stays the package's top folder wherever core/provenance.py lies in it. This holds before
     # the line that says so too: it is the guard for the move of the module (W2 step 2).
     assert provenance.PACKAGE_FOLDER == Path(outline_tracker.__file__).resolve().parent

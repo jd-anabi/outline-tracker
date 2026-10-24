@@ -3,7 +3,7 @@ it hands over, the checks before a run, and what is kept when the model fails. T
 themselves are checked in tests/test_tracking_coarse.py.
 
 Expected values are counts of frames worked out from the clip (120 frames, or 210 for the autosave
-clip) and the session's frame grid, and the ground truth of outline_tracker/synthetic.py. Frames
+clip) and the session's frame grid, and the ground truth of outline_tracker/synthetic/clips.py. Frames
 are video frame numbers; positions are px in Tracker's convention (SPEC 3.1).
 """
 

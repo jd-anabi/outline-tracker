@@ -3,7 +3,7 @@ what the model finds in the padding is not measured, an object cut by the frame 
 and one that has left the frame is lost while the window stays where it was (review focus 4).
 
 Expected values come from the paths of the scene made here, worked out in its text, from the
-ground truth of outline_tracker/synthetic.py (the true mask is the part of the object inside the
+ground truth of outline_tracker/synthetic/clips.py (the true mask is the part of the object inside the
 frame), and from disks of known size and place (tests/analytic_shapes.py).
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,

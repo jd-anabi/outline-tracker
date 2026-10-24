@@ -92,7 +92,7 @@ def test_export_needs_a_session_file(capsys):
 
 
 def test_building_the_parser_loads_nothing_heavy():
-    # cli.py imports cli_export for every command: numpy, OpenCV and the rest come only when `export` runs
+    # cli/main.py imports cli_export for every command: numpy, OpenCV and the rest come only when `export` runs
     code = ("import sys\n"
             "from outline_tracker.cli import main as cli\n"
             "args = cli.build_parser().parse_args(['export', 'x.json', '--overlay'])\n"

@@ -26,7 +26,7 @@ some files were written.
 The files hold what SPEC 8 says: mm in the user's axes with y up, s, rad, and px in Tracker's image
 coordinates (pixel centers at +0.5); frames are the video's frame numbers. The text printed here is ASCII
 apart from file names. No Qt, no torch; numpy, OpenCV and the rest are imported only when the command runs
-(`cli.py` imports this module for every command).
+(`cli/main.py` imports this module for every command).
 """
 
 from __future__ import annotations

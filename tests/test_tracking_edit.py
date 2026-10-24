@@ -1,4 +1,4 @@
-"""The Qt-free edit functions the GUI panels call (outline_tracker/tracking_edit.py): the object
+"""The Qt-free edit functions the GUI panels call (outline_tracker/tracking/edit.py): the object
 table (`add_object`, `remove_object`), clicks (`add_prompt`, `undo_prompt`), the head click
 (`set_head`), what "Track" would start (`pending_runs`) and the flags table (`flags_table`).
 The three corrections and the track ids are in tests/test_corrections.py.

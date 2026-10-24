@@ -5,8 +5,8 @@ One dataclass per block of session.json, with the field names of SPEC 8.10: `Cli
 `CalibrationSettings`, `Axes`, `Circle`, `Processing`, `ProbeBox`, `Prompt`, `Track`, `RunRecord` and
 `Correction`, and `_Record`, the base class that all of them share with `Session` and that does the reading
 and writing. The video block (`VideoRef`, with the errors of finding the video again), the whole `Session`
-(load, save, `world_frame`, `locate_video`) and `SessionVersionError` are in outline_tracker/session.py,
-which imports from this module and gives every name of it too, so that `from outline_tracker.session import
+(load, save, `world_frame`, `locate_video`) and `SessionVersionError` are in outline_tracker/core/session.py,
+which imports from this module and gives every name of it too, so that `from outline_tracker.core.session import
 Track` works.
 
 Units and coordinates (SPEC 3): every `*_px` value is in image pixels in Tracker's convention (origin at the

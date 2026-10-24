@@ -12,7 +12,7 @@ convention (SPEC 3.1): u to the right, v down, from the top-left corner of the f
 are both measured, and every frame between them. fps_true is the real frame rate in frames per s
 (t_s = frame / fps_true); the frame rate written in the file is never used.
 
-`cli.py` holds the command's parser and turns the errors raised here into one `ERROR: ...` line.
+`cli/main.py` holds the command's parser and turns the errors raised here into one `ERROR: ...` line.
 pandas and OpenCV are imported only when the command runs. No Qt, no torch.
 """
 

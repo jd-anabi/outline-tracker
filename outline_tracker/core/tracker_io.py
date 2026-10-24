@@ -20,7 +20,7 @@ files and gives, per pair of tracks, the difference in px on the frames both hav
 Coordinates: pixelx and pixely are Tracker's image coordinates in px: the origin is the top-left
 corner of the frame, pixelx grows to the right, pixely downward, and the pixel in column c and row r
 has its center at (c + 0.5, r + 0.5). x and y are in mm. `frame` is the video's own frame number
-and fps_true is in frames per second (see SPEC 3). geometry.py imports this module, never the reverse.
+and fps_true is in frames per second (see SPEC 3). core/geometry.py imports this module, never the reverse.
 """
 
 from __future__ import annotations

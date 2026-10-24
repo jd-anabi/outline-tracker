@@ -188,7 +188,7 @@ def test_the_exports_warnings_are_shown_as_warnings(window, qtbot, clip_in_odd_f
     locked = ("shapes.csv is open in another program: the new data are in shapes.new.csv next to it. Close that "
               "program and export again.")
     skipped = f"overlay.mp4 was skipped: {gone} Every other file was written."
-    assert panel.report.warnings == [locked, skipped]  # the export's own sentences (outline_tracker/export.py)
+    assert panel.report.warnings == [locked, skipped]  # the export's own sentences (outline_tracker/export/pipeline.py)
     assert panel.message.kind == "warning"
     assert panel.message.text() == f"Export all wrote 7 files in 1 min 5 s, with 2 warnings.\n\n{locked}\n\n{skipped}"
     names = (WRITTEN - {schema.SHAPES_CSV, schema.OVERLAY_MP4}) | {"shapes.new.csv"}

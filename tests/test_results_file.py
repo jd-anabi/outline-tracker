@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/results.py: what may go wrong with results.npz (SPEC 8.1, 8.12): a save
+"""Tests of outline_tracker/measure/results.py: what may go wrong with results.npz (SPEC 8.1, 8.12): a save
 that fails or finds the file locked, a file of an odd version, a damaged file. Saving and loading
 a good file are in tests/test_results.py.
 

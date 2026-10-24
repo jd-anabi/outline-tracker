@@ -8,7 +8,7 @@ three corrections Re-track from here, End track here and Continue as new track.
   up and down keys, shows its frame and selects its object. Previous flag and Next flag go through
   the listed rows of the selected object, from the frame shown, and around.
 - The corrections work on the object selected in panel 6 at the frame the window shows, and go
-  through `outline_tracker.tracking` (`retrack_from`, `end_track`, `new_piece`), which is given
+  through `outline_tracker.tracking.job` (`retrack_from`, `end_track`, `new_piece`), which is given
   None for the results: it reads results.npz as it is now. Re-track from here and End track here
   remove results, so they ask first (`dialogs.confirm`), and their change is saved at once; Re-track
   from here then starts the run that tracks the object again. A refusal is shown in the panel in

@@ -7,7 +7,8 @@ This module holds `Session` (load, save, `world_frame`, `locate_video`, and the 
 whole file), the video block `VideoRef` with the errors of finding the video again, and `SessionVersionError`.
 The other blocks (`Clip`, `TimeSettings`, `CalibrationSettings`, `Axes`, `Circle`, `Processing`, `ProbeBox`,
 `Prompt`, `Track`, `RunRecord`, `Correction`) and the base class that reads and writes them are in
-outline_tracker/session_parts.py; they are imported here, so `from outline_tracker.session import Track` works.
+outline_tracker/core/session_parts.py; they are imported here, so `from outline_tracker.core.session import Track`
+works.
 
 Units and coordinates (SPEC 3): every `*_px` value is in image pixels in Tracker's convention (origin at the
 top-left corner of the frame, u to the right, v down, the center of the pixel in column c and row r at
@@ -42,7 +43,7 @@ from outline_tracker.core.fileio import atomic_write, relative_path, sha256_firs
 from outline_tracker.core.geometry import WorldFrame, stick_scale
 from outline_tracker.core.schema import SESSION_SCHEMA_VERSION
 
-# The blocks written in session_parts.py, imported here so that they can be imported from this module too
+# The blocks written in core/session_parts.py, imported here so that they can be imported from this module too
 # (`Prompt` is the one that this file does not use itself).
 from outline_tracker.core.session_parts import (Axes, CalibrationSettings, Circle, Clip, Correction, ProbeBox, Processing,
                                            Prompt, RunRecord, TimeSettings, Track, _Record)

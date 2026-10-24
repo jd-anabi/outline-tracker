@@ -1,8 +1,8 @@
 """Where the GUI's panels find the edit API and how they call it (task A17 of the plan, "Produces").
 
-The plan names one file for it, outline_tracker/tracking.py, eleven functions, and for five of them
-the arguments. The functions are written in outline_tracker/tracking_edit.py (SPEC 12 splits a file
-that grows past about 400 lines); outline_tracker.tracking gives the same objects under the same
+The plan names one file for it, outline_tracker/tracking/job.py, eleven functions, and for five of them
+the arguments. The functions are written in outline_tracker/tracking/edit.py (SPEC 12 splits a file
+that grows past about 400 lines); outline_tracker.tracking.job gives the same objects under the same
 names, so that both imports work.
 
 Expected values are the plan's own text: its names, and its arguments in its order, which come

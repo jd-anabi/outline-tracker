@@ -1,6 +1,6 @@
 """The `selftest` command (SPEC 11, 13.4): its two options, and `selftest.selftest` behind them.
 
-`cli.py` adds the command with `add_parser`. Nothing heavy is imported here: numpy, OpenCV, pandas
+`cli/main.py` adds the command with `add_parser`. Nothing heavy is imported here: numpy, OpenCV, pandas
 and the tracking code are loaded when the command runs, torch when it loads the model.
 
 What it prints is what `from_tracker` prints for the made-up clip, then last week's two lines: the

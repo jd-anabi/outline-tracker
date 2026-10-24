@@ -31,7 +31,7 @@ from outline_tracker.tracking.ids import TRACK_COLORS as _TRACK_COLORS
 from outline_tracker.video.reader import VideoInfo
 
 # Last week's overlay colors as RGB hex, in last week's order: the first track is yellow, and the
-# eleventh has the first color again (X14). The one list of the package is in tracking_ids.py.
+# eleventh has the first color again (X14). The one list of the package is in tracking/ids.py.
 TRACK_COLORS = list(_TRACK_COLORS)
 ELSEWHERE = "Choose another folder with --out DIR, or another name with --student NAME."
 

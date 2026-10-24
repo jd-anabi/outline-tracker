@@ -22,7 +22,7 @@ occasional access; do not use them to display a frame or to sample a probe.
 
 Frame numbers (SPEC 3.5): frame n is the n-th frame, counted from 0, of the sequential decode from
 the start of the file, which is `iter_rgb_frames`. Tracking reads the video with it. A single
-frame by number comes from `FrameSource` (outline_tracker/frame_source.py), which uses
+frame by number comes from `FrameSource` (outline_tracker/video/frame_source.py), which uses
 `frame_timestamps` to make sure of the frame it delivers. `frame_hash` and `decoder_tag` let a
 session store which frame the user saw (decision X8).
 """

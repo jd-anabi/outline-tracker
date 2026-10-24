@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.derive: the world quantities of SPEC 7 from the pixel records and a
+"""Tests for outline_tracker.measure.derive: the world quantities of SPEC 7 from the pixel records and a
 calibration (SPEC 13.1: Moments, Head continuity, Outline geometry, Radial profile, Solidity and
 wall distance, Resolution).
 

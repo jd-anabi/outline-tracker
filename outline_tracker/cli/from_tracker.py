@@ -1,6 +1,6 @@
 """The `from-tracker` command (SPEC 11, decision X19): its options, and `from_tracker` behind them.
 
-`cli.py` adds the command with `add_parser`. Nothing heavy is imported here: OpenCV, pandas and the
+`cli/main.py` adds the command with `add_parser`. Nothing heavy is imported here: OpenCV, pandas and the
 tracking code are loaded when the command runs, torch when it loads the model.
 
 Units: `--seconds` is s of real time, `--fps` is fps_true in frames per second, `--step` counts

@@ -1,4 +1,4 @@
-"""What an edit must not leave behind (outline_tracker/tracking_edit.py; the corrections themselves
+"""What an edit must not leave behind (outline_tracker/tracking/edit.py; the corrections themselves
 are in tests/test_corrections.py):
 
 - a gap inside a track. SPEC 8.2 gives a track every grid frame from its first to its last, so

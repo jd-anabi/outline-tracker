@@ -82,7 +82,7 @@ Base size B = `QApplication.font()` (Segoe UI 9 pt = 12 px on Windows, the syste
 
 ## 4. Track colours
 
-One list for the GUI, `session.json` and `overlay.mp4`. It is core data: define it once outside `gui/` (suggested `schema.TRACK_COLORS`) and import it. A stays yellow and the hue order of last week is kept (PLAN X14; see §10). `overlay.py` (built, tested) draws 1 px lines without a casing; the GUI tasks do not change it.
+One list for the GUI, `session.json` and `overlay.mp4`. It is core data: define it once outside `gui/` (suggested `schema.TRACK_COLORS`) and import it. A stays yellow and the hue order of last week is kept (PLAN X14; see §10). `export/overlay.py` (built, tested) draws 1 px lines without a casing; the GUI tasks do not change it.
 
 | # | id | hex | name | # | id | hex | name |
 |---|---|---|---|---|---|---|---|

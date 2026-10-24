@@ -12,7 +12,7 @@ These tests read it as data and hold it against the real tool:
   made-up clips with a stand-in model (`...` and `path/to/...` stand for any text, numbers for any number);
 - every install line names a release tag, and the example version line is that release's: until the next
   release the README on `main` is the page of the tagged release (docs/ROADMAP.md, section 2, rule 1);
-- the file names of the run folder are those of `outline_tracker/schema.py`; relative links resolve; no
+- the file names of the run folder are those of `outline_tracker/core/schema.py`; relative links resolve; no
   `#` comment in a shell block (zsh pastes `#` as a command); American spelling;
 - the section "Quickstart" (task C8b) has ten numbered steps of one or two sentences each, in the order of
   the window's panels, with the advice the real model needs; the buttons it names are held against the

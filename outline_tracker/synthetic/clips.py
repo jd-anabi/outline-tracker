@@ -2,7 +2,7 @@
 
 A scene is a few objects moving over a plain background. Every shape is an implicit function: a
 signed distance d in px, positive inside (decision X16; the shapes, and the paths they move on,
-are in outline_tracker/synthetic_shapes.py). The ground-truth mask is d > 0 at the pixel centers,
+are in outline_tracker/synthetic/shapes.py). The ground-truth mask is d > 0 at the pixel centers,
 the ground-truth logits are d itself, and the frames are drawn from the same function
 (coverage = clip(d + 1/2, 0, 1)). So the truth is known to a small fraction of a pixel, which a
 shape drawn with OpenCV at a nominal size is not. `render` writes the clip as H.264 with libx264,

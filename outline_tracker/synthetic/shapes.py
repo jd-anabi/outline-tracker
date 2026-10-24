@@ -10,7 +10,7 @@ full frame (SPEC 3.1: u to the right, v downward) and the heading in rad, counte
 screen from the image's rightward direction (y up), which is the world angle when the axis angle
 alpha is 0. Speeds are in px per frame.
 
-outline_tracker/synthetic.py puts shapes on paths into scenes, renders them and gives the ground truth.
+outline_tracker/synthetic/clips.py puts shapes on paths into scenes, renders them and gives the ground truth.
 """
 
 from __future__ import annotations

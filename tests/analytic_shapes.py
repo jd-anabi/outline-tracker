@@ -12,7 +12,7 @@ the unit vector (cos, sin) in (u, v). Because v points down, that turn is CLOCKW
 module knows nothing about world coordinates: a test that needs a world angle maps the direction
 vector through its own calibration.
 
-The disk and the ellipse are the package's own shapes (outline_tracker/synthetic_shapes.py), asked in
+The disk and the ellipse are the package's own shapes (outline_tracker/synthetic/shapes.py), asked in
 this module's frame; tests/test_shapes_agree.py holds both to their closed-form outlines. The package's
 body frame has xi toward the head and eta 90 degrees counterclockwise on screen from xi, so its heading
 is minus this module's angle. The other shapes here have no equivalent in the package.

@@ -1,18 +1,18 @@
 """Edits of a session and its results without Qt (SPEC 5, 6.6): what the GUI's panels call.
 
-- The object table: `add_object`, `remove_object`; ids and colors are in tracking_ids.py
+- The object table: `add_object`, `remove_object`; ids and colors are in tracking/ids.py
   (`next_track_id`).
 - Clicks: `add_prompt`, `undo_prompt`, and the head click, `set_head`.
 - What "Track" would start: `pending_runs`.
 - The three corrections: `retrack_from` ("Re-track from here"), `end_track` ("End track here") and
-  `new_piece` ("Continue as new track") are written in outline_tracker/tracking_corrections.py, which
+  `new_piece` ("Continue as new track") are written in outline_tracker/tracking/corrections.py, which
   builds on this module: `Edit`, and the helpers that find a track, move a frame onto the grid and
   read and save the results, are here. Each correction adds an entry to `session.corrections`
   (SPEC 8.10).
-- The flags table of a run folder: `flags_table` (outline_tracker/tracking_flags.py).
+- The flags table of a run folder: `flags_table` (outline_tracker/tracking/flags.py).
 
 Every name of `__all__` is importable from here, the three corrections included, and from
-outline_tracker.tracking too.
+outline_tracker.tracking.job too.
 
 Who writes what. These functions change the `Session` they are given and never save it: saving
 session.json is the caller's part (the GUI saves on its own thread). `store` is the `ResultsStore`
@@ -28,7 +28,7 @@ results when it cannot write results.npz: that file is never replaced or removed
 renames or removes it first. `session.complete` follows the results
 (`tracking_plan.partial_tracks`).
 
-The sequence of a correction, "Re-track from here" for one, is in tracking_corrections.py. No edit
+The sequence of a correction, "Re-track from here" for one, is in tracking/corrections.py. No edit
 makes a gap inside a track (SPEC 8.2): a track with results is clicked on, and re-tracked from, the
 first grid frame after its last record at the latest (`tracking_plan.check_no_gap`).
 
@@ -332,9 +332,9 @@ _CORRECTIONS = ("end_track", "new_piece", "retrack_from")
 
 
 def __getattr__(name: str):
-    """The three corrections, which are written in tracking_corrections.py. That module imports from this
+    """The three corrections, which are written in tracking/corrections.py. That module imports from this
     one, so this one loads them when they are asked for (PEP 562): the two modules form no import cycle,
-    whichever is imported first, and `from outline_tracker.tracking_edit import retrack_from` works."""
+    whichever is imported first, and `from outline_tracker.tracking.edit import retrack_from` works."""
     if name in _CORRECTIONS:
         from outline_tracker.tracking import corrections as tracking_corrections
         return getattr(tracking_corrections, name)

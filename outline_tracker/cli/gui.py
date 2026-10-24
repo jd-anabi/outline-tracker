@@ -1,6 +1,6 @@
 """The `gui` command (SPEC 10, 11): open the window, with a video or a session if one is named.
 
-`cli.py` adds the command with `add_parser`; `outline-tracker` with no arguments runs it too
+`cli/main.py` adds the command with `add_parser`; `outline-tracker` with no arguments runs it too
 (outline_tracker/launch.py). Only argparse and the standard library are imported here. The window's
 code (outline_tracker/gui/app.py, which loads torch and then Qt) is imported when the command runs,
 and only after the path was checked: a file that is not there is one `ERROR: ...` line on stderr

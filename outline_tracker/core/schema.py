@@ -3,7 +3,7 @@
 Everything that writes or describes an output file reads it from here: the CSV column tables (SPEC 8.2,
 8.4, 8.5, 8.7), the Tracker-format columns of 8.3, the quality flags of 9, the file list of 8.1, the key
 lists of results.npz (8.12) and outlines.npz (8.6) and the versions. The texts of README.txt (8.11) and
-docs/OUTPUTS.md are built from these tables in schema_docs.py (`readme_text` is importable from here).
+docs/OUTPUTS.md are built from these tables in core/schema_docs.py (`readme_text` is importable from here).
 
 Units and coordinates: the unit of a column is in its name where it has one (_s seconds, _mm millimetres,
 _mm2 square millimetres, _rad radians, _px image pixels; ratios have none, probe means use the 0-255

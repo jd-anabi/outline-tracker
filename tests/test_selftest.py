@@ -292,7 +292,7 @@ def test_a_wrong_option_is_a_usage_error(wrong, capsys):
 
 
 def test_building_the_parser_loads_nothing_heavy():
-    # cli.py imports cli_selftest for every command: numpy, OpenCV and the rest come only when `selftest` runs
+    # cli/main.py imports cli_selftest for every command: numpy, OpenCV and the rest come only when `selftest` runs
     code = ("import sys\n"
             "from outline_tracker.cli import main as cli\n"
             "args = cli.build_parser().parse_args(['selftest', '--device', 'cpu'])\n"

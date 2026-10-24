@@ -1,4 +1,4 @@
-"""Tests for outline_tracker.qc.summary_lines: the QC summary of run.log (SPEC 8.9): per track
+"""Tests for outline_tracker.measure.qc.summary_lines: the QC summary of run.log (SPEC 8.9): per track
 and flag the number of frames, the first frame and its time, in the wording of last week's CHECK
 lines ("A: lost in 2 of 5 frames (first at t = 0.250 s)").
 

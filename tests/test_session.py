@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/session.py: session.json <-> dataclasses, and finding the video again.
+"""Tests of outline_tracker/core/session.py: session.json <-> dataclasses, and finding the video again.
 
 Expected values come from SPEC.md itself (the session.json example of section 8.10 is read from the
 file and must come back unchanged), from decision X18 (the optional keys), from SPEC 3.2 and 4.2

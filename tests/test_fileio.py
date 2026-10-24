@@ -1,4 +1,4 @@
-"""Tests of outline_tracker/fileio.py: atomic writes with the Windows lock retry, the rename alone under
+"""Tests of outline_tracker/core/fileio.py: atomic writes with the Windows lock retry, the rename alone under
 names the caller gives, adding a block to run.log, and the video hash.
 
 Expected behavior comes from SPEC 8.1 ("temporary file, then rename ... retry for a few seconds if
