@@ -7,14 +7,14 @@ The corrections are Re-track from here, End track here and Continue as new track
   object" limits it to the object selected in panel 6. A row that is clicked, or reached with the
   up and down keys, shows its frame and selects its object. Previous flag and Next flag go through
   the listed rows of the selected object, from the frame shown, and around.
-- The corrections work on the object selected in panel 6 at the frame the window shows, and go
-  through `outline_tracker.tracking.job` (`retrack_from`, `end_track`, `new_piece`), which is given
-  None for the results: it reads results.npz as it is now. Re-track from here and End track here
-  remove results, so they ask first (`dialogs.confirm`), and their change is saved at once; Re-track
-  from here then starts the run that tracks the object again. A refusal is shown in the panel in
-  the function's own words, and nothing changes. A frame that was moved onto the clip's grid is
-  said, and the window goes there. After a correction the controller's `touch()` tells the rest of
-  the window (the object table, the picture).
+- The corrections (gui/panels/review_corrections.py) work on the object selected in panel 6 at the
+  frame the window shows, and go through `outline_tracker.tracking.job` (`retrack_from`, `end_track`,
+  `new_piece`), which is given None for the results: it reads results.npz as it is now. Re-track from
+  here and End track here remove results, so they ask first (`dialogs.confirm`), and their change is
+  saved at once; Re-track from here then starts the run that tracks the object again. A refusal is
+  shown in the panel in the function's own words, and nothing changes. A frame that was moved onto the
+  clip's grid is said, and the window goes there. After a correction the controller's `touch()` tells
+  the rest of the window (the object table, the picture).
 - The buttons of the corrections are off, with the reason as the end of the hint line and as their
   tooltip, during a run or an export (`Jobs.writing`), before anything is tracked, without a selected
   object, and for an object that has no results yet; Re-track from here also while the model is not ready.
@@ -31,11 +31,11 @@ from bisect import bisect_left, bisect_right
 
 from PySide6.QtWidgets import QCheckBox, QLabel, QSizePolicy, QWidget
 
-from outline_tracker.tracking import job as tracking
-from outline_tracker.gui import dialogs, estimate
+from outline_tracker.gui import estimate
 from outline_tracker.gui.widgets.panel_parts import (CONTROL_HEIGHT, GROUP_GAP, PRIMARY_HEIGHT, IconMessage, button, column,
                                              row)
 from outline_tracker.gui.view.prompts import Prompts
+from outline_tracker.gui.panels.review_corrections import Corrections
 from outline_tracker.gui.panels.review_table import FlagsModel, FlagsView, Listing, listed, meaning
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import NO_MODEL, jobs_of
@@ -51,14 +51,8 @@ LISTING = "The flags are being listed."
 NO_OBJECT = "Select an object to fix its track."
 NOT_TRACKED = "Object {id} is not tracked yet. Track it first in panel 7 (Track)."
 MODEL_LOADING = "The model is loading. Re-track from here is ready when the model is ready."
-CLICK_FIRST = "Click on animal {id} on this frame (frame {frame}). Then click Re-track from here again."
-CLICK_PIECE = "Click on animal {id} on this frame (frame {frame}). Then click Track in panel 7 (Track)."
 NEW_TRACK = "The new track is {id}."
 NO_FLAG_OF = "Object {id} has no flag in the table."
-RETRACK_ASK = ("Re-track {id} from frame {frame}?\nThe results of {id} from frame {frame} to the end are replaced. "
-               "Other tracks do not change.")
-END_ASK = ("End track {id} at frame {frame}?\nThe results of {id} after frame {frame} are removed. "
-           "Other tracks do not change.")
 TIPS = {
     "next": "Go to the next flag of the selected object",
     "previous": "Go to the previous flag of the selected object",
@@ -68,7 +62,7 @@ TIPS = {
 }
 
 
-class ReviewPanel(QWidget):
+class ReviewPanel(Corrections, QWidget):
     """The controls of panel 8. Parts: `table` (a view of `model`), `meaning_label` (what the flag of
     the chosen row means), `shape_box`, `selected_box`, `next_button`, `previous_button`, `message`,
     `retrack_button`, `end_button`, `continue_button`, `piece_label` (the id Continue as new track
@@ -176,116 +170,6 @@ class ReviewPanel(QWidget):
             at = next((at for at, listed_row in enumerate(self.rows) if listed_row[:2] == (track_id, frame)), -1)
         self.table.choose(at)
         self.refresh()
-
-    # ------------------------------------------------------------------ the corrections
-
-    def retrack(self) -> None:
-        """Re-track from here (SPEC 6.6): track the selected object again from the frame shown on.
-        The run starts from a positive point of the object on that frame. Without one, the Positive
-        tool is chosen and the hint line says to click on the animal and to press the button again.
-        With one, the question is asked first, since the results from this frame on are replaced."""
-        track, frame = self._selected_track(), self._view.frame
-        if track is None or frame is None or self._reasons()[0] is not None:
-            return
-        self._said = None
-        clicked = any(label == 1 for prompt in track.prompts if prompt.frame == frame for label in prompt.labels)
-        if not clicked:
-            self.prompts.choose_tool("positive")
-            self._tell(CLICK_FIRST.format(id=track.id, frame=frame))
-            return
-        dialogs.confirm(self._window, RETRACK_ASK.format(id=track.id, frame=frame), "Re-track from here",
-                        lambda: self._retrack(track.id, frame))
-
-    def _retrack(self, track_id: str, frame: int) -> None:
-        """The question was answered with yes: make the correction, save it, and start its run."""
-        session = self._controller.session
-        if session is None or self.jobs.writing():
-            return
-        try:
-            edit = tracking.retrack_from(session, None, [track_id], frame, {}, self._controller.run_folder)
-        except (ValueError, RuntimeError) as refused:  # RuntimeError: results.npz could not be saved
-            self._refused(refused)
-            return
-        self.listing.held = True  # the flags are listed after the run, not between the correction and the run
-        try:
-            self._made(edit)
-            not_started = self.jobs.start()
-        finally:
-            self.listing.held = False
-        if not_started is not None:  # the correction is made; Track in panel 7 starts the run later
-            self._said = ("problem", not_started)
-            self.listing.sync()
-        self.refresh()
-
-    def end_track(self) -> None:
-        """End track here (SPEC 6.6): remove the selected object's results after the frame shown,
-        and mark the track as ended there. The question is asked first."""
-        track, frame = self._selected_track(), self._view.frame
-        if track is None or frame is None or self._reasons()[1] is not None:
-            return
-        self._said = None
-        dialogs.confirm(self._window, END_ASK.format(id=track.id, frame=frame), "End track here",
-                        lambda: self._end(track.id, frame))
-
-    def _end(self, track_id: str, frame: int) -> None:
-        """The question was answered with yes: make the correction and save it."""
-        session = self._controller.session
-        if session is None or self.jobs.writing():
-            return
-        try:
-            edit = tracking.end_track(session, None, track_id, frame, self._controller.run_folder)
-        except (ValueError, RuntimeError) as refused:
-            self._refused(refused)
-            return
-        self._made(edit)
-        self.refresh()
-
-    def continue_as_new(self) -> None:
-        """Continue as new track (SPEC 6.6): add the next piece of the selected object's animal (A2
-        after A), starting on the frame shown, select it and choose the Positive tool; the hint
-        line says to click on the animal and to press Track. Nothing is removed, so nothing is asked."""
-        track, frame, session = self._selected_track(), self._view.frame, self._controller.session
-        if track is None or frame is None or self._reasons()[1] is not None:
-            return
-        self._said = None
-        try:
-            edit = tracking.new_piece(session, track.id, frame)
-        except ValueError as refused:
-            self._refused(refused)
-            return
-        if edit.moved:  # onto the clip's grid: say so, and show the frame the piece starts on
-            self._said = ("warning", edit.note)
-            self._window.show_frame(edit.frame)
-        (piece,) = edit.track_ids
-        self.prompts.select(piece)
-        self.prompts.choose_tool("positive")
-        self._tell(CLICK_PIECE.format(id=piece, frame=edit.frame))
-        self._controller.touch()
-
-    def _made(self, edit) -> None:
-        """Take over a correction that changed the results: keep its store, show the frame it was
-        made on if that is another one, tell the window, and save the session now."""
-        self.store, self._to_do = edit.store, None
-        if edit.moved:
-            self._said = ("warning", edit.note)
-            self._window.show_frame(edit.frame)
-        self._controller.touch()
-        self._controller.save_now()
-
-    def _refused(self, refused: Exception) -> None:
-        self._said = ("problem", str(refused))
-        self.refresh()
-
-    def _tell(self, text: str) -> None:
-        """Put `text` in the hint line until the selected object, the frame shown or the object's
-        points on that frame change."""
-        self._to_do = (text, self._about())
-        self.refresh()
-
-    def _about(self) -> tuple:
-        track, frame = self._selected_track(), self._view.frame
-        points = 0 if track is None else sum(len(prompt.points_px) for prompt in track.prompts if prompt.frame == frame)
-        return (self.prompts.selected, frame, points)
 
     # ------------------------------------------------------------------ what the window reports
 

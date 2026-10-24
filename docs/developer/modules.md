@@ -178,6 +178,7 @@ The nine panels (SPEC 10.1): `PANEL_MODULES` and `build_bodies`, one module per 
 | `gui/panels/dish_panel.py` | Panel 4, Dish and axes (SPEC 4.4, 4.5, 10.1): Circle, Origin to Center, Axes, "Crop to dish for tracking". |
 | `gui/panels/export_panel.py` | Panel 9, Export (SPEC 8.1, 10.1, 10.2): the run folder, Export all, what it wrote, Open folder. |
 | `gui/panels/objects_panel.py` | Panel 6, Objects (SPEC 5, 10.1): the table of objects, Add, Remove, mode, fine window, the point tools. |
+| `gui/panels/review_corrections.py` | The three corrections of panel 8 (SPEC 6.6): Re-track from here, End track here and Continue as new track. |
 | `gui/panels/review_panel.py` | Panel 8, Review and fix (SPEC 6.6, 9, 10.1): the flags table, Previous flag, Next flag and three corrections. |
 | `gui/panels/review_table.py` | The flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread. |
 | `gui/panels/stopwatch_dialog.py` | The Stopwatch dialog of panel 2 (SPEC 4.1): fps_true from a stopwatch that was filmed. |
