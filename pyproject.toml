@@ -46,7 +46,6 @@ packages = ["outline_tracker"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# tests/ holds helpers.py and the other helper modules that tests import by name; tests/gui/ holds
 # tests/support/ holds helpers.py and the other helper modules that tests import by name.
 pythonpath = ["tests/support"]
 norecursedirs = [".*", "build", "dist"]
