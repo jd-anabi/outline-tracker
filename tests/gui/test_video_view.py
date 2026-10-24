@@ -8,7 +8,7 @@ Expected values come from the spec and from geometry:
 - "1:1" draws one video px on one screen px (Qt's device-independent px);
 - the image shown for frame k is frame k of the file, bit for bit (a second `FrameSource`, and for
   the clip with gaps in its timestamps the sequential decode itself).
-Where something is on the screen is read from the drawn view (tests/gui/gui_helpers.py), never
+Where something is on the screen is read from the drawn view (tests/support/gui_helpers.py), never
 from the view's own numbers. The click test also runs on a 150% and on a 200% screen, each in a
 process of its own (`QT_SCALE_FACTOR`).
 """

@@ -1,4 +1,4 @@
-"""Frozen reference files: the helper that writes one only when asked (tests/frozen_helpers.py), and
+"""Frozen reference files: the helper that writes one only when asked (tests/support/frozen_helpers.py), and
 the rules that every file under tests/data/ keeps.
 
 A frozen file holds what the code itself gave, in a run that an independent check confirmed
@@ -22,7 +22,7 @@ not asserted (`why_the_limit_was_not_asserted`).
 
 The test after those is about the golden Tracker-format files (tests/data/tracker_format/): with which
 decoder their bytes are asserted (`same_decoder`), on made-up decoder tags. How a file is judged with
-another decoder is tested where the three cases are (tests/test_from_tracker_port.py).
+another decoder is tested where the three cases are (tests/workflows/test_from_tracker_port.py).
 
 The last two tests hold the installed torch and OpenCV to the versions that the headers name. The strict
 checks (the limit of 0.01 px, the weights' hash, the golden bytes) are made only with those versions, so
@@ -59,7 +59,7 @@ FRAMES = list(range(0, 40, 2))  # the tracked frames of both clips: 0, 2, ..., 3
 # Where the clips' recipes draw each object: (center on frame 0, step per frame), in array coordinates
 # (pixel centers at whole numbers), px. The selftest clip: outline_tracker/synthetic/clips.py, `selftest_clip`.
 # The three ellipses: `starts` and `steps` of `write_three_ellipse_clip` in
-# tests/slow/pipeline_helpers.py.
+# tests/support/pipeline_helpers.py.
 RECIPES = {
     ("selftest", "selftest"): ((700.0, 500.0), (0.6, 0.2)),
     ("three_ellipses", "A"): ((500.0, 300.0), (0.6, 0.2)),

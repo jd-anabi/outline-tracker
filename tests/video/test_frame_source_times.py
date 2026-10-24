@@ -1,11 +1,11 @@
 """The time-stamp side of exact random access (SPEC 3.5, 13.6; decision X4).
 
 `FrameSource` learns which frame a seek delivered from that frame's time stamp and a table of all
-frame times. tests/test_frame_source.py makes the seek wrong; here the evidence is made wrong: a
+frame times. tests/video/test_frame_source.py makes the seek wrong; here the evidence is made wrong: a
 table that is not this file's, a decoder that reports other times. `get(k)` must still be frame k
 of the sequential decode, bit for bit, by decoding from frame 0 wherever the two do not agree.
 
-The clips, the 27 frame numbers and the helpers are those of tests/frame_source_helpers.py. Frame
+The clips, the 27 frame numbers and the helpers are those of tests/support/frame_source_helpers.py. Frame
 numbers count from 0; times are s or ms of file time, as each name says; one frame step is 1/240 s,
 the shortest step between two frames of both clips. Expected frames come from the sequential decode
 `video.iter_rgb_frames`. The faults of the first two parts are injected: none of them was seen on a
@@ -80,7 +80,7 @@ def test_a_table_that_fits_only_the_first_frames_is_given_up(fault_steps, clip_w
     # with this table either. A time 0.3 of a step off is no entry's time, see the next test; a
     # whole step off is the time the table gives the frame before, which no single time stamp can
     # tell from the truth, and there the look at the far end of the file stops the jump:
-    # tests/test_frame_source_jumps.py.)
+    # tests/video/test_frame_source_jumps.py.)
     _, path, frames = clip_with_frames
     change_the_table(monkeypatch, lambda times_s: times_s + fault_steps * STEP_S * (np.arange(N) >= LATER))
     with FrameSource(path) as source:

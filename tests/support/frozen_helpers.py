@@ -5,7 +5,7 @@ same run (docs/ROADMAP.md, section 2, rule 2). Later runs compare with the file,
 rewrites it: `write_frozen` writes only when the environment variable `OUTLINE_TRACKER_FREEZE` is
 `1`, and only when the package is as committed, because the header names the commit.
 
-Apart from their own tests (tests/test_frozen_files.py), no test calls the writing functions at present:
+Apart from their own tests (tests/repo/test_frozen_files.py), no test calls the writing functions at present:
 the files under tests/data/ were frozen while last week's code was still in the repository, and the
 tests that wrote them left with it (docs/ROADMAP.md, W1 step 5). The functions (`header_lines`,
 `write_frozen`, `frozen_text`, `write_listing`, `position_rows`) stay for the next frozen file.
@@ -18,7 +18,7 @@ Two layouts:
 
 Every frozen file is ASCII with LF line ends; `.gitattributes` keeps it so in every checkout. A header
 holds no path under a home or temp folder and no user or computer name: write `command` relative to
-the repository. tests/test_frozen_files.py holds the rules as tests.
+the repository. tests/repo/test_frozen_files.py holds the rules as tests.
 
 The frozen numbers of the real model are two such text files (the last part of this module):
 `POSITIONS`, where EdgeTAM found each object of two synthetic clips on the processor, and `WEIGHTS`, the

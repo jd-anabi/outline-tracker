@@ -1,7 +1,7 @@
 """Export through the code a user's click reaches (SPEC 6.3, 6.6, 8.2-8.6, 8.9, 13.2): fine tracks
 made by `tracking.run_job`, and the three corrections made by `retrack_from`, `end_track` and
 `new_piece`, each followed by the job it asks for and by `export.export_all`. The same checks with
-results.npz made by hand are in tests/test_export_shapes.py and tests/test_export_corrections.py.
+results.npz made by hand are in tests/export/test_export_shapes.py and tests/export/test_export_corrections.py.
 
 Every run uses `ExactFake`, which answers with the scene's ground truth in whatever part of the
 frame the runner shows it, so expected values are the scenes' own: the shapes of `shapes_scene`
@@ -9,13 +9,13 @@ frame the runner shows it, so expected values are the scenes' own: the shapes of
 true masks' centroids, and frame counts worked out from the grid. `Renaming` is `ExactFake` behind
 another name: the piece A2 is the animal A; the track A follows the animal C from frame 40 on.
 
-The sessions have the stick of tests/export_helpers.py: K = 0.1 mm per px, axis angle 0, so an
+The sessions have the stick of tests/support/export_helpers.py: K = 0.1 mm per px, axis angle 0, so an
 angle on screen is the same angle in the world. Coordinates: px in Tracker's convention (pixel
 centers at +0.5), world mm with y up; frames are video frame numbers.
 
 The rows of a track have no gap (SPEC 8.2): the last part pins that the real functions leave
 none. What the export does with a results.npz that has one all the same is in
-tests/test_export_pipeline_gaps.py.
+tests/export/test_export_pipeline_gaps.py.
 """
 
 import json
@@ -164,7 +164,7 @@ def test_fine_records_have_a_grid_cell_of_w_over_256_and_run_log_names_that_w(fi
     assert len(runs) == 2
     # W = ceil(3 F) for the largest diameter F of the object's mask on the start frame (SPEC 6.3):
     # 3 x 80 px for the ellipse, 3 x 100 px for the disk; the range is that of the 47 px body in
-    # tests/test_tracking_fine.py (139 to 144 around 141)
+    # tests/tracking/test_tracking_fine.py (139 to 144 around 141)
     for a_track, three_f in zip(session.tracks, (240, 300), strict=True):
         window = a_track.fine_window_px
         assert type(window) is int and three_f - 2 <= window <= three_f + 3

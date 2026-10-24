@@ -16,10 +16,10 @@ What is checked, with stand-in segmenters and no torch:
 
 Expected values: the dish scene's clip has 120 frames, so a clip at step 2 has the 60 frames 0, 2,
 ..., 118; `ExactFake` answers with the scene's own masks, so a stored center is the centroid of
-the true mask (tests/tracking_helpers.py, `table_truth`). A stand-in parked in its call for the
+the true mask (tests/support/tracking_helpers.py, `table_truth`). A stand-in parked in its call for the
 6th tracked frame has returned 5 frames; when the gate opens the 6th is stored, and a job that was
 cancelled meanwhile stops before the 7th: frames 0, 2, 4, 6, 8, 10. A gate is a `threading.Event`
-(tests/gui/prompt_helpers.py); no test waits with a delay. In the two tests that close the window
+(tests/support/prompt_helpers.py); no test waits with a delay. In the two tests that close the window
 the GUI thread waits in `close()`, so another thread opens the gate, once the worker has been told
 to stop (its `stopping`).
 

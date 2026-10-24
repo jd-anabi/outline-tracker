@@ -292,7 +292,7 @@ def test_a_new_column_with_a_hidden_unit_is_listed_under_units(schema_docs, monk
 
 def test_core_frac_is_described_for_the_fallback_case(readme):
     """SPEC 7.3: if the opening removes more than half the area the full mask is the core, and the stored
-    core_frac stays the fraction the opening left (tests/test_measure_core.py), so it is below 0.5."""
+    core_frac stays the fraction the opening left (tests/measure/test_measure_core.py), so it is below 0.5."""
     shapes = {c.name: c.meaning for c in schema.SHAPES}["core_frac"]
     stored = {k.name: k.meaning for k in schema.RESULTS_KEYS}["core_frac"]
     for meaning in (shapes, stored):
@@ -339,7 +339,7 @@ POSITION_FLAGS = FLAG_CODES[:5]  # SPEC 9: the ones about where the object is
 SHAPE_FLAGS = FLAG_CODES[5:]  # SPEC 9: the ones that only concern the outline and the heading
 RADIAL_COLUMNS = [f"r_{deg:03d}" for deg in range(0, 360, 5)]  # SPEC 8.5: r_000 ... r_355
 
-# A path under a home folder, as tests/test_repo_rules.py spells it; put together from pieces so that
+# A path under a home folder, as tests/repo/test_repo_rules.py spells it; put together from pieces so that
 # this file, which that test scans, does not contain what it looks for.
 _USERS = "Users"
 _TMP = "pytest-of" + "-"

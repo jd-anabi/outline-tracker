@@ -1,9 +1,9 @@
 """Tests of outline_tracker/measure/results.py: what may go wrong with results.npz (SPEC 8.1, 8.12): a save
 that fails or finds the file locked, a file of an odd version, a damaged file. Saving and loading
-a good file are in tests/test_results.py.
+a good file are in tests/measure/test_results.py.
 
 The files that must be refused are made here, array by array, from a good one. A locked or failing
-disk is imitated as in tests/test_fileio.py. Nothing is copied from the output of the code under
+disk is imitated as in tests/core/test_fileio.py. Nothing is copied from the output of the code under
 test.
 """
 

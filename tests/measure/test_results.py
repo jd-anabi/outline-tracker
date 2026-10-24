@@ -1,8 +1,8 @@
 """Tests of outline_tracker/measure/results.py: the store behind results.npz (SPEC 8.12, 6.6; X5, X15): `put`,
 `arrays` and `TrackArrays`, the two corrections `replace_from` and `truncate_after`, and saving
-and loading. What may go wrong with the file is in tests/test_results_file.py.
+and loading. What may go wrong with the file is in tests/measure/test_results_file.py.
 
-Every expected array is written out from the records given to `put` (tests/results_helpers.py), and
+Every expected array is written out from the records given to `put` (tests/support/results_helpers.py), and
 every expected mask crop is the boolean array the test made itself. The frames that `replace_from`
 and `truncate_after` leave are worked out here from the frame numbers. The file is also read with
 numpy alone, key by key. Nothing is copied from the output of the code under test.

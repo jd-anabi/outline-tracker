@@ -1,7 +1,7 @@
 """The rule for the parts of a bar, and the bottom bar held to it in the smallest window (SPEC 10.1).
 
 The rule: nothing outside, nothing over another part, no text cut. `layout_findings`
-(tests/gui/gui_helpers.py) looks at the visible children of a widget and says what breaks it. It is
+(tests/support/gui_helpers.py) looks at the visible children of a widget and says what breaks it. It is
 tried here on a made-up widget, and then the window's bottom bar is held to it at 960 x 600 px, in
 the system's own font and in one 15 % larger: the smallest window is built for the system's font and
 for a font up to 15 % larger (the owner's decision of 2026-10-08). What may give way there is the

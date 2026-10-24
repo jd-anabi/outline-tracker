@@ -16,7 +16,7 @@ Panels 5 to 9 were built side by side. These tests hold the places where two of 
 6. gui/prompts.py and gui/panels/video_panel.py were split: what they offered is still there.
 
 Expected values are the brief's sentences and SPEC 8.1's list of files, never the panels' own
-output. A factory, a run or an export is parked on a gate (tests/gui/prompt_helpers.py), so
+output. A factory, a run or an export is parked on a gate (tests/support/prompt_helpers.py), so
 "during" is a state the test holds; where a file's time decides, the test sets it. Frames are
 video frame numbers; (u, v) is in px of the video frame (SPEC 3.1).
 """

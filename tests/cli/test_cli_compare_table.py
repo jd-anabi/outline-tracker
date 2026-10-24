@@ -1,7 +1,7 @@
 """Tests for `tracker_io.compare_tracks`, the table behind the hidden `compare-tracks` command (X10).
 
 The folders, the positions and where the expected values come from are described in
-tests/cli_compare_helpers.py: straight tracks written with the ported `write_tracker_file`, shifted by a
+tests/support/cli_compare_helpers.py: straight tracks written with the ported `write_tracker_file`, shifted by a
 known offset or moved on one frame. Differences are px in Tracker's image coordinates (SPEC 3.1);
 frames are the video's own frame numbers.
 """

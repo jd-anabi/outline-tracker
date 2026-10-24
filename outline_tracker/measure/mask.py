@@ -1,6 +1,6 @@
 """Measuring a mask: where an object is, and its pixel-space record for results.npz (SPEC 7, 8.12).
 
-`mask_center` is last week's function from shrimp.segment, moved over unchanged; tests/test_measure.py
+`mask_center` is last week's function from shrimp.segment, moved over unchanged; tests/measure/test_measure.py
 holds it to the geometric center of known rectangles.
 
 `measure_mask` turns one object's mask (and logits) on one frame into a `PixelRecord`: area,

@@ -1,7 +1,7 @@
 """`video.check_video`'s test for rendered slow motion: what its two helpers say they do
 (docs/ROADMAP.md, W1 step 5).
 
-`frame_changes` and `_ramp_ratio` are tested in tests/test_video.py only through `check_video`, on
+`frame_changes` and `_ramp_ratio` are tested in tests/video/test_video.py only through `check_video`, on
 one file with even motion and one that is fast for 1.5 s at both ends. Those two tests still passed
 with another pair of frames compared, with the change not made absolute, with the faster end
 taken instead of the slower, with nothing skipped and with a window of 2 s. Each test here holds
@@ -62,7 +62,7 @@ def test_frame_changes_is_the_absolute_change_from_a_frame_to_the_next(tmp_path)
 
 @pytest.mark.parametrize("fast_end", ["start", "end"])
 def test_a_file_that_is_fast_at_one_end_only_is_not_rendered_slow_motion(tmp_path, fast_end):
-    # The rendered file of tests/test_video.py without one of its fast ends: 8 px per frame for 45
+    # The rendered file of tests/video/test_video.py without one of its fast ends: 8 px per frame for 45
     # frames at one end, 1 px per frame in the middle and at the other end. That end moves like the
     # middle, so motion is not larger "near the start and end".
     steps = [8.0] * 45 + [1.0] * 345

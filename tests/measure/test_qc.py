@@ -3,7 +3,7 @@ where it belongs (SPEC 13.1 Flags), the rules taken over from last week's `_flag
 and the text of a flags cell.
 
 Tracks are analytic shapes or rectangles of pixels sent through measure_mask and derive_track
-(tests/qc_helpers.py). The expected frames follow from the shapes: sizes and places in image px,
+(tests/support/qc_helpers.py). The expected frames follow from the shapes: sizes and places in image px,
 speeds in mm per s in the world frame (0.0324 mm per px, 240 frames per s unless a test says
 otherwise), areas in px. A list of cells is one text per row of the track, in frame order.
 """

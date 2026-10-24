@@ -1,10 +1,10 @@
 """Fine mode (SPEC 6.3): the window rule, the crop that follows one object, the fine runner on
 synthetic clips, and the job around a fine run. What a fine run does at the frame's border, with a
 window set by hand, with clicks outside its window, and when the model finds nothing is in
-tests/test_tracking_fine_cases.py.
+tests/tracking/test_tracking_fine_cases.py.
 
 Expected values come from the rule W = clip(ceil(3 F), 96, 512) worked out by hand, from shapes of
-known size (tests/analytic_shapes.py), from the scenes' stated paths, and from the ground truth of
+known size (tests/support/analytic_shapes.py), from the scenes' stated paths, and from the ground truth of
 outline_tracker/synthetic/clips.py. `ExactFake` returns that ground truth in whatever view the runner
 names, so a position that is off shows a wrong crop corner or a wrong shift back.
 

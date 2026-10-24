@@ -1,7 +1,7 @@
 """The coarse runner on synthetic clips (SPEC 6.1, 6.2, 13.2): the dish crop, run planning, positions
 against the ground truth, and the inputs of review focus 1, 2 and 4. What a job does around the
-frames (cancel, autosave, progress, session changes) is in tests/test_tracking_job.py, the frame
-hash guard in tests/test_tracking_guard.py.
+frames (cancel, autosave, progress, session changes) is in tests/tracking/test_tracking_job.py, the frame
+hash guard in tests/tracking/test_tracking_guard.py.
 
 Expected values come from geometry written out here (the dish square of SPEC 6.2, where an ellipse
 meets a crop's border), from the scenes' stated paths, and from the ground truth of

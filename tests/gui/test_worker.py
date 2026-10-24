@@ -12,12 +12,12 @@ What is checked, with a stand-in segmenter and no torch:
 - the trace of such a failure is not shown, but it is written to the log when it happens and
   kept in `Worker.traces` (SPEC 10.2), also when nobody waits for the result any more;
 - closing the window stops the thread.
-A gate is a `threading.Event` (tests/gui/prompt_helpers.py): no test waits with a delay.
+A gate is a `threading.Event` (tests/support/prompt_helpers.py): no test waits with a delay.
 
 Expected positions come from the synthetic clips: the disks of `disk_scene` (centers within
 0.25 px through `ThresholdFake`, the plan's measured condition), and for `ExactFake` the true mask
 of the dish scene. The dish crop of that scene at 320 x 240 px is columns 49 to 271 and rows 8 to
-231 (tests/tracking_helpers.py, `DISH_BOX`).
+231 (tests/support/tracking_helpers.py, `DISH_BOX`).
 """
 
 import numpy as np

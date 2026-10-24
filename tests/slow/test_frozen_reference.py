@@ -13,7 +13,7 @@ table does not hold.
 The two clips, both 1920 x 1080 px and 40 frames, tracked on frames 0, 2, ..., 38 with one positive
 click per object on frame 0:
 1. `selftest`: `synthetic.selftest_clip`, one dark ellipse, with its Tracker export of one track;
-2. `three_ellipses`: the three-ellipse clip of tests/slow/pipeline_helpers.py, with a
+2. `three_ellipses`: the three-ellipse clip of tests/support/pipeline_helpers.py, with a
    `#multi` start file that marks A, B and C on frame 0.
 
 Two levels:

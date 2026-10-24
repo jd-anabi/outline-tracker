@@ -2,7 +2,7 @@
 
 A session gives the rectangles (`probes`), the frames (`clip.start` to `clip.end`, every frame whatever the
 clip's step), fps_true and the video; probes.csv goes into the session's run folder, the folder that holds
-session.json. Expected values: see tests/cli_probe_helpers.py. The video form is in tests/test_cli_probe.py.
+session.json. Expected values: see tests/support/cli_probe_helpers.py. The video form is in tests/cli/test_cli_probe.py.
 """
 
 import re

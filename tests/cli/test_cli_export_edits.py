@@ -3,7 +3,7 @@ with them, the command prints one `ERROR: ...` line on stderr and returns 1, nev
 (SPEC 11: errors are one line; the command's own help tells the student to run it after correcting "a head
 click" in session.json, so the hand-edited session is its main input).
 
-The run folders are the ones of tests/test_cli_export.py (the synthetic dish clip, tracked with `ExactFake`; a
+The run folders are the ones of tests/cli/test_cli_export.py (the synthetic dish clip, tracked with `ExactFake`; a
 stick of 300 px = 30 mm). A value of the wrong kind is what a hand edit makes: a head click with one number
 instead of [u, v], a number or a null where a path of the video belongs. Nothing here depends on how the
 package words its own message: each case asks for exit code 1, exactly one line on stderr and no more output

@@ -1,5 +1,5 @@
-"""Shared by the tests of the `probe` command (tests/test_cli_probe.py: a video and `--rect`;
-tests/test_cli_probe_session.py: a session file, and run.log).
+"""Shared by the tests of the `probe` command (tests/cli/test_cli_probe.py: a video and `--rect`;
+tests/cli/test_cli_probe_session.py: a session file, and run.log).
 
 Where the expected values come from: the synthetic dish clip (320 x 240 px, 120 frames; its LED is the
 array slice [8:28, 8:40] and switches on at frame 41 = 120 // 3 + 1), frames decoded here with OpenCV

@@ -1,4 +1,4 @@
-"""Test data and checks shared by the overlay tests (tests/test_overlay.py).
+"""Test data and checks shared by the overlay tests (tests/export/test_overlay.py).
 
 The truth is the synthetic scene: `record` measures a ground-truth mask as tracking would store it,
 and `make_run` writes those records and a matching session into a run folder, without the tracking

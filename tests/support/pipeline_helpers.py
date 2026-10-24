@@ -2,7 +2,7 @@
 pipeline tests (tests/slow/test_fine_mode.py, test_coarse_lowres.py, test_memory.py and its child
 process memory_child.py). It also holds three things that the slow tests of the segmenter share.
 
-The session is made as the fast tracking tests make one (tests/tracking_helpers.py): clicks from
+The session is made as the fast tracking tests make one (tests/support/tracking_helpers.py): clicks from
 the scene's own paths, fps_true = the scene's frame rate. It gets a calibration stick at the
 scene's own scale, so the mm columns of the exports are the scene's mm.
 

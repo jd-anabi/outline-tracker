@@ -2,7 +2,7 @@
 
 Fixtures are not here: the ones for every test are in tests/conftest.py, where pytest finds them by
 name. What tests import by name is here or in a helper module beside the tests, never in a
-conftest.py (tests/test_repo_rules.py says why).
+conftest.py (tests/repo/test_repo_rules.py says why).
 """
 
 import re
@@ -11,7 +11,7 @@ import re
 # The running version
 
 # The version this tree builds, typed once for the tests;
-# tests/test_repo_rules.py::test_the_version_is_written_the_same_in_its_three_places holds the
+# tests/repo/test_repo_rules.py::test_the_version_is_written_the_same_in_its_three_places holds the
 # three places of the repository equal to it.
 VERSION = "0.2.0a2.dev0"
 
@@ -23,7 +23,7 @@ SMALL = (320, 240)  # frame size of the fast tests' clips: (width, height) in px
 ODD_FOLDER = "vidéo test ü"  # a space and non-ASCII characters (review focus 1)
 
 # ---------------------------------------------------------------------------------------------
-# A clip whose timestamps have gaps (tests/test_frame_source.py), as a phone video with dropped
+# A clip whose timestamps have gaps (tests/video/test_frame_source.py), as a phone video with dropped
 # frames has: there, plain OpenCV seeking delivers a neighbor of the frame asked for.
 
 # Frame numbers before which one frame duration is skipped (72 twice: two durations). Three gaps.
@@ -40,7 +40,7 @@ def frame_times(skip_before=(), n_frames=120, fps=240.0):
 
 
 # ---------------------------------------------------------------------------------------------
-# Tracker's export files (tests/test_tracker_io.py, tests/from_tracker_helpers.py)
+# Tracker's export files (tests/core/test_tracker_io.py, tests/support/from_tracker_helpers.py)
 
 MM_PER_PX = 0.05  # the scale of the exports made with `tracker_map`, mm per px
 W, H = 320, 240  # the frame those exports belong to: width and height, px
@@ -94,7 +94,7 @@ def normalized(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------------------------
-# What never goes into a committed file (tests/test_repo_rules.py, tests/test_frozen_files.py)
+# What never goes into a committed file (tests/repo/test_repo_rules.py, tests/repo/test_frozen_files.py)
 
 # A path under a home folder: the users folder of macOS or Windows followed by a name, or pytest's
 # per-user temp folder. The patterns are put together from pieces so that this file, which is
@@ -105,7 +105,7 @@ HOME_PATH = re.compile(rf"[/\\]{_USERS}[/\\]+[^/\\\s]|{_PYTEST_TMP}[^/\\\s]")
 
 
 # ---------------------------------------------------------------------------------------------
-# Segmenter results (tests/test_fakes.py, tests/test_fakes_threshold.py)
+# Segmenter results (tests/segmenter/test_fakes.py, tests/segmenter/test_fakes_threshold.py)
 
 
 def click(obj_id, u=1.0, v=1.0):

@@ -6,9 +6,9 @@ Where the expected values come from: the clips are dark disks drawn at known pla
 `make_plan` decides. Positions are compared with where the disks were drawn, never with a file the
 tool wrote before.
 
-fps_true and the console lines are in tests/test_from_tracker_fps.py, last week's own tests and the
-comparison with last week's script in tests/test_from_tracker_port.py, the command in
-tests/test_from_tracker_cli.py.
+fps_true and the console lines are in tests/workflows/test_from_tracker_fps.py, last week's own tests and the
+comparison with last week's script in tests/workflows/test_from_tracker_port.py, the command in
+tests/cli/test_from_tracker_cli.py.
 
 Coordinates: px in Tracker's convention (SPEC 3.1: u to the right, v downward, pixel centers at
 +0.5); mm in the user's axes with y up; frames are video frame numbers; t_s = frame / fps_true.

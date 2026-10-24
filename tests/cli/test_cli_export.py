@@ -2,7 +2,7 @@
 (SPEC 8, 11; review focus 1 and 5).
 
 The run folders are tracked by `tracking.run_job` with `ExactFake` on the synthetic dish clip
-(tests/export_helpers.py: a stick of 300 px = 30 mm, so K = 0.1 mm per px, origin (100.5, 60.25) px, axis
+(tests/support/export_helpers.py: a stick of 300 px = 30 mm, so K = 0.1 mm per px, origin (100.5, 60.25) px, axis
 angle 0), so every expected number comes from the scene: the true centroids of the masks and the stick. The
 files themselves are tested in tests/test_export*.py; here it is what the command prints and returns, what it
 refuses, and what it leaves alone. Errors are one `ERROR: ...` line on stderr and exit code 1, and nothing is

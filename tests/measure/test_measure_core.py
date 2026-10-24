@@ -1,7 +1,7 @@
 """Tests for outline_tracker.measure.mask: the second moments and the core of a mask (SPEC 7.3; 13.1
 Moments and Core).
 
-Every shape is an implicit function rasterized at the pixel centers (tests/analytic_shapes.py),
+Every shape is an implicit function rasterized at the pixel centers (tests/support/analytic_shapes.py),
 and every expected value below comes from the shape's geometry or from counting pixels by hand.
 A result given to measure_mask is in full-frame pixels; `input_box` = (c0, r0, width, height)
 is the image the model saw, in full-frame pixels. Covariances are (mu_uu, mu_uv, mu_vv) in px^2.
@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 from analytic_shapes import blocks
 
-# These tests were written next to the ported test of tests/test_measure.py, which calls the
+# These tests were written next to the ported test of tests/measure/test_measure.py, which calls the
 # module `segment` (the template's name), and were moved here unchanged: the name is kept.
 from outline_tracker.measure import mask as segment
 

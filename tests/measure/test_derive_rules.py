@@ -1,9 +1,9 @@
-"""Tests for outline_tracker.measure.derive: the rules around the quantities of tests/test_derive.py:
+"""Tests for outline_tracker.measure.derive: the rules around the quantities of tests/measure/test_derive.py:
 lost rows, the heading reference (decision X17), the head guess, shapes without an extent or a
 hull, the largest piece of a mask with several (the size check), the settings, a changed
 calibration, and how much geometry a frame costs (counted, not timed).
 
-Tracks are analytic shapes sent through measure_mask (tests/derive_helpers.py). Shapes and clicks
+Tracks are analytic shapes sent through measure_mask (tests/support/derive_helpers.py). Shapes and clicks
 are in image px, angles of shapes in rad from +u toward +v; derived values are in mm and rad in
 the world frame, y up, where an image angle a is the world angle -(a + alpha) (SPEC 3.2).
 """
@@ -84,7 +84,7 @@ def test_a_turn_while_the_object_is_lost_flags_the_first_frame_after_the_gap():
 
 def test_frames_with_the_core_fallback_are_flagged_and_still_carry_the_head():
     # A 72 x 12 px ellipse: the opening removes all of it, so every frame takes the fallback
-    # (tests/test_measure_core.py). Flagged on every frame, and the head still goes round once.
+    # (tests/measure/test_measure_core.py). Flagged on every frame, and the head still goes round once.
     steps = np.radians(5.0) * np.arange(73)
     records = [h.ellipse_record(i, CENTER, 36.0, 6.0, 0.2 + steps[i]) for i in range(73)]
     assert all(one.core_fallback for one in records)

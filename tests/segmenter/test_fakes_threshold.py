@@ -4,7 +4,7 @@ Its rule, which was that stand-in's in last week's tests: the dark pixels are th
 value is below 128; an object's mask is every connected group of them whose center lies within
 20 px of the object's last position; the last position then moves to the center of that mask.
 The expected values are hand-made images whose boxes, centers and distances are written out here.
-The 0.25 px test on the disk clip is in tests/test_fakes.py.
+The 0.25 px test on the disk clip is in tests/segmenter/test_fakes.py.
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,
 row r) has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A box is

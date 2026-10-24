@@ -188,7 +188,7 @@ def test_clicks_that_are_not_tracked_yet_make_a_track_partial():
     assert partial_tracks(session_of(again), results(A=range(0, 11, 2))) == ["A"]  # frames 12 to 20 were cleared
     assert partial_tracks(session_of(again), results(A=range(0, 21, 2))) == []  # and have been tracked again
     # also when the track was ended at frame 10 before: the clicks on frame 12 are still not tracked
-    # (`plan_runs` refuses clicks after a track's end, tests/test_corrections.py)
+    # (`plan_runs` refuses clicks after a track's end, tests/tracking/test_corrections.py)
     again.ended_at = 10
     assert partial_tracks(session_of(again), results(A=range(0, 11, 2))) == ["A"]
 

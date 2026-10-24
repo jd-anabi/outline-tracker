@@ -332,7 +332,7 @@ def test_every_ci_job_runs_the_fast_tests_and_then_the_slow_tests_without_weight
     # The use of this test: nobody drops one of the two steps from one job unnoticed. It reads the file it
     # guards, so it does not show that a job passes; only a run on GitHub shows that. The second step is
     # offline, so that a test that reaches for the model fails there instead of downloading it
-    # (tests/test_slow_selection.py holds which tests the step selects).
+    # (tests/repo/test_slow_selection.py holds which tests the step selects).
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert list(_job_steps(workflow)) == ["ubuntu", "windows", "macos"]
     assert _test_step_gaps(workflow) == []
@@ -585,7 +585,7 @@ def test_no_test_waits_by_a_delay():
     # A wait for a fixed time is too long on a fast machine and too short on a busy one: the test then
     # fails, or it passes without showing what it is there for. A test waits for the thing itself: a
     # condition (`qtbot.waitUntil`), an event with a safety bound, a stand-in parked on a gate
-    # (tests/gui/prompt_helpers.py, `Gate`).
+    # (tests/support/prompt_helpers.py, `Gate`).
     files = [REPO / "conftest.py", *sorted(TESTS.rglob("*.py"))]
     found = {path.relative_to(REPO).as_posix(): _delay_calls(path.read_text(encoding="utf-8")) for path in files}
     assert {"conftest.py", "tests/conftest.py", "tests/slow/conftest.py",

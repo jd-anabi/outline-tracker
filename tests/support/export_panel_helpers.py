@@ -4,7 +4,7 @@ Imported by name from tests/gui/test_export_panel.py, tests/gui/test_joins.py an
 tests/gui/test_smoke.py. Nothing here imports torch.
 
 - `ExportWatch` stands where panel 9 calls `export.export_all`: it keeps how it was called, can say
-  lines and wait at a `Gate` (tests/gui/prompt_helpers.py) first, and then calls the real one. No
+  lines and wait at a `Gate` (tests/support/prompt_helpers.py) first, and then calls the real one. No
   helper waits with a delay.
 - `tracked` is a window whose run folder holds the results of a run with `ExactFake`.
 - `is_off` and `is_on` read Export all and File > Export together.
@@ -128,7 +128,7 @@ def tracked(window, qtbot, clip, scale: bool = True, end: int = END, ids=("A",))
     """A window whose run folder holds results: the student is `NAME`, `clip` (a copy in the test's
     own folder) is open, fps_true is the scene's, each object of `ids` has a click, and a run with
     `ExactFake` has tracked them on `FRAMES`. With `scale` the session has the stick and the axes of
-    tests/export_helpers.py (0.1 mm per px). Returns the `ExportPanel`."""
+    tests/support/export_helpers.py (0.1 mm per px). Returns the `ExportPanel`."""
     panel, _ = ready_to_track(window, qtbot, clip, Tracked(ExactFake(clip)), ids=ids, end=end)
     if scale:
         calibrate(window.controller.session)
@@ -188,7 +188,7 @@ def walk_through(window, qtbot, clip, end: int = END):
 
 def no_error_recorded(window, asked, caplog) -> bool:
     """Whether nothing went wrong in `window` that anybody was told of or that was noted: no trace
-    kept by the worker, no dialog (`asked`: the recorder of tests/gui/finish_helpers.py), no trace
+    kept by the worker, no dialog (`asked`: the recorder of tests/support/finish_helpers.py), no trace
     in run.log, and nothing logged by the package from WARNING up (pytest's `caplog`)."""
     noted = [record for record in caplog.records
              if record.name.startswith("outline_tracker") and record.levelno >= logging.WARNING]

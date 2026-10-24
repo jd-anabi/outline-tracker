@@ -2,7 +2,7 @@
 (tests/test_from_tracker*.py).
 
 `disk_video` is the helper of last week's tests, copied unchanged. `tracker_map`, `MM_PER_PX`, `W`
-and `H` are last week's too; they are in tests/helpers.py.
+and `H` are last week's too; they are in tests/support/helpers.py.
 
 Coordinates: a clip is 320 x 240 px at 240 frames per s. `disk_video` takes disk centers with pixel
 centers at whole numbers, so a disk drawn at (x, y) is at (x + 0.5, y + 0.5) px in Tracker's

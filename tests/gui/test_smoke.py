@@ -12,7 +12,7 @@ Expected values come from the scene and from geometry, not from the window:
   is x = 0.1 (u - 160.3) mm, y = -0.1 (v - 119.8) mm (y up);
 - `ExactFake` answers with the scene's true mask, so A's position is the true mask's centroid
   (the scene's own table), to 0.01 px;
-- SPEC 8.1 lists the files of a run folder (tests/gui/export_panel_helpers.py, `P0_FILES`).
+- SPEC 8.1 lists the files of a run folder (tests/support/export_panel_helpers.py, `P0_FILES`).
 Nothing needs the real model, a dialog that the user must answer, or a file outside the test's own
 folder; nothing is read from a pixel of text; no test waits with a delay.
 

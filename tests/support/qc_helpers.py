@@ -1,8 +1,8 @@
-"""Tracks shared by the tests of qc (tests/test_qc.py: the nine flags of SPEC 9, each where it
-belongs; tests/test_qc_contact.py: the distance between two outlines and the rule of CONTACT;
-tests/test_qc_summary.py: the lines for run.log).
+"""Tracks shared by the tests of qc (tests/measure/test_qc.py: the nine flags of SPEC 9, each where it
+belongs; tests/measure/test_qc_contact.py: the distance between two outlines and the rule of CONTACT;
+tests/measure/test_qc_summary.py: the lines for run.log).
 
-A track is made the way tracking and export make it: an analytic shape (tests/analytic_shapes.py)
+A track is made the way tracking and export make it: an analytic shape (tests/support/analytic_shapes.py)
 or a rectangle of pixels goes through `measure_mask`, the records go into a `ResultsStore`, the
 store's arrays through `derive_track`, and `compute_flags` gets both. Which frame should carry
 which flag is written in the tests from the shapes alone.

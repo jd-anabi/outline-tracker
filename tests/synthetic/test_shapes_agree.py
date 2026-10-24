@@ -1,7 +1,7 @@
 """The disk and the ellipse are held to geometry, and the rasterizer to them (docs/ROADMAP.md, W1 step 6).
 
 There is one family of shapes: the classes of outline_tracker/synthetic/shapes.py, in a body frame, which
-outline_tracker/synthetic/clips.py puts on the pixel grid. `disk` and `ellipse` of tests/analytic_shapes.py are
+outline_tracker/synthetic/clips.py puts on the pixel grid. `disk` and `ellipse` of tests/support/analytic_shapes.py are
 the package's shapes in image axes: functions of points (u, v) that call those classes. Two tests:
 
 1. the anchor: the two shapes are held to geometry, asked through the functions and through the classes.
@@ -17,7 +17,7 @@ the package's shapes in image axes: functions of points (u, v) that call those c
 Units and coordinates (SPEC 3.1): px in the full frame, u to the right, v downward; the pixel in
 column c and row r has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A signed
 distance is in px, positive inside. Angles are in rad, and the functions and the package turn them the
-other way: an `angle` of tests/analytic_shapes.py goes from +u toward +v, clockwise on screen; a heading
+other way: an `angle` of tests/support/analytic_shapes.py goes from +u toward +v, clockwise on screen; a heading
 of the package is counterclockwise on screen (y up). So the same ellipse has heading = -angle. The
 package's body frame has xi toward the head and eta 90 degrees counterclockwise from xi.
 """

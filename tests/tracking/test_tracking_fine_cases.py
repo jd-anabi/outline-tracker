@@ -1,8 +1,8 @@
 """Fine mode (SPEC 6.3) where it gets hard: a mask that touches the window, a window set by hand,
 the settings, frames on which the model finds nothing (review focus 4), an object that is not
 found on its start frame and is clicked again, and clicks outside the window. The window rule and
-the positions are in tests/test_tracking_fine.py, the frame's border in
-tests/test_tracking_fine_border.py.
+the positions are in tests/tracking/test_tracking_fine.py, the frame's border in
+tests/tracking/test_tracking_fine_border.py.
 
 Expected values come from the scenes' stated paths and sizes, worked out in the comments, and from
 the ground truth of outline_tracker/synthetic/clips.py: what a model can see of an object in a window is

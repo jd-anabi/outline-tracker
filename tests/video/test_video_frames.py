@@ -1,9 +1,9 @@
 """What video/reader.py adds to last week's functions (SPEC 3.5; decisions X4 and X8): the sequential decode
 that defines frame numbers, the table of frame timestamps, the frame hash and the decoder tag.
 
-The ported functions are tested in tests/test_video.py (the template's file) and `FrameSource` in
-tests/test_frame_source.py. Frame numbers count from 0; times are s of file time. Expected
-timestamps come from how the clips are written (`frame_times` in tests/helpers.py), expected
+The ported functions are tested in tests/video/test_video.py (the template's file) and `FrameSource` in
+tests/video/test_frame_source.py. Frame numbers count from 0; times are s of file time. Expected
+timestamps come from how the clips are written (`frame_times` in tests/support/helpers.py), expected
 hashes from hashlib on bytes written out here.
 """
 

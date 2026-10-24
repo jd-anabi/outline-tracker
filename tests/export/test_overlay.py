@@ -2,7 +2,7 @@
 pure drawing, and `write_overlay`, which decodes the clip again and draws what results.npz holds.
 
 Expected values: where an outline, a dot or an id must be comes from the records the test made of
-the synthetic ground truth (tests/overlay_helpers.py), scaled to the overlay; a frame without
+the synthetic ground truth (tests/support/overlay_helpers.py), scaled to the overlay; a frame without
 tracks must follow the rule of last week's overlay frame: the frame resized to 960 px wide with an
 even height, and nothing but the stamp drawn on it (`stamp_box`). Colors are asserted on drawn
 arrays only, never on a decoded video: compression changes them. Positions are px, pixel centers at

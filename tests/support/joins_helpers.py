@@ -3,7 +3,7 @@ the window opened, the parts of the window that a task which writes files switch
 times of the three files that decide the state of panel 9.
 
 Imported by name from tests/gui/test_joins.py. Nothing here imports torch, and no helper waits
-with a delay: a factory, a run or an export is parked on a `Gate` (tests/gui/prompt_helpers.py).
+with a delay: a factory, a run or an export is parked on a `Gate` (tests/support/prompt_helpers.py).
 
 Frames are video frame numbers; times of files are the computer's local time.
 """

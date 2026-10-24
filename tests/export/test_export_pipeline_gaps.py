@@ -1,8 +1,8 @@
 """Export of a results.npz that has a gap inside a track (SPEC 8.2: every grid frame from a track's
 first to its last, lost frames as rows with empty positions).
 
-Tracking and the edit functions leave no gap (tests/test_export_pipeline.py,
-tests/test_corrections_gaps.py). A results.npz made by hand or by an older version may have one:
+Tracking and the edit functions leave no gap (tests/export/test_export_pipeline.py,
+tests/tracking/test_corrections_gaps.py). A results.npz made by hand or by an older version may have one:
 then positions.csv and shapes.csv get a lost row for every frame of the clip's grid between the
 track's first and last record that has no record, written as the row of a frame on which the
 object was not found; the Tracker-format file (SPEC 8.3: one row per tracked frame), radial.csv and

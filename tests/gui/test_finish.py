@@ -8,7 +8,7 @@
   cannot name a button the window does not have. Help > Quickstart opens that section.
 - docs/DEVELOPER.md names every module of the package.
 
-The README's own shape (ten steps, its commands) is checked in tests/test_readme.py, without Qt.
+The README's own shape (ten steps, its commands) is checked in tests/repo/test_readme.py, without Qt.
 """
 
 import os

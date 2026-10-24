@@ -1,5 +1,5 @@
-"""What the tests of exact random access share (tests/test_frame_source.py,
-tests/test_frame_source_times.py, tests/test_frame_source_jumps.py): the two clips, the frames that are
+"""What the tests of exact random access share (tests/video/test_frame_source.py,
+tests/video/test_frame_source_times.py, tests/video/test_frame_source_jumps.py): the two clips, the frames that are
 read, and two faults made on purpose.
 
 The clips are the fixtures `disk_clip` and `gapped_clip` of tests/conftest.py, named here by the names

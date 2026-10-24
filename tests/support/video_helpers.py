@@ -1,5 +1,5 @@
 """Small videos written frame by frame with OpenCV, for the tests of outline_tracker/video/reader.py
-(tests/test_video.py, tests/test_video_check.py).
+(tests/video/test_video.py, tests/video/test_video_check.py).
 
 A position is (x, y) in px of the frame, x to the right and y down, as OpenCV draws; a frame rate is
 the one written in the file, in frames per s of file time.

@@ -11,7 +11,7 @@ opened once per call for as long as the file on disk is not the one that was rea
 once it is. No real lock is needed: the fixture `refuse_open` (tests/gui/conftest.py) refuses the open
 as Windows does, and one test refuses the look at the file (`Path.stat`) the same way.
 
-The records are made up (`made_up` of tests/results_helpers.py): only their frames are asked.
+The records are made up (`made_up` of tests/support/results_helpers.py): only their frames are asked.
 Frames are video frame numbers.
 """
 

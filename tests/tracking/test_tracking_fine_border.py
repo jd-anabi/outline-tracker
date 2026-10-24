@@ -4,7 +4,7 @@ and one that has left the frame is lost while the window stays where it was (rev
 
 Expected values come from the paths of the scene made here, worked out in its text, from the
 ground truth of outline_tracker/synthetic/clips.py (the true mask is the part of the object inside the
-frame), and from disks of known size and place (tests/analytic_shapes.py).
+frame), and from disks of known size and place (tests/support/analytic_shapes.py).
 
 Coordinates: px in Tracker's convention (SPEC 3.1): u to the right, v downward, pixel (column c,
 row r) has its center at (c + 0.5, r + 0.5). A box is (c0, r0, width, height) in whole px of the

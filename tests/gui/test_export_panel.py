@@ -11,7 +11,7 @@ Expected values are the spec's and the design note's, not the panel's own output
   102.5 s - 100 s = 2.5 s;
 - a file that another program holds open is simulated where Windows reports it, at the rename.
 The texts are the brief's and the design note's. Nothing is read from a pixel of text, and no test
-waits with a delay: the export is parked on a gate (tests/gui/prompt_helpers.py).
+waits with a delay: the export is parked on a gate (tests/support/prompt_helpers.py).
 
 Frames are video frame numbers; sizes are bytes; times are s.
 """

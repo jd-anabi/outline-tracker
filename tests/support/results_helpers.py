@@ -1,5 +1,5 @@
-"""Records and checks shared by the tests of the results store (tests/test_results.py: the store,
-saving and loading; tests/test_results_file.py: what may go wrong with the file).
+"""Records and checks shared by the tests of the results store (tests/measure/test_results.py: the store,
+saving and loading; tests/measure/test_results_file.py: what may go wrong with the file).
 
 The store is a container, so the truth is what was put in. `made_up` gives a record with a
 different, known number in every field, `measured` and `lost` give what measure_mask really

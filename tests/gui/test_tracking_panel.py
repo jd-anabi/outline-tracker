@@ -9,11 +9,11 @@ Expected values are worked out by hand:
 - the dish clip has 120 frames: a clip at step 2 has 60, and one that ends on frame 20 has 11; a
   clip that asks for frames 0 to 200 at step 2 has 101, of which the video has 0, 2, ..., 118: 60;
   an object clicked on frame 100 is tracked on 100, 102, ..., 118: 10 frames;
-- the close-up scene's shrimp A is 64.2 px across on frame 0 (tests/test_tracking_fine.py), so its
+- the close-up scene's shrimp A is 64.2 px across on frame 0 (tests/tracking/test_tracking_fine.py), so its
   fine window is ceil(3 x 64.2) = 193 px, and on every later frame the window is centered on the
   shrimp's centroid of the tracked frame before, its corner rounded to whole px (SPEC 6.3).
 The texts are the design note's. Nothing is read from a pixel of text, and no test waits with a
-delay: a stand-in is parked on a gate (tests/gui/prompt_helpers.py).
+delay: a stand-in is parked on a gate (tests/support/prompt_helpers.py).
 
 Coordinates: px in Tracker's convention (SPEC 3.1). Frames are video frame numbers.
 """

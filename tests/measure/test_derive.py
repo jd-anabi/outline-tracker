@@ -2,7 +2,7 @@
 calibration (SPEC 13.1: Moments, Head continuity, Outline geometry, Radial profile, Solidity and
 wall distance, Resolution).
 
-Tracks are analytic shapes sent through measure_mask (tests/derive_helpers.py). Expected values
+Tracks are analytic shapes sent through measure_mask (tests/support/derive_helpers.py). Expected values
 come from the shapes and from SPEC 3.2: with the axis angle alpha, an image direction (cos a,
 sin a), v down, is the world direction (cos(a + alpha), -sin(a + alpha)), so its world angle is
 -(a + alpha): an angle that grows in (u, v) numbers shrinks in world coordinates (det J = -1).

@@ -2,7 +2,7 @@
 window, a settings folder of the test's own, the bottom bar on a grid of frames, a larger font for
 the application, a worker without a window, a results file that cannot be opened at this moment,
 and two guards (the application's look is put back; a dialog that would block is an error).
-pytest finds a fixture by its name; nothing imports this file (tests/test_repo_rules.py says why). The
+pytest finds a fixture by its name; nothing imports this file (tests/repo/test_repo_rules.py says why). The
 fixtures for the tests of every folder, `window` among them, are in tests/conftest.py; plain helpers
 are in the helper modules beside this file.
 """
@@ -77,7 +77,7 @@ def dish_run(dish_clip, tmp_path_factory):
 @pytest.fixture
 def second_window(qtbot):
     """A second `MainWindow` for the same test, not shown yet: made and closed by the very function
-    of the `window` fixture (`new_window`, tests/helpers.py), so it has the stand-in's factory, and
+    of the `window` fixture (`new_window`, tests/support/helpers.py), so it has the stand-in's factory, and
     after the test its worker is stopped and its video released. A saved session reopens in it."""
     yield from new_window(qtbot)
 
@@ -120,7 +120,7 @@ def bar(window, qtbot):
 @pytest.fixture
 def larger_font(qapp, request):
     """The application's font at `request.param` times its point size for this test, put back after
-    it (`with_larger_font`, tests/gui/gui_helpers.py); with 1 the font is the system's own. The test
+    it (`with_larger_font`, tests/support/gui_helpers.py); with 1 the font is the system's own. The test
     gives the number with `pytest.mark.parametrize(..., indirect=True)`, and asks for this fixture
     before `window`: a window measures its texts while it is built, and the font is put back only
     after that window has closed."""

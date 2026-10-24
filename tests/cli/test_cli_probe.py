@@ -1,8 +1,8 @@
 """`outline-tracker probe VIDEO --rect ...` (SPEC 4.6, 8.7, 11; decisions X9 and X19; review focus 1 to 3).
 
-Expected values: see tests/cli_probe_helpers.py (the scene's LED, frames decoded with OpenCV alone,
+Expected values: see tests/support/cli_probe_helpers.py (the scene's LED, frames decoded with OpenCV alone,
 t_s = frame / fps_true). An error is one `ERROR: ...` line on stderr and exit code 1, and writes nothing;
-a command line argparse cannot read is exit code 2. The session form is in tests/test_cli_probe_session.py.
+a command line argparse cannot read is exit code 2. The session form is in tests/cli/test_cli_probe_session.py.
 """
 
 import subprocess

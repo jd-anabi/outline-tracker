@@ -2,10 +2,10 @@
 
 The run folders are tracked by `tracking.run_job` with `ExactFake` on the synthetic dish clip, so
 every expected number comes from the scene: the true masks' centroids and pixel counts
-(tests/tracking_helpers.py), the stick of tests/export_helpers.py (K = 0.1 mm per px, origin
+(tests/support/tracking_helpers.py), the stick of tests/support/export_helpers.py (K = 0.1 mm per px, origin
 (100.5, 60.25) px, axis angle 0) and t_s = frame / 240. The Tracker-format folder is in
-tests/test_export_tracker_folder.py, the shape numbers in tests/test_export_shapes.py, corrections
-in tests/test_export_corrections.py and run.log in tests/test_export_log.py.
+tests/export/test_export_tracker_folder.py, the shape numbers in tests/export/test_export_shapes.py, corrections
+in tests/export/test_export_corrections.py and run.log in tests/export/test_export_log.py.
 
 Coordinates: px in Tracker's convention (pixel centers at +0.5), world mm with y up.
 """

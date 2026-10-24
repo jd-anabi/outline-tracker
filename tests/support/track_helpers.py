@@ -4,7 +4,7 @@ stand-in segmenter that keeps how tracking used it, and what a job reported.
 Imported by name from tests/gui/test_worker_jobs.py, test_tracking_panel.py and test_overlays.py.
 Nothing here imports torch. A test that tracks works on a copy of its clip in a folder of its own
 (`own_copy`, or the fixture `clip_in_odd_folder`), because the window writes the run folder next
-to the video. A stand-in is parked with the `Gate` of tests/gui/prompt_helpers.py; no helper waits
+to the video. A stand-in is parked with the `Gate` of tests/support/prompt_helpers.py; no helper waits
 with a delay.
 
 Coordinates: (u, v) in px of the video frame (SPEC 3.1: u to the right, v downward, pixel centers at

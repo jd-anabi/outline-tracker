@@ -7,7 +7,7 @@ last lines. What changed is how the clip is tracked: through `from_tracker.from_
 student's own run is (coarse, no overlay, fps_true typed as 240 frames per second, so that no
 manifest is looked for). The run folder is SPEC 8.1's default next to the clip,
 `<folder>/selftest_tracker_outline_selftest/`, and the positions that are judged are read from its
-Tracker-format file, `<model>/selftest.csv`. tests/test_selftest.py holds both, what stays and what
+Tracker-format file, `<model>/selftest.csv`. tests/workflows/test_selftest.py holds both, what stays and what
 changed, with stand-in models.
 
 Units and coordinates (SPEC 3): positions and errors are px in Tracker's image coordinates (pixel

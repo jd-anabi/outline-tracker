@@ -1,6 +1,6 @@
 """Export: run.log (SPEC 8.9). One block is appended per export; what is there is never rewritten.
 
-Every number looked for comes from the session the test wrote: the stick of tests/export_helpers.py
+Every number looked for comes from the session the test wrote: the stick of tests/support/export_helpers.py
 (300 px for 30 mm: k = 0.1 mm per px, and sqrt(2) x 0.5 / 300 = 0.24 % from click precision), a tape
 check of 201 px for 20 mm (measured 20.1 mm, +0.50 %), the dish circle of the scene (R = 108 px, so
 2R = 21.6 mm), the video's own facts, and the run records that tracking stored. The text is plain

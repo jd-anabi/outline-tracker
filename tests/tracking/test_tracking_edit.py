@@ -1,7 +1,7 @@
 """The Qt-free edit functions the GUI panels call (outline_tracker/tracking/edit.py): the object
 table (`add_object`, `remove_object`), clicks (`add_prompt`, `undo_prompt`), the head click
 (`set_head`), what "Track" would start (`pending_runs`) and the flags table (`flags_table`).
-The three corrections and the track ids are in tests/test_corrections.py.
+The three corrections and the track ids are in tests/tracking/test_corrections.py.
 
 Expected values: last week's overlay colors (typed in the test), frame grids worked out by hand, the
 ground truth of `dish_clip` (120 frames, every 2nd tracked: frames 0, 2, ..., 118; B and C pass

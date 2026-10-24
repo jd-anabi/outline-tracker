@@ -5,7 +5,7 @@ real EdgeTAM on `cpu`: coarse, the whole frame (a Tracker export has no dish cir
 Two clips:
 1. last week's selftest clip (`synthetic.selftest_clip`: 1080p, one dark ellipse) with its export of
    one track on frames 0, 2, ..., 38;
-2. the three-ellipse clip of tests/slow/pipeline_helpers.py with a `#multi` start file:
+2. the three-ellipse clip of tests/support/pipeline_helpers.py with a `#multi` start file:
    three point masses marked once, on frame 0, tracked for 40 / 240 s at step 2.
 
 What is asserted: the files that the run returns and the files that its folder holds, and for the

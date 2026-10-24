@@ -1,7 +1,7 @@
 """What a jump of `FrameSource` rests on (SPEC 3.5, 13.6; decision X4): faults on the time-stamp
 side that agree with themselves, read in any order.
 
-tests/test_frame_source_times.py makes a table or a time stamp wrong so that one comparison shows
+tests/video/test_frame_source_times.py makes a table or a time stamp wrong so that one comparison shows
 it. Here the wrong times fit each other: a table that is whole frame steps late from some frame on,
 a decoder whose times are whole frame steps off after the file was opened or after a seek. Each
 time read is then some entry's time, and the frame reached from a misplaced one carries the time
@@ -10,7 +10,7 @@ the file, which is the frame after which none comes, whatever its number. `get(k
 of the sequential decode, bit for bit, in whatever order the frames are read (`read_orders`): which
 checks a read passes through depends on whether it is a step forward or a jump.
 
-The clips, the 27 frame numbers and the helpers are those of tests/frame_source_helpers.py. Frame numbers
+The clips, the 27 frame numbers and the helpers are those of tests/support/frame_source_helpers.py. Frame numbers
 count from 0; times are s or ms of file time, as each name says; one frame step is 1/240 s. Expected
 frames come from the sequential decode `video.iter_rgb_frames`. Every fault here is injected: none
 was seen on a real file.

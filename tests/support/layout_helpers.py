@@ -10,7 +10,7 @@ relative to `REPO` and written with `/`.
 
 `REPO` is found by walking up from this file to the first folder that holds pyproject.toml, so the
 file can lie at any depth. A test never takes a folder of the repository from its own `__file__`
-(tests/test_layout.py checks that); this is the one place that may.
+(tests/repo/test_layout.py checks that); this is the one place that may.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
-"""Shared by the tests of the hidden `compare-tracks` command (tests/test_cli_compare.py: what the command
-prints and returns; tests/test_cli_compare_table.py: the table of `tracker_io.compare_tracks` behind it).
+"""Shared by the tests of the hidden `compare-tracks` command (tests/cli/test_cli_compare.py: what the command
+prints and returns; tests/cli/test_cli_compare_table.py: the table of `tracker_io.compare_tracks` behind it).
 
 Where the expected values come from: every folder is written here with the ported `write_tracker_file`,
 at positions chosen so that the differences are known by construction. The test object moves on a

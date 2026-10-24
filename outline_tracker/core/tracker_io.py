@@ -1,8 +1,8 @@
 """Tracker's files and calibration, ported from the course's shrimp.segment (unchanged behavior).
 
 The functions and classes below are last week's, moved over unchanged under their own names. Their
-tests are last week's own (tests/test_tracker_io.py) and tests on known maps and on files typed by
-hand (tests/test_tracker_io_known_maps.py). A "fix" here would change what students' files from last
+tests are last week's own (tests/core/test_tracker_io.py) and tests on known maps and on files typed by
+hand (tests/core/test_tracker_io_known_maps.py). A "fix" here would change what students' files from last
 week mean.
 
 What the module does:

@@ -1,10 +1,10 @@
 """Tests for the hidden `compare-tracks` command (decision X10): what it prints and its exit code.
 
 The folders, the positions and where the expected values come from are described in
-tests/cli_compare_helpers.py: straight tracks written with the ported `write_tracker_file`, shifted by a
+tests/support/cli_compare_helpers.py: straight tracks written with the ported `write_tracker_file`, shifted by a
 known offset ((0.18, 0.24) px is 0.3 px) or moved on one frame (RMS = d / sqrt(n)). Differences are px
 in Tracker's image coordinates (SPEC 3.1); frames are the video's own frame numbers. The table of
-`tracker_io.compare_tracks` itself is tested in tests/test_cli_compare_table.py.
+`tracker_io.compare_tracks` itself is tested in tests/cli/test_cli_compare_table.py.
 """
 
 import subprocess

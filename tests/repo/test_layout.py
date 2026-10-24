@@ -1,4 +1,4 @@
-"""The table of paths (tests/layout_helpers.py) and the rules that keep the tests on it (docs/ROADMAP.md, W2).
+"""The table of paths (tests/support/layout_helpers.py) and the rules that keep the tests on it (docs/ROADMAP.md, W2).
 
 A move of files changes the table and the import lines, and no test body. These tests guard that:
 
@@ -103,7 +103,7 @@ def test_the_real_table_gives_no_dotted_name_to_a_document():
 
 
 def _load_copy_of_the_helpers(into: Path):
-    """The text of tests/layout_helpers.py, copied to `into`, and loaded from there."""
+    """The text of tests/support/layout_helpers.py, copied to `into`, and loaded from there."""
     into.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(table_path("layout helpers"), into)
     spec = importlib.util.spec_from_file_location("layout_helpers_copy", into)
@@ -178,7 +178,7 @@ def _is_own_folder(name: ast.Name, parents: dict) -> bool:
 def test_no_test_takes_a_folder_of_the_repository_from_its_own_file():
     # A line such as `REPO = Path(<own>).resolve().parents[1]` is true for one depth of one file. When the
     # file moves, the line is wrong and the test fails, or worse, passes on the wrong folder. The tests ask
-    # tests/layout_helpers.py (`REPO`, `path`, `module`), which is the one file that may use its own place.
+    # tests/support/layout_helpers.py (`REPO`, `path`, `module`), which is the one file that may use its own place.
     assert table_path("test helpers") in set(TESTS.rglob("*.py"))  # the scan looks at the real folder
     helpers = table_path("layout helpers").relative_to(TESTS).as_posix()
     found = _own_file_uses(TESTS)

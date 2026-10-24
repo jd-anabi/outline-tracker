@@ -1,7 +1,7 @@
 """The three corrections of SPEC 6.6, on the results store and on what `derive_track` makes of it:
 "Re-track from here" (`retrack_from`), "End track here" (`end_track`) and "Continue as new track"
 (`new_piece`); the ids they and `next_track_id` give; and the two prompt edits the brief names
-(`add_prompt`, `undo_prompt`). The other edit functions are in tests/test_tracking_edit.py.
+(`add_prompt`, `undo_prompt`). The other edit functions are in tests/tracking/test_tracking_edit.py.
 
 The call sequence of a re-track, tested here end to end with `ExactFake`:
 `retrack_from(session, store, ids, k, prompts, run_folder)` (changes the session, removes the
