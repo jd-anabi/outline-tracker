@@ -21,7 +21,7 @@ import pytest
 from frame_source_helpers import (FAR, LATER, N, STEP_MS, STEP_S, change_the_table, every_tested_frame_is_exact,
                                   frames_to_test, same, shift_seeks)
 
-from outline_tracker.frame_source import SEEK_BACK, FrameSource
+from outline_tracker.video.frame_source import SEEK_BACK, FrameSource
 
 
 def read_orders():

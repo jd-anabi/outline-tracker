@@ -17,11 +17,11 @@ from dataclasses import replace
 
 import numpy as np
 
-from outline_tracker.measure import mask_center
+from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Circle, Clip, Processing, Prompt, Session, TimeSettings, Track, VideoRef
-from outline_tracker.tracking import Callbacks, Job, run_job
-from outline_tracker.video import decoder_tag, frame_hash, iter_rgb_frames
+from outline_tracker.core.session import Circle, Clip, Processing, Prompt, Session, TimeSettings, Track, VideoRef
+from outline_tracker.tracking.job import Callbacks, Job, run_job
+from outline_tracker.video.reader import decoder_tag, frame_hash, iter_rgb_frames
 
 FULL_SMALL = (0, 0, 320, 240)  # the whole frame of the fast tests' clips (helpers.SMALL)
 

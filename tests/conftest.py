@@ -31,7 +31,7 @@ from helpers import GAPS_BEFORE, ODD_FOLDER, SMALL, new_window  # noqa: E402
 @pytest.fixture(scope="session")
 def dish_clip(tmp_path_factory):
     """`dish_scene` at 320 x 240 px, 120 frames (0.5 s), H.264: the GroundTruth with its `path`."""
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     scene = synthetic.dish_scene(size=SMALL, n_frames=120)
     return synthetic.render(scene, tmp_path_factory.mktemp("dish") / "dish_tracker.mp4")
@@ -40,7 +40,7 @@ def dish_clip(tmp_path_factory):
 @pytest.fixture(scope="session")
 def closeup_clip(tmp_path_factory):
     """`closeup_scene` at 320 x 240 px, 120 frames (0.5 s), H.264: the GroundTruth with its `path`."""
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     scene = synthetic.closeup_scene(size=SMALL, n_frames=120)
     return synthetic.render(scene, tmp_path_factory.mktemp("closeup") / "closeup_tracker.mp4")
@@ -49,7 +49,7 @@ def closeup_clip(tmp_path_factory):
 @pytest.fixture(scope="session")
 def disk_clip(tmp_path_factory):
     """`disk_scene` (320 x 240 px, 120 frames) encoded with crf 10, as `ThresholdFake` needs."""
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     return synthetic.render(synthetic.disk_scene(), tmp_path_factory.mktemp("disks") / "disks_tracker.mp4", crf=10)
 
@@ -57,7 +57,7 @@ def disk_clip(tmp_path_factory):
 @pytest.fixture(scope="session")
 def shapes_clip(tmp_path_factory):
     """`shapes_scene` (640 x 480 px, 60 frames), H.264: the GroundTruth with its `path`."""
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     return synthetic.render(synthetic.shapes_scene(), tmp_path_factory.mktemp("shapes") / "shapes_tracker.mp4")
 
@@ -80,7 +80,7 @@ def clip_in_odd_folder(tmp_path, dish_clip):
 def gapped_clip(tmp_path_factory):
     """The frames of `disk_clip` (320 x 240 px, 120 frames, crf 10, B-frames) with three gaps in the
     timestamps, before frames 30, 72 and 101: frame k is shown at (k + gaps so far) / 240 s."""
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     path = tmp_path_factory.mktemp("gapped") / "gapped_tracker.mp4"
     return synthetic.render(synthetic.disk_scene(), path, crf=10, skip_before=GAPS_BEFORE)
@@ -95,7 +95,7 @@ def gapped_clip(tmp_path_factory):
 def sequential_frames(disk_clip, gapped_clip):
     """Every frame of both clips from the sequential decode: {fixture name: [RGB frame 0, 1, ...]}.
     Decoded once for each test module that asks for it."""
-    from outline_tracker import video
+    from outline_tracker.video import reader as video
 
     clips = {"disk_clip": disk_clip, "gapped_clip": gapped_clip}
     return {name: [rgb for _, rgb in video.iter_rgb_frames(clip.path, range(N))] for name, clip in clips.items()}
@@ -145,9 +145,9 @@ def tracked_dish_folder(dish_clip, tmp_path_factory):
 def tracked_dish_run(tracked_dish_folder, tmp_path):
     """This test's own copy of that run, in a folder named with a space and non-ASCII characters:
     (run folder, session, store)."""
-    from outline_tracker.results import ResultsStore
-    from outline_tracker.schema import RESULTS_NPZ, SESSION_JSON
-    from outline_tracker.session import Session
+    from outline_tracker.measure.results import ResultsStore
+    from outline_tracker.core.schema import RESULTS_NPZ, SESSION_JSON
+    from outline_tracker.core.session import Session
 
     folder = tmp_path / ODD_FOLDER
     shutil.copytree(tracked_dish_folder, folder)
@@ -227,7 +227,7 @@ def lock_file(monkeypatch):
     after `monkeypatch.undo()` in the test: the patches are made with the test's own `monkeypatch`.
     `os.replace` is patched for the whole process, so a rename in another thread is refused as well.
     """
-    from outline_tracker import fileio
+    from outline_tracker.core import fileio
 
     def lock(*targets, times=math.inf, error=None, waits="skip"):
         if waits not in ("skip", "none"):

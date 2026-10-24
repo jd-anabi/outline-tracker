@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import pytest
 
-from outline_tracker import convert, video
+from outline_tracker.video import convert, reader as video
 
 
 def _write_video(path, n_frames=120, fps=240):

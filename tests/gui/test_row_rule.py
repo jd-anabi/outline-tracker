@@ -29,7 +29,7 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QStyle, QStyleO
 
 from finish_helpers import row_parts
 from gui_helpers import StandInSource, layout_findings, show, visible_children, with_larger_font
-from outline_tracker.geometry import grid_frames
+from outline_tracker.core.geometry import grid_frames
 
 LEFT = Qt.MouseButton.LeftButton
 SIDE = 10  # px of padding at each side of the made-up button's text

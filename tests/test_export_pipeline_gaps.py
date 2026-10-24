@@ -20,7 +20,7 @@ import pytest
 from export_helpers import MODEL, cells, frames_of, log_section, silent, store_run
 from overlay_helpers import lost_record, record
 
-from outline_tracker import export
+from outline_tracker.export import pipeline as export
 
 # what a lost row keeps: every other cell of it is empty
 KEPT = {"positions.csv": {"track_id", "frame", "t_s", "visible", "mode", "flags"},

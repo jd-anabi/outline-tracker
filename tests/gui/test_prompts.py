@@ -26,9 +26,9 @@ from PySide6.QtWidgets import QApplication
 
 import helpers
 from gui_helpers import StandInSource, drawn, fit_of, wheel
-from outline_tracker import tracking
+from outline_tracker.tracking import job as tracking
 from outline_tracker.gui.click_rules import is_negative_click
-from outline_tracker.results import ResultsStore
+from outline_tracker.measure.results import ResultsStore
 from prompt_helpers import (ALT, DISK_RADIUS, LEFT, MIDDLE, NO_KEY, QT_CONTROL, QT_META, RIGHT, SHIFT, Watched, at,
                             clicked_object, double_click, panel_with)
 from tracking_helpers import center, frame_identity

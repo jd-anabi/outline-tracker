@@ -20,7 +20,7 @@ from PySide6.QtGui import QKeySequence
 import helpers
 from gui_helpers import record_dialogs, show
 from outline_tracker.gui.session_controller import SessionController
-from outline_tracker.session import Session, VideoNotFoundError
+from outline_tracker.core.session import Session, VideoNotFoundError
 from session_helpers import (FOLDER_OF_NAME, NAME, body, read_json, second_spelling, settle, type_into,
                              wait_for_check)
 

@@ -28,11 +28,11 @@ from export_panel_helpers import (END, FRAMES, P0_FILES, STICK_ENDS, STICK_MM, e
                                   walk_through)
 from finish_helpers import record_every_dialog
 from gui_helpers import show
-from outline_tracker import schema
+from outline_tracker.core import schema
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.tracker_io import read_tracker_export
-from outline_tracker.video import probe
+from outline_tracker.core.tracker_io import read_tracker_export
+from outline_tracker.video.reader import probe
 from session_helpers import body, read_json
 from track_helpers import NAME, own_copy, results_of, track_panel
 from tracking_helpers import center, table_truth

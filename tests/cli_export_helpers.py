@@ -12,7 +12,7 @@ size within half of its last digit.
 import json
 import re
 
-from outline_tracker import cli
+from outline_tracker.cli import main as cli
 
 WROTE = re.compile(r"^wrote (?P<name>.+): (?P<number>\d+(?:\.\d)?) (?P<unit>B|kB|MB|GB)$")
 UNIT_BYTES = {"B": 1, "kB": 10 ** 3, "MB": 10 ** 6, "GB": 10 ** 9}

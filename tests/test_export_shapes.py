@@ -39,7 +39,8 @@ from export_helpers import (
 from helpers import VERSION
 from overlay_helpers import lost_record
 
-from outline_tracker import export, schema
+from outline_tracker.export import pipeline as export
+from outline_tracker.core import schema
 
 GRID = list(range(0, 60, 2))       # shapes_scene: 60 frames, every 2nd
 DISH_GRID = list(range(0, 120, 2))  # the dish and close-up clips: 120 frames

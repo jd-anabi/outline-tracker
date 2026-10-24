@@ -13,8 +13,9 @@ from cli_probe_helpers import (FPS, LED, LED_BOX, N, ONSET, WALL, WALL_BOX, asse
                                write_manifest)
 from helpers import error_line
 
-from outline_tracker import __version__, provenance
-from outline_tracker.session import Clip, ProbeBox, Session, TimeSettings, VideoRef
+from outline_tracker import __version__
+from outline_tracker.core import provenance
+from outline_tracker.core.session import Clip, ProbeBox, Session, TimeSettings, VideoRef
 
 
 def make_session(video_path, name="session.json", **changes):

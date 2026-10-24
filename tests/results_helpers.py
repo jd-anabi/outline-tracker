@@ -18,9 +18,9 @@ import re
 import analytic_shapes as shapes
 import numpy as np
 
-from outline_tracker import schema
-from outline_tracker.measure import PixelRecord, measure_mask
-from outline_tracker.results import ResultsStore, TrackArrays
+from outline_tracker.core import schema
+from outline_tracker.measure.mask import PixelRecord, measure_mask
+from outline_tracker.measure.results import ResultsStore, TrackArrays
 
 FULL_HD = (0, 0, 1920, 1080)
 DISK_ORIGIN = (300, 200)  # (column, row) of the raster the measured disks are drawn on

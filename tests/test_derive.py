@@ -15,8 +15,9 @@ import numpy as np
 import pytest
 from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 
-from outline_tracker import derive, schema
-from outline_tracker.session import Circle
+from outline_tracker.measure import derive
+from outline_tracker.core import schema
+from outline_tracker.core.session import Circle
 
 ALPHA = np.radians(25.0)   # the axis angle of TILTED
 

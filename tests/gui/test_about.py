@@ -20,7 +20,7 @@ import pyqtgraph
 
 from finish_helpers import record_every_dialog
 from layout_helpers import REPO
-from outline_tracker import provenance
+from outline_tracker.core import provenance
 from outline_tracker.gui import about
 
 NAMES = ("Python", "PySide6", "pyqtgraph", "numpy", "OpenCV", "torch", "transformers")

@@ -23,7 +23,7 @@ from __future__ import annotations
 import numpy as np
 
 from outline_tracker.segmenter.base import MaskResult, crop_to_bbox
-from outline_tracker.synthetic_shapes import Disk, Ellipse
+from outline_tracker.synthetic.shapes import Disk, Ellipse
 
 
 def pixel_centers(height: int, width: int, origin: tuple[int, int] = (0, 0)) -> tuple[np.ndarray, np.ndarray]:

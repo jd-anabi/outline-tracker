@@ -12,49 +12,58 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 |---|---|
 | `__init__.py` | the version |
 | `launch.py` | what the installed command `outline-tracker` starts |
-| `cli.py` | the entry point and its subcommands |
-| `cli_export.py` | the `export` command: write every file of a run folder again |
-| `cli_from_tracker.py` | the `from-tracker` command and its options |
-| `cli_gui.py` | the `gui` command: open the window, with a video or a session |
-| `cli_probe.py` | the `probe` command: brightness probes, no model |
-| `cli_selftest.py` | the `selftest` command and its two options |
-| `schema.py` | the single source of every output file: columns, flags, file names, formats |
-| `schema_docs.py` | README.txt and docs/OUTPUTS.md, built from the tables of `schema.py` |
-| `geometry.py` | image to world transform, stick, tape check, stopwatch, circle fit, frame grid, manifest |
-| `tracker_io.py` | Tracker's files and calibration, ported from last week's script |
-| `fileio.py` | atomic writes with the Windows lock retry, the hash that identifies a video, relative paths |
-| `session.py` | session.json to dataclasses and back; finding the video again |
-| `session_parts.py` | the records of session.json below the whole session |
-| `run_folder.py` | where a run's files go, and the check that keeps the tool out of a folder of Tracker files |
-| `video.py` | reading phone videos safely, ported from last week's script |
-| `frame_source.py` | exact random access to the frames of a video (the display) |
-| `convert.py` | a copy of a phone video that Tracker can open, ported |
-| `provenance.py` | which tool wrote a file, on what machine: the facts of run.log |
-| `synthetic.py` | synthetic test clips with exact ground truth, and the selftest clip |
-| `synthetic_shapes.py` | shapes and paths of the synthetic clips as implicit functions |
-| `measure.py` | a mask to its pixel-space record for results.npz |
-| `derive.py` | world quantities from the stored records and the current calibration |
-| `derive_heading.py` | the head direction of a track, frame by frame |
-| `derive_outline.py` | geometry of an outline polygon: rays, radial profile, hull, resampling |
-| `qc.py` | quality flags per track and frame, and their summary for run.log |
-| `qc_contact.py` | how close two outlines come: the geometry behind the CONTACT flag |
-| `results.py` | the store behind results.npz: the pixel-space records of every track |
-| `tracking.py` | tracking jobs: `run_job`, from a session with prompts to results.npz |
-| `tracking_plan.py` | which objects are tracked together, on which frames, on what part of the frame |
-| `tracking_fine.py` | fine mode: a square crop that follows one object |
-| `tracking_guard.py` | the check at the start of a job that a frame is the frame that was clicked on |
-| `tracking_ids.py` | the names and colors of tracks |
-| `tracking_edit.py` | edits of a session and its results without Qt: what the panels call |
-| `tracking_corrections.py` | Re-track from here, End track here, Continue as new track, without Qt |
-| `tracking_flags.py` | the flags table of a run folder, for the review panel |
-| `export.py` | every output file of a run folder except the overlay's frames |
-| `export_tables.py` | the rows of positions.csv, shapes.csv, radial.csv, outlines.npz and the Tracker-format folder |
-| `export_log.py` | the block that an export appends to run.log |
-| `overlay.py` | overlay.mp4: the clip with outlines, centroid dots and ids |
-| `probes.py` | brightness probes: the mean color inside named rectangles on every frame |
-| `from_tracker.py` | last week's workflow with this week's outputs; `load_segmenter`, the real model's factory |
-| `from_tracker_session.py` | what `from_tracker` settles before tracking: fps_true, the name, the run folder, the session |
-| `selftest.py` | check the installation and time the model on this computer |
+| `cli/__init__.py` | the command line: the parser in `cli/main.py`, and one module for each larger command |
+| `cli/main.py` | the entry point and its subcommands |
+| `cli/__main__.py` | `python -m outline_tracker.cli`: runs `main()` of `cli/main.py` |
+| `cli/export.py` | the `export` command: write every file of a run folder again |
+| `cli/from_tracker.py` | the `from-tracker` command and its options |
+| `cli/gui.py` | the `gui` command: open the window, with a video or a session |
+| `cli/probe.py` | the `probe` command: brightness probes, no model |
+| `cli/selftest.py` | the `selftest` command and its two options |
+| `core/__init__.py` | the base of the tool: schema, safe writes, run facts, geometry, calibration, session, run folder |
+| `core/schema.py` | the single source of every output file: columns, flags, file names, formats |
+| `core/schema_docs.py` | README.txt and docs/OUTPUTS.md, built from the tables of `core/schema.py` |
+| `core/geometry.py` | image to world transform, stick, tape check, stopwatch, circle fit, frame grid, manifest |
+| `core/tracker_io.py` | Tracker's files and calibration, ported from last week's script |
+| `core/fileio.py` | atomic writes with the Windows lock retry, the hash that identifies a video, relative paths |
+| `core/session.py` | session.json to dataclasses and back; finding the video again |
+| `core/session_parts.py` | the records of session.json below the whole session |
+| `core/run_folder.py` | where a run's files go, and the check that keeps the tool out of a folder of Tracker files |
+| `video/__init__.py` | videos: frames and their times read safely, exact random access, the copy for Tracker, probes |
+| `video/reader.py` | reading phone videos safely, ported from last week's script |
+| `video/frame_source.py` | exact random access to the frames of a video (the display) |
+| `video/convert.py` | a copy of a phone video that Tracker can open, ported |
+| `core/provenance.py` | which tool wrote a file, on what machine: the facts of run.log |
+| `synthetic/__init__.py` | synthetic test clips with exact ground truth, and their shapes and paths |
+| `synthetic/clips.py` | synthetic test clips with exact ground truth, and the selftest clip |
+| `synthetic/shapes.py` | shapes and paths of the synthetic clips as implicit functions |
+| `measure/__init__.py` | measurement: a mask to its record, the store of records, quantities and flags derived from them |
+| `measure/mask.py` | a mask to its pixel-space record for results.npz |
+| `measure/derive.py` | world quantities from the stored records and the current calibration |
+| `measure/heading.py` | the head direction of a track, frame by frame |
+| `measure/outline.py` | geometry of an outline polygon: rays, radial profile, hull, resampling |
+| `measure/qc.py` | quality flags per track and frame, and their summary for run.log |
+| `measure/contact.py` | how close two outlines come: the geometry behind the CONTACT flag |
+| `measure/results.py` | the store behind results.npz: the pixel-space records of every track |
+| `tracking/__init__.py` | tracking without Qt: jobs, their plan, fine mode, the start check, edits and corrections |
+| `tracking/job.py` | tracking jobs: `run_job`, from a session with prompts to results.npz |
+| `tracking/plan.py` | which objects are tracked together, on which frames, on what part of the frame |
+| `tracking/fine.py` | fine mode: a square crop that follows one object |
+| `tracking/guard.py` | the check at the start of a job that a frame is the frame that was clicked on |
+| `tracking/ids.py` | the names and colors of tracks |
+| `tracking/edit.py` | edits of a session and its results without Qt: what the panels call |
+| `tracking/corrections.py` | Re-track from here, End track here, Continue as new track, without Qt |
+| `tracking/flags.py` | the flags table of a run folder, for the review panel |
+| `export/__init__.py` | export: every output file of a run folder, and overlay.mp4 |
+| `export/pipeline.py` | every output file of a run folder except the overlay's frames |
+| `export/tables.py` | the rows of positions.csv, shapes.csv, radial.csv, outlines.npz and the Tracker-format folder |
+| `export/log.py` | the block that an export appends to run.log |
+| `export/overlay.py` | overlay.mp4: the clip with outlines, centroid dots and ids |
+| `video/probes.py` | brightness probes: the mean color inside named rectangles on every frame |
+| `workflows/__init__.py` | workflows that chain the parts: from a Tracker export to every output file, and the selftest |
+| `workflows/from_tracker.py` | last week's workflow with this week's outputs; `load_segmenter`, the real model's factory |
+| `workflows/from_tracker_session.py` | what `from_tracker` settles before tracking: fps_true, the name, the run folder, the session |
+| `workflows/selftest.py` | check the installation and time the model on this computer |
 | `segmenter/__init__.py` | what a segmenter is: a frame and a few clicks to one mask per object |
 | `segmenter/base.py` | the segmenter protocol and its two records, `ObjectPrompt` and `MaskResult` |
 | `segmenter/hf.py` | SAM 2.1 and EdgeTAM through Hugging Face transformers, one frame at a time; `MODELS` |

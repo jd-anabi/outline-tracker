@@ -26,7 +26,7 @@ from PySide6.QtCore import Qt
 
 from export_helpers import ellipse_gap
 from gui_helpers import show
-from outline_tracker import schema
+from outline_tracker.core import schema
 from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import gui_thread, this_thread
 from results_helpers import read_npz
@@ -108,7 +108,7 @@ class Listed:
 
 def listed_by(monkeypatch, gate=None, error: Exception | None = None) -> Listed:
     """Replace `tracking.flags_table` by a `Listed` with `gate` and `error`, and return it."""
-    from outline_tracker import tracking
+    from outline_tracker.tracking import job as tracking
 
     stand_in = Listed(tracking.flags_table, gate, error)
     monkeypatch.setattr(tracking, "flags_table", stand_in)

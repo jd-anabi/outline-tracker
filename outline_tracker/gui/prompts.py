@@ -39,7 +39,7 @@ from PySide6.QtGui import QColor, QKeySequence, QShortcut  # noqa: F401 (QColor:
 
 import pyqtgraph as pg
 
-from outline_tracker import tracking
+from outline_tracker.tracking import job as tracking
 from outline_tracker.gui.click_rules import (DoubleClickWatch, Mark, PointTool, ResultsOnDisk, frame_shown, marks_on,
                                             point_kind, preview_input)
 # The look of what is drawn has its own file; its names are passed on, as this module offered them before.
@@ -47,8 +47,8 @@ from outline_tracker.gui.prompt_drawing import (BLACK, CASING, LINE_WIDTHS, MARK
                                                 PLUS_SIZE, WHITE, Drawn, colour_of, draw_outline, mark_spots)
 from outline_tracker.gui.worker import Found, found_in
 from outline_tracker.gui.worker_jobs import jobs_of
-from outline_tracker.tracking_fine import crop_box  # noqa: F401 (offered from here before the split)
-from outline_tracker.video import decoder_tag, frame_hash
+from outline_tracker.tracking.fine import crop_box  # noqa: F401 (offered from here before the split)
+from outline_tracker.video.reader import decoder_tag, frame_hash
 
 KINDS = ("positive", "negative", "head")
 TOOL_TEXTS = {"positive": "Positive: click on animal {id}.", "negative": "Negative: click on what is not animal {id}.",

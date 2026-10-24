@@ -54,7 +54,8 @@ from pathlib import Path
 import numpy as np
 from layout_helpers import REPO
 
-from outline_tracker import provenance, video
+from outline_tracker.core import provenance
+from outline_tracker.video import reader as video
 
 DATA = REPO / "tests" / "data"
 SWITCH = "OUTLINE_TRACKER_FREEZE"  # the environment variable; `1` asks for the frozen files to be written

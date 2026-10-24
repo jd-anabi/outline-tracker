@@ -19,11 +19,12 @@ import cv2
 import imageio_ffmpeg
 import numpy as np
 
-from outline_tracker import overlay, schema
-from outline_tracker.measure import measure_mask
-from outline_tracker.results import ResultsStore
+from outline_tracker.export import overlay
+from outline_tracker.core import schema
+from outline_tracker.measure.mask import measure_mask
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import crop_to_bbox
-from outline_tracker.session import Clip, Session, TimeSettings, Track
+from outline_tracker.core.session import Clip, Session, TimeSettings, Track
 
 FPS_TRUE = 239.6  # frames per s; not the clips' 240, so a stamp's time shows where it came from
 COLORS = {"A": "#FFFF00", "B": "#FF00FF", "C": "#0080FF"}  # as session.json holds them: RGB hex

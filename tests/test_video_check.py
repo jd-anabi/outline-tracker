@@ -25,7 +25,7 @@ import numpy as np
 import pytest
 from video_helpers import _circle_path, _write_video
 
-from outline_tracker import video
+from outline_tracker.video import reader as video
 
 # The codec is lossy. It gave a frame of one gray level back within 2 levels (measured with OpenCV
 # 5.0.0 on macOS: 50 -> 48, 90 -> 89, 30 -> 28), so the change between two such frames was within 4

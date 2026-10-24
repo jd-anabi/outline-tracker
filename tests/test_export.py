@@ -20,7 +20,8 @@ from export_helpers import K, MODEL, RUN_FILES, cells, coarse_run, load, silent,
 from overlay_helpers import lost_record, record
 from tracking_helpers import DISH_BOX, box_truth
 
-from outline_tracker import export, schema, schema_docs
+from outline_tracker.export import pipeline as export
+from outline_tracker.core import schema, schema_docs
 
 GRID = list(range(0, 120, 2))  # the dish clip has 120 frames; the sessions take every 2nd
 MEASURED = {  # the columns that hold a measured number: an empty cell on a lost row
@@ -161,7 +162,8 @@ def test_a_partial_store_exports_the_frames_it_has(run_folder):
 
 
 def test_a_stick_of_29_mm_scales_every_x_and_y_by_29_over_30_without_tracking(run_folder, monkeypatch):
-    from outline_tracker import measure, tracking
+    from outline_tracker.measure import mask as measure
+    from outline_tracker.tracking import job as tracking
 
     export.export_all(run_folder, log=silent)
     before = {name: table(run_folder / name) for name in ("positions.csv", "shapes.csv")}
@@ -206,7 +208,7 @@ def test_a_stick_of_29_mm_scales_every_x_and_y_by_29_over_30_without_tracking(ru
 
 def test_export_loads_neither_torch_nor_qt(run_folder):
     # in a process of its own: pytest-qt has already loaded PySide6 into this one
-    code = ("import sys; from outline_tracker import export; export.export_all(sys.argv[1], log=lambda line: None); "
+    code = ("import sys; from outline_tracker.export import pipeline as export; export.export_all(sys.argv[1], log=lambda line: None); "
             "print(sorted(name for name in sys.argv[2:] if name in sys.modules))")
     heavy = ["torch", "torchvision", "transformers", "timm", "PySide6", "pyqtgraph"]
     done = subprocess.run([sys.executable, "-c", code, str(run_folder), *heavy], capture_output=True, text=True,

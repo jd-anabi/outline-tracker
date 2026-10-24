@@ -15,7 +15,7 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QApplication
 
 from gui_helpers import StandInSource, body, fit_of, picture, pixels, show
-from outline_tracker.session import Session
+from outline_tracker.core.session import Session
 
 LEFT, RIGHT = Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton
 NO_KEY = Qt.KeyboardModifier.NoModifier

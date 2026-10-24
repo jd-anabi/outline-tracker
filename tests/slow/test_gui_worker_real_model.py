@@ -27,8 +27,8 @@ from pipeline_helpers import expect_minutes
 from prompt_helpers import gui_thread, objects_panel
 from track_helpers import NAME, Heard, results_of, track_panel
 
-from outline_tracker.from_tracker import load_segmenter
-from outline_tracker.synthetic import selftest_clip
+from outline_tracker.workflows.from_tracker import load_segmenter
+from outline_tracker.synthetic.clips import selftest_clip
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]
 

@@ -27,10 +27,10 @@ from layout_helpers import path as table_path
 from results_helpers import names_number
 
 import outline_tracker
-from outline_tracker import session as session_module
-from outline_tracker.fileio import relative_path
-from outline_tracker.geometry import WorldFrame
-from outline_tracker.session import (
+from outline_tracker.core import session as session_module
+from outline_tracker.core.fileio import relative_path
+from outline_tracker.core.geometry import WorldFrame
+from outline_tracker.core.session import (
     Axes,
     CalibrationSettings,
     Circle,

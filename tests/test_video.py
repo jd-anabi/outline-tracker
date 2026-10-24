@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from video_helpers import _circle_path, _write_video
 
-from outline_tracker import video
+from outline_tracker.video import reader as video
 
 
 @pytest.fixture

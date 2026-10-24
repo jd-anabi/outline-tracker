@@ -24,10 +24,12 @@ from from_tracker_helpers import (FPS, MODEL, RUN_FILES, StopsAfter, disk_video,
                                   write_start_file)
 from helpers import MM_PER_PX, java_sci, tracker_map
 
-from outline_tracker import fileio, synthetic, video
-from outline_tracker.from_tracker_session import TRACK_COLORS
-from outline_tracker.results import ResultsStore
-from outline_tracker.synthetic_shapes import Disk, Straight
+from outline_tracker.core import fileio
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.video import reader as video
+from outline_tracker.workflows.from_tracker_session import TRACK_COLORS
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.synthetic.shapes import Disk, Straight
 
 
 # --------------------------------------------------------------------------- the session

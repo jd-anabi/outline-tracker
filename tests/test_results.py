@@ -34,9 +34,9 @@ from results_helpers import (
     write_npz,
 )
 
-from outline_tracker import schema
-from outline_tracker.measure import PixelRecord
-from outline_tracker.results import ResultsStore, ResultsVersionError
+from outline_tracker.core import schema
+from outline_tracker.measure.mask import PixelRecord
+from outline_tracker.measure.results import ResultsStore, ResultsVersionError
 
 PER_FRAME = [key for key in schema.RESULTS_KEYS if key.name not in ("frames", "mask_bits")]
 

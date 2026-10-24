@@ -22,7 +22,7 @@ from PySide6.QtGui import QColor
 
 import pyqtgraph as pg
 
-from outline_tracker.tracking_fine import crop_box
+from outline_tracker.tracking.fine import crop_box
 
 BLACK, WHITE = "#000000", "#FFFFFF"
 CASING = (0, 0, 0, 180)

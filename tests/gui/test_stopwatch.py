@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QApplication, QLineEdit
 
 from finish_helpers import is_paused, is_playing, named, tick
 from gui_helpers import show
-from outline_tracker import geometry
+from outline_tracker.core import geometry
 from outline_tracker.gui.stopwatch_dialog import StopwatchDialog
 from session_helpers import body, read_json, type_into
 

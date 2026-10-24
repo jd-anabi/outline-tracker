@@ -15,8 +15,8 @@ import pytest
 from cli_export_helpers import edit_session, error_line, export, listing
 from export_helpers import coarse_run
 
-from outline_tracker import cli_export
-from outline_tracker import export as export_module
+from outline_tracker.cli import export as cli_export
+from outline_tracker.export import pipeline as export_module
 
 
 @pytest.fixture(scope="module")

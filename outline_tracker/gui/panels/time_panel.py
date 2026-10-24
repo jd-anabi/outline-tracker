@@ -28,7 +28,7 @@ from pathlib import Path
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
-from outline_tracker.geometry import find_manifest, fps_from_manifest
+from outline_tracker.core.geometry import find_manifest, fps_from_manifest
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.panels.video_panel import SPACING, Message, field_rows
 from outline_tracker.gui.stopwatch_dialog import StopwatchDialog

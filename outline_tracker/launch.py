@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 
-from outline_tracker import cli
+from outline_tracker.cli import main as cli
 
 
 def main(argv: list[str] | None = None) -> int:

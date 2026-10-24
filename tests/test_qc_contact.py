@@ -17,7 +17,7 @@ import pytest
 import qc_helpers as q
 from qc_helpers import CENTER, CLOSE, FULL_HD, WORLD
 
-from outline_tracker import qc, qc_contact
+from outline_tracker.measure import qc, contact as qc_contact
 
 DISH_CROP = (404, 0, 1112, 1080)   # a dish crop: grid cells of 1112 / 256 = 4.34 px, two of them 8.69 px
 

@@ -39,10 +39,11 @@ import pandas as pd
 import pytest
 from pipeline_helpers import H, W, position, write_three_ellipse_clip
 
-from outline_tracker import synthetic, tracker_io
-from outline_tracker.measure import mask_center
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.core import tracker_io
+from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
-from outline_tracker.video import iter_rgb_frames
+from outline_tracker.video.reader import iter_rgb_frames
 
 pytestmark = pytest.mark.slow
 

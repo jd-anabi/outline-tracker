@@ -27,7 +27,7 @@ from layout_helpers import PATHS, REPO, below, module
 from layout_helpers import path as table_path
 
 import outline_tracker
-from outline_tracker import provenance
+from outline_tracker.core import provenance
 
 TESTS = REPO / "tests"
 

@@ -19,7 +19,8 @@ import pytest
 from export_helpers import MODEL, RUN_FILES, coarse_run, load, silent, store_run, table
 from overlay_helpers import record
 
-from outline_tracker import export, export_tables, fileio, schema, tracker_io
+from outline_tracker.export import pipeline as export, tables as export_tables
+from outline_tracker.core import fileio, schema, tracker_io
 
 GRID = list(range(0, 120, 2))
 

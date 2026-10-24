@@ -30,12 +30,12 @@ from tracking_helpers import (
     track_at,
 )
 
-from outline_tracker import video
-from outline_tracker.results import ResultsStore
+from outline_tracker.video import reader as video
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
-from outline_tracker.session import Circle, Session
-from outline_tracker.tracking import RunPlan, dish_box, plan_runs
-from outline_tracker.tracking_plan import plan_job
+from outline_tracker.core.session import Circle, Session
+from outline_tracker.tracking.job import RunPlan, dish_box, plan_runs
+from outline_tracker.tracking.plan import plan_job
 
 GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions here take every 2nd
 

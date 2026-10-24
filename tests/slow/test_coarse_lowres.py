@@ -28,7 +28,7 @@ import pytest
 from pipeline_helpers import calibrated_session, track_and_export
 from tracking_helpers import center, dish_circle, track
 
-from outline_tracker import synthetic
+from outline_tracker.synthetic import clips as synthetic
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]
 

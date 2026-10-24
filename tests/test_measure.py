@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 # The template's test calls its module `segment`; the alias keeps that test's text unchanged.
-from outline_tracker import measure as segment
+from outline_tracker.measure import mask as segment
 
 
 def test_mask_center_uses_trackers_pixel_convention():

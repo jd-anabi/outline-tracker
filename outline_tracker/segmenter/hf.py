@@ -45,7 +45,7 @@ from pathlib import Path
 
 import numpy as np
 
-from outline_tracker.measure import mask_center
+from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.base import (MaskResult, ObjectPrompt, PromptError, crop_to_bbox,
                                             points_in_image)
 from outline_tracker.segmenter.edgetam_convert import edgetam_cache

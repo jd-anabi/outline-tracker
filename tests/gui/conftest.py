@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from gui_helpers import StandInSource, show, with_larger_font
 from helpers import new_window
-from outline_tracker.geometry import grid_frames
+from outline_tracker.core.geometry import grid_frames
 from outline_tracker.segmenter.fake import ExactFake
 from tracking_helpers import abc_session, run
 
@@ -33,7 +33,7 @@ def wide_clip(tmp_path_factory):
     """`dish_scene` at 1280 x 720 px, 4 frames, H.264: the GroundTruth with its `path`. Rendered once
     for each test module that asks for it, not once for the run: tests open this file itself, not
     a copy of it, so it is shared no further than it was while each module had its own."""
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     scene = synthetic.dish_scene(size=WIDE, n_frames=4)
     return synthetic.render(scene, tmp_path_factory.mktemp("wide") / "wide_tracker.mp4")
@@ -44,7 +44,7 @@ def hd_scene_clip(tmp_path_factory):
     """`dish_scene` at 1280 x 720 px, 6 frames, 240 frames per second: a clip that last week's check
     of a video has no warning for (720 px at the short side, a slow-motion frame rate). Rendered
     once for the run: tests work on a copy of it (`hd_clip`), never on this file."""
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     scene = synthetic.dish_scene(size=(1280, 720), n_frames=6)
     return synthetic.render(scene, tmp_path_factory.mktemp("hd") / "hd_tracker.mp4")
@@ -173,7 +173,7 @@ def refuse_open(monkeypatch):
 
     Returns a `RefusedOpens`, which counts the calls. `ResultsStore.load` is patched for the whole
     process, with the test's own `monkeypatch`: it is the real one again after the test."""
-    from outline_tracker.results import ResultsStore
+    from outline_tracker.measure.results import ResultsStore
 
     def refuse(times: int = 1) -> RefusedOpens:
         opens = RefusedOpens(times, ResultsStore.load)

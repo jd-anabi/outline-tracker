@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from helpers import GAPS_BEFORE, frame_times
 
-from outline_tracker import video
+from outline_tracker.video import reader as video
 
 CLIPS = ["disk_clip", "gapped_clip"]
 SKIPS = {"disk_clip": (), "gapped_clip": GAPS_BEFORE}

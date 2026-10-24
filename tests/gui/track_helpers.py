@@ -21,8 +21,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject
 
-from outline_tracker import schema
-from outline_tracker.results import ResultsStore
+from outline_tracker.core import schema
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ThresholdFake
 from prompt_helpers import Gate, gui_thread, panel_with, this_thread
 from tracking_helpers import center

@@ -17,14 +17,14 @@ import pytest
 from helpers import mask_in_image
 from tracking_helpers import Watched, assert_centered, make_session, run, table_truth, track
 
-from outline_tracker import synthetic
-from outline_tracker.measure import mask_center
-from outline_tracker.results import ResultsStore
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.measure.mask import mask_center
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import MaskResult, crop_to_bbox
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Session
-from outline_tracker.synthetic_shapes import Ellipse, Straight
-from outline_tracker.tracking_fine import FollowCrop
+from outline_tracker.core.session import Session
+from outline_tracker.synthetic.shapes import Ellipse, Straight
+from outline_tracker.tracking.fine import FollowCrop
 
 GRID = list(range(0, 120, 2))  # the clip has 120 frames; the sessions here take every 2nd
 

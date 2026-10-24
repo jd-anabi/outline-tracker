@@ -21,8 +21,8 @@ import pytest
 from frame_source_helpers import LATER, N, SKIPS, STEP_MS, STEP_S, change_the_table, every_tested_frame_is_exact, same
 from helpers import frame_times
 
-from outline_tracker import video
-from outline_tracker.frame_source import FrameSource
+from outline_tracker.video import reader as video
+from outline_tracker.video.frame_source import FrameSource
 
 
 def change_the_decoder_times(monkeypatch, change):

@@ -23,7 +23,7 @@ from PySide6.QtCore import QEvent, QObject, Qt
 
 import pyqtgraph as pg
 
-from outline_tracker import geometry
+from outline_tracker.core import geometry
 
 WHITE = "#FFFFFF"
 CASING = (0, 0, 0, 180)   # black, alpha 180: under every line, and behind every label

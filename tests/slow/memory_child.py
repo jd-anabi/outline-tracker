@@ -23,8 +23,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from outline_tracker.synthetic import GroundTruth, Scene, SceneObject
-from outline_tracker.synthetic_shapes import Ellipse, Straight
+from outline_tracker.synthetic.clips import GroundTruth, Scene, SceneObject
+from outline_tracker.synthetic.shapes import Ellipse, Straight
 
 NAMES = "ABCDEFGHIJ"
 

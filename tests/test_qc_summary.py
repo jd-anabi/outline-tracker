@@ -9,7 +9,7 @@ import pytest
 import qc_helpers as q
 from qc_helpers import CENTER, FULL_HD
 
-from outline_tracker import qc
+from outline_tracker.measure import qc
 
 FRAMES = [0, 60, 120, 180, 240]   # 0, 0.25, 0.5, 0.75 and 1 s
 

@@ -18,10 +18,11 @@ import pytest
 from helpers import ODD_FOLDER, SMALL
 from scipy.spatial import ConvexHull
 
-from outline_tracker import synthetic, video
-from outline_tracker.measure import mask_center
-from outline_tracker.synthetic import GroundTruth, Led, Scene, SceneObject
-from outline_tracker.synthetic_shapes import Arc, Disk, Ellipse, Shrimp, Straight
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.video import reader as video
+from outline_tracker.measure.mask import mask_center
+from outline_tracker.synthetic.clips import GroundTruth, Led, Scene, SceneObject
+from outline_tracker.synthetic.shapes import Arc, Disk, Ellipse, Shrimp, Straight
 
 CLOSEUP_SHRIMP = Shrimp(a_px=23.5, b_px=10.0, antenna_length_px=30.0, antenna_width_px=3.0, attach_px=14.0)
 

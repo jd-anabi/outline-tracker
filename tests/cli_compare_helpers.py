@@ -15,7 +15,8 @@ columns (mm) are written, as in every Tracker-format file, and never compared.
 
 import numpy as np
 
-from outline_tracker import cli, tracker_io
+from outline_tracker.cli import main as cli
+from outline_tracker.core import tracker_io
 
 FPS = 240.0  # only for the t column, which is not compared
 FRAMES = np.arange(100, 150, 2)  # 25 frames: 100, 102, ..., 148

@@ -21,8 +21,8 @@ PACKAGE_NAME = "outline_tracker"  # the name of the package, and of its folder a
 
 PATHS: dict[str, str] = {
     # the package
-    "command line": "outline_tracker/cli.py",
-    "schema docs": "outline_tracker/schema_docs.py",
+    "command line": "outline_tracker/cli/main.py",
+    "schema docs": "outline_tracker/core/schema_docs.py",
     "window package": "outline_tracker/gui/__init__.py",
     "window entry point": "outline_tracker/gui/app.py",
     "main window": "outline_tracker/gui/main_window.py",

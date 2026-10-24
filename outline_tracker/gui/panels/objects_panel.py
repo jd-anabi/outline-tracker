@@ -30,15 +30,15 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QFormLayout, QHBoxL
                                QPushButton, QSizePolicy, QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout,
                                QWidget)
 
-from outline_tracker import tracking
+from outline_tracker.tracking import job as tracking
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.estimate import counted
 from outline_tracker.gui.prompts import BUSY_TEXT, LOADING_TEXT, Prompts, colour_of
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
-from outline_tracker.measure import MODES
-from outline_tracker.results import ResultsStore
-from outline_tracker.tracking_plan import pending_from
+from outline_tracker.measure.mask import MODES
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.tracking.plan import pending_from
 
 COLUMNS = ("Object", "Mode", "Window", "Start", "Status")
 NONE = "–"                 # a cell that has no value: the window of a coarse object, the start of one without clicks

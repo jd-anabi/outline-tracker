@@ -10,7 +10,7 @@ image's rightward direction (y up).
 import numpy as np
 import pytest
 
-from outline_tracker.synthetic_shapes import Arc, Disk, Ellipse, Shrimp, Straight
+from outline_tracker.synthetic.shapes import Arc, Disk, Ellipse, Shrimp, Straight
 
 CLOSEUP_SHRIMP = Shrimp(a_px=23.5, b_px=10.0, antenna_length_px=30.0, antenna_width_px=3.0, attach_px=14.0)
 

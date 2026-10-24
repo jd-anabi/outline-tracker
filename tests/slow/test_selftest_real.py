@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from outline_tracker.selftest import selftest
+from outline_tracker.workflows.selftest import selftest
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]
 

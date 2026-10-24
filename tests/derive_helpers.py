@@ -14,11 +14,11 @@ counterclockwise from +x.
 import analytic_shapes as shapes
 import numpy as np
 
-from outline_tracker.derive import derive_track
-from outline_tracker.geometry import WorldFrame
-from outline_tracker.measure import measure_mask
-from outline_tracker.results import ResultsStore
-from outline_tracker.session import Processing, Track
+from outline_tracker.measure.derive import derive_track
+from outline_tracker.core.geometry import WorldFrame
+from outline_tracker.measure.mask import measure_mask
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.session import Processing, Track
 
 FULL_HD = (0, 0, 1920, 1080)
 K = 0.0324    # mm per px, the dish view

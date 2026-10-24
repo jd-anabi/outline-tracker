@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QApplication
 from calibration_helpers import (LEFT, NO_KEY, RIGHT, SIX, click_at, lit, on_circle, opened, outside_points, place,
                                  restart, screen_point, wall)
 from gui_helpers import ClickRecorder, StandInSource, drawn, fit_of, picture
-from outline_tracker import geometry
+from outline_tracker.core import geometry
 
 SMALL = (320, 240)
 FIRST_END = "Stick: click the first end on the ruler."

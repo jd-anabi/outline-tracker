@@ -26,11 +26,11 @@ import numpy as np
 import pytest
 from tracking_helpers import Recorder, Watched, center, clicks_at, make_session, run, table_truth, track
 
-from outline_tracker.results import ResultsStore
-from outline_tracker.schema import RESULTS_KEYS, RESULTS_NPZ
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.schema import RESULTS_KEYS, RESULTS_NPZ
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Prompt
-from outline_tracker.tracking_edit import (
+from outline_tracker.core.session import Prompt
+from outline_tracker.tracking.edit import (
     add_object,
     add_prompt,
     end_track,

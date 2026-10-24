@@ -51,9 +51,9 @@ from tracking_helpers import (
     track,
 )
 
-from outline_tracker import export
+from outline_tracker.export import pipeline as export
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.tracking import end_track, new_piece, retrack_from
+from outline_tracker.tracking.job import end_track, new_piece, retrack_from
 
 GRID = list(range(0, 60, 2))        # shapes_scene: 60 frames, every 2nd
 DISH_GRID = list(range(0, 120, 2))  # the dish and close-up clips: 120 frames

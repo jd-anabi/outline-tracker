@@ -24,7 +24,7 @@ from helpers import normalized
 from layout_helpers import REPO, module
 from layout_helpers import path as table_path
 
-from outline_tracker import schema, tracker_io
+from outline_tracker.core import schema, tracker_io
 
 # SHA-256 of the UTF-8 bytes of readme_text(), computed with
 #   uv run python -c "import hashlib; from outline_tracker import schema; \
@@ -102,7 +102,7 @@ def test_readme_text_from_schema_docs_is_the_pinned_text(schema_docs):
 
 
 def test_schema_re_exports_readme_text(schema_docs):
-    from outline_tracker.schema import readme_text
+    from outline_tracker.core.schema import readme_text
 
     assert readme_text is schema_docs.readme_text
     assert schema.readme_text is schema_docs.readme_text
@@ -111,7 +111,7 @@ def test_schema_re_exports_readme_text(schema_docs):
 @pytest.mark.parametrize("name", PUBLIC_NAMES_OF_SCHEMA)
 def test_every_public_name_of_schema_is_still_importable(name):
     namespace: dict = {}
-    exec(f"from outline_tracker.schema import {name}", namespace)  # noqa: S102
+    exec(f"from outline_tracker.core.schema import {name}", namespace)  # noqa: S102
     assert namespace[name] is getattr(schema, name)
 
 
@@ -129,10 +129,10 @@ def test_the_two_modules_are_each_under_420_lines(schema_docs):
 @pytest.mark.parametrize(
     "imports",
     [
-        "import outline_tracker.schema",
-        "import outline_tracker.schema_docs",
-        "import outline_tracker.schema_docs, outline_tracker.schema",
-        "from outline_tracker.schema import readme_text",
+        "import outline_tracker.core.schema",
+        "import outline_tracker.core.schema_docs",
+        "import outline_tracker.core.schema_docs, outline_tracker.core.schema",
+        "from outline_tracker.core.schema import readme_text",
     ],
     ids=["schema", "schema_docs", "schema_docs and schema", "readme_text from schema"],
 )
@@ -145,8 +145,8 @@ def test_importing_either_module_loads_neither_pandas_torch_nor_qt(imports):
 @pytest.mark.parametrize(
     "imports",
     [
-        "import outline_tracker.schema_docs as d; import outline_tracker.schema as s",
-        "import outline_tracker.schema as s; import outline_tracker.schema_docs as d",
+        "import outline_tracker.core.schema_docs as d; import outline_tracker.core.schema as s",
+        "import outline_tracker.core.schema as s; import outline_tracker.core.schema_docs as d",
     ],
     ids=["schema_docs first", "schema first"],
 )

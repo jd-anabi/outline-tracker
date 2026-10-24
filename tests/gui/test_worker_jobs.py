@@ -30,13 +30,14 @@ import numpy as np
 from PySide6.QtCore import QTimer
 
 from gui_helpers import record_dialogs
-from outline_tracker import schema, tracking
+from outline_tracker.core import schema
+from outline_tracker.tracking import job as tracking
 from outline_tracker.gui import worker_jobs
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
-from outline_tracker.results import ResultsStore
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Session
+from outline_tracker.core.session import Session
 from prompt_helpers import Gate, gui_thread, this_thread
 from session_helpers import body
 from track_helpers import (NAME, Heard, Saying, Tracked, off_the_gui_thread, own_copy, ready_to_track, results_of,

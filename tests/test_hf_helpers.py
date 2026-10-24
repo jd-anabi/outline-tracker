@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 from layout_helpers import REPO
 
-from outline_tracker.measure import mask_center
+from outline_tracker.measure.mask import mask_center
 
 HEAVY_MODULES = ["PySide6", "pyqtgraph", "timm", "torch", "torchvision", "transformers"]
 

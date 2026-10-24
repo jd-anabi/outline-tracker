@@ -33,7 +33,8 @@ from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal  # noqa: F401 (s
 from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,  # noqa: F401
                                QSizePolicy, QSpinBox, QVBoxLayout, QWidget)
 
-from outline_tracker import schema, video
+from outline_tracker.core import schema
+from outline_tracker.video import reader as video
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.navigation import LARGEST_FRAME
 # The parts every panel shares have their own file; their names, and the names they needed, are passed on:

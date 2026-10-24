@@ -23,7 +23,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton,
                                QSpinBox, QVBoxLayout, QWidget)
 
-from outline_tracker.geometry import fps_from_stopwatch
+from outline_tracker.core.geometry import fps_from_stopwatch
 from outline_tracker.gui.navigation import LARGEST_FRAME, numeric_font
 from outline_tracker.gui.panels.video_panel import SPACING, Message
 

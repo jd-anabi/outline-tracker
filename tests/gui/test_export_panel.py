@@ -30,13 +30,13 @@ from export_panel_helpers import (END, FRAMES, WRITTEN, Clock, export_panel, exp
                                   listed, state, tracked, watch_export)
 from finish_helpers import menu_texts, record_every_dialog
 from gui_helpers import show
-from outline_tracker import schema
-from outline_tracker.cli_export import size_text
+from outline_tracker.core import schema
+from outline_tracker.cli.export import size_text
 from outline_tracker.gui.panels import export_panel as export_module
 from outline_tracker.gui.panels.export_panel import ExportPanel
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Session
+from outline_tracker.core.session import Session
 from prompt_helpers import Gate, gui_thread
 from session_helpers import body, read_json
 from track_helpers import NAME, Tracked, ready_to_track, run_log, run_to_end, track_panel

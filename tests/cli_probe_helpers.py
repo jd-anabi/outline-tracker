@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from outline_tracker import cli
+from outline_tracker.cli import main as cli
 
 COLUMNS = ["frame", "t_s", "probe", "r", "g", "b", "gray"]  # SPEC 8.7
 WEIGHTS = np.array([0.299, 0.587, 0.114])  # SPEC 4.6

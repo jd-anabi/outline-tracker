@@ -23,9 +23,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 
 import helpers
-from outline_tracker import schema, tracking
-from outline_tracker.measure import measure_mask
-from outline_tracker.results import ResultsStore
+from outline_tracker.core import schema
+from outline_tracker.tracking import job as tracking
+from outline_tracker.measure.mask import measure_mask
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import MaskResult
 from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import Gate

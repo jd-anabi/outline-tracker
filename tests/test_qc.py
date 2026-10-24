@@ -15,9 +15,9 @@ import pytest
 import qc_helpers as q
 from qc_helpers import CENTER, CLOSE, FULL_HD, TILT, WORLD
 
-from outline_tracker import qc
-from outline_tracker.geometry import WorldFrame
-from outline_tracker.measure import measure_mask
+from outline_tracker.measure import qc
+from outline_tracker.core.geometry import WorldFrame
+from outline_tracker.measure.mask import measure_mask
 
 USUAL = "LOWRES;ORIENT;HEADGUESS"   # a small square of pixels in the full frame, no head click
 

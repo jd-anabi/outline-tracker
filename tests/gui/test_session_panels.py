@@ -20,7 +20,7 @@ from PySide6.QtWidgets import QApplication, QLabel
 
 import helpers
 from gui_helpers import record_dialogs, show
-from outline_tracker import video
+from outline_tracker.video import reader as video
 from outline_tracker.gui.panels import time_panel, video_panel
 from prompt_helpers import Gate
 from session_helpers import FOLDER_OF_NAME, LEFT, NAME, body, settle, type_into, wait_for_check, write_manifest

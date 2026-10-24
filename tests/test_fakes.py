@@ -20,12 +20,13 @@ import pytest
 from helpers import SMALL, assert_empty_result, click, mask_in_image
 from layout_helpers import REPO
 
-from outline_tracker import synthetic, video
-from outline_tracker.measure import mask_center
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.video import reader as video
+from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt, PromptError
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
-from outline_tracker.synthetic import GroundTruth, Scene, SceneObject
-from outline_tracker.synthetic_shapes import Disk, Straight
+from outline_tracker.synthetic.clips import GroundTruth, Scene, SceneObject
+from outline_tracker.synthetic.shapes import Disk, Straight
 
 FRAME = (120, 90)  # (width, height) of the hand-made scene, px
 

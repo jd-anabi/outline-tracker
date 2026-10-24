@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from outline_tracker import schema
-from outline_tracker.run_folder import default_run_folder, folder_has_foreign_tables
+from outline_tracker.core import schema
+from outline_tracker.core.run_folder import default_run_folder, folder_has_foreign_tables
 
 VIDEO = Path("videos") / "day 1" / "groupB_2026-10-06_1325_main_tracker.mp4"
 STEM = "groupB_2026-10-06_1325_main_tracker"

@@ -26,7 +26,7 @@ from helpers import ODD_FOLDER
 from layout_helpers import REPO
 from tracking_helpers import DISH_BOX, box_truth
 
-from outline_tracker import cli
+from outline_tracker.cli import main as cli
 
 GRID = list(range(0, 120, 2))  # the dish clip has 120 frames; the sessions take every 2nd
 FILES = {"positions.csv", "shapes.csv", "radial.csv", "outlines.npz", "README.txt", "run.log",
@@ -94,7 +94,7 @@ def test_export_needs_a_session_file(capsys):
 def test_building_the_parser_loads_nothing_heavy():
     # cli.py imports cli_export for every command: numpy, OpenCV and the rest come only when `export` runs
     code = ("import sys\n"
-            "from outline_tracker import cli\n"
+            "from outline_tracker.cli import main as cli\n"
             "args = cli.build_parser().parse_args(['export', 'x.json', '--overlay'])\n"
             "print(args.session, args.overlay, sorted(m for m in sys.argv[1:] if m in sys.modules))\n")
     done = subprocess.run([sys.executable, "-c", code, *DEFERRED], cwd=REPO, capture_output=True, text=True,
@@ -109,7 +109,7 @@ def test_building_the_parser_loads_nothing_heavy():
     (1_234_567_890, "1.2 GB"), (12_000_000_000, "12.0 GB"),
 ])
 def test_sizes_are_printed_in_plain_units_with_one_decimal_from_kb_up(size, text):
-    from outline_tracker import cli_export
+    from outline_tracker.cli import export as cli_export
 
     assert cli_export.size_text(size) == text  # 1 kB = 1000 bytes, as a file manager shows it
 
@@ -174,7 +174,7 @@ def test_after_editing_the_stick_length_the_command_rescales_x_and_y_and_loads_n
     edit_session(run_folder, lambda data: data["calibration"]["stick"].update(length_mm=29.0))
     # in a process of its own: pytest-qt has already loaded PySide6 into this one
     code = ("import sys\n"
-            "from outline_tracker import cli\n"
+            "from outline_tracker.cli import main as cli\n"
             "status = cli.main(sys.argv[1:])\n"
             f"print('HEAVY', sorted(m for m in {HEAVY!r} if m in sys.modules))\n"
             "raise SystemExit(status)\n")

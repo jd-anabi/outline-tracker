@@ -45,7 +45,7 @@ from last_controls_helpers import (PACKAGE, choose, control_texts, let_run_end, 
                                    press_track, quickstart, record_confirm)
 from layout_helpers import REPO, below, module
 from layout_helpers import path as table_path
-from outline_tracker import schema
+from outline_tracker.core import schema
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake

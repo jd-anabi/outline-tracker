@@ -16,8 +16,11 @@ import pytest
 from export_helpers import MODEL, add_fine, coarse_run, load
 from helpers import VERSION
 
-from outline_tracker import cli, export, provenance, qc
-from outline_tracker.session import Correction, ProbeBox
+from outline_tracker.cli import main as cli
+from outline_tracker.export import pipeline as export
+from outline_tracker.core import provenance
+from outline_tracker.measure import qc
+from outline_tracker.core.session import Correction, ProbeBox
 
 VERSION_LINE = "outline-tracker 0.1.0 (commit abc1234)"
 SECTIONS = ["software:", "machine:", "libraries:", "device:", "model:", "video:", "time:", "calibration:", "runs:",

@@ -51,7 +51,7 @@ seen = {"event_loops": 0}
 
 def event_loop(*_):
     # In place of QApplication.exec: write down what `main` has built, close it, end with a code.
-    from outline_tracker import from_tracker
+    from outline_tracker.workflows import from_tracker
     from outline_tracker.gui import theme
     from outline_tracker.gui.main_window import MainWindow
 

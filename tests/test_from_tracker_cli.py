@@ -16,7 +16,8 @@ from from_tracker_helpers import FPS, Loaded, mirrored_map, one_disk, read_track
 from from_tracker_helpers import write_start_file
 from helpers import error_line
 
-from outline_tracker import cli, cli_from_tracker, from_tracker
+from outline_tracker.cli import main as cli, from_tracker as cli_from_tracker
+from outline_tracker.workflows import from_tracker
 
 OPTIONS = ("--fine", "--step", "--seconds", "--fps", "--out", "--student", "--model", "--device", "--no-overlay")
 

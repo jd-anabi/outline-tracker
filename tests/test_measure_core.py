@@ -14,7 +14,7 @@ from analytic_shapes import blocks
 
 # These tests were written next to the ported test of tests/test_measure.py, which calls the
 # module `segment` (the template's name), and were moved here unchanged: the name is kept.
-from outline_tracker import measure as segment
+from outline_tracker.measure import mask as segment
 
 FULL_HD = (0, 0, 1920, 1080)
 CENTERS = [(0.5, 0.5), (0.0, 0.0), (0.37, -0.19)]  # sub-pixel positions of a shape's center

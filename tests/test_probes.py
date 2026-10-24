@@ -16,7 +16,8 @@ import numpy as np
 import pytest
 from cli_probe_helpers import decode
 
-from outline_tracker import probes, schema, video
+from outline_tracker.video import probes, reader as video
+from outline_tracker.core import schema
 
 COLUMNS = ["frame", "t_s", "probe", "r", "g", "b", "gray"]  # SPEC 8.7
 WEIGHTS = np.array([0.299, 0.587, 0.114])  # SPEC 4.6

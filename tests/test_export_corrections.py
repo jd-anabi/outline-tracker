@@ -17,8 +17,8 @@ from export_helpers import K, MODEL, cells, coarse_run, load, table, world
 from overlay_helpers import record
 from tracking_helpers import table_truth
 
-from outline_tracker import export
-from outline_tracker.session import Correction, Prompt, Track
+from outline_tracker.export import pipeline as export
+from outline_tracker.core.session import Correction, Prompt, Track
 
 GRID = list(range(0, 120, 2))
 POSITION_COLUMNS = ["u_px", "v_px", "x_mm", "y_mm", "area_mm2", "visible"]

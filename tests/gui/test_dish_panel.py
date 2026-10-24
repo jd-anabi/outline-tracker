@@ -16,7 +16,7 @@ import pytest
 from PySide6.QtCore import Qt
 
 from calibration_helpers import SIX, body, on_circle, opened, place, restart, wall
-from outline_tracker import geometry
+from outline_tracker.core import geometry
 
 START_HINT = "Click Circle. Click 6 or more points on the inner wall of the dish, spread around it."
 NEEDS_THREE = "The circle needs 3 or more points. Click more points on the dish wall."

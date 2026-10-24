@@ -61,10 +61,10 @@ from PySide6.QtCore import QEvent, QObject, QThread, QTimer, Signal, Slot
 # The engine's names are passed on: what this module offered before the engine had its own file.
 from outline_tracker.gui.worker_engine import (REASON_LENGTH, STACK_BYTES, Preview, _Engine,  # noqa: F401
                                                _Request, log, plain, traced)
-from outline_tracker.measure import MODES, measure_mask
+from outline_tracker.measure.mask import MODES, measure_mask
 from outline_tracker.segmenter.base import ObjectPrompt
-from outline_tracker.session import Processing
-from outline_tracker.tracking_fine import fine_window
+from outline_tracker.core.session import Processing
+from outline_tracker.tracking.fine import fine_window
 
 NO_FACTORY = "This window was made without a model."
 TRACES_KEPT = 20  # `Worker.traces` holds this many, the newest; the log has every one
@@ -112,7 +112,7 @@ def before_load_for(factory) -> Callable[[], object] | None:
     """The step to take in the worker thread just before `factory` makes its segmenter: for the
     real model's factory (`from_tracker.load_segmenter`), `segmenter.hf.reserve_ui_thread`; for
     any other factory (a test's stand-in), None. Nothing is loaded by asking."""
-    from outline_tracker.from_tracker import load_segmenter
+    from outline_tracker.workflows.from_tracker import load_segmenter
 
     if factory is not load_segmenter:
         return None

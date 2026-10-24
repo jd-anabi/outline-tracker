@@ -28,11 +28,11 @@ from typing import TYPE_CHECKING
 import cv2
 import numpy as np
 
-from outline_tracker.measure import mask_center
+from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.base import MaskResult, ObjectPrompt, crop_to_bbox, points_in_image
 
 if TYPE_CHECKING:  # only for the annotation: importing the module here would load pandas and scikit-image
-    from outline_tracker.synthetic import GroundTruth
+    from outline_tracker.synthetic.clips import GroundTruth
 
 DARK_BELOW = 128  # a pixel is dark if its red value (0 to 255) is below this
 NEAR_PX = 20      # a dark group belongs to an object if its center is less than this far from it, px

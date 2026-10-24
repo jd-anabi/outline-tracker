@@ -15,12 +15,12 @@ import pytest
 from results_helpers import lost, measured, read_npz
 from tracking_helpers import center, clicks_at, make_session, track
 
-from outline_tracker.derive import derive_track
-from outline_tracker.qc import compute_flags
-from outline_tracker.results import ResultsStore
-from outline_tracker.schema import FLAG_SEPARATOR, FLAGS, RESULTS_NPZ, SESSION_JSON
-from outline_tracker.session import Clip, Prompt, Session, TimeSettings, Track, VideoRef
-from outline_tracker.tracking_edit import (
+from outline_tracker.measure.derive import derive_track
+from outline_tracker.measure.qc import compute_flags
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.schema import FLAG_SEPARATOR, FLAGS, RESULTS_NPZ, SESSION_JSON
+from outline_tracker.core.session import Clip, Prompt, Session, TimeSettings, Track, VideoRef
+from outline_tracker.tracking.edit import (
     TRACK_COLORS,
     add_object,
     add_prompt,
@@ -32,7 +32,7 @@ from outline_tracker.tracking_edit import (
     set_head,
     undo_prompt,
 )
-from outline_tracker.tracking_plan import plan_runs
+from outline_tracker.tracking.plan import plan_runs
 
 GRID = list(range(0, 120, 2))
 FPS = 240.0  # the synthetic clips' frame rate, and fps_true of the sessions here

@@ -15,7 +15,7 @@ import inspect
 
 import pytest
 
-from outline_tracker import tracking, tracking_edit
+from outline_tracker.tracking import job as tracking, edit as tracking_edit
 
 # "Produces" of task A17, in its order.
 PLAN_NAMES = ["retrack_from", "end_track", "new_piece", "next_track_id", "add_object", "remove_object", "add_prompt",

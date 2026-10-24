@@ -18,7 +18,7 @@ from helpers import normalized
 from layout_helpers import REPO
 from layout_helpers import path as table_path
 
-from outline_tracker import schema, tracker_io
+from outline_tracker.core import schema, tracker_io
 
 NAN = float("nan")
 
@@ -626,7 +626,7 @@ def test_readme_sections_in_order(readme):
 def test_importing_schema_loads_neither_torch_nor_qt():
     """In a subprocess: pytest-qt has already imported PySide6 into this one."""
     code = (
-        "import sys; import outline_tracker.schema; "
+        "import sys; import outline_tracker.core.schema; "
         "bad = sorted(m for m in ('torch', 'transformers', 'PySide6', 'pyqtgraph', 'pandas') if m in sys.modules); "
         "print(bad)"
     )

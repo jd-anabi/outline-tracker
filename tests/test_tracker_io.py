@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 from helpers import MM_PER_PX, H, W, export_text, java_sci, tracker_map
 
-from outline_tracker import tracker_io as segment
+from outline_tracker.core import tracker_io as segment
 
 
 def test_read_one_point_mass_named_after_the_file(tmp_path):

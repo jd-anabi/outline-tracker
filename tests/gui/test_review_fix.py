@@ -25,9 +25,10 @@ import numpy as np
 import pytest
 
 from export_helpers import table
-from outline_tracker import schema, tracking
-from outline_tracker.export import export_all
-from outline_tracker.fileio import new_name
+from outline_tracker.core import schema
+from outline_tracker.tracking import job as tracking
+from outline_tracker.export.pipeline import export_all
+from outline_tracker.core.fileio import new_name
 from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import Gate
 from review_helpers import (GRID, assert_tracks_identical, confirming, contact_frames, frames_with, hint, listed,

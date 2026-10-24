@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 from results_helpers import assert_holds, made_up, names, names_number, read_npz, two_tracks, write_npz
 
-from outline_tracker import results
-from outline_tracker.results import ResultsStore, ResultsVersionError
+from outline_tracker.measure import results
+from outline_tracker.measure.results import ResultsStore, ResultsVersionError
 
 
 # --------------------------------------------------------------------------- saving

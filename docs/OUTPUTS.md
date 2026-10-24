@@ -1,4 +1,4 @@
-<!-- Generated from outline_tracker/schema.py by "uv run python -m outline_tracker.schema_docs docs/OUTPUTS.md". Do not edit by hand. -->
+<!-- Generated from outline_tracker/core/schema.py by "uv run python -m outline_tracker.core.schema_docs docs/OUTPUTS.md". Do not edit by hand. -->
 
 # Outline Tracker: the files of a run
 

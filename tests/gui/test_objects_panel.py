@@ -13,9 +13,9 @@ around its center (SPEC 6.3). Nothing is read from a pixel of text.
 from PySide6.QtCore import Qt
 
 from gui_helpers import drawn
-from outline_tracker import tracking
-from outline_tracker.results import ResultsStore
-from outline_tracker.schema import RESULTS_NPZ
+from outline_tracker.tracking import job as tracking
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.schema import RESULTS_NPZ
 from prompt_helpers import clicked_object, objects_panel, panel_with, tracked_folder
 from tracking_helpers import center
 

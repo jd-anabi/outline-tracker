@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from helpers import MM_PER_PX, H, W, java_sci, tracker_map
 
-from outline_tracker.from_tracker import from_tracker
+from outline_tracker.workflows.from_tracker import from_tracker
 from outline_tracker.segmenter.fake import ThresholdFake
 
 FPS = 240.0  # what Tracker's t column of the exports made here stands for, frames per s

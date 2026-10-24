@@ -16,7 +16,7 @@ import pytest
 
 from finish_helpers import named, record_every_dialog
 from outline_tracker.gui import session_controller
-from outline_tracker.results import ResultsStore
+from outline_tracker.measure.results import ResultsStore
 from session_helpers import FOLDER_OF_NAME, body, read_json, type_into
 
 NOT_WRITTEN = "A file could not be written"

@@ -18,7 +18,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, QLabel, QMainWindow,
                                QPushButton, QScrollArea, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget)
 
-from outline_tracker.geometry import grid_frames
+from outline_tracker.core.geometry import grid_frames
 from outline_tracker.gui import dialogs, panels
 from outline_tracker.gui.menus import Menus
 from outline_tracker.gui.navigation import NavigationBar

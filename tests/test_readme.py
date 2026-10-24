@@ -36,11 +36,13 @@ import pytest
 from from_tracker_helpers import two_disks
 from layout_helpers import REPO
 
-from outline_tracker import __version__, cli, fileio, schema
-from outline_tracker.from_tracker import from_tracker
-from outline_tracker.provenance import tool_version
+from outline_tracker import __version__
+from outline_tracker.cli import main as cli
+from outline_tracker.core import fileio, schema
+from outline_tracker.workflows.from_tracker import from_tracker
+from outline_tracker.core.provenance import tool_version
 from outline_tracker.segmenter.fake import ThresholdFake
-from outline_tracker.selftest import selftest
+from outline_tracker.workflows.selftest import selftest
 
 README = REPO / "README.md"
 

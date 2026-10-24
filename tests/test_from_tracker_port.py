@@ -39,9 +39,9 @@ from from_tracker_helpers import FPS, disk_video, write_start_file
 from frozen_helpers import GOLDEN, SIDECAR, compare_with_golden, frozen_files, read_frozen, same_decoder
 from helpers import MM_PER_PX, export_text, java_sci, tracker_map
 
-from outline_tracker.from_tracker import _flags, from_tracker
+from outline_tracker.workflows.from_tracker import _flags, from_tracker
 from outline_tracker.segmenter.fake import ThresholdFake
-from outline_tracker.video import decoder_tag
+from outline_tracker.video.reader import decoder_tag
 
 
 def test_whole_run_with_a_stand_in_model(tmp_path):

@@ -26,8 +26,8 @@ import numpy as np
 import pytest
 from analytic_shapes import disk, ellipse, pixel_centers
 
-from outline_tracker.synthetic import GroundTruth, Scene, SceneObject
-from outline_tracker.synthetic_shapes import Disk, Ellipse, Straight
+from outline_tracker.synthetic.clips import GroundTruth, Scene, SceneObject
+from outline_tracker.synthetic.shapes import Disk, Ellipse, Straight
 
 RASTER = (120, 140)  # rows, columns of the raster of the second test, px: every case lies inside it
 # (center (u, v), radius), px; the centers are at sub-pixel offsets

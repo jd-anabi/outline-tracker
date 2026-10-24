@@ -16,7 +16,8 @@ from cli_probe_helpers import (COLUMNS, FPS, LED, LED_BOX, N, ONSET, UNKNOWN_FPS
 from helpers import error_line
 from layout_helpers import REPO
 
-from outline_tracker import cli, video
+from outline_tracker.cli import main as cli
+from outline_tracker.video import reader as video
 
 
 @pytest.fixture
@@ -333,7 +334,7 @@ def test_help_shows_both_forms_and_every_option(capsys):
 def test_probe_loads_neither_the_model_nor_qt(dish_clip, tmp_path):
     # in a fresh process, so that what this test session has already imported does not count
     code = ("import sys\n"
-            "from outline_tracker import cli\n"
+            "from outline_tracker.cli import main as cli\n"
             "status = cli.main(sys.argv[1:])\n"
             "print('HEAVY', sorted(m for m in ('torch', 'transformers', 'PySide6', 'pyqtgraph') if m in sys.modules))\n"
             "raise SystemExit(status)\n")

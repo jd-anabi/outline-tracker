@@ -38,7 +38,8 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QAbstractItemView, QApplication, QHeaderView, QTableView
 
-from outline_tracker import schema, tracking
+from outline_tracker.core import schema
+from outline_tracker.tracking import job as tracking
 from outline_tracker.gui import theme
 from outline_tracker.gui.worker import plain, traced, worker_of
 from outline_tracker.gui.worker_jobs import jobs_of

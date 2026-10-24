@@ -27,10 +27,10 @@ from PySide6.QtCore import QObject, Qt, QTimer
 import helpers
 import tracking_helpers
 from gui_helpers import show
-from outline_tracker.frame_source import FrameSource
+from outline_tracker.video.frame_source import FrameSource
 from outline_tracker.gui.prompts import Prompts
 from outline_tracker.gui.worker import Worker, before_load_for, worker_of
-from outline_tracker.measure import mask_center
+from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from prompt_helpers import Gate, Watched, clicked_object, gui_thread, logged, objects_panel, panel_with, this_thread
 from tracking_helpers import DISH_BOX, center, dish_circle
@@ -244,7 +244,7 @@ def test_a_window_without_a_factory_has_no_model_and_starts_no_thread(worker, qt
 
 
 def test_the_real_models_factory_gets_the_thread_limit_and_a_stand_in_gets_none():
-    from outline_tracker.from_tracker import load_segmenter
+    from outline_tracker.workflows.from_tracker import load_segmenter
     from outline_tracker.segmenter import hf
 
     assert before_load_for(load_segmenter) is hf.reserve_ui_thread

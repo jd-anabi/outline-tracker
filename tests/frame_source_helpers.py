@@ -12,7 +12,7 @@ RGB uint8 array [row, column, 3], and the expected one comes from the sequential
 import numpy as np
 from helpers import GAPS_BEFORE
 
-from outline_tracker import video
+from outline_tracker.video import reader as video
 
 CLIPS = ["disk_clip", "gapped_clip"]
 SKIPS = {"disk_clip": (), "gapped_clip": GAPS_BEFORE}

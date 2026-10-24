@@ -22,7 +22,7 @@ from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QLabel
 
 from outline_tracker.gui.navigation import MINUS, tabular_font
-from outline_tracker.probes import GRAY_WEIGHTS
+from outline_tracker.video.probes import GRAY_WEIGHTS
 
 NO_SCALE = "Position – (no scale)"
 NO_DEVICE = "–"

@@ -27,12 +27,12 @@ from tracking_helpers import (
     truth_in_box,
 )
 
-from outline_tracker import synthetic
-from outline_tracker.results import ResultsStore
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import MaskResult
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
-from outline_tracker.session import Session
-from outline_tracker.synthetic_shapes import Disk, Straight
+from outline_tracker.core.session import Session
+from outline_tracker.synthetic.shapes import Disk, Straight
 
 GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions here take every 2nd
 

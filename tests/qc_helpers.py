@@ -17,11 +17,11 @@ import analytic_shapes as shapes
 import derive_helpers as h
 import numpy as np
 
-from outline_tracker import qc
-from outline_tracker.derive import derive_track
-from outline_tracker.measure import measure_mask
-from outline_tracker.results import ResultsStore
-from outline_tracker.session import Processing, Track
+from outline_tracker.measure import qc
+from outline_tracker.measure.derive import derive_track
+from outline_tracker.measure.mask import measure_mask
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.session import Processing, Track
 
 FULL_HD = h.FULL_HD            # the whole frame as the model's input: grid cells of 7.5 px
 CLOSE = (572, 272, 256, 256)   # a model input of 256 px around CENTER: grid cells of 1 px

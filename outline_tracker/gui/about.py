@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import platform
 
-from outline_tracker import provenance
+from outline_tracker.core import provenance
 from outline_tracker.gui import dialogs
 from outline_tracker.segmenter.edgetam_convert import edgetam_cache
 

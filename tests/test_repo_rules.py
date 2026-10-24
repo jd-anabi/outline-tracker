@@ -640,7 +640,7 @@ def test_the_delay_scan_flags_each_kind():
         "",
         "from PySide6.QtCore import QTimer",
         "",
-        "from outline_tracker import fileio",
+        "from outline_tracker.core import fileio",
         "",
         "SAFETY_S = 30",
         "",

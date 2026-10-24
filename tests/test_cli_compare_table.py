@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 from cli_compare_helpers import B_START, FRAMES, SHIFT, folders, jump_on_136, path_px, write_track
 
-from outline_tracker import tracker_io
+from outline_tracker.core import tracker_io
 
 COLUMNS = ["track", "old_track", "n_common", "first", "last", "rms_px", "max_px", "at_frame",
            "new_first", "new_last", "old_first", "old_last"]

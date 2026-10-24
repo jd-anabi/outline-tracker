@@ -37,12 +37,12 @@ from tracking_helpers import (
     track,
 )
 
-from outline_tracker.derive import derive_track
-from outline_tracker.results import ResultsStore
-from outline_tracker.schema import RESULTS_KEYS, npz_key
+from outline_tracker.measure.derive import derive_track
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.schema import RESULTS_KEYS, npz_key
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Clip, Correction, Prompt, RunRecord, Session, Track, VideoRef
-from outline_tracker.tracking_edit import (
+from outline_tracker.core.session import Clip, Correction, Prompt, RunRecord, Session, Track, VideoRef
+from outline_tracker.tracking.edit import (
     add_object,
     add_prompt,
     end_track,
@@ -53,7 +53,7 @@ from outline_tracker.tracking_edit import (
     retrack_from,
     undo_prompt,
 )
-from outline_tracker.tracking_plan import plan_runs
+from outline_tracker.tracking.plan import plan_runs
 
 GRID = list(range(0, 120, 2))  # `dish_clip` has 120 frames; the sessions here take every 2nd
 K = 40                         # the frame of the re-track: row 20 of every track

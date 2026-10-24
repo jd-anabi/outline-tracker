@@ -28,10 +28,10 @@ import numpy as np
 from export_helpers import table
 from tracking_helpers import make_session
 
-from outline_tracker import schema
-from outline_tracker.export import export_all
-from outline_tracker.measure import mask_center
-from outline_tracker.tracking import Callbacks, Job, run_job
+from outline_tracker.core import schema
+from outline_tracker.export.pipeline import export_all
+from outline_tracker.measure.mask import mask_center
+from outline_tracker.tracking.job import Callbacks, Job, run_job
 
 STICK_PX = 1000.0  # length of the calibration stick of the sessions made here, px
 W, H = 1920, 1080  # the frame of the 1080p clips and scenes of the slow tests: width and height, px

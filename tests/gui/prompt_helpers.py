@@ -181,10 +181,10 @@ def tracked_folder(clip, folder, track_ids, step: int = 2):
     from contextlib import closing
 
     from helpers import click
-    from outline_tracker.measure import measure_mask
-    from outline_tracker.results import ResultsStore
-    from outline_tracker.schema import RESULTS_NPZ
-    from outline_tracker.video import iter_rgb_frames
+    from outline_tracker.measure.mask import measure_mask
+    from outline_tracker.measure.results import ResultsStore
+    from outline_tracker.core.schema import RESULTS_NPZ
+    from outline_tracker.video.reader import iter_rgb_frames
     from tracking_helpers import center
 
     width, height = clip.scene.size

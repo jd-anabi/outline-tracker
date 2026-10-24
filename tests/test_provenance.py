@@ -21,7 +21,8 @@ import pytest
 from helpers import VERSION
 from layout_helpers import REPO
 
-from outline_tracker import cli, provenance
+from outline_tracker.cli import main as cli
+from outline_tracker.core import provenance
 
 LINE = re.compile("outline-tracker " + re.escape(VERSION) + r" \(commit ([0-9a-f]{7,40}|unknown)\)")
 GIT_INSTALL = {"url": "https://github.com/jd-anabi/outline-tracker",

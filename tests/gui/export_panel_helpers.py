@@ -22,7 +22,8 @@ from pathlib import Path
 from calibration_helpers import on_circle, place
 from export_helpers import STICK, calibrate
 from gui_helpers import show
-from outline_tracker import export, schema
+from outline_tracker.export import pipeline as export
+from outline_tracker.core import schema
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.segmenter.fake import ExactFake
 from prompt_helpers import LEFT, NO_KEY, at, this_thread

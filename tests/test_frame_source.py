@@ -22,8 +22,8 @@ import pytest
 from frame_source_helpers import CLIPS, N, SKIPS, frames_to_test, same, shift_seeks
 from helpers import frame_times
 
-from outline_tracker import frame_source, video
-from outline_tracker.frame_source import FrameSource
+from outline_tracker.video import frame_source, reader as video
+from outline_tracker.video.frame_source import FrameSource
 
 SHAPE = (240, 320, 3)  # rows, columns, RGB
 
@@ -299,7 +299,7 @@ def test_check_seek_without_a_table_reports_no_gap_count(gapped_clip, monkeypatc
 
 
 def test_check_seek_tests_every_frame_of_a_clip_shorter_than_20(tmp_path):
-    from outline_tracker import synthetic
+    from outline_tracker.synthetic import clips as synthetic
 
     scene = synthetic.disk_scene(n_frames=12)
     truth = synthetic.render(scene, tmp_path / "short_tracker.mp4", crf=10)

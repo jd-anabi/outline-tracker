@@ -16,7 +16,7 @@ from pathlib import Path
 
 from export_helpers import coarse_run
 from gui_helpers import show
-from outline_tracker import schema
+from outline_tracker.core import schema
 from session_helpers import body, type_into
 from track_helpers import NAME
 

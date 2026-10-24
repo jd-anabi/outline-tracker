@@ -16,11 +16,11 @@ import numpy as np
 import pytest
 from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 
-from outline_tracker import derive, derive_outline
-from outline_tracker.derive_outline import hull_area_and_feret
-from outline_tracker.measure import measure_mask
-from outline_tracker.results import TrackArrays
-from outline_tracker.session import Circle
+from outline_tracker.measure import derive, outline as derive_outline
+from outline_tracker.measure.outline import hull_area_and_feret
+from outline_tracker.measure.mask import measure_mask
+from outline_tracker.measure.results import TrackArrays
+from outline_tracker.core.session import Circle
 
 DISH = Circle(center_px=[900.2, 520.7], radius_px=400.0)
 FLOATS = ("x_mm", "y_mm", "u_px", "v_px", "perimeter_mm", "major_mm", "minor_mm", "eccentricity", "theta_rad",

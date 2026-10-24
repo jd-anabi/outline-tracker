@@ -23,16 +23,16 @@ from PySide6.QtWidgets import QProgressBar, QPushButton
 
 from export_helpers import calibrate, table
 from gui_helpers import record_dialogs, show
-from outline_tracker import schema
-from outline_tracker.export import export_all
-from outline_tracker.fileio import new_name
+from outline_tracker.core import schema
+from outline_tracker.export.pipeline import export_all
+from outline_tracker.core.fileio import new_name
 from outline_tracker.gui import estimate
 from outline_tracker.gui.panels.track_panel import TrackPanel
-from outline_tracker import tracking
-from outline_tracker.results import ResultsStore
+from outline_tracker.tracking import job as tracking
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
-from outline_tracker.session import RunRecord
-from outline_tracker.tracking_plan import RunPlan
+from outline_tracker.core.session import RunRecord
+from outline_tracker.tracking.plan import RunPlan
 from prompt_helpers import Gate, panel_with
 from session_helpers import body
 from track_helpers import (NAME, Saying, Tracked, own_copy, ready_to_track, results_of, run_log, run_to_end,

@@ -38,13 +38,14 @@ from tracking_helpers import (
     track_at,
 )
 
-from outline_tracker import tracking, video
-from outline_tracker.results import ResultsStore
+from outline_tracker.tracking import job as tracking
+from outline_tracker.video import reader as video
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import MaskResult
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Circle, RunRecord, Session
-from outline_tracker.tracking import SessionChanges
-from outline_tracker.tracking_fine import crop_box, cut_crop, fine_window, fine_window_px
+from outline_tracker.core.session import Circle, RunRecord, Session
+from outline_tracker.tracking.job import SessionChanges
+from outline_tracker.tracking.fine import crop_box, cut_crop, fine_window, fine_window_px
 
 GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions here take every 2nd
 

@@ -25,7 +25,7 @@ import pandas as pd
 import pytest
 from helpers import java_sci
 
-from outline_tracker import tracker_io
+from outline_tracker.core import tracker_io
 
 N_RANDOM = 200
 FRAME_PX = (1920.0, 1080.0)  # the points of a map are drawn inside a frame of this size, px

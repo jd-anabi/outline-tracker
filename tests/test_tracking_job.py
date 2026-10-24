@@ -18,11 +18,12 @@ import pytest
 from helpers import SMALL
 from tracking_helpers import Recorder, Watched, dish_circle, make_session, run, table_truth, track
 
-from outline_tracker import synthetic, tracking
-from outline_tracker.results import ResultsStore
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.tracking import job as tracking
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Session
-from outline_tracker.tracking import Job, run_job
+from outline_tracker.core.session import Session
+from outline_tracker.tracking.job import Job, run_job
 
 GRID = list(range(0, 120, 2))  # `dish_clip` has 120 frames; the sessions here take every 2nd
 

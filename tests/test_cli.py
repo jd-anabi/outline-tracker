@@ -14,7 +14,8 @@ import numpy as np
 import pytest
 from layout_helpers import REPO
 
-from outline_tracker import cli, video
+from outline_tracker.cli import main as cli
+from outline_tracker.video import reader as video
 
 
 def _write_clip(path, n_frames, fps, size):
@@ -279,7 +280,7 @@ def test_check_seek_says_when_there_is_no_timestamp_table(good_clip, monkeypatch
 
 
 def test_check_seek_with_a_wrong_frame_exits_1_and_says_how_many(good_clip, monkeypatch, capsys):
-    from outline_tracker.frame_source import FrameSource
+    from outline_tracker.video.frame_source import FrameSource
 
     get = FrameSource.get
     monkeypatch.setattr(FrameSource, "get", lambda self, k: get(self, (k + 1) % 48))  # always the next frame

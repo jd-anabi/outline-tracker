@@ -14,9 +14,10 @@ import pytest
 
 import helpers
 from layout_helpers import REPO
-from outline_tracker import cli, cli_gui, launch
+from outline_tracker import launch
+from outline_tracker.cli import main as cli, gui as cli_gui
 from outline_tracker.gui import app
-from outline_tracker.provenance import tool_version
+from outline_tracker.core.provenance import tool_version
 
 HEAVY = {"PySide6", "pyqtgraph", "torch", "torchvision", "transformers", "timm"}
 

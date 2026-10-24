@@ -52,8 +52,10 @@ from frozen_helpers import (compare_with_the_frozen_positions, machine_here, mac
 from helpers import tracker_map
 from pipeline_helpers import position, write_three_ellipse_clip
 
-from outline_tracker import synthetic, tracker_io, video
-from outline_tracker.from_tracker import from_tracker
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.core import tracker_io
+from outline_tracker.video import reader as video
+from outline_tracker.workflows.from_tracker import from_tracker
 from outline_tracker.segmenter.base import ObjectPrompt
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]

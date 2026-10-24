@@ -29,10 +29,10 @@ from pathlib import Path
 import numpy as np
 from PySide6.QtCore import QEvent, QObject, Qt
 
-from outline_tracker.results import ResultsStore
-from outline_tracker.schema import RESULTS_NPZ
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.schema import RESULTS_NPZ
 from outline_tracker.segmenter.base import ObjectPrompt, PromptError, points_in_image
-from outline_tracker.tracking_plan import view_box
+from outline_tracker.tracking.plan import view_box
 
 NOT_THE_VIDEO = ("The picture shown is not a frame of the video as tracking reads it, so the click was not stored. "
                  "Go to another frame and back, then click again.")

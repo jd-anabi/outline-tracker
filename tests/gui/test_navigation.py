@@ -20,9 +20,9 @@ from PySide6.QtWidgets import QApplication
 
 import helpers
 from gui_helpers import StandInSource, picture, show, shown_pixels
-from outline_tracker import synthetic
-from outline_tracker.frame_source import FrameSource
-from outline_tracker.geometry import grid_frames
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.video.frame_source import FrameSource
+from outline_tracker.core.geometry import grid_frames
 from outline_tracker.gui.navigation import NavigationBar
 
 LEFT = Qt.MouseButton.LeftButton

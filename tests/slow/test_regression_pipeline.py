@@ -35,8 +35,8 @@ from from_tracker_helpers import write_start_file
 from helpers import tracker_map
 from pipeline_helpers import write_three_ellipse_clip
 
-from outline_tracker import synthetic
-from outline_tracker.from_tracker import from_tracker
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.workflows.from_tracker import from_tracker
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]
 

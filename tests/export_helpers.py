@@ -24,12 +24,12 @@ from overlay_helpers import make_run
 from scipy import ndimage
 from tracking_helpers import center, dish_circle, make_session, run, track
 
-from outline_tracker import schema
-from outline_tracker.measure import measure_mask
-from outline_tracker.results import ResultsStore
+from outline_tracker.core import schema
+from outline_tracker.measure.mask import measure_mask
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import ObjectPrompt
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import RunRecord, Session, Track
+from outline_tracker.core.session import RunRecord, Session, Track
 
 STICK = {"p1_px": [10.0, 20.0], "p2_px": [310.0, 20.0], "length_mm": 30.0}  # 300 px long
 K = 0.1                  # mm per px with that stick

@@ -46,8 +46,8 @@ import pytest
 from pipeline_helpers import calibrated_session, expect_minutes, track_and_export
 from tracking_helpers import track_at
 
-from outline_tracker import synthetic
-from outline_tracker.synthetic_shapes import Ellipse
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.synthetic.shapes import Ellipse
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]
 

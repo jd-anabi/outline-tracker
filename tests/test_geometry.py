@@ -18,9 +18,9 @@ import numpy as np
 import pytest
 from helpers import MM_PER_PX, tracker_map  # the template's map, verbatim (0.05 mm per px)
 
-from outline_tracker import geometry, tracker_io
-from outline_tracker.geometry import WorldFrame
-from outline_tracker.tracker_io import Calibration, fit_calibration
+from outline_tracker.core import geometry, tracker_io
+from outline_tracker.core.geometry import WorldFrame
+from outline_tracker.core.tracker_io import Calibration, fit_calibration
 
 COS30, SIN30 = math.cos(math.radians(30.0)), 0.5
 

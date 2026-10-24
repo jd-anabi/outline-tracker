@@ -21,10 +21,10 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton
 
 import helpers
 from gui_helpers import picture, record_dialogs, show
-from outline_tracker import video
+from outline_tracker.video import reader as video
 from outline_tracker.gui import dialogs
 from outline_tracker.gui.session_controller import SessionController
-from outline_tracker.session import Session
+from outline_tracker.core.session import Session
 
 LEFT = Qt.MouseButton.LeftButton
 NOT_OPENED = "The video could not be opened"

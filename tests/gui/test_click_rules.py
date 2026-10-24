@@ -20,8 +20,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from outline_tracker.gui.click_rules import ResultsOnDisk
-from outline_tracker.results import ResultsStore
-from outline_tracker.schema import RESULTS_NPZ
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.schema import RESULTS_NPZ
 from results_helpers import made_up
 
 

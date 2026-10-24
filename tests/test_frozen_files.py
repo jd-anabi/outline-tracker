@@ -48,7 +48,8 @@ from frozen_helpers import (COLUMNS, DATA, GOLDEN, POSITIONS, SIDECAR, SWITCH, W
                             same_machine, why_the_limit_was_not_asserted, write_frozen, write_listing)
 from helpers import HOME_PATH
 
-from outline_tracker import provenance, video
+from outline_tracker.core import provenance
+from outline_tracker.video import reader as video
 
 COMMAND = "OUTLINE_TRACKER_FREEZE=1 uv run pytest tests/test_frozen_files.py -q"  # made up, for the headers here
 NEEDED = ("made", "commit", "tool", "system", "machine", "libraries", "command")  # every header has these keys

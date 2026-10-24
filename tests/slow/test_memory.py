@@ -40,7 +40,7 @@ from layout_helpers import path as table_path
 from memory_child import NAMES, ten_ellipse_scene
 from pipeline_helpers import expect_minutes
 
-from outline_tracker import synthetic
+from outline_tracker.synthetic import clips as synthetic
 
 pytestmark = pytest.mark.slow
 

@@ -21,7 +21,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QDoubleSpinBox, QFrame, QHBoxLayout, QLabel, QPushButton, QStyle, QVBoxLayout,
                                QWidget)
 
-from outline_tracker import geometry
+from outline_tracker.core import geometry
 from outline_tracker.gui import theme
 from outline_tracker.gui.navigation import numeric_font
 from outline_tracker.gui.tools import StickTool, TapeTool, mm_per_px

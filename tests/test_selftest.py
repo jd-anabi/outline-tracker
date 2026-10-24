@@ -32,10 +32,11 @@ from from_tracker_helpers import Loaded, StopsAfter, read_track, session_json
 from helpers import error_line
 from layout_helpers import REPO
 
-from outline_tracker import cli, from_tracker
+from outline_tracker.cli import main as cli
+from outline_tracker.workflows import from_tracker
 from outline_tracker.segmenter.base import crop_to_bbox
 from outline_tracker.segmenter.fake import ThresholdFake
-from outline_tracker.selftest import selftest
+from outline_tracker.workflows.selftest import selftest
 
 RUN_FOLDER = "selftest_tracker_outline_selftest"  # SPEC 8.1: <video stem>_outline_<student>, next to the clip
 CLIP_FILES = ["selftest_tracker.mp4", "selftest.csv"]  # the clip and its Tracker export, as last week
@@ -293,7 +294,7 @@ def test_a_wrong_option_is_a_usage_error(wrong, capsys):
 def test_building_the_parser_loads_nothing_heavy():
     # cli.py imports cli_selftest for every command: numpy, OpenCV and the rest come only when `selftest` runs
     code = ("import sys\n"
-            "from outline_tracker import cli\n"
+            "from outline_tracker.cli import main as cli\n"
             "args = cli.build_parser().parse_args(['selftest', '--device', 'cpu'])\n"
             "print(args.model, args.device, sorted(m for m in sys.argv[1:] if m in sys.modules))\n")
     done = subprocess.run([sys.executable, "-c", code, *DEFERRED], cwd=REPO, capture_output=True, text=True,

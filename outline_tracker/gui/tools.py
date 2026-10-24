@@ -31,9 +31,9 @@ import math
 
 from PySide6.QtCore import QObject
 
-from outline_tracker import geometry
+from outline_tracker.core import geometry
 from outline_tracker.gui.tool_items import PointTool
-from outline_tracker.session import Circle
+from outline_tracker.core.session import Circle
 
 STICK_MM, TAPE_MM = 30.0, 20.0  # the lengths a new session starts with (the course's ruler, SPEC 8.10)
 AXIS_FRACTION = 0.15            # an axis arrow's length, as a part of the frame's shorter side

@@ -16,7 +16,7 @@ from cli_compare_helpers import (B_START, FRAMES, OK_AT_0_3, SHIFT, cells, compa
                                  no_ok, path_px, printed, write_track)
 from layout_helpers import REPO
 
-from outline_tracker import cli
+from outline_tracker.cli import main as cli
 
 HEADER = ["track", "old_track", "common", "first", "last", "rms_px", "max_px", "at_frame"]
 
@@ -281,7 +281,7 @@ def test_compare_tracks_loads_neither_the_model_nor_qt(tmp_path):
     write_track(new, "A", FRAMES, *path_px(FRAMES), shift=SHIFT)
     write_track(old, "A", FRAMES, *path_px(FRAMES))
     code = ("import sys\n"
-            "from outline_tracker import cli\n"
+            "from outline_tracker.cli import main as cli\n"
             "status = cli.main(sys.argv[1:])\n"
             "print('HEAVY', sorted(m for m in ('torch', 'transformers', 'PySide6', 'pyqtgraph') if m in sys.modules))\n"
             "raise SystemExit(status)\n")

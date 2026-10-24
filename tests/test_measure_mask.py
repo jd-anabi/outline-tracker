@@ -16,11 +16,11 @@ import analytic_shapes as shapes
 import numpy as np
 import pytest
 
-from outline_tracker import schema
+from outline_tracker.core import schema
 
 # These tests were written next to the ported test of tests/test_measure.py, which calls the
 # module `segment` (the template's name), and were moved here unchanged: the name is kept.
-from outline_tracker import measure as segment
+from outline_tracker.measure import mask as segment
 
 FULL_HD = (0, 0, 1920, 1080)
 DISH_CROP = (100, 50, 300, 200)  # columns 100..399 and rows 50..249 of the full frame

@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 from helpers import assert_empty_result, click, mask_in_image
 
-from outline_tracker.measure import mask_center
+from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
 from outline_tracker.segmenter.fake import ThresholdFake
 

@@ -15,12 +15,12 @@ from dataclasses import replace
 import pytest
 from tracking_helpers import Recorder, Watched, make_session, run, track
 
-from outline_tracker import video
-from outline_tracker.frame_source import FrameSource
-from outline_tracker.results import ResultsStore
+from outline_tracker.video import reader as video
+from outline_tracker.video.frame_source import FrameSource
+from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.session import Prompt, Session, Track
-from outline_tracker.tracking import FrameHashMismatch, FrameHashUpdate, Job, run_job
+from outline_tracker.core.session import Prompt, Session, Track
+from outline_tracker.tracking.job import FrameHashMismatch, FrameHashUpdate, Job, run_job
 
 OTHER_DECODER = "opencv-4.10.0/win32/AMD64"  # the tag of a computer this test does not run on
 

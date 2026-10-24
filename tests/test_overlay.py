@@ -20,11 +20,13 @@ from overlay_helpers import (FPS_TRUE, RGB, Drawn, decoded_frames, ffmpeg_report
                              lost_record, make_run, marks, near, record, scaled)
 from results_helpers import names, names_number
 
-from outline_tracker import fileio, synthetic, video
-from outline_tracker.overlay import OverlayItem, draw_overlay_frame, write_overlay
-from outline_tracker.results import ResultsStore
-from outline_tracker.session import Session
-from outline_tracker.synthetic import GroundTruth
+from outline_tracker.core import fileio
+from outline_tracker.synthetic import clips as synthetic
+from outline_tracker.video import reader as video
+from outline_tracker.export.overlay import OverlayItem, draw_overlay_frame, write_overlay
+from outline_tracker.measure.results import ResultsStore
+from outline_tracker.core.session import Session
+from outline_tracker.synthetic.clips import GroundTruth
 
 # The scenes of the session's clips (tests/conftest.py), for the tests that need no video file.
 DISH = GroundTruth(synthetic.dish_scene(size=SMALL, n_frames=120))  # 320 x 240 px: the overlay is 3 times larger
