@@ -6,9 +6,10 @@ docs/ROADMAP.md. `RANK` is its table, from the bottom up:
 - a module may import a module of its own subpackage, or of a subpackage of lower rank; two subpackages of
   the same rank do not import each other;
 - `outline_tracker/__init__.py` (the version) may be imported by every module and imports nothing;
-- inside gui/, a module of gui/panels/ imports no other module of gui/panels/, and a module of gui/ outside
-  gui/panels/ imports no module of gui/panels/. The package `gui.panels` itself (`PANEL_MODULES`,
-  `build_bodies`) may be imported by any of them.
+- inside gui/, a panel (a module of gui/panels/ that `PANEL_MODULES` of its `__init__.py` names) imports no
+  other panel, and no module that is not a panel imports a panel. A module of gui/panels/ that is not a
+  panel (a part of one panel, its table or its dialog) may be imported by a panel. The package `gui.panels`
+  itself (`PANEL_MODULES`, `build_bodies`) may be imported by any module, and may import a panel.
 
 Every import counts, at the top of a file and inside a function: `import a.b`, `from a.b import c` (where c may
 be a module) and `import_module("a.b")` with a literal name (`imports` of tests/support/import_helpers.py).
@@ -93,17 +94,30 @@ def _imported_modules(tree: ast.AST, names: set[str]):
                 yield line, ".".join(parts)
 
 
-def _is_panel(parts: list[str]) -> bool:
-    """Whether the module (its parts below the package) is a module of gui/panels/, not the package itself."""
-    return parts[:2] == ["gui", "panels"] and len(parts) > 2
+def _panel_names(package: Path) -> set[str]:
+    """The names of the panels' modules: the values of `PANEL_MODULES` in gui/panels/__init__.py of the package
+    in the folder `package` (a literal dict there), or none when the file or the name is missing."""
+    init = package / "gui" / "panels" / "__init__.py"
+    if not init.is_file():
+        return set()
+    for node in ast.parse(init.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "PANEL_MODULES" for t in node.targets):
+            return set(ast.literal_eval(node.value).values())
+    return set()
+
+
+def _is_panel(parts: list[str], panels: set[str]) -> bool:
+    """Whether the module (its parts below the package) is a panel: a module of gui/panels/ named in `panels`."""
+    return parts[:2] == ["gui", "panels"] and len(parts) == 3 and parts[2] in panels
 
 
 def _rank(parts: list[str]) -> int:
     return RANK[parts[0]] if parts else ROOT_RANK
 
 
-def _why_not(importer: str, imported: str) -> str | None:
-    """Why the module `importer` may not import the module `imported`, or None if it may."""
+def _why_not(importer: str, imported: str, panels: set[str]) -> str | None:
+    """Why the module `importer` may not import the module `imported`, or None if it may; `panels` are the
+    names of the panels' modules."""
     mine, theirs = importer.split(".")[1:], imported.split(".")[1:]  # the parts below the package
     if not theirs:
         return None  # the version
@@ -114,24 +128,24 @@ def _why_not(importer: str, imported: str) -> str | None:
         if _rank(theirs) == _rank(mine):
             return f"{mine_name} and {their_name} have the same rank ({_rank(mine)})"
         return None
-    if _is_panel(theirs) and mine != theirs:
-        if _is_panel(mine):
+    if _is_panel(theirs, panels) and mine != theirs:
+        if _is_panel(mine, panels):
             return "a panel imports another panel"
-        if mine[:2] != ["gui", "panels"]:
-            return "a module of gui/ outside gui/panels/ imports a panel"
+        if mine != ["gui", "panels"]:
+            return "a module that is not a panel imports a panel"
     return None
 
 
 def _breaks(package: Path) -> dict[tuple[str, str], str]:
     """{(importing module, imported module): "file:line: why"} for every import in the package in the folder
     `package` that goes against the rule; the first line, if a file imports the module more than once."""
-    names = _module_names(package)
+    names, panels = _module_names(package), _panel_names(package)
     found = {}
     for path in sorted(package.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         importer = _name_of(path, package)
         for line, imported in sorted(_imported_modules(tree, names)):
-            why = _why_not(importer, imported)
+            why = _why_not(importer, imported, panels)
             if why:
                 found.setdefault((importer, imported),
                                  f"{path.relative_to(package.parent).as_posix()}:{line}: {why}")
@@ -152,6 +166,7 @@ def _breaks_of_the_real_package() -> dict[tuple[str, str], str]:
     # Without these the scan could look at an empty folder and pass.
     names = _module_names(PACKAGE)
     assert {PACKAGE_NAME, module("command line"), module("window package"), module("export panel")} <= names
+    assert module("export panel").rsplit(".", 1)[1] in _panel_names(PACKAGE)  # the panels are read
     return _breaks(PACKAGE)
 
 
@@ -256,7 +271,8 @@ def test_the_scan_finds_each_kind_of_import_against_the_rule(tmp_path):
         "workflows/__init__.py": "",
         "tracking/__init__.py": "",
         "gui/__init__.py": "",
-        "gui/panels/__init__.py": "",
+        "gui/panels/__init__.py": ("PANEL_MODULES = {2: 'time_panel', 3: 'calibration_panel', 4: 'dish_panel',"
+                                   " 7: 'track_panel', 8: 'review_panel'}\n"),
         "cli/__init__.py": "",
         "video/reader.py": "",
         "segmenter/base.py": "",
@@ -279,8 +295,9 @@ def test_the_scan_finds_each_kind_of_import_against_the_rule(tmp_path):
         # a panel imports a panel: by `from package import module`, and by the module's name
         "gui/panels/track_panel.py": "from outline_tracker.gui.panels import calibration_panel\n",
         "gui/panels/review_panel.py": "from outline_tracker.gui.panels.dish_panel import DISH\nimport os\n",
-        # a view module imports a panel
+        # a view module imports a panel, and so does a module of gui/panels/ that is not a panel
         "gui/overlays.py": "from outline_tracker.gui.panels.time_panel import settings\n",
+        "gui/panels/review_table.py": "from outline_tracker.gui.panels.review_panel import ROW\n",
     })
     assert _breaks(package) == {
         ("outline_tracker.core.schema", "outline_tracker.video.reader"):
@@ -298,7 +315,9 @@ def test_the_scan_finds_each_kind_of_import_against_the_rule(tmp_path):
         ("outline_tracker.gui.panels.review_panel", "outline_tracker.gui.panels.dish_panel"):
             "outline_tracker/gui/panels/review_panel.py:1: a panel imports another panel",
         ("outline_tracker.gui.overlays", "outline_tracker.gui.panels.time_panel"):
-            "outline_tracker/gui/overlays.py:1: a module of gui/ outside gui/panels/ imports a panel",
+            "outline_tracker/gui/overlays.py:1: a module that is not a panel imports a panel",
+        ("outline_tracker.gui.panels.review_table", "outline_tracker.gui.panels.review_panel"):
+            "outline_tracker/gui/panels/review_table.py:1: a module that is not a panel imports a panel",
     }
 
 
@@ -324,7 +343,11 @@ def test_the_scan_leaves_the_allowed_imports_alone(tmp_path):
                                       "    return pipeline\n"),
         "gui/__init__.py": "",
         "gui/theme.py": "",
-        "gui/panels/__init__.py": "",
+        "gui/panels/__init__.py": "PANEL_MODULES = {7: 'track_panel', 8: 'review_panel'}\n",
+        # a panel imports a part of its own that lies in gui/panels/ and is not a panel
+        "gui/panels/review_table.py": "",
+        "gui/panels/review_panel.py": ("from outline_tracker.gui.panels import review_table\n"
+                                       "from outline_tracker.gui.panels.review_table import Table\n"),
         "gui/panels/track_panel.py": ("from outline_tracker.gui.panels import PANEL_MODULES, build_bodies\n"
                                       "from outline_tracker.gui import theme\nimport outline_tracker.core.schema\n"),
         "gui/main_window.py": ("import outline_tracker.gui.panels\n"
