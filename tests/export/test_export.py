@@ -21,7 +21,7 @@ from overlay_helpers import lost_record, record
 from tracking_helpers import DISH_BOX, box_truth
 
 from outline_tracker.export import pipeline as export
-from outline_tracker.core import schema, schema_docs
+from outline_tracker.core import csv_format, schema, schema_docs
 
 GRID = list(range(0, 120, 2))  # the dish clip has 120 frames; the sessions take every 2nd
 MEASURED = {  # the columns that hold a measured number: an empty cell on a lost row
@@ -54,7 +54,7 @@ def test_a_coarse_only_run_gets_every_file_with_empty_shape_files(run_folder):
     assert written == {"positions.csv", "shapes.csv", "radial.csv", "outlines.npz", "README.txt", "run.log",
                        "edgetam/A.csv", "edgetam/B.csv", "edgetam/C.csv"}
     # no fine track: the header alone, and `meta` alone (decision X12)
-    assert (run_folder / "radial.csv").read_bytes() == (schema.header_line(schema.RADIAL) + "\n").encode()
+    assert (run_folder / "radial.csv").read_bytes() == (csv_format.header_line(schema.RADIAL) + "\n").encode()
     with np.load(run_folder / "outlines.npz") as outlines:
         assert outlines.files == ["meta"]
         meta = json.loads(str(outlines["meta"]))

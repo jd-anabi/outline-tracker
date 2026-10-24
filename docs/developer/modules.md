@@ -20,6 +20,7 @@ The base of the tool: schema, safe file writes, run facts, geometry, calibration
 | module | what it holds |
 |---|---|
 | `core/__init__.py` | The base of the tool: schema, safe file writes, run facts, geometry, calibration, session and run folder. |
+| `core/csv_format.py` | Write the rows of a table as CSV text: the header line, one line for a row, a whole file (SPEC 8, X11). |
 | `core/fileio.py` | Atomic file writes with the Windows lock retry, the hash that identifies a video, and relative paths. |
 | `core/geometry.py` | Image <-> world transform, calibration stick, tape check, stopwatch, circle fit, frame grid, manifest. |
 | `core/provenance.py` | Which tool wrote a file, and on what machine: the version line and the facts of run.log (SPEC 8.9). |

@@ -32,7 +32,6 @@ SCANNED = (PACKAGE_NAME, "tests")
 # that splits its file (the second test below fails until it does).
 OVER_400: dict[str, str] = {
     # 6a: the package
-    "outline_tracker/core/schema.py": "6a",
     "outline_tracker/core/schema_docs.py": "6a",
     # 6b: the tests of core/ and segmenter/
     "tests/core/test_fileio.py": "6b",

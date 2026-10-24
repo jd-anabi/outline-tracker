@@ -102,7 +102,7 @@ def run(args: argparse.Namespace) -> int:
     is written, when something is missing or wrong (no rectangle, unknown fps_true, no output folder, a
     folder of Tracker files, a rectangle outside the frame, no frame to read, a video that is not there).
     """
-    from outline_tracker.core import fileio, schema  # here: they load pandas and OpenCV
+    from outline_tracker.core import csv_format, fileio, schema  # here: they load pandas and OpenCV
     from outline_tracker.video import probes
 
     job = _session_job(args) if Path(args.source).suffix.lower() == ".json" else _video_job(args)
@@ -118,7 +118,7 @@ def run(args: argparse.Namespace) -> int:
     for note in notes:
         print(f"NOTE: {note}")
 
-    text = schema.csv_text(schema.PROBES, table.to_dict("records"))
+    text = csv_format.csv_text(schema.PROBES, table.to_dict("records"))
     written = fileio.atomic_write(job.out / schema.PROBES_CSV,
                                   lambda tmp: tmp.write_bytes(text.encode(schema.CSV_ENCODING)))
     n_frames = len(table) // len(job.boxes)

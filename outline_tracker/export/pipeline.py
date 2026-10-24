@@ -44,7 +44,7 @@ from pathlib import Path
 import numpy as np
 
 from outline_tracker.export import log as export_log, tables as export_tables
-from outline_tracker.core import provenance, schema, schema_docs
+from outline_tracker.core import csv_format, provenance, schema, schema_docs
 from outline_tracker.measure.derive import DerivedTrack, derive_track
 from outline_tracker.core.fileio import append_block, atomic_write, new_name
 from outline_tracker.export.overlay import write_overlay
@@ -228,15 +228,15 @@ def export_all(run_folder, overlay: bool = False, log: Callable[[str], object] =
                  f"frame{'' if len(missing) == 1 else 's'} of the clip between its first and its last (the first is "
                  f"frame {int(missing[0])}): {schema.POSITIONS_CSV} and {schema.SHAPES_CSV} show them as lost, and "
                  "the other files have no row for them. Re-track from that frame to fill them.")
-    write_text(schema.POSITIONS_CSV, schema.csv_text(
+    write_text(schema.POSITIONS_CSV, csv_format.csv_text(
         schema.POSITIONS, export_tables.table_rows(schema.POSITIONS, data.rows, data.row_flags)))
     tracker_files, tracker_warnings = export_tables.write_tracker_folder(model_folder, data.derived, names, log)
     files += tracker_files
     for text in tracker_warnings:
         warn(text)
-    write_text(schema.SHAPES_CSV, schema.csv_text(
+    write_text(schema.SHAPES_CSV, csv_format.csv_text(
         schema.SHAPES, export_tables.table_rows(schema.SHAPES, data.rows, data.row_flags)))
-    write_text(schema.RADIAL_CSV, schema.csv_text(
+    write_text(schema.RADIAL_CSV, csv_format.csv_text(
         schema.RADIAL, export_tables.radial_rows(data.derived, data.shape_tracks)))
     outlines = export_tables.outline_arrays(data.derived, data.shape_tracks, session.processing.outline_points,
                                             provenance.tool_version())

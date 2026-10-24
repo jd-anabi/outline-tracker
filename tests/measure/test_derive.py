@@ -16,7 +16,7 @@ import pytest
 from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 
 from outline_tracker.measure import derive
-from outline_tracker.core import schema
+from outline_tracker.core import csv_format, schema
 from outline_tracker.core.session import Circle
 
 ALPHA = np.radians(25.0)   # the axis angle of TILTED
@@ -45,7 +45,7 @@ def test_every_csv_column_is_a_column_of_the_derived_track():
     for columns in (schema.POSITIONS, schema.SHAPES):
         for row in range(2):
             values = {c.name: getattr(track, c.name)[row] for c in columns if c.name not in ("track_id", "flags")}
-            line = schema.format_row(columns, {**values, "track_id": track.track_id, "flags": ""})
+            line = csv_format.format_row(columns, {**values, "track_id": track.track_id, "flags": ""})
             assert line.startswith(f"A,{2 * row},")
     assert track.radial_mm.shape == (2, len(schema.RADIAL) - 3)
     assert track.outline_xy_mm.shape == track.outline_xieta_mm.shape == (2, schema.OUTLINE_POINTS, 2)

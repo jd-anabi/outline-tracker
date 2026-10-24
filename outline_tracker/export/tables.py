@@ -124,7 +124,7 @@ def fill_gaps(derived: DerivedTrack, cells: Sequence[str], grid_start: int, grid
 def table_rows(columns: Sequence[schema.Column], derived_by_track: Mapping[str, DerivedTrack],
                flags_by_track: Mapping[str, Sequence[str]]) -> Iterator[list[object]]:
     """The rows of positions.csv or shapes.csv (`columns` = `schema.POSITIONS` or `schema.SHAPES`),
-    each a list in column order for `schema.csv_text`.
+    each a list in column order for `csv_format.csv_text`.
 
     derived_by_track: the tracks in the order of the file, in world units (mm, y up; s; rad; px in
     image coordinates), without a gap (`fill_gaps`). flags_by_track: each track's `flags` cells,

@@ -24,7 +24,7 @@ from helpers import normalized
 from layout_helpers import REPO, module
 from layout_helpers import path as table_path
 
-from outline_tracker.core import schema, tracker_io
+from outline_tracker.core import csv_format, schema, tracker_io
 
 # SHA-256 of the UTF-8 bytes of readme_text(), computed with
 #   uv run python -c "import hashlib; from outline_tracker import schema; \
@@ -59,17 +59,22 @@ from outline_tracker.core import schema, tracker_io
 # now has 14877 characters and 262 lines.
 README_SHA256 = "20ec79686c3b77a80a5966f7d1e929274861aaf07c3956d8d88a8a5435ce7c73"
 
-# Every public name that core/schema.py had before the move (dir() of the unmodified module, without the
-# imported helpers). Other modules import these by name, so each must still be importable.
+# Every public name that core/schema.py had before the move of the builders (dir() of the unmodified module,
+# without the imported helpers), except the three that left it later (NAMES_THAT_LEFT_SCHEMA). Other modules
+# import these by name, so each must still be importable.
 PUBLIC_NAMES_OF_SCHEMA = [
     "ArrayKey", "CSV_ENCODING", "CSV_NEWLINE", "Column", "FILES", "FLAGS", "FLAG_INFO", "FLAG_SEPARATOR",
     "FileSpec", "FlagInfo", "OUTLINES_KEYS", "OUTLINES_META_FIELDS", "OUTLINES_META_KEY", "OUTLINES_NPZ",
     "OUTLINE_POINTS", "OVERLAY_MP4", "POSITIONS", "POSITIONS_CSV", "POSITION_FLAGS", "PROBES", "PROBES_CSV",
     "RADIAL", "RADIAL_ANGLES", "RADIAL_CSV", "RADIAL_STEP_DEG", "README_TXT", "RESULTS_KEYS", "RESULTS_NPZ",
     "RESULTS_VERSION", "RESULTS_VERSION_KEY", "RUN_LOG", "SESSION_JSON", "SESSION_SCHEMA_VERSION", "SHAPES",
-    "SHAPES_CSV", "SHAPE_FLAGS", "STORED_OUTLINE_POINTS", "TRACKER_COLUMNS", "TRACKER_FILE", "csv_text",
-    "format_row", "header_line", "join_flags", "npz_key", "readme_text", "split_npz_key",
+    "SHAPES_CSV", "SHAPE_FLAGS", "STORED_OUTLINE_POINTS", "TRACKER_COLUMNS", "TRACKER_FILE", "join_flags",
+    "npz_key", "readme_text", "split_npz_key",
 ]
+
+# The names that left core/schema.py in W2 step 6 (docs/ROADMAP.md), each with the module it went to. They are
+# imported from there; schema does not hand them out any more, so that no import is kept working by a front.
+NAMES_THAT_LEFT_SCHEMA = {"csv_text": "csv_format", "format_row": "csv_format", "header_line": "csv_format"}
 
 LIGHT_CHECK = (
     "import sys; {imports}; "
@@ -113,6 +118,14 @@ def test_every_public_name_of_schema_is_still_importable(name):
     namespace: dict = {}
     exec(f"from outline_tracker.core.schema import {name}", namespace)  # noqa: S102
     assert namespace[name] is getattr(schema, name)
+
+
+@pytest.mark.parametrize("name", NAMES_THAT_LEFT_SCHEMA)
+def test_a_name_that_left_schema_is_importable_from_its_new_module_only(name):
+    namespace: dict = {}
+    exec(f"from outline_tracker.core.{NAMES_THAT_LEFT_SCHEMA[name]} import {name}", namespace)  # noqa: S102
+    assert callable(namespace[name])
+    assert not hasattr(schema, name)
 
 
 def test_schema_has_no_name_that_does_not_exist():
@@ -202,7 +215,7 @@ def test_the_readme_says_that_a_lost_row_keeps_frame_and_t_s(readme):
     rows = convention(readme, "Rows")
     kept_somewhere = set()
     for columns in (schema.POSITIONS, schema.SHAPES):
-        cells = dict(zip((c.name for c in columns), schema.format_row(columns, lost_row(columns)).split(",")))
+        cells = dict(zip((c.name for c in columns), csv_format.format_row(columns, lost_row(columns)).split(",")))
         kept = [c.name for c in columns if c.dtype in ("int", "float") and cells[c.name] != ""]
         assert {"frame", "t_s"} <= set(kept)  # SPEC 8.2: a lost frame keeps its row
         for name in kept:
@@ -538,7 +551,7 @@ def test_the_reading_recipe_runs(outputs, tmp_path, monkeypatch):
     row = dict(track_id="A", frame=0, t_s=0.0, x_mm=1.0, y_mm=2.0, u_px=3.5, v_px=4.5, area_mm2=0.5, visible=1,
                mode="coarse", flags="")
     rows = [row, dict(row, frame=2, flags="JUMP;SIZE"), dict(row, frame=4, flags="LOWRES")]
-    (tmp_path / "positions.csv").write_text(schema.csv_text(schema.POSITIONS, rows), encoding="utf-8")
+    (tmp_path / "positions.csv").write_text(csv_format.csv_text(schema.POSITIONS, rows), encoding="utf-8")
     meta = json.dumps({"n_points": 128, "tracks": ["A"]})
     np.savez(tmp_path / "outlines.npz", A__xy_mm=np.zeros((3, 128, 2), np.float32), meta=np.array(meta))
     monkeypatch.chdir(tmp_path)

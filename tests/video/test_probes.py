@@ -17,7 +17,7 @@ import pytest
 from cli_probe_helpers import decode
 
 from outline_tracker.video import probes, reader as video
-from outline_tracker.core import schema
+from outline_tracker.core import csv_format, schema
 
 COLUMNS = ["frame", "t_s", "probe", "r", "g", "b", "gray"]  # SPEC 8.7
 WEIGHTS = np.array([0.299, 0.587, 0.114])  # SPEC 4.6
@@ -176,7 +176,7 @@ def test_table_has_the_schemas_columns_and_every_frame_from_start_to_end(dish_cl
     assert [table[name].dtype for name in ("t_s", "r", "g", "b", "gray")] == [np.float64] * 5
     assert table.index.tolist() == list(range(25))
     # The rows go into probes.csv as they are (the command writes the file).
-    lines = schema.csv_text(schema.PROBES, table.to_dict("records")).splitlines()
+    lines = csv_format.csv_text(schema.PROBES, table.to_dict("records")).splitlines()
     assert lines[0] == "frame,t_s,probe,r,g,b,gray" and len(lines) == 1 + 25
     assert lines[1].startswith(f"7,{7 / FPS_TRUE:.7f},LED1,")
 

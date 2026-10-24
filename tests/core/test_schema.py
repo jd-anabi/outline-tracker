@@ -18,7 +18,7 @@ from helpers import normalized
 from layout_helpers import REPO
 from layout_helpers import path as table_path
 
-from outline_tracker.core import schema, tracker_io
+from outline_tracker.core import csv_format, schema, tracker_io
 
 NAN = float("nan")
 
@@ -221,7 +221,7 @@ def test_tracker_columns_reproduce_the_ported_writer(tmp_path):
         dict(t=0.0, frame=0, x=1.0, y=-2.5, pixelx=10.5, pixely=20.5),
         dict(t=2 / 239.6, frame=2, x=NAN, y=NAN, pixelx=NAN, pixely=NAN),
     ]
-    assert [schema.format_row(schema.TRACKER_COLUMNS, r) for r in rows] == lines[2:]
+    assert [csv_format.format_row(schema.TRACKER_COLUMNS, r) for r in rows] == lines[2:]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -342,7 +342,7 @@ def positions_row(**changes) -> dict:
 
 
 def test_format_row_positions_visible():
-    assert schema.format_row(schema.POSITIONS, positions_row()) == (
+    assert csv_format.format_row(schema.POSITIONS, positions_row()) == (
         "A,12,0.0500000,1.500000,-2.250000,100.500,200.250,0.123457,1,coarse,JUMP;SIZE"
     )
 
@@ -352,71 +352,71 @@ def test_format_row_positions_lost_has_empty_cells():
     row = positions_row(track_id="B", frame=40, t_s=0.1666667, x_mm=nan, y_mm=nan, u_px=nan, v_px=nan,
                         area_mm2=nan, visible=0, flags="LOST")
     cells = ["B", "40", "0.1666667", "", "", "", "", "", "0", "coarse", "LOST"]
-    assert schema.format_row(schema.POSITIONS, row) == ",".join(cells)
+    assert csv_format.format_row(schema.POSITIONS, row) == ",".join(cells)
 
 
 def test_format_row_accepts_a_sequence_in_column_order():
     row = positions_row()
     values = [row[name] for name in POSITIONS_NAMES]
-    assert schema.format_row(schema.POSITIONS, values) == schema.format_row(schema.POSITIONS, row)
+    assert csv_format.format_row(schema.POSITIONS, values) == csv_format.format_row(schema.POSITIONS, row)
     with pytest.raises(ValueError, match="11"):
-        schema.format_row(schema.POSITIONS, values[:-1])
+        csv_format.format_row(schema.POSITIONS, values[:-1])
 
 
 def test_format_row_mapping_needs_every_column_and_ignores_extras():
     row = positions_row(extra_column=3.0)
-    assert schema.format_row(schema.POSITIONS, row).startswith("A,12,")
+    assert csv_format.format_row(schema.POSITIONS, row).startswith("A,12,")
     del row["mode"]
     with pytest.raises(KeyError, match="mode"):
-        schema.format_row(schema.POSITIONS, row)
+        csv_format.format_row(schema.POSITIONS, row)
 
 
 def test_format_row_numpy_scalars_and_none():
     row = positions_row(frame=np.int64(12), t_s=np.float32(0.5), x_mm=np.float64(1.5), visible=np.bool_(True),
                         y_mm=None, flags=None)
-    assert schema.format_row(schema.POSITIONS, row) == "A,12,0.5000000,1.500000,,100.500,200.250,0.123457,1,coarse,"
+    assert csv_format.format_row(schema.POSITIONS, row) == "A,12,0.5000000,1.500000,,100.500,200.250,0.123457,1,coarse,"
 
 
 def test_non_finite_floats_become_empty_cells():
     row = positions_row(x_mm=float("inf"), y_mm=-float("inf"), u_px=NAN)
-    assert schema.format_row(schema.POSITIONS, row).split(",")[3:6] == ["", "", ""]
+    assert csv_format.format_row(schema.POSITIONS, row).split(",")[3:6] == ["", "", ""]
 
 
 def test_integer_columns_refuse_nan_and_fractions():
     with pytest.raises(ValueError, match="visible"):
-        schema.format_row(schema.POSITIONS, positions_row(visible=NAN))
+        csv_format.format_row(schema.POSITIONS, positions_row(visible=NAN))
     with pytest.raises(ValueError, match="visible"):
-        schema.format_row(schema.POSITIONS, positions_row(visible=None))
+        csv_format.format_row(schema.POSITIONS, positions_row(visible=None))
     with pytest.raises(ValueError, match="frame"):
-        schema.format_row(schema.POSITIONS, positions_row(frame=12.5))
+        csv_format.format_row(schema.POSITIONS, positions_row(frame=12.5))
     # a whole number held as a float (a DataFrame row) is fine and written without a decimal point
-    assert schema.format_row(schema.POSITIONS, positions_row(frame=12.0)).startswith("A,12,")
+    assert csv_format.format_row(schema.POSITIONS, positions_row(frame=12.0)).startswith("A,12,")
 
 
 def test_text_with_a_comma_or_quote_is_quoted():
-    line = schema.format_row(schema.POSITIONS, positions_row(track_id='a,"b"'))
+    line = csv_format.format_row(schema.POSITIONS, positions_row(track_id='a,"b"'))
     assert line.startswith('"a,""b""",12,')
-    df = read_csv(schema.csv_text(schema.POSITIONS, [positions_row(track_id='a,"b"')]))
+    df = read_csv(csv_format.csv_text(schema.POSITIONS, [positions_row(track_id='a,"b"')]))
     assert df["track_id"].tolist() == ['a,"b"']
 
 
 def test_text_cells_must_be_text():
     with pytest.raises(ValueError, match="flags"):
-        schema.format_row(schema.POSITIONS, positions_row(flags=3))
+        csv_format.format_row(schema.POSITIONS, positions_row(flags=3))
 
 
 def test_float_cells_must_be_numbers():
     with pytest.raises(ValueError, match="x_mm"):
-        schema.format_row(schema.POSITIONS, positions_row(x_mm="1.5"))
+        csv_format.format_row(schema.POSITIONS, positions_row(x_mm="1.5"))
 
 
 def test_header_line():
-    assert schema.header_line(schema.PROBES) == "frame,t_s,probe,r,g,b,gray"
-    assert schema.header_line(schema.RADIAL).startswith("track_id,frame,t_s,r_000,r_005,")
+    assert csv_format.header_line(schema.PROBES) == "frame,t_s,probe,r,g,b,gray"
+    assert csv_format.header_line(schema.RADIAL).startswith("track_id,frame,t_s,r_000,r_005,")
 
 
 def test_csv_text_uses_lf_and_ends_with_one():
-    text = schema.csv_text(schema.POSITIONS, [positions_row(), positions_row(frame=14)])
+    text = csv_format.csv_text(schema.POSITIONS, [positions_row(), positions_row(frame=14)])
     assert "\r" not in text and text.endswith("\n") and not text.endswith("\n\n")
     assert text.splitlines()[0] == ",".join(POSITIONS_NAMES)
     assert len(text.splitlines()) == 3
@@ -425,7 +425,7 @@ def test_csv_text_uses_lf_and_ends_with_one():
 
 def test_csv_text_with_no_rows_is_the_header_only():
     """radial.csv of a run without fine tracks (X12): the file exists and holds its header."""
-    assert schema.csv_text(schema.RADIAL, []) == ",".join(RADIAL_NAMES) + "\n"
+    assert csv_format.csv_text(schema.RADIAL, []) == ",".join(RADIAL_NAMES) + "\n"
 
 
 # ---------------------------------------------------------------------------------------------
@@ -446,7 +446,7 @@ def shapes_lost_row() -> dict:
 def test_lost_shapes_row_has_empty_floats_and_zero_integers():
     cells = ["B", "40", "0.1666667"] + [""] * 12 + ["0", "", "", "", "0", "", "", "LOST;HEADGUESS"]
     assert len(cells) == len(SHAPES_NAMES)
-    assert schema.format_row(schema.SHAPES, shapes_lost_row()) == ",".join(cells)
+    assert csv_format.format_row(schema.SHAPES, shapes_lost_row()) == ",".join(cells)
 
 
 @pytest.mark.parametrize(
@@ -458,7 +458,7 @@ def test_integer_columns_stay_integer_when_a_row_is_lost(columns, dtypes):
                                                        area_mm2=NAN, visible=0, flags="LOST")]
     else:
         rows = [shapes_visible_row(), shapes_lost_row()]
-    df = read_csv(schema.csv_text(columns, rows))
+    df = read_csv(csv_format.csv_text(columns, rows))
     assert df.columns.tolist() == names(columns)
     for name, kind in dtypes.items():
         if kind == "int":
@@ -475,11 +475,11 @@ def test_integer_columns_stay_integer_when_a_row_is_lost(columns, dtypes):
 
 def test_the_reading_recipe_of_the_readme_works():
     """An all-empty flags column is read as NaN, and fillna("") makes str.contains safe."""
-    df = read_csv(schema.csv_text(schema.POSITIONS, [positions_row(flags=""), positions_row(frame=14, flags="")]))
+    df = read_csv(csv_format.csv_text(schema.POSITIONS, [positions_row(flags=""), positions_row(frame=14, flags="")]))
     flags = df["flags"].fillna("")
     assert flags.tolist() == ["", ""]
     assert not flags.str.contains("JUMP").any()
-    df = read_csv(schema.csv_text(schema.POSITIONS, [positions_row(flags="JUMP;SIZE"), positions_row(flags="")]))
+    df = read_csv(csv_format.csv_text(schema.POSITIONS, [positions_row(flags="JUMP;SIZE"), positions_row(flags="")]))
     assert df["flags"].fillna("").str.contains("JUMP").tolist() == [True, False]
 
 
@@ -488,7 +488,7 @@ def test_radial_row_round_trip():
     row.update(track_id="A", frame=3, t_s=0.0125)
     lost = {name: NAN for name in RADIAL_NAMES[3:]}
     lost.update(track_id="A", frame=4, t_s=0.0166667)
-    df = read_csv(schema.csv_text(schema.RADIAL, [row, lost]))
+    df = read_csv(csv_format.csv_text(schema.RADIAL, [row, lost]))
     assert df.shape == (2, 75)
     assert df["r_000"].tolist()[0] == 50.0 and df["r_355"].tolist()[0] == 50.0 + 71
     assert df.iloc[1, 3:].isna().all()
@@ -497,7 +497,7 @@ def test_radial_row_round_trip():
 
 def test_probes_row():
     row = dict(frame=12, t_s=0.05, probe="LED1", r=200.0, g=100.5, b=50.25, gray=124.522)
-    assert schema.format_row(schema.PROBES, row) == "12,0.0500000,LED1,200.000,100.500,50.250,124.522"
+    assert csv_format.format_row(schema.PROBES, row) == "12,0.0500000,LED1,200.000,100.500,50.250,124.522"
 
 
 # ---------------------------------------------------------------------------------------------
