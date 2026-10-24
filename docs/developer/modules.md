@@ -192,9 +192,14 @@ The command line (SPEC 11): the parser in `main`, and one module for each of the
 |---|---|
 | `cli/__init__.py` | The command line (SPEC 11): the parser in `main`, and one module for each of the larger commands. |
 | `cli/__main__.py` | `python -m outline_tracker.cli`: runs `main()` of `outline_tracker.cli.main`. |
+| `cli/check.py` | The `check` command (SPEC 11): check a video before you analyze it, with `--seek` also its frame jumps. |
+| `cli/compare_tracks.py` | The hidden `compare-tracks` command (decision X10): compare the track files of two folders, in px. |
+| `cli/convert.py` | The `convert` command (SPEC 11): make a copy of a phone video that Tracker can open. |
+| `cli/errors.py` | The one `ERROR: ...` line that the commands print on stderr when they stop (SPEC 11). |
 | `cli/export.py` | The `export` command (SPEC 8, 11): write every output file of a run folder again. |
 | `cli/from_tracker.py` | The `from-tracker` command (SPEC 11, decision X19): its options, and `from_tracker` behind them. |
 | `cli/gui.py` | The `gui` command (SPEC 10, 11): open the window, with a video or a session if one is named. |
 | `cli/main.py` | Command line entry point: `outline-tracker` and its subcommands (SPEC 11). |
 | `cli/probe.py` | The `probe` command (SPEC 4.6, 8.7, 11): brightness probes only, with no model. |
 | `cli/selftest.py` | The `selftest` command (SPEC 11, 13.4): its two options, and `selftest.selftest` behind them. |
+| `cli/synth.py` | The hidden `synth` command: write one synthetic test clip, for checking an installation by hand. |

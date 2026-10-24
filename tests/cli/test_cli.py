@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from layout_helpers import REPO
 
-from outline_tracker.cli import main as cli
+from outline_tracker.cli import check as cli_check, main as cli
 from outline_tracker.video import reader as video
 
 
@@ -186,7 +186,7 @@ def test_a_console_that_cannot_show_a_character_gets_a_question_mark_not_a_crash
     # about it: printing a folder or student name in another alphabet would end a run with a traceback.
     console = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
     monkeypatch.setattr(sys, "stdout", console)
-    monkeypatch.setattr(cli, "run_check", lambda args: print(f"checked {args.videos[0]}") or 0)
+    monkeypatch.setattr(cli_check, "run", lambda args: print(f"checked {args.videos[0]}") or 0)
     assert cli.main(["check", "клип é.MOV"]) == 0  # Cyrillic is not in cp1252; é is
     console.flush()
     assert console.buffer.getvalue().decode("cp1252").splitlines() == ["checked ???? é.MOV"]
