@@ -205,6 +205,17 @@ Making the tool general (inventory: domain):
     take their expected values from that page. Decisions X1 to X22 move to
     `docs/design/decisions.md`. Before `docs/PLAN.md` leaves the tree, its still-open points go
     into this list or into issues (decisions 26 to 28 below are three of them). [W2, W3]
+    Decided 2026-10-24: the default stands, with these details. `SPEC.md` moves byte for byte
+    to `docs/design/SPEC-v0.1.md`. `docs/PLAN.md` leaves the tree in W2's commit of the
+    documents; before that, what is still open in it becomes new numbered lines of this
+    section, not GitHub issues. This section stays the record of the decisions of this phase;
+    `docs/design/decisions.md` holds the first build's X1 to X22 only, and the sentence at the
+    top of this section is reworded to say so. The first rule of `CLAUDE.md` names both files:
+    the owner gave their word for one edit of it, in the commit that moves them, from
+    "SPEC.md is the specification of version 0.1.0; docs/PLAN.md is the history of the first
+    build." to "docs/design/SPEC-v0.1.md is the specification of version 0.1.0;
+    docs/design/decisions.md holds the decisions of the first build, whose plan is in the git
+    history."
 
 Tracking methods (inventory: backends, section C7):
 
@@ -428,6 +439,27 @@ under private names. Two fragile tests were never looked at: pixel reads of lowe
 600 px high window without scrolling, and a test that starts pytest inside pytest with
 `QT_SCALE_FACTOR`. Lists that planned features change are pinned in tests: the models of
 panel 7, the items of the File menu, the nine panels, the ten Quickstart steps.
+
+Decided with the owner on 2026-10-24, where the inventory proposed and this section left open:
+
+- The package: the mapping of the inventory's section 1.2. `segmenter/` and `gui/` keep their
+  names; `launch.py` and `__init__.py` stay at the top. A new `__init__.py` holds a docstring
+  only, no re-exports. An import of a moved module keeps its old name as an alias (for example
+  `from outline_tracker.video import reader as video`), so that test bodies and the targets of
+  patches stay as they are.
+- The rows marked "(2)" are moved too, in a move commit of their own after step 4 has joined the
+  shared panel parts: the eight view modules and `prompt_drawing.py` into `gui/view/`;
+  `panel.py` as `gui/widgets/panel_frame.py`, beside the shared parts (`panel_parts.py`);
+  `review_table.py` and `stopwatch_dialog.py` into `gui/panels/`.
+- Tests: folders named after the subpackages; `tests/gui/` and `tests/slow/` stay; the rule
+  tests of the repository and the README tests go to `tests/repo/`; every helper module goes to
+  `tests/support/`, on pytest's `pythonpath`. The three `conftest.py` files and `tests/data/`
+  stay; no test file is renamed.
+- Documents: `docs/OUTPUTS.md` and `docs/VALIDATION.md` keep their paths (the README links to
+  the first and is not changed in W2). `docs/DEVELOPER.md` moves unchanged to
+  `docs/developer/README.md`; step 5's generated index, `docs/developer/modules.md`, replaces
+  its tables of modules. No `docs/user/` in W2: it is for material of the README (W3 step 8).
+- All six steps in one session, in this order.
 
 - [ ] 1. Re-key the tests that pin paths (`tests/test_repo_rules.py`, the DEVELOPER page test,
       the import-order tests) so that they follow a table, before anything moves.
