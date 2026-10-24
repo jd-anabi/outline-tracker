@@ -15,8 +15,8 @@ row r) has its center at (c + 0.5, r + 0.5); arrays are indexed [row, column]. A
 import numpy as np
 import pytest
 from helpers import assert_empty_result, click, mask_in_image
+from pipeline_helpers import position
 
-from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.base import ObjectPrompt
 from outline_tracker.segmenter.fake import ThresholdFake
 
@@ -35,12 +35,6 @@ def picture(*boxes):
 def box_mask(*boxes):
     """The pixels of the boxes, a bool array of the hand-made images' shape."""
     return picture(*boxes)[:, :, 0] == DARK
-
-
-def position(result):
-    """Center of a result's mask in the image, px (Tracker's convention)."""
-    u, v, _ = mask_center(result.mask)
-    return u + result.offset[0], v + result.offset[1]
 
 
 # ---------------------------------------------------------------------------------------------

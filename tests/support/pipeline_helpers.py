@@ -10,11 +10,12 @@ Units and coordinates (SPEC 3): px in Tracker's convention, u to the right, v do
 (column c, row r) with its center at (c + 0.5, r + 0.5); mm in the session's axes, y up, origin at
 the middle of the frame; frames are video frame numbers; times in s. Nothing here imports torch.
 
-What has nothing to do with a session: `W, H`, the frame of the 1080p clips and scenes;
+What has nothing to do with a session: `HD_W, HD_H`, the frame of the 1080p clips and scenes;
 `position`, where a result of the segmenter lies in the full frame (tests/slow/test_real_model.py,
-test_regression_reference.py, test_frozen_reference.py); and `write_three_ellipse_clip`, the clip of
-the regression tests (tests/slow/test_regression_reference.py, test_regression_pipeline.py,
-test_frozen_reference.py). The fixtures of the slow tests are in tests/slow/conftest.py.
+test_regression_reference.py, test_frozen_reference.py and, a fast test, tests/segmenter/test_fakes_threshold.py);
+and `write_three_ellipse_clip`, the clip of the regression tests (tests/slow/test_regression_reference.py,
+test_regression_pipeline.py, test_frozen_reference.py). The fixtures of the slow tests are in
+tests/slow/conftest.py.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ from outline_tracker.measure.mask import mask_center
 from outline_tracker.tracking.job import Callbacks, Job, run_job
 
 STICK_PX = 1000.0  # length of the calibration stick of the sessions made here, px
-W, H = 1920, 1080  # the frame of the 1080p clips and scenes of the slow tests: width and height, px
+HD_W, HD_H = 1920, 1080  # the frame of the 1080p clips and scenes of the slow tests: width and height, px
 
 
 def expect_minutes() -> None:
@@ -113,13 +114,13 @@ def write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
     """
     n = 40
     rng = np.random.default_rng(0)
-    yy, xx = np.mgrid[0:H, 0:W]
-    base = 205.0 - 15.0 * ((xx - W / 2) ** 2 + (yy - H / 2) ** 2) / (0.49 * H) ** 2
+    yy, xx = np.mgrid[0:HD_H, 0:HD_W]
+    base = 205.0 - 15.0 * ((xx - HD_W / 2) ** 2 + (yy - HD_H / 2) ** 2) / (0.49 * HD_H) ** 2
     tint = np.array([0.80, 0.90, 1.00])  # blue, green, red
     starts = [(500.0, 300.0), (1000.0, 600.0), (1400.0, 350.0)]  # at least 300 px apart at all times
     steps = [(0.6, 0.2), (-0.5, 0.3), (0.2, -0.6)]  # px per frame
     truth = [[(x0 + dx * f, y0 + dy * f) for f in range(n)] for (x0, y0), (dx, dy) in zip(starts, steps)]
-    out = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 240, (W, H))
+    out = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 240, (HD_W, HD_H))
     for f in range(n):
         img = base[:, :, None] * tint
         for track, (dx, dy) in zip(truth, steps):

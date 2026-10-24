@@ -124,7 +124,7 @@ def rule_breaks(folder) -> list[str]:
 
 
 def test_a_frozen_file_is_written_only_when_asked_and_carries_its_header(tmp_path, monkeypatch):
-    monkeypatch.setattr(frozen_helpers, "_package_status", lambda: "")  # the package is as committed
+    monkeypatch.setattr(frozen_helpers, "package_status", lambda: "")  # the package is as committed
     monkeypatch.setattr(frozen_helpers, "LIBRARIES", (*frozen_helpers.LIBRARIES, "no-such-library"))
     first_day = date.today()
     data = frozen_text(header_lines(COMMAND, {"device": "cpu"}), ["frame,u_px,v_px", "0,700.5000,500.5000"])
@@ -189,9 +189,9 @@ def test_a_frozen_file_is_written_only_when_asked_and_carries_its_header(tmp_pat
 
 def test_freezing_is_refused_when_the_package_differs_from_the_commit(tmp_path, monkeypatch):
     # what git says in this checkout names files of the package only (nothing at all, in a clean one)
-    assert [line for line in frozen_helpers._package_status().splitlines() if "outline_tracker/" not in line] == []
+    assert [line for line in frozen_helpers.package_status().splitlines() if "outline_tracker/" not in line] == []
     target = tmp_path / "table.csv"
-    monkeypatch.setattr(frozen_helpers, "_package_status", lambda: " M outline_tracker/measure.py")
+    monkeypatch.setattr(frozen_helpers, "package_status", lambda: " M outline_tracker/measure.py")
     monkeypatch.setenv(SWITCH, "1")
     with pytest.raises(RuntimeError, match="outline_tracker/measure.py") as refused:
         write_frozen(target, b"0,700.5000\n")
@@ -201,7 +201,7 @@ def test_freezing_is_refused_when_the_package_differs_from_the_commit(tmp_path, 
     assert list(tmp_path.iterdir()) == []
     # an ordinary run does not freeze: it asks git nothing, and a package that is being worked on does not stop it
     monkeypatch.delenv(SWITCH)
-    monkeypatch.setattr(frozen_helpers, "_git", lambda *args: pytest.fail(f"an ordinary run asked git: {args}"))
+    monkeypatch.setattr(frozen_helpers, "git", lambda *args: pytest.fail(f"an ordinary run asked git: {args}"))
     assert write_frozen(target, b"0,700.5000\n") is False
     assert write_listing(tmp_path, COMMAND) is False
     assert list(tmp_path.iterdir()) == []

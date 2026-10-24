@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from video_helpers import _circle_path, _write_video
+from video_helpers import circle_path, write_video
 
 from outline_tracker.video import reader as video
 
@@ -10,7 +10,7 @@ from outline_tracker.video import reader as video
 @pytest.fixture
 def clip(tmp_path):
     path = tmp_path / "clip.mp4"
-    _write_video(path, 240, [(20 + 0.5 * i, 80) for i in range(120)])
+    write_video(path, 240, [(20 + 0.5 * i, 80) for i in range(120)])
     return path
 
 
@@ -42,7 +42,7 @@ def test_read_frame_matches_iter_frames(clip):
 
 def test_x_is_column_and_y_is_row(tmp_path):
     path = tmp_path / "corner.mp4"
-    _write_video(path, 240, [(120, 30)] * 5)
+    write_video(path, 240, [(120, 30)] * 5)
     frame = video.read_frame(path, 2)
     rows, cols = np.nonzero(frame < 120)
     assert cols.mean() == pytest.approx(120, abs=1.0)  # x = column index
@@ -51,7 +51,7 @@ def test_x_is_column_and_y_is_row(tmp_path):
 
 def test_check_accepts_a_true_slow_motion_file(tmp_path):
     path = tmp_path / "original.mp4"
-    _write_video(path, 240, _circle_path([1.0] * 1000))
+    write_video(path, 240, circle_path([1.0] * 1000))
     check = video.check_video(path, min_side_px=100)
     assert check.ok, check.warnings
 
@@ -59,7 +59,7 @@ def test_check_accepts_a_true_slow_motion_file(tmp_path):
 def test_check_flags_rendered_slow_motion(tmp_path):
     # 30 fps file: normal speed at both ends (8 px/frame), slowed 8x in the middle (1 px/frame)
     path = tmp_path / "rendered.mp4"
-    _write_video(path, 30, _circle_path([8.0] * 45 + [1.0] * 300 + [8.0] * 45))
+    write_video(path, 30, circle_path([8.0] * 45 + [1.0] * 300 + [8.0] * 45))
     check = video.check_video(path, min_side_px=100)
     assert not check.ok
     assert any("fps" in w for w in check.warnings)

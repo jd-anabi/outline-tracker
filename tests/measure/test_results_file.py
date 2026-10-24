@@ -11,7 +11,8 @@ import errno
 
 import numpy as np
 import pytest
-from results_helpers import assert_holds, made_up, names, names_number, read_npz, two_tracks, write_npz
+from helpers import names
+from results_helpers import assert_holds, made_up, names_number, read_npz, two_tracks, write_npz
 
 from outline_tracker.measure import results
 from outline_tracker.measure.results import ResultsStore, ResultsVersionError

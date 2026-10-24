@@ -15,10 +15,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
-from helpers import SMALL
+from helpers import SMALL, names
 from overlay_helpers import (FPS_TRUE, RGB, Drawn, decoded_frames, ffmpeg_report, fraction_marked,
                              lost_record, make_run, marks, near, record, scaled)
-from results_helpers import names, names_number
+from results_helpers import names_number
 
 from outline_tracker.core import fileio
 from outline_tracker.synthetic import clips as synthetic

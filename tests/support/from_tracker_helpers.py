@@ -1,8 +1,8 @@
 """Clips, Tracker exports, a run with the stand-in model, and readers, shared by the from-tracker tests
 (tests/test_from_tracker*.py).
 
-`disk_video` is the helper of last week's tests, copied unchanged. `tracker_map`, `MM_PER_PX`, `W`
-and `H` are last week's too; they are in tests/support/helpers.py.
+`disk_video` is the helper of last week's tests, copied unchanged. `tracker_map`, `MM_PER_PX`, `EXPORT_W`
+and `EXPORT_H` are last week's too; they are in tests/support/helpers.py.
 
 Coordinates: a clip is 320 x 240 px at 240 frames per s. `disk_video` takes disk centers with pixel
 centers at whole numbers, so a disk drawn at (x, y) is at (x + 0.5, y + 0.5) px in Tracker's
@@ -17,7 +17,7 @@ import json
 import cv2
 import numpy as np
 import pandas as pd
-from helpers import MM_PER_PX, H, W, java_sci, tracker_map
+from helpers import EXPORT_H, EXPORT_W, MM_PER_PX, java_sci, tracker_map
 
 from outline_tracker.workflows.from_tracker import from_tracker
 from outline_tracker.segmenter.fake import ThresholdFake
@@ -45,9 +45,9 @@ def names_in(folder):
 
 def disk_video(path, centers, n=200):
     """A 240 fps video of dark disks; centers(n) gives their (x, y) in frame n (pixel centers at integers)."""
-    out = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 240, (W, H))
+    out = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 240, (EXPORT_W, EXPORT_H))
     for f in range(n):
-        img = np.full((H, W, 3), 220, np.uint8)
+        img = np.full((EXPORT_H, EXPORT_W, 3), 220, np.uint8)
         for x, y in centers(f):
             cv2.circle(img, (int(round(x * 16)), int(round(y * 16))), 6 * 16, (40, 40, 40), -1, cv2.LINE_AA, 4)
         out.write(img)

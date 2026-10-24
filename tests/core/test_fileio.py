@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from helpers import _names
+from helpers import names
 
 from outline_tracker.core import fileio
 from outline_tracker.core.fileio import atomic_write, sha256_first_64mib
@@ -38,7 +38,7 @@ def test_writes_the_file_and_returns_its_path(tmp_path):
     assert written == target
     assert isinstance(written, Path)
     assert target.read_bytes() == b"frame,t_s\n0,0.0000000\n"
-    assert _names(tmp_path) == ["positions.csv"]  # the temporary file is gone
+    assert names(tmp_path) == ["positions.csv"]  # the temporary file is gone
 
 
 def test_accepts_a_path_given_as_text(tmp_path):
@@ -52,7 +52,7 @@ def test_replaces_an_existing_file(tmp_path):
     target.write_bytes(b"old\n")
     assert atomic_write(target, lambda tmp: tmp.write_bytes(b"new\n")) == target
     assert target.read_bytes() == b"new\n"
-    assert _names(tmp_path) == ["positions.csv"]
+    assert names(tmp_path) == ["positions.csv"]
 
 
 @pytest.mark.parametrize("name", ["positions.csv", "overlay.mp4", "results.npz", "session.json", "run.log", "README"])
@@ -75,7 +75,7 @@ def test_temporary_file_is_in_the_same_folder_and_keeps_the_suffix(tmp_path, nam
     assert tmp.suffix == target.suffix  # ffmpeg and numpy choose the format from the name
     assert seen["target_during_write"] == b"old"  # the old file is whole until the rename
     assert target.read_bytes() == b"new"
-    assert _names(tmp_path) == [name]
+    assert names(tmp_path) == [name]
 
 
 def test_rename_happens_once_the_writer_has_finished(tmp_path, monkeypatch):
@@ -110,7 +110,7 @@ def test_numpy_writes_through_the_temporary_name(tmp_path, through_file_object):
             np.savez_compressed(tmp, frames=frames)
 
     assert atomic_write(target, write) == target
-    assert _names(tmp_path) == ["results.npz"]
+    assert names(tmp_path) == ["results.npz"]
     with np.load(target) as stored:
         np.testing.assert_array_equal(stored["frames"], frames)
 
@@ -119,7 +119,7 @@ def test_creates_the_folder_and_copes_with_spaces_and_accents(tmp_path):
     target = tmp_path / "vidéo test ü" / "edgetam" / "A.csv"
     assert atomic_write(target, lambda tmp: tmp.write_bytes(b"t,frame\n")) == target
     assert target.read_bytes() == b"t,frame\n"
-    assert _names(target.parent) == ["A.csv"]
+    assert names(target.parent) == ["A.csv"]
 
 
 # --------------------------------------------------------------------------- a writer that fails
@@ -138,10 +138,10 @@ def test_a_failing_writer_leaves_the_old_file_and_no_litter(tmp_path, error, old
     with pytest.raises(error, match="stopped in the middle"):
         atomic_write(target, write)
     if old is None:
-        assert _names(tmp_path) == []
+        assert names(tmp_path) == []
     else:
         assert target.read_bytes() == old
-        assert _names(tmp_path) == ["positions.csv"]
+        assert names(tmp_path) == ["positions.csv"]
 
 
 # --------------------------------------------------------------------------- the stand-in for a lock
@@ -165,7 +165,7 @@ def test_lock_file_refuses_the_renames_asked_for_and_lets_the_next_one_through(t
             os.replace(src, target)
         assert (src.read_bytes(), target.read_bytes()) == (b"new\n", b"old\n")  # both as they were
     os.replace(str(src), str(target))  # the fourth, with the paths as text
-    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+    assert target.read_bytes() == b"new\n" and names(tmp_path) == ["positions.csv"]
     assert held.attempts == [target] * 4  # every rename tried, as a Path
 
 
@@ -178,9 +178,9 @@ def test_lock_file_with_a_bare_name_locks_that_name_in_every_folder_and_no_other
         src.write_bytes(b"new\n")
         with pytest.raises(PermissionError):
             os.replace(src, folder / "A.csv")
-        assert _names(folder) == ["finished.tmp"]
+        assert names(folder) == ["finished.tmp"]
         os.replace(src, folder / "A.csv.new")  # another name, though it begins with the locked one
-        assert _names(folder) == ["A.csv.new"] and (folder / "A.csv.new").read_bytes() == b"new\n"
+        assert names(folder) == ["A.csv.new"] and (folder / "A.csv.new").read_bytes() == b"new\n"
         tried += [folder / "A.csv", folder / "A.csv.new"]
     assert held.attempts == tried  # the free renames are recorded as well
 
@@ -202,7 +202,7 @@ def test_lock_file_with_paths_locks_those_files_only_and_counts_for_each_of_them
             rename_onto(locked)  # one refusal for A.csv, and one for B.csv
     rename_onto(here / "A.csv")
     rename_onto(here / "B.csv")
-    assert _names(here) == ["A.csv", "B.csv", "C.csv"] and _names(there) == ["A.csv"]
+    assert names(here) == ["A.csv", "B.csv", "C.csv"] and names(there) == ["A.csv"]
 
 
 def test_lock_file_skips_the_waits_between_the_tries_and_records_them(tmp_path, lock_file, monkeypatch):
@@ -226,7 +226,7 @@ def test_lock_file_takes_no_other_word_for_the_waits_and_then_locks_nothing(tmp_
     with pytest.raises(ValueError, match="waits"):
         lock_file(target, waits="real")
     os.replace(src, target)
-    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+    assert target.read_bytes() == b"new\n" and names(tmp_path) == ["positions.csv"]
 
 
 def test_lock_file_lets_go_when_it_is_released(tmp_path, lock_file):
@@ -237,7 +237,7 @@ def test_lock_file_lets_go_when_it_is_released(tmp_path, lock_file):
             os.replace(src, target)
     held.release()  # the other program closes the file
     os.replace(src, target)
-    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+    assert target.read_bytes() == b"new\n" and names(tmp_path) == ["positions.csv"]
 
 
 def test_lock_file_lets_go_when_the_test_undoes_its_monkeypatch(tmp_path, lock_file, monkeypatch):
@@ -249,7 +249,7 @@ def test_lock_file_lets_go_when_the_test_undoes_its_monkeypatch(tmp_path, lock_f
     monkeypatch.undo()
     assert os.replace is real_replace and time.sleep is real_sleep
     os.replace(src, target)
-    assert target.read_bytes() == b"new\n" and _names(tmp_path) == ["positions.csv"]
+    assert target.read_bytes() == b"new\n" and names(tmp_path) == ["positions.csv"]
 
 
 def test_lock_file_raises_the_error_it_is_given(tmp_path, lock_file):
@@ -294,7 +294,7 @@ def test_survives_replace_failing_three_times(tmp_path, lock_file):
     assert len(sleeps) == 3  # one wait after each refusal
     assert all(wait > 0 for wait in sleeps)
     assert sum(sleeps) < 5.0
-    assert _names(tmp_path) == ["positions.csv"]  # no .new file, no temporary file
+    assert names(tmp_path) == ["positions.csv"]  # no .new file, no temporary file
 
 
 @pytest.mark.parametrize(("name", "fallback"), [
@@ -316,7 +316,7 @@ def test_a_target_that_stays_locked_keeps_the_data_as_new_file(tmp_path, lock_fi
     assert 4.0 <= sum(sleeps) <= 6.0  # "retry for about 5 s"
     assert all(wait > 0 for wait in sleeps)
     assert attempts == [target] * (len(sleeps) + 1) + [tmp_path / fallback]  # a try after every wait
-    assert _names(tmp_path) == sorted([name, fallback])
+    assert names(tmp_path) == sorted([name, fallback])
 
 
 def test_an_older_new_file_is_replaced(tmp_path, lock_file):
@@ -340,7 +340,7 @@ def test_target_and_new_file_both_locked_is_an_error_without_litter(tmp_path, lo
     assert "positions.new.csv" in str(err.value)
     assert target.read_bytes() == b"old\n"
     assert fallback.read_bytes() == b"older\n"
-    assert _names(tmp_path) == ["positions.csv", "positions.new.csv"]
+    assert names(tmp_path) == ["positions.csv", "positions.new.csv"]
 
 
 def test_only_a_permission_error_is_retried(tmp_path, monkeypatch):
@@ -358,7 +358,7 @@ def test_only_a_permission_error_is_retried(tmp_path, monkeypatch):
     assert err.value.errno == errno.ENOSPC
     assert sleeps == []
     assert target.read_bytes() == b"old\n"
-    assert _names(tmp_path) == ["positions.csv"]
+    assert names(tmp_path) == ["positions.csv"]
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="only Windows refuses to replace a file that a program holds open")
@@ -374,7 +374,7 @@ def test_on_windows_a_target_held_open_gives_the_new_file(tmp_path, monkeypatch)
     assert written.read_bytes() == b"new\n"
     assert target.read_bytes() == b"old\n"
     assert 4.0 <= sum(sleeps) <= 6.0
-    assert _names(tmp_path) == ["positions.csv", "positions.new.csv"]
+    assert names(tmp_path) == ["positions.csv", "positions.new.csv"]
 
 
 # --------------------------------------------------------------------------- the rename alone
@@ -392,7 +392,7 @@ def test_replace_with_retry_renames_onto_a_target_that_is_or_becomes_free(tmp_pa
     assert written == target and isinstance(written, Path)
     assert target.read_bytes() == b"new\n"
     assert attempts == [target] * (refusals + 1) and len(sleeps) == refusals  # one wait after each refusal
-    assert _names(tmp_path) == ["A.csv"]
+    assert names(tmp_path) == ["A.csv"]
 
 
 def test_replace_with_retry_keeps_the_data_under_the_callers_fallback_name(tmp_path, lock_file):
@@ -405,7 +405,7 @@ def test_replace_with_retry_keeps_the_data_under_the_callers_fallback_name(tmp_p
     assert fallback.read_bytes() == b"new\n" and target.read_bytes() == b"old\n"
     assert 4.0 <= sum(sleeps) <= 6.0 and all(wait > 0 for wait in sleeps)  # "retry for a few seconds"
     assert attempts == [target] * (len(sleeps) + 1) + [fallback]  # a try after every wait, then the fallback
-    assert _names(tmp_path) == ["A.csv", "A.csv.new"]  # not A.new.csv, which a loader would read as a track
+    assert names(tmp_path) == ["A.csv", "A.csv.new"]  # not A.new.csv, which a loader would read as a track
 
 
 def test_replace_with_retry_leaves_the_finished_file_to_the_caller_when_both_are_locked(tmp_path, lock_file):
@@ -417,7 +417,7 @@ def test_replace_with_retry_leaves_the_finished_file_to_the_caller_when_both_are
         fileio.replace_with_retry(tmp, target, fallback)
     assert "B.csv" in str(err.value) and "spare.new" in str(err.value)
     assert tmp.read_bytes() == b"new\n" and target.read_bytes() == b"old\n"  # nothing lost, nothing replaced
-    assert _names(tmp_path) == ["B.csv", "B.csv.tmp"]
+    assert names(tmp_path) == ["B.csv", "B.csv.tmp"]
 
 
 # --------------------------------------------------------------------------- a block added to run.log
@@ -440,7 +440,7 @@ def test_append_block_adds_the_lines_after_a_blank_line_and_keeps_what_was_there
     entry = "==== an entry ====\nwrote: 12 um, by Zo\u00eb\n".encode()
     assert fileio.append_block(log, ["==== an entry ====", "wrote: 12 um, by Zo\u00eb"]) == log
     assert log.read_bytes() == kept + (b"\n" if kept else b"") + entry  # what was there, a blank line, the entry
-    assert _names(tmp_path) == ["run.log"]
+    assert names(tmp_path) == ["run.log"]
 
 
 def test_append_block_to_a_locked_log_keeps_the_whole_log_next_to_it(tmp_path, lock_file):

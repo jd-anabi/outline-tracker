@@ -37,7 +37,7 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import pytest
-from pipeline_helpers import H, W, position, write_three_ellipse_clip
+from pipeline_helpers import HD_H, HD_W, position, write_three_ellipse_clip
 
 from outline_tracker.synthetic import clips as synthetic
 from outline_tracker.core import tracker_io
@@ -55,7 +55,7 @@ def _prompts(clicks=CLICKS) -> list[ObjectPrompt]:
     return [ObjectPrompt(name, [click], [1]) for name, click in zip(NAMES, clicks)]
 
 
-def _full(result, shape=(H, W)) -> np.ndarray:
+def _full(result, shape=(HD_H, HD_W)) -> np.ndarray:
     """The full-frame mask of a cropped result."""
     full = np.zeros(shape, bool)
     col0, row0 = result.offset
@@ -152,7 +152,7 @@ def test_prompt_tensors_have_one_point_and_no_padding(processor):
     from outline_tracker.segmenter import hf
 
     session = processor.init_video_session(inference_device="cpu", dtype=torch.float32)
-    ids = hf.add_prompts(processor, session, _prompts(), torch.tensor([H, W]))
+    ids = hf.add_prompts(processor, session, _prompts(), torch.tensor([HD_H, HD_W]))
 
     assert ids == [1, 2, 3]
     assert session.obj_with_new_inputs == ids
@@ -165,7 +165,7 @@ def test_prompt_tensors_have_one_point_and_no_padding(processor):
         assert bool((labels >= 0).all())  # neither the processor's padding (-10) nor "not a point" (-1)
         assert labels.flatten().tolist() == [1]
         # The processor scales image px to the model's 1024 x 1024 input and does nothing else.
-        assert coords.flatten().tolist() == pytest.approx([x * 1024 / W, y * 1024 / H], abs=1e-3)
+        assert coords.flatten().tolist() == pytest.approx([x * 1024 / HD_W, y * 1024 / HD_H], abs=1e-3)
 
 
 def test_session_equals_the_one_the_reference_builds(processor):
@@ -173,7 +173,7 @@ def test_session_equals_the_one_the_reference_builds(processor):
     # clicks. What needs no script is asserted: what the session holds for each click.
     from outline_tracker.segmenter import hf
 
-    image = np.zeros((H, W, 3), np.uint8)
+    image = np.zeros((HD_H, HD_W, 3), np.uint8)
     new = hf.HFSegmenter("edgetam", "cpu", model=StubModel(*_stub_outputs(_random_logits())), processor=processor)
     new.start(image, _prompts())  # one call per object
 
@@ -190,7 +190,7 @@ def test_session_equals_the_one_the_reference_builds(processor):
     for obj_idx, (x, y) in enumerate(CLICKS):
         coords, labels = _stored_point(new.session, obj_idx)
         assert labels == [1]
-        assert coords == pytest.approx([x * 1024 / W, y * 1024 / H], abs=1e-3)
+        assert coords == pytest.approx([x * 1024 / HD_W, y * 1024 / HD_H], abs=1e-3)
 
     # A second session, with the second click moved 1 px to the right: that click is 1024 / 1920 further
     # right there, and nothing else of the session differs.
@@ -199,7 +199,7 @@ def test_session_equals_the_one_the_reference_builds(processor):
     changed = _differences(new.session, moved.session)
     assert len(changed) == 1 and changed[0].startswith("session.['point_inputs_per_obj'][1][0]['point_coords']")
     (x, y), (moved_x, moved_y) = _stored_point(new.session, 1)[0], _stored_point(moved.session, 1)[0]
-    assert moved_x - x == pytest.approx(1024 / W, abs=1e-3) and moved_y == y
+    assert moved_x - x == pytest.approx(1024 / HD_W, abs=1e-3) and moved_y == y
 
 
 def _stub_outputs(logits):
@@ -218,7 +218,7 @@ def _assert_cropped_to_its_mask(result) -> None:
     rows, cols = np.nonzero(mask)
     col0, row0 = max(cols.min() - 8, 0), max(rows.min() - 8, 0)
     assert result.offset == (col0, row0)
-    assert result.mask.shape == (min(rows.max() + 9, H) - row0, min(cols.max() + 9, W) - col0)
+    assert result.mask.shape == (min(rows.max() + 9, HD_H) - row0, min(cols.max() + 9, HD_W) - col0)
 
 
 def _assert_the_disk_of_the_blob_logits(result) -> None:
@@ -244,7 +244,7 @@ def _assert_the_disk_of_the_blob_logits(result) -> None:
     Together: 270 px of area (7.6 %), 1.9 px along u and 1.3 px along v. A center that is half a
     cell off (3.75 px, 2.1 px) and a radius that is half a cell off (16 % of the area) are outside.
     """
-    cell_w, cell_h, radius, noise = W / 256, H / 256, 6.0, 0.2
+    cell_w, cell_h, radius, noise = HD_W / 256, HD_H / 256, 6.0, 0.2
     a, b = radius * cell_w, radius * cell_h
     area_sd = noise * math.sqrt(2 * math.pi * radius) * cell_w * cell_h
     center_sd = noise / math.sqrt(math.pi * radius)  # cells
@@ -282,8 +282,8 @@ def _assert_half_of_the_frame_each_and_no_two_alike(results) -> None:
     0.5 / sqrt(N) = 0.00035.) The same bound holds for the share on which two masks agree: changing
     every sign of one of the two draws turns agreement into disagreement.
     """
-    most_px = math.ceil(W / 256) * math.ceil(H / 256)  # pixel centers in one rectangle, at most
-    limit = 4 * math.sqrt(9 * most_px / (4 * W * H))
+    most_px = math.ceil(HD_W / 256) * math.ceil(HD_H / 256)  # pixel centers in one rectangle, at most
+    limit = 4 * math.sqrt(9 * most_px / (4 * HD_W * HD_H))
     full = [_full(result) for result in results]
     for name, mask in zip(NAMES, full):
         assert mask.mean() == pytest.approx(0.5, abs=limit), name
@@ -299,7 +299,7 @@ def test_per_object_logits_give_the_reference_masks(processor, make_logits):
     # the frame each mask covers and that the three objects have masks of their own.
     from outline_tracker.segmenter import hf
 
-    image = np.zeros((H, W, 3), np.uint8)
+    image = np.zeros((HD_H, HD_W, 3), np.uint8)
     logits, scores = _stub_outputs(make_logits())
     model = StubModel(logits, scores)
     new = hf.HFSegmenter("edgetam", "cpu", model=model, processor=processor)
@@ -313,7 +313,7 @@ def test_per_object_logits_give_the_reference_masks(processor, make_logits):
             assert np.array_equal(result.logits > 0, result.mask)
             _assert_cropped_to_its_mask(result)  # the bounding box +/- 8 px, clipped to the frame
     if make_logits is _blob_logits:
-        assert results[0].mask.size < 0.01 * H * W  # a real crop, not the whole frame
+        assert results[0].mask.size < 0.01 * HD_H * HD_W  # a real crop, not the whole frame
         assert [bool(result.mask.any()) for result in results] == [True, True, False]  # the third object is absent
         _assert_the_disk_of_the_blob_logits(results[0])
     else:

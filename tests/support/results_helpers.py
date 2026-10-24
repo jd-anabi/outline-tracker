@@ -133,11 +133,6 @@ def write_npz(path, data):
     return path
 
 
-def names(folder):
-    """The names of the files in `folder`, sorted."""
-    return sorted(p.name for p in folder.iterdir())
-
-
 def names_number(message, number):
     """True when the text holds this whole number on its own, not as part of "0.1.0", "0.2.0.dev0" or "12"."""
     return re.search(rf"(?<![\w.]){number}(?!\d|\.\d)", message) is not None

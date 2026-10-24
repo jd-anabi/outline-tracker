@@ -43,7 +43,7 @@ def frame_times(skip_before=(), n_frames=120, fps=240.0):
 # Tracker's export files (tests/core/test_tracker_io.py, tests/support/from_tracker_helpers.py)
 
 MM_PER_PX = 0.05  # the scale of the exports made with `tracker_map`, mm per px
-W, H = 320, 240  # the frame those exports belong to: width and height, px
+EXPORT_W, EXPORT_H = 320, 240  # the frame those exports belong to: width and height, px
 
 
 def java_sci(v):
@@ -83,7 +83,7 @@ def error_line(capsys) -> str:
     return err
 
 
-def _names(folder) -> list[str]:
+def names(folder) -> list[str]:
     """The names of the files and folders in `folder`, sorted."""
     return sorted(p.name for p in folder.iterdir())
 
@@ -99,9 +99,9 @@ def normalized(text: str) -> str:
 # A path under a home folder: the users folder of macOS or Windows followed by a name, or pytest's
 # per-user temp folder. The patterns are put together from pieces so that this file, which is
 # itself scanned, does not contain what it looks for.
-_USERS = "Users"
-_PYTEST_TMP = "pytest-of" + "-"
-HOME_PATH = re.compile(rf"[/\\]{_USERS}[/\\]+[^/\\\s]|{_PYTEST_TMP}[^/\\\s]")
+USERS = "Users"
+PYTEST_TMP = "pytest-of" + "-"
+HOME_PATH = re.compile(rf"[/\\]{USERS}[/\\]+[^/\\\s]|{PYTEST_TMP}[^/\\\s]")
 
 
 # ---------------------------------------------------------------------------------------------

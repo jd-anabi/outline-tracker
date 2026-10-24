@@ -14,7 +14,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from helpers import HOME_PATH, VERSION, _PYTEST_TMP, _USERS
+from helpers import HOME_PATH, PYTEST_TMP, USERS, VERSION
 from layout_helpers import PATHS, REPO, below, module
 
 import outline_tracker
@@ -235,19 +235,19 @@ def test_no_personal_paths_or_big_files():
 def test_home_path_pattern_examples():
     name = "someone"
     personal = [
-        "/".join(["", _USERS, name, "Movies", "clip.mp4"]),  # macOS
-        "video: " + "/".join(["", _USERS, name]),
-        "\\".join(["C:", _USERS, name, "Videos"]),  # Windows
-        "\\\\".join(["C:", _USERS, name, "Videos"]),  # Windows, backslashes escaped (JSON, repr)
-        "/".join(["C:", _USERS, name]),  # Windows, forward slashes
-        "/private/var/folders/ab/cd/T/" + _PYTEST_TMP + name + "/pytest-0/clip.mp4",
+        "/".join(["", USERS, name, "Movies", "clip.mp4"]),  # macOS
+        "video: " + "/".join(["", USERS, name]),
+        "\\".join(["C:", USERS, name, "Videos"]),  # Windows
+        "\\\\".join(["C:", USERS, name, "Videos"]),  # Windows, backslashes escaped (JSON, repr)
+        "/".join(["C:", USERS, name]),  # Windows, forward slashes
+        "/private/var/folders/ab/cd/T/" + PYTEST_TMP + name + "/pytest-0/clip.mp4",
     ]
     generic = [
         "~/.cache/shrimp-models/edgetam",
         "$HOME/.venvs/outline-tracker",
         "%USERPROFILE%\\.local\\bin",
         "https://github.com/jd-anabi/outline-tracker",
-        "the " + _USERS + " folder",
+        "the " + USERS + " folder",
         "outline_tracker/segmenter/hf.py",
     ]
     assert [text for text in personal if not HOME_PATH.search(text)] == []

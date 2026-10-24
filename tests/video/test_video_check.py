@@ -23,7 +23,7 @@ time); gray levels are on the 0-255 scale; speeds are px per frame along a circl
 import cv2
 import numpy as np
 import pytest
-from video_helpers import _circle_path, _write_video
+from video_helpers import circle_path, write_video
 
 from outline_tracker.video import reader as video
 
@@ -67,7 +67,7 @@ def test_a_file_that_is_fast_at_one_end_only_is_not_rendered_slow_motion(tmp_pat
     # middle, so motion is not larger "near the start and end".
     steps = [8.0] * 45 + [1.0] * 345
     path = tmp_path / "one_end.mp4"
-    _write_video(path, 30, _circle_path(steps if fast_end == "start" else steps[::-1]))
+    write_video(path, 30, circle_path(steps if fast_end == "start" else steps[::-1]))
     check = video.check_video(path, min_side_px=100)
     assert _about_slow_motion(check) == []
 
@@ -75,7 +75,7 @@ def test_a_file_that_is_fast_at_one_end_only_is_not_rendered_slow_motion(tmp_pat
 def test_the_first_and_last_quarter_second_are_not_read(tmp_path, monkeypatch):
     # 10 s at 240 fps, 2400 frames: 0.25 s is 60 frames, so the frames 0-59 and 2340-2399 are skipped
     path = tmp_path / "original.mp4"
-    _write_video(path, 240, _circle_path([1.0] * 2400))
+    write_video(path, 240, circle_path([1.0] * 2400))
     pairs = []  # i of every pair (frame i, frame i + 1) that is compared
     real = video.frame_changes
 
@@ -93,6 +93,6 @@ def test_check_flags_slow_motion_rendered_with_one_second_at_normal_speed(tmp_pa
     # 30 fps file: normal speed (8 px/frame) for the first and the last 30 frames, 1 s each, and
     # slowed 8x (1 px/frame) for the 300 frames between
     path = tmp_path / "rendered.mp4"
-    _write_video(path, 30, _circle_path([8.0] * 30 + [1.0] * 300 + [8.0] * 30))
+    write_video(path, 30, circle_path([8.0] * 30 + [1.0] * 300 + [8.0] * 30))
     check = video.check_video(path, min_side_px=100)
     assert len(_about_slow_motion(check)) == 1, check.warnings

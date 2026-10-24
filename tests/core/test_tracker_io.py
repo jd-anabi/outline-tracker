@@ -8,7 +8,7 @@ calibration, frame numbers, time, and the files written.
 import numpy as np
 import pandas as pd
 import pytest
-from helpers import MM_PER_PX, H, W, export_text, java_sci, tracker_map
+from helpers import EXPORT_H, EXPORT_W, MM_PER_PX, export_text, java_sci, tracker_map
 
 from outline_tracker.core import tracker_io as segment
 
@@ -52,7 +52,7 @@ def test_read_needs_the_pixel_columns(tmp_path):
 @pytest.mark.parametrize("angle", [0.0, 12.0])
 def test_calibration_recovers_trackers_map(angle):
     rng = np.random.default_rng(0)
-    px, py = rng.uniform(0, W, 30), rng.uniform(0, H, 30)
+    px, py = rng.uniform(0, EXPORT_W, 30), rng.uniform(0, EXPORT_H, 30)
     x, y = tracker_map(px, py, angle)
     cal = segment.fit_calibration(px, py, x, y)
     assert cal.mm_per_px == pytest.approx(MM_PER_PX)

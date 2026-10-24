@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from helpers import names
 from results_helpers import (
     DISK_ORIGIN,
     assert_holds,
@@ -26,7 +27,6 @@ from results_helpers import (
     lost,
     made_up,
     measured,
-    names,
     names_number,
     read_npz,
     same,

@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 
-def _write_video(path, fps, positions, size=(160, 160), radius=10):
+def write_video(path, fps, positions, size=(160, 160), radius=10):
     """Write a dark disk on a light background, one frame per (x, y) position."""
     width, height = size
     out = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
@@ -21,7 +21,7 @@ def _write_video(path, fps, positions, size=(160, 160), radius=10):
     out.release()
 
 
-def _circle_path(steps_px, center=(80, 80), r=50):
+def circle_path(steps_px, center=(80, 80), r=50):
     """Positions along a circle, advancing by the given arc length (px) each frame."""
     angle, positions = 0.0, []
     for step in steps_px:

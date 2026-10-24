@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from helpers import _names
+from helpers import names
 from layout_helpers import path as table_path
 from results_helpers import names_number
 
@@ -402,7 +402,7 @@ def test_saved_file_is_utf8_with_lf_line_ends_and_loads_back_equal(tmp_path):
     assert loaded == s
     assert (loaded.student, loaded.notes) == (s.student, s.notes)
     assert Session.load(str(path)) == s
-    assert _names(path.parent) == ["session.json"]
+    assert names(path.parent) == ["session.json"]
 
 
 def test_numpy_numbers_and_arrays_are_stored_as_plain_json(tmp_path):
@@ -433,7 +433,7 @@ def test_save_keeps_the_old_file_and_returns_the_new_name_when_the_target_is_loc
     assert written == tmp_path / "session.new.json"
     assert path.read_bytes() == old
     assert Session.load(written).student == "ben"
-    assert _names(tmp_path) == ["session.json", "session.new.json"]
+    assert names(tmp_path) == ["session.json", "session.new.json"]
 
 
 # --------------------------------------------------------------------------- nonsense is not saved
@@ -444,7 +444,7 @@ def test_fps_true_not_positive_raises_and_writes_no_file(tmp_path, fps):
     s.time.fps_true = fps
     with pytest.raises(ValueError, match="fps_true"):
         s.save(tmp_path / "run" / "session.json")
-    assert _names(tmp_path) == []  # no file, no folder, no temporary file
+    assert names(tmp_path) == []  # no file, no folder, no temporary file
 
 
 def test_fps_true_not_positive_leaves_an_existing_file_alone(tmp_path):
@@ -456,7 +456,7 @@ def test_fps_true_not_positive_leaves_an_existing_file_alone(tmp_path):
     with pytest.raises(ValueError, match="fps_true"):
         s.save(path)
     assert path.read_bytes() == before
-    assert _names(tmp_path) == ["session.json"]
+    assert names(tmp_path) == ["session.json"]
 
 
 @pytest.mark.parametrize("fps", [0, -1.0])
@@ -481,7 +481,7 @@ def test_a_number_that_json_cannot_hold_raises_and_writes_no_file(tmp_path, bad)
     s.axes.origin_px = [bad, 540.5]
     with pytest.raises(ValueError):
         s.save(tmp_path / "session.json")
-    assert _names(tmp_path) == []
+    assert names(tmp_path) == []
 
 
 # --------------------------------------------------------------------------- the world frame

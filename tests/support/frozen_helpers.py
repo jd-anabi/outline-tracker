@@ -86,7 +86,7 @@ def header_lines(command: str, extra: dict[str, str] | None = None) -> list[str]
     versions = provenance.library_versions(LIBRARIES)
     facts = {
         "made": date.today().isoformat(),
-        "commit": _git("rev-parse", "--short", "HEAD"),
+        "commit": git("rev-parse", "--short", "HEAD"),
         "tool": provenance.tool_version(),
         "system": provenance.machine_text(),
         "machine": machine_name(),
@@ -126,7 +126,7 @@ def write_frozen(path, data: bytes) -> bool:
     ends."""
     if not freeze_asked():
         return False
-    changed = _package_status()
+    changed = package_status()
     if changed:
         raise RuntimeError(
             "Nothing was frozen: outline_tracker/ differs from the last commit, so the commit in the header "
@@ -185,13 +185,13 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _package_status() -> str:
+def package_status() -> str:
     """What `git status --porcelain -- outline_tracker` prints: one line per file of the package that
     differs from the last commit, nothing when there is none."""
-    return _git("status", "--porcelain", "--", "outline_tracker")
+    return git("status", "--porcelain", "--", "outline_tracker")
 
 
-def _git(*args: str) -> str:
+def git(*args: str) -> str:
     """What a git command prints for this repository, without the line end at its end. Raises when git
     is missing or fails: without git no header can name its commit. Git's own variables (set while a
     git hook runs) are not passed on, as in `provenance`."""

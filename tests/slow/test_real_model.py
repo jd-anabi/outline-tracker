@@ -32,7 +32,7 @@ import cv2
 import numpy as np
 import pytest
 from layout_helpers import REPO
-from pipeline_helpers import H, W, position
+from pipeline_helpers import HD_H, HD_W, position
 
 from outline_tracker.segmenter.base import ObjectPrompt
 
@@ -57,7 +57,7 @@ def _inside(u, v, ellipse):
 
 def _truth(ellipse) -> np.ndarray:
     """The full-frame mask of an ellipse: the pixels whose centers lie inside it."""
-    rows, cols = np.mgrid[0:H, 0:W]
+    rows, cols = np.mgrid[0:HD_H, 0:HD_W]
     return _inside(cols + 0.5, rows + 0.5, ellipse)
 
 
@@ -65,15 +65,15 @@ def _render(ellipses, seed: int) -> np.ndarray:
     """An RGB uint8 frame [row, column] with dark ellipses. Each pixel is darkened by the fraction
     of it that an ellipse covers (4 x 4 samples per pixel), so edges are smooth as in a real image."""
     rng = np.random.default_rng(seed)
-    rows, cols = np.mgrid[0:H, 0:W]
-    base = 205.0 - 15.0 * ((cols + 0.5 - W / 2) ** 2 + (rows + 0.5 - H / 2) ** 2) / (0.49 * H) ** 2
+    rows, cols = np.mgrid[0:HD_H, 0:HD_W]
+    base = 205.0 - 15.0 * ((cols + 0.5 - HD_W / 2) ** 2 + (rows + 0.5 - HD_H / 2) ** 2) / (0.49 * HD_H) ** 2
     image = base[:, :, None] * TINT
     samples = (np.arange(4) + 0.5) / 4
     for ellipse in ellipses:
         u0, v0, a, b, _ = ellipse
         reach = int(np.ceil(max(a, b))) + 2
-        col0, col1 = max(int(u0) - reach, 0), min(int(u0) + reach + 1, W)
-        row0, row1 = max(int(v0) - reach, 0), min(int(v0) + reach + 1, H)
+        col0, col1 = max(int(u0) - reach, 0), min(int(u0) + reach + 1, HD_W)
+        row0, row1 = max(int(v0) - reach, 0), min(int(v0) + reach + 1, HD_H)
         u = (np.arange(col0, col1)[:, None] + samples).reshape(1, -1)
         v = (np.arange(row0, row1)[:, None] + samples).reshape(-1, 1)
         cover = _inside(u, v, ellipse).reshape(row1 - row0, 4, col1 - col0, 4).mean(axis=(1, 3))
@@ -84,7 +84,7 @@ def _render(ellipses, seed: int) -> np.ndarray:
 
 def _full(result) -> np.ndarray:
     """The full-frame mask of a cropped result."""
-    full = np.zeros((H, W), bool)
+    full = np.zeros((HD_H, HD_W), bool)
     col0, row0 = result.offset
     full[row0:row0 + result.mask.shape[0], col0:col0 + result.mask.shape[1]] = result.mask
     return full
@@ -135,8 +135,8 @@ def _same_results(a, b) -> bool:
 class StubModel:
     """Stands in for the network. Object number j of the session (0, 1, ...) is a disk of radius
     6 cells on the model's 256 x 256 grid, centered on cell (column 60 + 50 j + 2 n, row 100) at
-    the stand-in's call number n, so its center in the image is ((60.5 + 50 j + 2 n) W / 256,
-    100.5 H / 256) px. `absent` lists the (n, j) for which the object is reported absent, as the
+    the stand-in's call number n, so its center in the image is ((60.5 + 50 j + 2 n) HD_W / 256,
+    100.5 HD_H / 256) px. `absent` lists the (n, j) for which the object is reported absent, as the
     model does it: all logits -1024. On call number `fail_on_call` it raises what an Apple GPU
     raises for a missing operation, if the frame it was given lives on mps."""
 
@@ -172,7 +172,7 @@ class StubModel:
 
 def _disk_center(n: int, j: int) -> tuple[float, float]:
     """Center, in px of the image, of the stand-in's disk for object j at call n."""
-    return (60.5 + 50.0 * j + 2.0 * n) * W / 256, 100.5 * H / 256
+    return (60.5 + 50.0 * j + 2.0 * n) * HD_W / 256, 100.5 * HD_H / 256
 
 
 def _stored(session, obj_idx: int):
@@ -194,7 +194,7 @@ def test_prompt_tensors_for_1_3_and_2_points_have_no_padding(processor):
     from outline_tracker.segmenter import hf
 
     session = processor.init_video_session(inference_device="cpu", dtype=torch.float32)
-    ids = hf.add_prompts(processor, session, THREE, torch.tensor([H, W]))
+    ids = hf.add_prompts(processor, session, THREE, torch.tensor([HD_H, HD_W]))
 
     assert ids == [1, 2, 3] and session.obj_ids == ids and session.obj_with_new_inputs == ids
     for obj_idx, prompt in enumerate(THREE):
@@ -205,7 +205,7 @@ def test_prompt_tensors_for_1_3_and_2_points_have_no_padding(processor):
         assert bool((labels >= 0).all())  # neither the processor's padding (-10) nor "not a point" (-1)
         assert labels.flatten().tolist() == prompt.labels
         # The processor scales image px to the model's 1024 x 1024 input and does nothing else.
-        expected = [value for x, y in prompt.points_px for value in (x * 1024 / W, y * 1024 / H)]
+        expected = [value for x, y in prompt.points_px for value in (x * 1024 / HD_W, y * 1024 / HD_H)]
         assert coords.flatten().tolist() == pytest.approx(expected, abs=1e-3)
 
 
@@ -221,7 +221,7 @@ def test_start_stores_only_the_points_inside_the_image(processor):
     ]
     model = StubModel()
     segmenter = hf.HFSegmenter("edgetam", "cpu", model=model, processor=processor)
-    results = segmenter.start(np.zeros((H, W, 3), np.uint8), prompts)
+    results = segmenter.start(np.zeros((HD_H, HD_W, 3), np.uint8), prompts)
 
     assert [result.obj_id for result in results] == NAMES
     for obj_idx, kept in enumerate(THREE):  # what is left of each object: 1, 3 and 2 points
@@ -229,12 +229,12 @@ def test_start_stores_only_the_points_inside_the_image(processor):
         count = len(kept.points_px)
         assert tuple(coords.shape) == (1, 1, count, 2) and tuple(labels.shape) == (1, 1, count)
         assert bool((labels >= 0).all()) and labels.flatten().tolist() == kept.labels
-        expected = [value for x, y in kept.points_px for value in (x * 1024 / W, y * 1024 / H)]
+        expected = [value for x, y in kept.points_px for value in (x * 1024 / HD_W, y * 1024 / HD_H)]
         assert coords.flatten().tolist() == pytest.approx(expected, abs=1e-3)
         assert bool((coords >= 0).all())
 
     with pytest.raises(base.PromptError, match="'B' has no positive point inside the image"):
-        segmenter.start(np.zeros((H, W, 3), np.uint8), [THREE[0], ObjectPrompt("B", [(1920.0, 600.5)], [1])])
+        segmenter.start(np.zeros((HD_H, HD_W, 3), np.uint8), [THREE[0], ObjectPrompt("B", [(1920.0, 600.5)], [1])])
     assert len(model.calls) == 1  # the refused start did not reach the model
 
 
@@ -243,7 +243,7 @@ def test_preview_uses_a_session_of_its_own(processor):
 
     model = StubModel()
     segmenter = hf.HFSegmenter("edgetam", "cpu", model=model, processor=processor)
-    image = np.zeros((H, W, 3), np.uint8)
+    image = np.zeros((HD_H, HD_W, 3), np.uint8)
     segmenter.start(image, THREE)
     segmenter.step(image)
     session = segmenter.session
@@ -276,7 +276,7 @@ def test_step_fallback_opens_a_new_session_on_cpu(processor):
     segmenter = hf.HFSegmenter("edgetam", "mps", model=model, processor=processor)
     lines = []
     segmenter.log = lines.append
-    image = np.zeros((H, W, 3), np.uint8)
+    image = np.zeros((HD_H, HD_W, 3), np.uint8)
 
     first = segmenter.start(image, THREE)
     second = segmenter.step(image)
@@ -305,7 +305,7 @@ def test_step_fallback_opens_a_new_session_on_cpu(processor):
     for obj_idx, (u, v) in enumerate(last_seen):
         coords, labels = _stored(new_session, obj_idx)
         assert tuple(coords.shape) == (1, 1, 1, 2) and labels.flatten().tolist() == [1]
-        assert coords.flatten().tolist() == pytest.approx([u * 1024 / W, v * 1024 / H], abs=1e-3)
+        assert coords.flatten().tolist() == pytest.approx([u * 1024 / HD_W, v * 1024 / HD_H], abs=1e-3)
         assert coords.device.type == "cpu"
 
     for results in (third, fourth):
@@ -493,7 +493,7 @@ def test_step_fallback_with_the_real_model_finishes_on_cpu(monkeypatch):
     for obj_idx, (u, v) in enumerate(before):
         coords, labels = _stored(segmenter.session, obj_idx)
         assert tuple(coords.shape) == (1, 1, 1, 2) and labels.flatten().tolist() == [1]
-        assert coords.flatten().tolist() == pytest.approx([u * 1024 / W, v * 1024 / H], abs=1e-3)
+        assert coords.flatten().tolist() == pytest.approx([u * 1024 / HD_W, v * 1024 / HD_H], abs=1e-3)
 
     true = np.array([[ellipse[:2] for ellipse in _moving_ellipses(t)] for t in range(n_frames)])
     error = np.hypot(*(np.array(positions) - true).transpose(2, 0, 1))  # [frame, object], px
