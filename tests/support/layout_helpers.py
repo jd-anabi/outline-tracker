@@ -1,4 +1,5 @@
-"""Where the files are: the one table of paths that the tests name.
+"""Where the files are: the one table of paths that the tests name, and the scan of the links between
+documents.
 
 A test that needs a file of the package, a test file, a helper module or a document asks this table by
 role (`path("command line")`, `module("schema docs")`) and does not write the path itself. So a move
@@ -6,15 +7,21 @@ of files changes this table and the import lines, and no test.
 
 `PATHS` has every path that a test names and that a move might change; paths no move touches
 (the README, `pyproject.toml`, the data of the tests) stay in the tests that read them. Each path is
-relative to `REPO` and written with `/`.
+relative to `REPO` and written with `/`. Two entries are there for another reason: `CLAUDE.md` and
+`docs/ROADMAP.md` are not moved, but the developer page is, and the link it writes to each of them is
+computed between two entries of the table (`link_to` in tests/gui/test_finish.py).
 
 `REPO` is found by walking up from this file to the first folder that holds pyproject.toml, so the
 file can lie at any depth. A test never takes a folder of the repository from its own `__file__`
 (tests/repo/test_layout.py checks that); this is the one place that may.
+
+`dead_links` reads the relative links `[text](target)` of a Markdown text. tests/repo/test_layout.py
+runs it over every tracked document and tests/repo/test_readme.py over the README.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path, PurePosixPath
 
 PACKAGE_NAME = "outline_tracker"  # the name of the package, and of its folder at the top of the repository
@@ -43,6 +50,7 @@ PATHS: dict[str, str] = {
     "fileio test": "tests/core/test_fileio.py",
     "window helpers": "tests/support/gui_helpers.py",
     "session helpers": "tests/support/session_helpers.py",
+    "tracking helpers": "tests/support/tracking_helpers.py",
     "theme test": "tests/gui/test_theme.py",
     "worker jobs test": "tests/gui/test_worker_jobs.py",
     "slow test helpers": "tests/support/pipeline_helpers.py",
@@ -87,3 +95,46 @@ def below(folder: Path, *roles: str) -> set[str]:
     (`below(REPO / "outline_tracker", "worker")` is `{"gui/worker.py"}`). Raises `ValueError` for a path
     that does not lie below `folder`."""
     return {path(role).relative_to(folder).as_posix() for role in roles}
+
+
+# ---------------------------------------------------------------------------------------------
+# Links between documents
+
+FENCES = ("```", "~~~")  # the two kinds of fence that open a block of code
+LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s[^)]*)?\)")  # `[text](target)`; the text may wrap, a title may follow
+SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")  # `https:`, `mailto:`
+CODE_SPAN = re.compile(r"`(?:[^`\n]|\n(?![ \t]*\n))*`")  # `inline code`, also over a line end, never over a blank line
+
+
+def outside_code(text: str) -> str:
+    """`text` without its fenced blocks (``` and ~~~; a fence is closed by its own kind) and without its
+    `inline code`. Every line end stays, so that a line number counted in the result is the line in `text`."""
+    kept, fence = [], None
+    for line in text.splitlines():
+        marker = line.lstrip()[:3]
+        if fence is None and marker in FENCES:
+            fence = marker  # a block opens
+            kept.append("")
+        elif fence is not None:
+            if marker == fence:
+                fence = None  # and closes
+            kept.append("")
+        else:
+            kept.append(line)
+    return CODE_SPAN.sub(lambda span: "\n" * span.group().count("\n"), "\n".join(kept))
+
+
+def dead_links(text: str, folder: Path) -> list[tuple[int, str]]:
+    """`(line, target)` for every relative link `[text](target)` in the Markdown `text` whose target is not
+    a file or folder below `folder`, the folder of the document that holds the link; `line` is the line
+    on which the target is written. An anchor (`#...`) is cut off from the target. A link with a scheme
+    (`https:`, `mailto:`) and a link that is only an anchor are skipped. Code is not read: neither fenced
+    blocks nor `inline code`. The text of a link may wrap onto the next line, and a link may have a title."""
+    plain = outside_code(text)
+    found = []
+    for link in LINK.finditer(plain):
+        target = link.group(1)
+        local = target.split("#")[0]
+        if local and not SCHEME.match(target) and not (folder / local).exists():
+            found.append((plain.count("\n", 0, link.start(1)) + 1, local))
+    return found

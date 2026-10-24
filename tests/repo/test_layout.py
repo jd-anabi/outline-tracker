@@ -23,7 +23,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from layout_helpers import PATHS, REPO, below, module
+from layout_helpers import PATHS, REPO, below, dead_links, module
 from layout_helpers import path as table_path
 
 import outline_tracker
@@ -141,28 +141,36 @@ def _own_file_uses(folder: Path) -> list[str]:
     """`file:line` for every use of the bare name `<own>` in a .py file under `folder`, except the one form
     that stays: `Path(<own>).resolve().parent` or `Path(<own>).parent`, the folder of a file that lies beside
     the test. `parents[1]`, a second `.parent`, `os.path.dirname(<own>)` and every other use are found.
+    So is a step up from a name that holds the form that stays: after `HERE = Path(<own>).parent`, the
+    expressions `HERE.parent`, `HERE.parents[1]` and `HERE / ".."` are found, on the line of `HERE`.
+    Not found: a step made by a call that takes the name (`os.path.join(HERE, "..")`, `Path(HERE, "..")`,
+    `os.path.dirname(HERE)`), and a second name for the same folder (`ROOT = HERE`, then `ROOT.parent`).
     The attribute of an imported module (`json.<own>`) is not the bare name; a docstring, a string and a
     comment hold no name. The files are read as syntax trees."""
     found = []
     for path in sorted(folder.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
-        lines = sorted(node.lineno for node in ast.walk(tree)
-                       if isinstance(node, ast.Name) and node.id == OWN and not _is_own_folder(node, parents))
+        names = [node for node in ast.walk(tree) if isinstance(node, ast.Name)]
+        forms = {node: _own_folder_form(node, parents) for node in names if node.id == OWN}
+        held = _names_that_hold(forms.values(), parents)
+        lines = sorted({node.lineno for node, form in forms.items() if form is None}
+                       | {node.lineno for node in names
+                          if node.id in held and isinstance(node.ctx, ast.Load) and _goes_up(node, parents)})
         found += [f"{path.relative_to(folder).as_posix()}:{line}" for line in lines]
     return found
 
 
-def _is_own_folder(name: ast.Name, parents: dict) -> bool:
-    """Whether the name `<own>` is the one in `Path(<own>).resolve().parent` or `Path(<own>).parent`, and
-    that expression goes no further than `.parent` (a second `.parent`, or a `.parents`, is a folder higher
-    up)."""
+def _own_folder_form(name: ast.Name, parents: dict) -> ast.expr | None:
+    """The expression `Path(<own>).resolve().parent` or `Path(<own>).parent` that the name `<own>` is the
+    start of, and nothing else: None if the name is in another form (a second `.parent`, or a `.parents`,
+    is a folder higher up)."""
     call = parents.get(name)
     func = getattr(call, "func", None)
     named_path = (isinstance(func, ast.Name) and func.id == "Path"
                   or isinstance(func, ast.Attribute) and func.attr == "Path")
     if not (isinstance(call, ast.Call) and call.args == [name] and not call.keywords and named_path):
-        return False
+        return None
     steps, current = [], call
     while True:
         up = parents.get(current)
@@ -172,7 +180,37 @@ def _is_own_folder(name: ast.Name, parents: dict) -> bool:
         elif isinstance(up, ast.Call) and up.func is current and not up.args and not up.keywords:
             current = up  # `.resolve()` has no arguments
         else:
-            return steps in (["parent"], ["resolve", "parent"])
+            return current if steps in (["parent"], ["resolve", "parent"]) else None
+
+
+def _names_that_hold(forms, parents: dict) -> set[str]:
+    """The names that are assigned one of these expressions, as `HERE` in `HERE = Path(<own>).parent`."""
+    held = set()
+    for form in forms:
+        assign = parents.get(form)
+        if form is not None and isinstance(assign, (ast.Assign, ast.AnnAssign)) and assign.value is form:
+            targets = assign.targets if isinstance(assign, ast.Assign) else [assign.target]
+            held |= {target.id for target in targets if isinstance(target, ast.Name)}
+    return held
+
+
+def _goes_up(name: ast.Name, parents: dict) -> bool:
+    """Whether the expression that starts at this use of a name that holds the own folder goes up from it:
+    a `.parent`, a `.parents`, or a division by a path with a `..` step in it (`HERE / ".."`, also
+    `(HERE / "data") / "../.."`). `.resolve()` and a division by a name do not."""
+    current = name
+    while True:
+        up = parents.get(current)
+        if isinstance(up, ast.Attribute) and up.value is current:
+            if up.attr in ("parent", "parents"):
+                return True
+        elif isinstance(up, ast.BinOp) and isinstance(up.op, ast.Div) and up.left is current:
+            step = up.right.value if isinstance(up.right, ast.Constant) and isinstance(up.right.value, str) else ""
+            if ".." in re.split(r"[/\\]", step):
+                return True
+        elif not (isinstance(up, ast.Call) and up.func is current):
+            return False
+        current = up
 
 
 def test_no_test_takes_a_folder_of_the_repository_from_its_own_file():
@@ -195,9 +233,18 @@ def test_the_own_file_scan_finds_each_wrong_form_and_leaves_the_right_ones(tmp_p
         "dirname.py": "import os\n\nREPO = os.path.dirname(os.path.dirname(<own>))\n",
         "alone.py": "import os\nHERE = os.path.abspath(<own>)\nprint(open(<own>).read())\n",
         "in_folder/deeper/one_of_two.py": imports + "OK = Path(<own>).parent\nBAD = Path(<own>).parents[2]\n",
+        # a name that holds the form that stays, climbed in a second step
+        "held_parent.py": imports + "HERE = Path(<own>).parent\nREPO = HERE.parent\n",
+        "held_parents.py": (imports + "HERE = Path(<own>).resolve().parent\nREPO = HERE.parents[1]\n"
+                            "DATA = (HERE / 'data').parent\n"),
+        "held_up_step.py": (imports + "HERE = Path(<own>).parent\nREPO = (HERE / '..').resolve()\n"
+                            "TOP = HERE / 'data' / '../..'\n"),
         # the form that stays
         "own_folder.py": imports + "SLOW = Path(<own>).resolve().parent\n",
         "own_folder_plain.py": imports + "HERE = Path(<own>).parent\nDATA = HERE / 'data'\n",
+        "held_not_climbed.py": (imports + "HERE = Path(<own>).resolve().parent\nNAME = HERE.name\n"
+                                "SAME = HERE.resolve()\nFILES = HERE / 'a..b' / '..x'\n"),
+        "other_name.py": imports + "ELSE = Path('data')\nUP = ELSE.parent / '..'\n",  # holds nothing of the kind
         # not the bare name
         "of_a_module.py": ("import json\nfrom pathlib import Path\n\n"
                            "lines = Path(json.<own>).read_text(encoding='utf-8').splitlines()\n"
@@ -213,6 +260,11 @@ def test_the_own_file_scan_finds_each_wrong_form_and_leaves_the_right_ones(tmp_p
         "alone.py:2",
         "alone.py:3",
         "dirname.py:3",
+        "held_parent.py:4",
+        "held_parents.py:4",
+        "held_parents.py:5",
+        "held_up_step.py:4",
+        "held_up_step.py:5",
         "in_folder/deeper/one_of_two.py:4",
         "parent_twice.py:3",
         "parents.py:3",
@@ -223,27 +275,14 @@ def test_the_own_file_scan_finds_each_wrong_form_and_leaves_the_right_ones(tmp_p
 # ---------------------------------------------------------------------------------------------
 # Every relative link in a tracked .md file points to something that exists
 
-LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s[^)]*)?\)")  # `[text](target)`, also with a title after the target
-SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")  # `https:`, `mailto:`
-
 
 def _broken_links(root: Path, names: list[str]) -> list[str]:
     """`file:line: target does not exist` for every relative link `[text](target)` in the .md files `names`
     (paths below `root`) whose target is not a file or folder. A target is read from the folder of the file
-    that holds the link; an anchor (`#...`) is cut off. A link with a scheme (`https:`, `mailto:`) and a
-    link that is only an anchor are skipped. Code is not read: neither fenced blocks nor `inline code`."""
-    found = []
-    for name in names:
-        folder, inside = (root / name).parent, False
-        for number, line in enumerate((root / name).read_text(encoding="utf-8").splitlines(), start=1):
-            if line.lstrip().startswith(("```", "~~~")):
-                inside = not inside
-            elif not inside:
-                for target in LINK.findall(re.sub(r"`[^`]*`", "", line)):
-                    local = target.split("#")[0]
-                    if local and not SCHEME.match(target) and not (folder / local).exists():
-                        found.append(f"{name}:{number}: {local} does not exist")
-    return found
+    that holds the link. The scan is `dead_links` of tests/support/layout_helpers.py, which tests/repo/test_readme.py
+    uses too."""
+    return [f"{name}:{line}: {target} does not exist" for name in names
+            for line, target in dead_links((root / name).read_text(encoding="utf-8"), (root / name).parent)]
 
 
 def test_every_relative_link_in_a_tracked_markdown_file_points_to_something_that_exists():
@@ -276,6 +315,16 @@ def test_the_link_scan_finds_a_dead_link_and_skips_the_rest(tmp_path):
         "[c](tilde_gone.md)",
         "~~~",
         "After the blocks: [d](after_gone.md).",
+        "A link whose text wraps [onto the next",
+        "line](wrapped_gone.md) is read, and so is a wrapped [live one",
+        "too](other.md).",
+        "A `code span that wraps",
+        "[e](span_gone.md)` is code, not a link.",
+        "```",
+        "~~~",
+        "[f](inside_gone.md)",
+        "```",
+        "After the block that holds a tilde line: [g](later_gone.md).",
         ""]), encoding="utf-8")
     (tmp_path / "top.md").write_text("A [guide](docs/guide.md) and [one that is not](docs/nothing.md).\n",
                                      encoding="utf-8")
@@ -285,6 +334,8 @@ def test_the_link_scan_finds_a_dead_link_and_skips_the_rest(tmp_path):
         "docs/guide.md:5: docs/other.md does not exist",
         "docs/guide.md:6: shape.png does not exist",
         "docs/guide.md:14: after_gone.md does not exist",
+        "docs/guide.md:16: wrapped_gone.md does not exist",  # the line that holds the target
+        "docs/guide.md:24: later_gone.md does not exist",
         "top.md:1: docs/nothing.md does not exist",
     ]
 

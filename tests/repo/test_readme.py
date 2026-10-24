@@ -34,7 +34,7 @@ import cv2
 import numpy as np
 import pytest
 from from_tracker_helpers import two_disks
-from layout_helpers import REPO
+from layout_helpers import REPO, dead_links
 
 from outline_tracker import __version__
 from outline_tracker.cli import main as cli
@@ -189,10 +189,9 @@ def comment_problems(text: str) -> list[str]:
 
 
 def link_problems(text: str, folder: Path) -> list[str]:
-    """Relative links `[text](target)` whose file does not exist in `folder`."""
-    targets = re.findall(r"\[[^\]]*\]\(([^)\s]+)\)", prose(text))
-    local = [target.split("#")[0] for target in targets if not re.match(r"(?:https?:|mailto:|#)", target)]
-    return [f"{target} does not exist" for target in local if not (folder / target).exists()]
+    """Relative links `[text](target)` whose file does not exist in `folder`. The scan is `dead_links` of
+    tests/support/layout_helpers.py, which tests/repo/test_layout.py runs over every tracked document."""
+    return [f"{target} does not exist" for _, target in dead_links(text, folder)]
 
 
 def options_in(text: str) -> set[str]:
@@ -559,6 +558,10 @@ def test_the_link_check_finds_a_file_that_is_not_there(tmp_path):
     (tmp_path / "docs" / "A.md").write_text("x")
     text = "[a](docs/A.md#top) [b](docs/B.md) [c](https://example.org/x) [d](#up)\n" + fenced("text", "[e](nope.md)")
     assert link_problems(text, tmp_path) == ["docs/B.md does not exist"]
+    # the stricter reading of the one scan that tests/repo/test_layout.py shares: a titled link is a link, and
+    # `inline code` and a block fenced with ~~~ are not
+    more = '[f](docs/F.md "a title") and `[g](nope.md)`\n~~~text\n[h](nope.md)\n~~~\n'
+    assert link_problems(more, tmp_path) == ["docs/F.md does not exist"]
 
 
 TAGGED = "uv tool install git+https://github.com/jd-anabi/outline-tracker@refs/tags/v0.12.3 --python 3.12"

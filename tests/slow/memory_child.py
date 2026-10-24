@@ -1,9 +1,10 @@
 """The child process of tests/slow/test_memory.py: tracks ten coarse objects of a 1080p clip with
 the real EdgeTAM on `cpu` and writes down its own memory after every tracked frame (SPEC 6.5).
 
-Run as `python memory_child.py VIDEO RUN_FOLDER SAMPLES.json` with tests/ and tests/slow/ on
-PYTHONPATH. VIDEO is `ten_ellipse_scene()` written by `synthetic.render`. The process holds what a
-run of the tool holds (the model, the job, the results); the clip was rendered by the parent.
+Run as `python memory_child.py VIDEO RUN_FOLDER SAMPLES.json` with the folder of the helper modules
+(tests/support/) on PYTHONPATH, so that it finds `pipeline_helpers` and `tracking_helpers`. VIDEO is
+`ten_ellipse_scene()` written by `synthetic.render`. The process holds what a run of the tool holds
+(the model, the job, the results); the clip was rendered by the parent.
 
 SAMPLES.json: status, frames (tracked), lost (object-frames without a mask), seconds_per_frame (s),
 resident_bytes (a list: resident memory of this process right after tracked frame 1, 2, ..., read

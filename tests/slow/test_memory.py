@@ -102,7 +102,7 @@ def test_ten_coarse_objects_at_1080p_stay_under_3_gb_and_flat(tmp_path):
     assert apart[apart > 0].min() > 250.0  # well apart, at the start and at the end (the paths are straight)
 
     samples = tmp_path / "samples.json"
-    helper_folders = dict.fromkeys([table_path("test helpers").parent, table_path("slow test helpers").parent])
+    helper_folders = dict.fromkeys([table_path("tracking helpers").parent, table_path("slow test helpers").parent])
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(
         [str(folder) for folder in helper_folders] + [path for path in [os.environ.get("PYTHONPATH")] if path])}
     child = subprocess.run([sys.executable, str(SLOW / "memory_child.py"), str(clip.path), str(tmp_path / "run"),
