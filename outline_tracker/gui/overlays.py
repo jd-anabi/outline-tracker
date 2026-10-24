@@ -44,8 +44,8 @@ import pyqtgraph as pg
 from outline_tracker.measure.heading import track_headings
 from outline_tracker.core.geometry import WorldFrame
 from outline_tracker.gui.click_rules import ResultsOnDisk
-from outline_tracker.gui.panels.time_panel import settings
 from outline_tracker.gui.prompts import BLACK, CASING, LINE_WIDTHS, colour_of
+from outline_tracker.gui.settings import settings
 from outline_tracker.measure.mask import GRID_CELLS
 from outline_tracker.measure.results import ResultsStore, TrackArrays
 from outline_tracker.tracking.fine import crop_box

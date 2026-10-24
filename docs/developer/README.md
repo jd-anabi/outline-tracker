@@ -100,9 +100,10 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `gui/worker_jobs.py` | `Jobs`: tracking in the worker thread, what a job reports back, and the one lock, `Jobs.writing()` |
 | `gui/review_table.py` | the flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread |
 | `gui/panel_parts.py` | the small parts the panels share: `Message`, `ElidedLabel`, `guard_wheel`, `field_rows` |
+| `gui/settings.py` | `settings()`: the application's `QSettings`, kept between sittings (the manifest's place, Fill) |
 | `gui/panels/__init__.py` | `PANEL_MODULES` and `build_bodies`: one module per panel, found by its name |
 | `gui/panels/video_panel.py` | panel 1: the name, Open video, Open session, the file's facts, the clip |
-| `gui/panels/time_panel.py` | panel 2: fps_true with its source, Stopwatch…, the manifest; `settings()` |
+| `gui/panels/time_panel.py` | panel 2: fps_true with its source, Stopwatch…, the manifest |
 | `gui/panels/calibration_panel.py` | panel 3: Stick and its length, the scale, the Tape check |
 | `gui/panels/dish_panel.py` | panel 4: Circle, Origin to Center, Axes, "Crop to dish for tracking" |
 | `gui/panels/objects_panel.py` | panel 6: the table of objects, Add, Remove, mode, fine window, the point tools |
@@ -188,7 +189,7 @@ Who writes which file:
 | results.npz | the worker thread while a job runs (`tracking.run_job`). Between jobs, the GUI thread's edits that delete records write it (Remove, and the corrections of panel 8), which is one reason why they are off during a run and during an export. |
 | positions.csv and the other exported files | the worker thread during Export all (`export.export_all`), from session.json and results.npz as they are on disk. |
 | run.log | the GUI thread, when a job has ended, with the lines the job said and the trace of a failure; an export appends its own block. |
-| the settings (the manifest's place, Fill) | the GUI thread (`gui/panels/time_panel.py`, `settings()`). |
+| the settings (the manifest's place, Fill) | the GUI thread (`gui/settings.py`, `settings()`). |
 
 Cancel is a `threading.Event` that `run_job` asks before every frame. Closing the window sets the worker's `stopping`, waits for the thread, and then saves the session as the job left it.
 

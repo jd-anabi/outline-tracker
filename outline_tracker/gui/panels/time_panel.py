@@ -10,8 +10,9 @@ videos it usually means a re-timed copy.
 The manifest (`data/manifest.csv`, one row per video with its fps_true) is looked for when a video
 is opened whose session has no fps_true yet: in the current folder and upward from the video's
 folder (`geometry.find_manifest`), then at the manifest the user pointed to last time, which is
-remembered between sessions in the application's settings (`settings`). The settings are read only
-when a video is opened and written only when the user chooses a manifest that lists the video.
+remembered between sessions in the application's settings (`settings()` of gui/settings.py). The
+settings are read only when a video is opened and written only when the user chooses a manifest that
+lists the video.
 
 Stopwatch… opens the dialog of gui/stopwatch_dialog.py; on OK its frame rate goes into the session
 with the two frames and the two readings it came from. The window cannot be used while the dialog
@@ -25,12 +26,12 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from outline_tracker.core.geometry import find_manifest, fps_from_manifest
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.panels.video_panel import SPACING, Message, field_rows
+from outline_tracker.gui.settings import settings
 from outline_tracker.gui.stopwatch_dialog import StopwatchDialog
 
 WARN_BELOW = 100.0  # frames per second (SPEC 3.3)
@@ -44,12 +45,6 @@ HINT_UNDER = "fps_true is under 100 fps. This usually means a re-timed copy of t
 NO_NUMBER = "fps_true must be a number, for example 240."
 NOT_POSITIVE = "fps_true must be more than 0 fps."
 NOT_LISTED = "{manifest} has no fps_true for {video}. Check the row of this video in the manifest, or type fps_true."
-
-
-def settings() -> QSettings:
-    """The application's settings, kept between sessions: an INI file in the user's own settings
-    folder, the same kind of file on every system."""
-    return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "outline-tracker", "outline-tracker")
 
 
 def usable_fps(video_path, manifest) -> float | None:

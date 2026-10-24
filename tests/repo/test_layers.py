@@ -62,8 +62,6 @@ EXCEPTIONS: dict[tuple[str, str], str] = {
         "the stand-in of the tests names GroundTruth, in an annotation only; removed by W6 step 2"
         " (the registry of methods)",
     # the window: a view module or a dialog takes a name from a panel
-    ("outline_tracker.gui.overlays", "outline_tracker.gui.panels.time_panel"):
-        "takes settings from the time panel; removed by W2 step 4e",
     ("outline_tracker.gui.stopwatch_dialog", "outline_tracker.gui.panels.video_panel"):
         "takes SPACING and Message from the video panel; removed by W2 step 4e",
     # the window: a panel takes the small parts it shares from another panel

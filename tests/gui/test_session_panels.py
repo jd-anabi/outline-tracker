@@ -22,6 +22,7 @@ import helpers
 from gui_helpers import record_dialogs, show
 from outline_tracker.video import reader as video
 from outline_tracker.gui.panels import time_panel, video_panel
+from outline_tracker.gui.settings import settings
 from prompt_helpers import Gate
 from session_helpers import FOLDER_OF_NAME, LEFT, NAME, body, settle, type_into, wait_for_check, write_manifest
 
@@ -492,7 +493,7 @@ def test_a_manifest_the_user_points_to_is_used_and_remembered(window, qtbot, mon
     time = window.controller.session.time
     assert (time.fps_true, time.source) == (239.6, "manifest") and manifest.samefile(time.manifest_path)
     assert state(window, 2) == ("done", "fps_true = 239.60 fps (from the manifest).")
-    kept = time_panel.settings()
+    kept = settings()
     assert kept.format() == QSettings.Format.IniFormat and kept.scope() == QSettings.Scope.UserScope
     assert Path(kept.fileName()).is_relative_to(own_settings)  # in this test's folder, not the user's own
     assert manifest.samefile(kept.value(time_panel.MANIFEST_KEY))
@@ -516,7 +517,7 @@ def test_a_manifest_without_the_video_changes_nothing_and_is_not_remembered(wind
     assert not panel.message.isHidden() and panel.message.property("kind") == "problem"
     assert panel.message.text() == ("manifest.csv has no fps_true for dish_tracker.mp4. Check the row of this "
                                     "video in the manifest, or type fps_true.")
-    assert time_panel.settings().value(time_panel.MANIFEST_KEY) is None
+    assert settings().value(time_panel.MANIFEST_KEY) is None
     assert asked.messages == []  # said in the panel, not in a dialog
 
 
