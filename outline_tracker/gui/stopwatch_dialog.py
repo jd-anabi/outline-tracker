@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (QDialog, QDoubleSpinBox, QGridLayout, QHBoxLayout
 
 from outline_tracker.core.geometry import fps_from_stopwatch
 from outline_tracker.gui.navigation import LARGEST_FRAME, numeric_font
-from outline_tracker.gui.panels.video_panel import SPACING, Message
+from outline_tracker.gui.panel_parts import SPACING, Message
 
 MARGIN = 24               # around the dialog's content
 BOX_SIZE = (104, 28)      # the least width and height of a number box

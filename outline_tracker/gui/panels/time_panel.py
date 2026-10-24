@@ -30,7 +30,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBox
 
 from outline_tracker.core.geometry import find_manifest, fps_from_manifest
 from outline_tracker.gui import dialogs, theme
-from outline_tracker.gui.panels.video_panel import SPACING, Message, field_rows
+from outline_tracker.gui.panel_parts import SPACING, Message, field_rows
 from outline_tracker.gui.settings import settings
 from outline_tracker.gui.stopwatch_dialog import StopwatchDialog
 

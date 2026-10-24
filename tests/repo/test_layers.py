@@ -61,9 +61,6 @@ EXCEPTIONS: dict[tuple[str, str], str] = {
     ("outline_tracker.segmenter.fake", "outline_tracker.synthetic.clips"):
         "the stand-in of the tests names GroundTruth, in an annotation only; removed by W6 step 2"
         " (the registry of methods)",
-    # the window: a view module or a dialog takes a name from a panel
-    ("outline_tracker.gui.stopwatch_dialog", "outline_tracker.gui.panels.video_panel"):
-        "takes SPACING and Message from the video panel; removed by W2 step 4e",
     # the window: a panel takes the small parts it shares from another panel
     ("outline_tracker.gui.panels.dish_panel", "outline_tracker.gui.panels.calibration_panel"):
         "takes Message, NumberBox, button, row, column and more from the calibration panel; removed by W2 step 4e",
@@ -71,16 +68,10 @@ EXCEPTIONS: dict[tuple[str, str], str] = {
         "takes CONTROL_HEIGHT, DASH, SPACING, Message, button and column; removed by W2 step 4e",
     ("outline_tracker.gui.panels.export_panel", "outline_tracker.gui.panels.track_panel"):
         "takes PRIMARY_HEIGHT; removed by W2 step 4e",
-    ("outline_tracker.gui.panels.export_panel", "outline_tracker.gui.panels.video_panel"):
-        "takes ElidedLabel and field_rows; removed by W2 step 4e",
     ("outline_tracker.gui.panels.review_panel", "outline_tracker.gui.panels.calibration_panel"):
         "takes CONTROL_HEIGHT, GROUP_GAP, Message, button, column and row; removed by W2 step 4e",
-    ("outline_tracker.gui.panels.time_panel", "outline_tracker.gui.panels.video_panel"):
-        "takes SPACING, Message and field_rows; removed by W2 step 4e",
     ("outline_tracker.gui.panels.track_panel", "outline_tracker.gui.panels.calibration_panel"):
         "takes CONTROL_HEIGHT, SPACING, Message, button and column; removed by W2 step 4e",
-    ("outline_tracker.gui.panels.track_panel", "outline_tracker.gui.panels.video_panel"):
-        "takes field_rows and guard_wheel; removed by W2 step 4e",
 }
 
 

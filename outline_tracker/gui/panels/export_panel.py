@@ -47,9 +47,9 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QSizePolicy, QW
 from outline_tracker.core import schema
 from outline_tracker.export.pipeline import UNUSABLE, WARNING_PREFIX, ExportReport, export_all, one_line, size_text
 from outline_tracker.gui import dialogs, estimate, theme
+from outline_tracker.gui.panel_parts import ElidedLabel, field_rows
 from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, DASH, SPACING, Message, button, column
 from outline_tracker.gui.panels.track_panel import PRIMARY_HEIGHT
-from outline_tracker.gui.panels.video_panel import ElidedLabel, field_rows
 from outline_tracker.gui.tools import mm_per_px
 from outline_tracker.gui.worker import traced, worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
