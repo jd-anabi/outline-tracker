@@ -8,187 +8,23 @@ typed lengths, and shows what `geometry.stick_scale` and `geometry.tape_check` m
 red. A length that cannot be used is refused where it is typed: the box keeps what was typed and
 is marked, a message says why, and the session keeps the length it had.
 
-The parts that panel 4 needs as well are here too: the inline `Message`, the `NumberBox`, and the
-small functions that build a row. Units: lengths typed and shown are mm, points and the stick's
+The parts that panel 4 needs as well (`IconMessage`, `NumberBox`, and the small functions that build
+a row) are in gui/panel_parts.py. Units: lengths typed and shown are mm, points and the stick's
 length on the picture are px of the video frame (SPEC 3.1), the scale is shown in µm per px; sizes
 of widgets are Qt's device-independent px.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QDoubleSpinBox, QFrame, QHBoxLayout, QLabel, QPushButton, QStyle, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import QLabel, QWidget
 
 from outline_tracker.core import geometry
-from outline_tracker.gui import theme
-from outline_tracker.gui.navigation import numeric_font
+from outline_tracker.gui.panel_parts import (DASH, GROUP_GAP, REDO_TIP, WIDEST, IconMessage, NumberBox, button, column,
+                                             follow_tool, group_label, number, row, value_label)
 from outline_tracker.gui.tools import StickTool, TapeTool, mm_per_px
 
-LABEL_WIDTH = 120     # the column of the field labels
-BOX_WIDTH = 104       # the least width of a number box
-CONTROL_HEIGHT = 28
-SPACING = 8           # between two rows, and between two buttons
-GROUP_GAP = 16        # between two groups of one panel
-WIDEST = 1e6          # a number box takes any value up to here: what can be used is decided where it is typed
-DASH = "–"            # in place of a value there is none of
-REDO_TIP = "Remove the points and click them again."
 NO_SCALE = "Place the stick first. The tape check needs the scale."
 LIMIT = f"{100 * geometry.TAPE_TOLERANCE:g}%"  # "1%"
-ICONS = {"success": "SP_DialogApplyButton", "warning": "SP_MessageBoxWarning", "problem": "SP_MessageBoxCritical"}
-
-
-def number(value: float, decimals: int) -> str:
-    """`value` with `decimals` decimals, a negative one with the minus sign "−" (U+2212), and
-    "0.0" rather than "−0.0"."""
-    text = f"{value:.{decimals}f}"
-    return text.lstrip("-") if float(text) == 0 else text.replace("-", "−")
-
-
-def point_text(point) -> str:
-    """A point (u, v) in px of the video frame, as "160.3, 119.8 px"."""
-    return f"{number(point[0], 1)}, {number(point[1], 1)} px"
-
-
-class Message(QFrame):
-    """A message inside a panel: an icon and one or two sentences on a tint. `kind` is `success`,
-    `warning` or `problem` (None while nothing is shown); the tint and the icon follow it, and the
-    sentence always says in words what the colour says."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("role", "msg")
-        self.kind: str | None = None
-        self._icon, self._text = QLabel(), QLabel()
-        self._text.setWordWrap(True)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(8, 6, 8, 6)
-        row.setSpacing(SPACING)
-        row.addWidget(self._icon, 0, Qt.AlignmentFlag.AlignTop)
-        row.addWidget(self._text, 1)
-        self.hide()
-
-    def text(self) -> str:
-        """The sentence shown; empty while nothing is."""
-        return self._text.text()
-
-    def show_message(self, kind: str | None, text: str = "", status=None) -> None:
-        """Show `text` as a message of `kind`; with kind None, show nothing. A text that was not
-        shown before also goes to `status`, the window's status bar."""
-        if kind and status is not None and text != self._text.text():
-            status.showMessage(text)
-        self.kind = kind
-        self._text.setText(text if kind else "")
-        if kind:
-            icon = self.style().standardIcon(getattr(QStyle.StandardPixmap, ICONS[kind]))
-            self._icon.setPixmap(icon.pixmap(16, 16))
-            theme.set_property(self, "kind", kind)
-        self.setVisible(kind is not None)
-
-
-class NumberBox(QDoubleSpinBox):
-    """A number with its unit as the suffix (" mm", "°"), right-aligned. A typed number counts when
-    it is complete (Enter, or leaving the box). The wheel changes it only while the box has the
-    keyboard focus: scrolling the dock must never change a value."""
-
-    def __init__(self, suffix: str, decimals: int, lowest: float, tip: str, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setRange(lowest, WIDEST)
-        self.setDecimals(decimals)
-        self.setSuffix(suffix)
-        self.setKeyboardTracking(False)
-        self.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.setMinimumSize(BOX_WIDTH, CONTROL_HEIGHT)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setToolTip(tip)
-
-    def wheelEvent(self, event) -> None:
-        if self.hasFocus():
-            super().wheelEvent(event)
-        else:
-            event.ignore()
-
-    def show_value(self, value: float, refused: bool) -> None:
-        """Show the session's `value`, without reporting a change. A box whose typed value was
-        `refused` keeps what was typed, and is marked as wrong."""
-        if not refused:
-            self.blockSignals(True)
-            self.setValue(value)
-            self.blockSignals(False)
-        if (self.property("check") or "") != ("error" if refused else ""):
-            theme.set_property(self, "check", "error" if refused else "")
-
-
-def button(text: str, tip: str, checkable: bool = False) -> QPushButton:
-    """A button of a panel: no key presses it by accident. A tool's button is `checkable`."""
-    made = QPushButton(text)
-    made.setCheckable(checkable)
-    made.setAutoDefault(False)
-    made.setToolTip(tip)
-    return made
-
-
-def group_label(text: str) -> QLabel:
-    """The DemiBold name of a group of rows in a panel."""
-    made = QLabel(text)
-    font = made.font()
-    font.setWeight(QFont.Weight.DemiBold)
-    made.setFont(font)
-    return made
-
-
-def value_label() -> QLabel:
-    """A result (DemiBold, digits of one width, right-aligned), a dash until there is one."""
-    made = QLabel(DASH)
-    font = numeric_font(made.font())
-    font.setPointSizeF(made.font().pointSizeF())  # the base size: only the frame box is larger
-    made.setFont(font)
-    made.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-    return made
-
-
-def row(*parts) -> QHBoxLayout:
-    """One row of a panel. A text becomes a field label in the label column, None becomes the
-    free room, a widget is added as it is; the last widget of a labelled row takes the room."""
-    made = QHBoxLayout()
-    made.setSpacing(SPACING)
-    for index, part in enumerate(parts):
-        if part is None:
-            made.addStretch(1)
-        elif isinstance(part, str):
-            label = QLabel(part)
-            label.setFixedWidth(LABEL_WIDTH)
-            made.addWidget(label)
-        else:
-            made.addWidget(part, 1 if isinstance(parts[0], str) and index == len(parts) - 1 else 0)
-    return made
-
-
-def column(widget: QWidget, *rows) -> None:
-    """Lay `rows` out in `widget`, top to bottom: a layout, a widget, or a number of px of room."""
-    made = QVBoxLayout(widget)
-    made.setContentsMargins(0, 0, 0, 0)
-    made.setSpacing(SPACING)
-    for part in rows:
-        if isinstance(part, int):
-            made.addSpacing(part - SPACING)
-        elif isinstance(part, QWidget):
-            made.addWidget(part)
-        else:
-            made.addLayout(part)
-
-
-def follow_tool(view, pairs) -> None:
-    """Tie tool buttons to the view: `pairs` are (button, tool). A click on a button chooses its
-    tool, or Pan if it was chosen; a button is checked exactly while its tool is the view's."""
-    def show() -> None:
-        for made, tool in pairs:
-            made.setChecked(view.tool is tool)
-
-    for made, tool in pairs:
-        made.clicked.connect(lambda on, tool=tool: view.set_tool(tool if on else None))
-    view.tool_changed.connect(show)
 
 
 class CalibrationPanel(QWidget):
@@ -218,7 +54,7 @@ class CalibrationPanel(QWidget):
         self.tape_note = QLabel(NO_SCALE)
         self.tape_note.setProperty("role", "hint")
         self.tape_note.setWordWrap(True)
-        self.message = Message()
+        self.message = IconMessage()
         column(self,
                group_label("Stick"), row(self.stick_button, None, self.stick_redo),
                row("Length", self.length_box), row("Scale", self.scale_value),

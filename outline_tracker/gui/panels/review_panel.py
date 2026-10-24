@@ -33,7 +33,7 @@ from PySide6.QtWidgets import QCheckBox, QLabel, QSizePolicy, QWidget
 
 from outline_tracker.tracking import job as tracking
 from outline_tracker.gui import dialogs, estimate
-from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, GROUP_GAP, Message, button, column, row
+from outline_tracker.gui.panel_parts import CONTROL_HEIGHT, GROUP_GAP, IconMessage, button, column, row
 from outline_tracker.gui.prompts import Prompts
 from outline_tracker.gui.review_table import FlagsModel, FlagsView, Listing, listed, meaning
 from outline_tracker.gui.worker import worker_of
@@ -105,7 +105,7 @@ class ReviewPanel(QWidget):
         self.selected_box.setToolTip("List the flags of the object selected in panel 6 only")
         for box in (self.shape_box, self.selected_box):
             box.toggled.connect(self.refresh)
-        self.message = Message()
+        self.message = IconMessage()
 
         self.next_button = self._button("Next flag", "next", self.next_flag)
         self.next_button.setProperty("kind", "primary")

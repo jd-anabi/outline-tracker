@@ -16,9 +16,8 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QCheckBox, QWidget
 
-from outline_tracker.gui.panels.calibration_panel import (DASH, GROUP_GAP, REDO_TIP, WIDEST, Message, NumberBox,
-                                                          button, column, follow_tool, group_label, point_text, row,
-                                                          value_label)
+from outline_tracker.gui.panel_parts import (DASH, GROUP_GAP, REDO_TIP, WIDEST, IconMessage, NumberBox, button,
+                                             column, follow_tool, group_label, point_text, row, value_label)
 from outline_tracker.gui.tools import NEEDS_THREE, AxesTool, CircleTool, mm_per_px
 
 NOT_KNOWN = "not known"  # what the dish diameter's box says at 0
@@ -53,7 +52,7 @@ class DishPanel(QWidget):
         self.angle_box = NumberBox("°", 1, -WIDEST, "The direction of +x: counterclockwise from the picture's right")
         self.crop_box = QCheckBox("Crop to dish for tracking")
         self.crop_box.setToolTip("Track only inside the square around the dish: faster, and sharper on the animals")
-        self.message = Message()
+        self.message = IconMessage()
         column(self,
                group_label("Dish"), row(self.circle_button, None, self.circle_redo),
                row("Center", self.center_value), row("Radius", self.radius_value), row("RMS", self.rms_value),

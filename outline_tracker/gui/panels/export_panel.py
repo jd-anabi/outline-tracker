@@ -47,8 +47,8 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QSizePolicy, QW
 from outline_tracker.core import schema
 from outline_tracker.export.pipeline import UNUSABLE, WARNING_PREFIX, ExportReport, export_all, one_line, size_text
 from outline_tracker.gui import dialogs, estimate, theme
-from outline_tracker.gui.panel_parts import ElidedLabel, field_rows
-from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, DASH, SPACING, Message, button, column
+from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, DASH, SPACING, ElidedLabel, IconMessage, button, column,
+                                             field_rows)
 from outline_tracker.gui.panels.track_panel import PRIMARY_HEIGHT
 from outline_tracker.gui.tools import mm_per_px
 from outline_tracker.gui.worker import traced, worker_of
@@ -163,7 +163,7 @@ class ExportPanel(QWidget):
         self.progress_bar.setRange(0, 0)  # busy: an export does not say how far it is
         self.progress_label = QLabel()
         self.progress_label.setWordWrap(True)
-        self.message = Message()
+        self.message = IconMessage()
         self.files_label = QLabel()
         self.files_label.setProperty("role", "hint")
         self.files_label.setWordWrap(True)

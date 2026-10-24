@@ -53,8 +53,8 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QProgressBar, QWid
 
 from outline_tracker.gui import dialogs, estimate
 from outline_tracker.gui.overlays import Overlays
-from outline_tracker.gui.panel_parts import field_rows, guard_wheel
-from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, SPACING, Message, button, column
+from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, SPACING, IconMessage, button, column, field_rows,
+                                             guard_wheel)
 from outline_tracker.gui.session_controller import VIDEO_FIRST
 from outline_tracker.gui.worker import NO_FACTORY, worker_of
 from outline_tracker.gui.worker_jobs import EXPORT_RUNNING, NOTHING_LEFT, RUNNING, STOPPED, jobs_of
@@ -141,7 +141,7 @@ class TrackPanel(QWidget):
         font = self.progress_label.font()
         font.setFeature(QFont.Tag("tnum"), 1)  # digits of one width: the line does not jump while it counts
         self.progress_label.setFont(font)
-        self.message = Message()
+        self.message = IconMessage()
         self.track_button = button("Track", TRACK_TIP)
         self.track_button.setProperty("kind", "primary")
         self.track_button.setFixedHeight(PRIMARY_HEIGHT)

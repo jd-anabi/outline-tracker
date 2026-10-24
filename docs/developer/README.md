@@ -99,7 +99,7 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `gui/worker_engine.py` | the engine: the object that lives in the worker thread, has the model made in a thread of its own, and calls the model |
 | `gui/worker_jobs.py` | `Jobs`: tracking in the worker thread, what a job reports back, and the one lock, `Jobs.writing()` |
 | `gui/review_table.py` | the flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread |
-| `gui/panel_parts.py` | the small parts the panels share: `Message`, `ElidedLabel`, `guard_wheel`, `field_rows` |
+| `gui/panel_parts.py` | the small parts the panels share, so that no panel imports another: `Message` and `IconMessage`, `ElidedLabel`, `NumberBox`, `guard_wheel`, `button`, `row`, `column`, `field_rows`, `follow_tool`, and the sizes |
 | `gui/settings.py` | `settings()`: the application's `QSettings`, kept between sittings (the manifest's place, Fill) |
 | `gui/panels/__init__.py` | `PANEL_MODULES` and `build_bodies`: one module per panel, found by its name |
 | `gui/panels/video_panel.py` | panel 1: the name, Open video, Open session, the file's facts, the clip |
