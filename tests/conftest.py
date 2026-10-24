@@ -126,7 +126,8 @@ def frames(dish_clip):
 
 # ---------------------------------------------------------------------------------------------
 # A tracked run folder, for the tests that change a run after it was tracked (tests/tracking/test_corrections.py,
-# tests/tracking/test_corrections_gaps.py, tests/tracking/test_tracking_edit.py)
+# tests/tracking/test_corrections_new_piece.py, tests/tracking/test_corrections_gaps.py,
+# tests/tracking/test_tracking_edit.py)
 
 
 @pytest.fixture(scope="module")

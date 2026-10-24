@@ -38,7 +38,6 @@ OVER_400: dict[str, str] = {
     "tests/slow/test_real_model.py": "6c",
     "tests/slow/test_regression_reference.py": "6c",
     "tests/synthetic/test_synthetic.py": "6c",
-    "tests/tracking/test_corrections.py": "6c",
     "tests/tracking/test_tracking_coarse.py": "6c",
     # 6d: the tests of gui/
     "tests/gui/test_export_panel.py": "6d",

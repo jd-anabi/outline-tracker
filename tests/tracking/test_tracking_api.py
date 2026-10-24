@@ -8,7 +8,8 @@ names, so that both imports work.
 Expected values are the plan's own text: its names, and its arguments in its order, which come
 first in every call. An argument after them (the run folder, for a function that saves
 results.npz) and what a function returns are not stated here: what the functions do is in
-tests/tracking/test_corrections.py and tests/tracking/test_tracking_edit.py. No units, no coordinates.
+tests/tracking/test_corrections.py, tests/tracking/test_corrections_new_piece.py and
+tests/tracking/test_tracking_edit.py. No units, no coordinates.
 """
 
 import inspect

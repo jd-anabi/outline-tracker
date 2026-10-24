@@ -30,6 +30,8 @@ FULL_SMALL = (0, 0, 320, 240)  # the whole frame of the fast tests' clips (helpe
 # give columns 49 to 271 and rows 8 to 231.
 DISH_BOX = (49, 8, 223, 224)
 
+GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions of the tracking tests take every 2nd
+
 
 def dish_circle(scene):
     """The dish wall of a scene as the session stores it: center (u, v) and radius, px."""
