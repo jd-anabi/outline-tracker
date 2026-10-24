@@ -1,6 +1,6 @@
 # Developer notes
 
-For whoever changes the code. Students read [README.md](../README.md); the files a run writes are described in [OUTPUTS.md](OUTPUTS.md); the plan is [ROADMAP.md](ROADMAP.md), and [PLAN.md](PLAN.md) is the history of the first build; the measured results of the real model are in [VALIDATION.md](VALIDATION.md). The specification is `SPEC.md` at the root.
+For whoever changes the code. Students read [README.md](../../README.md); the files a run writes are described in [OUTPUTS.md](../OUTPUTS.md); the plan is [ROADMAP.md](../ROADMAP.md), and [decisions.md](../design/decisions.md) holds the decisions of the first build; the measured results of the real model are in [VALIDATION.md](../VALIDATION.md). The specification of version 0.1.0 is [SPEC-v0.1.md](../design/SPEC-v0.1.md).
 
 ## Where what is
 
@@ -150,8 +150,8 @@ How the tests are laid out:
 
 ## Rules
 
-The rules that every change has to keep are in [CLAUDE.md](../CLAUDE.md), in short, and in
-section 2 of [ROADMAP.md](ROADMAP.md), in full. They are not repeated here. One more, from SPEC 12:
+The rules that every change has to keep are in [CLAUDE.md](../../CLAUDE.md), in short, and in
+section 2 of [ROADMAP.md](../ROADMAP.md), in full. They are not repeated here. One more, from SPEC 12:
 
 - Every public function says its units and its coordinate frame in its docstring. Split a file that grows past about 400 lines.
 
@@ -167,7 +167,7 @@ section 2 of [ROADMAP.md](ROADMAP.md), in full. They are not repeated here. One 
 
 ## The worker thread and the GUI thread
 
-There is one worker thread per window (decision X7 in docs/PLAN.md). It owns the loaded model and only it calls the model: an outline after a click, or one tracking job, one at a time. The same thread runs the two tasks that need no model, Export all and the listing of the flags table: `Worker.run(task, needs_model=False)` takes them whatever the model's state, so they also work while a model is still loading and when no model could be loaded.
+There is one worker thread per window (decision X7 in docs/design/decisions.md). It owns the loaded model and only it calls the model: an outline after a click, or one tracking job, one at a time. The same thread runs the two tasks that need no model, Export all and the listing of the flags table: `Worker.run(task, needs_model=False)` takes them whatever the model's state, so they also work while a model is still loading and when no model could be loaded.
 
 A model is made in a thread of its own, which calls the factory, does nothing else, and ends when the factory has returned (`_Making` in `gui/worker_engine.py`; the same 64 MiB of stack as the worker thread). The worker thread takes the model over and is free until then. What keeps X7's reasons: the model before is closed before the next one is made, a second load waits until what the first one made is closed (one copy of the weights), and no thread but the worker thread ever calls a model (no concurrent use). The step before loading, which sets torch's thread limit, runs in the worker thread. A model that is made while a task runs is taken over when that task has returned, and the state stays "loading" until then.
 

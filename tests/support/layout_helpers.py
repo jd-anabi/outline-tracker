@@ -55,8 +55,8 @@ PATHS: dict[str, str] = {
     "worker jobs test": "tests/gui/test_worker_jobs.py",
     "slow test helpers": "tests/support/pipeline_helpers.py",
     # documents
-    "spec": "SPEC.md",
-    "developer page": "docs/DEVELOPER.md",
+    "spec": "docs/design/SPEC-v0.1.md",
+    "developer page": "docs/developer/README.md",
     "agent rules": "CLAUDE.md",
     "roadmap": "docs/ROADMAP.md",
 }
