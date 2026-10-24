@@ -15,6 +15,7 @@ import tomllib
 from pathlib import Path
 
 from helpers import HOME_PATH, PYTEST_TMP, USERS, VERSION
+from import_helpers import imports
 from layout_helpers import PATHS, REPO, below, module
 
 import outline_tracker
@@ -75,40 +76,18 @@ def test_the_version_is_written_the_same_in_its_three_places():
 # Import boundaries
 
 
-def _imports(tree: ast.AST):
-    """Yield (line, module, names) for every absolute import in a parsed file: the dotted name of
-    the module, and for `from module import a, b` the names ("a", "b"), else ().
-
-    Covers `import a.b`, `from a.b import c`, and `import_module("a.b")` / `__import__("a.b")`
-    with a literal name, at any depth (lazy imports inside functions count too).
-    """
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                yield node.lineno, alias.name, ()
-        elif isinstance(node, ast.ImportFrom):
-            if node.level == 0 and node.module:
-                yield node.lineno, node.module, tuple(alias.name for alias in node.names)
-        elif isinstance(node, ast.Call) and node.args:
-            func, first = node.func, node.args[0]
-            called = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-            literal = isinstance(first, ast.Constant) and isinstance(first.value, str)
-            if called in ("import_module", "__import__") and literal:
-                yield node.lineno, first.value, ()
-
-
 def _imported_top_levels(tree: ast.AST):
-    """Yield (line, top-level module name) for every absolute import in a parsed file (`_imports`)."""
-    for line, module, _ in _imports(tree):
+    """Yield (line, top-level module name) for every absolute import in a parsed file (`imports`)."""
+    for line, module, _ in imports(tree):
         yield line, module.split(".")[0]
 
 
 def _imported_paths(tree: ast.AST):
     """Yield (line, dotted path) for everything that an absolute import in a parsed file names
-    (`_imports`), with every part of the name: `import a.b` and `import_module("a.b")` name a.b;
+    (`imports`), with every part of the name: `import a.b` and `import_module("a.b")` name a.b;
     `from a.b import c, d` names a.b.c and a.b.d, because c may be a module of a.b as well as a
     name in it."""
-    for line, module, names in _imports(tree):
+    for line, module, names in imports(tree):
         for name in names or ("",):
             yield line, f"{module}.{name}".rstrip(".")
 
@@ -372,7 +351,7 @@ def test_every_ci_job_runs_the_fast_tests_and_then_the_slow_tests_without_weight
 
 def _conftest_imports(folder: Path) -> list[str]:
     """Scan every .py file under `folder`; return `file:line` for each line that imports a module
-    named conftest, at any depth (the three ways of `_imports`). Every part of a dotted name is looked
+    named conftest, at any depth (the three ways of `imports`). Every part of a dotted name is looked
     at (`_imported_paths`): `tests.conftest` is that module too, and so is `conftest` imported as a
     name of `tests`."""
     found = []
@@ -489,7 +468,7 @@ def test_no_fixture_is_imported_by_name(tmp_path):
 
 def _test_module_imports(folder: Path) -> list[str]:
     """Scan every .py file under `folder`; return `file:line: imports module` for each import of a
-    module whose name begins with `test_`, at any depth (the three ways of `_imports`). Every part of
+    module whose name begins with `test_`, at any depth (the three ways of `imports`). Every part of
     a dotted name is looked at (`_imported_paths`), and `module` is the name up to the first such
     part: `tests.test_b` for `from tests.test_b import one` and for `from tests import test_b`."""
     found = []
