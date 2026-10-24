@@ -28,11 +28,11 @@ LIMIT = 400  # lines
 # Where the scan looks: the package and the tests, relative to the repository.
 SCANNED = (PACKAGE_NAME, "tests")
 
-# The files over LIMIT when W2 step 6 began, each with the task that splits it (6a, the package files, are all split).
+# The files over LIMIT when W2 step 6 began, each with the task that splits it (6a, the package files, and 6b, the
+# tests of core/ and segmenter/, are all split).
 # An entry comes off in the commit that splits its file: the first test below fails for a long file without an
 # entry, the second for an entry whose file is no longer long.
 OVER_400: dict[str, str] = {
-    # 6b: the tests of core/ and segmenter/
     # 6c: the tests of repo/, support/, tracking/, synthetic/, measure/ and slow/
     "tests/measure/test_derive_rules.py": "6c",
     "tests/repo/test_frozen_files.py": "6c",
