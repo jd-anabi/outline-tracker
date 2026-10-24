@@ -49,10 +49,6 @@ frame and rectangle. With a session file, the rectangles, the frames, fps_true a
 the session.
 """
 
-# the wording of last week's script (tracker_io.make_plan), which from-tracker also gives
-UNKNOWN_FPS = "Unknown fps_true: give it with --fps (e.g. --fps 239.6), or fill in data/manifest.csv."
-SLOW_MOTION_FPS = 100.0  # an fps_true below this gets a warning (SPEC 3.3)
-
 
 @dataclass(frozen=True)
 class _Job:
@@ -227,6 +223,7 @@ def _output_folder(args: argparse.Namespace, video_path: Path) -> Path:
 def _fps_true(typed: float | None, video_path: Path) -> tuple[float, str]:
     """(fps_true in frames per s, where it came from): `--fps`, else the manifest (decision X9)."""
     from outline_tracker.core import geometry
+    from outline_tracker.core.session import UNKNOWN_FPS
 
     if typed is not None:
         if not (math.isfinite(typed) and typed > 0):
@@ -242,6 +239,8 @@ def _fps_true(typed: float | None, video_path: Path) -> tuple[float, str]:
 
 def _fps_warnings(fps_true: float) -> list[str]:
     """The warning of SPEC 3.3 for an fps_true (frames per s) below 100, or nothing. It never blocks."""
+    from outline_tracker.core.session import SLOW_MOTION_FPS
+
     if fps_true >= SLOW_MOTION_FPS:
         return []
     return [f"fps_true = {fps_true:g} is below {SLOW_MOTION_FPS:g} frames per second. For a slow-motion video that "

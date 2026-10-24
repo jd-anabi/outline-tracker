@@ -30,14 +30,13 @@ from pathlib import Path
 import numpy as np
 
 from outline_tracker.core import schema
-from outline_tracker.cli.probe import SLOW_MOTION_FPS, UNKNOWN_FPS
 from outline_tracker.export.pipeline import ExportReport, derive_all, export_all
 from outline_tracker.export.tables import tracker_file_names
 from outline_tracker.workflows.from_tracker_session import (FpsChoice, build_session, check_run_folder, choose_fps,
                                                   choose_run_folder, count_fit_points)
 from outline_tracker.core.geometry import world_frame_from_calibration
 from outline_tracker.measure.results import ResultsStore
-from outline_tracker.core.session import Session
+from outline_tracker.core.session import SLOW_MOTION_FPS, UNKNOWN_FPS, Session
 from outline_tracker.core.tracker_io import Plan, make_plan
 from outline_tracker.tracking.job import CANCELLED, FAILED, Callbacks, Job, run_job
 from outline_tracker.video.reader import decoder_tag, frame_hash, iter_rgb_frames, probe

@@ -5,6 +5,8 @@ needed to reopen a run, run it again and export again.
 
 This module holds `Session` (load, save, `world_frame`, `locate_video`, and the reading and writing of the
 whole file), the video block `VideoRef` with the errors of finding the video again, and `SessionVersionError`.
+It also holds two names about fps_true that the `probe` and `from-tracker` commands share: `UNKNOWN_FPS`, what
+they say when fps_true is neither typed nor in a manifest, and `SLOW_MOTION_FPS`, below which they warn.
 The other blocks (`Clip`, `TimeSettings`, `CalibrationSettings`, `Axes`, `Circle`, `Processing`, `ProbeBox`,
 `Prompt`, `Track`, `RunRecord`, `Correction`) and the base class that reads and writes them are in
 outline_tracker/core/session_parts.py; they are imported here, so `from outline_tracker.core.session import Track`
@@ -49,6 +51,13 @@ from outline_tracker.core.session_parts import (Axes, CalibrationSettings, Circl
                                            Prompt, RunRecord, TimeSettings, Track, _Record)
 
 SESSION_FORMAT = "outline-tracker-session"  # the "format" key of session.json
+
+# What the two commands that read fps_true from `--fps` or from a manifest say about it (decision X9). They are
+# here because this is the lowest module that both `cli/probe.py` and `workflows/from_tracker.py` import and
+# that has room: geometry.py, which holds the manifest lookup, is at 400 lines, and schema.py is pinned below 420.
+# the wording of last week's script (tracker_io.make_plan), which from-tracker also gives
+UNKNOWN_FPS = "Unknown fps_true: give it with --fps (e.g. --fps 239.6), or fill in data/manifest.csv."
+SLOW_MOTION_FPS = 100.0  # an fps_true below this gets a warning (SPEC 3.3)
 
 
 class SessionVersionError(ValueError):
