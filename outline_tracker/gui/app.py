@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     No quantities here, so no units or frame.
     """
     QtWidgets = import_in_order()
-    from outline_tracker.workflows.from_tracker import load_segmenter  # makes the real model when the worker asks
+    from outline_tracker.segmenter.load import load_segmenter  # makes the real model when the worker asks
     from outline_tracker.gui import theme
     from outline_tracker.gui.main_window import MainWindow
 

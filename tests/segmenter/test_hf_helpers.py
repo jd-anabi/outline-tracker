@@ -42,7 +42,8 @@ def test_importing_the_segmenter_modules_does_not_load_torch():
         "import outline_tracker.segmenter.base\n"
         "import outline_tracker.segmenter.edgetam_convert\n"
         "import outline_tracker.segmenter.hf as hf\n"
-        "assert callable(hf.HFSegmenter) and callable(hf.load_model)\n"
+        "import outline_tracker.segmenter.load as load\n"
+        "assert callable(hf.HFSegmenter) and callable(hf.load_model) and callable(load.load_segmenter)\n"
         "print(json.dumps(sorted(m for m in json.loads(sys.argv[1]) if m in sys.modules)))\n"
     )
     done = subprocess.run([sys.executable, "-c", code, json.dumps(HEAVY_MODULES)], cwd=REPO,

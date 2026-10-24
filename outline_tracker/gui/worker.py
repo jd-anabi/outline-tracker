@@ -110,9 +110,9 @@ def found_in(preview: Preview, session) -> tuple[dict[str, Found], list[str]]:
 
 def before_load_for(factory) -> Callable[[], object] | None:
     """The step to take in the worker thread just before `factory` makes its segmenter: for the
-    real model's factory (`from_tracker.load_segmenter`), `segmenter.hf.reserve_ui_thread`; for
+    real model's factory (`segmenter.load.load_segmenter`), `segmenter.hf.reserve_ui_thread`; for
     any other factory (a test's stand-in), None. Nothing is loaded by asking."""
-    from outline_tracker.workflows.from_tracker import load_segmenter
+    from outline_tracker.segmenter.load import load_segmenter
 
     if factory is not load_segmenter:
         return None

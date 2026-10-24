@@ -15,7 +15,7 @@ checks behind the `CHECK:` lines (lost, jump, size change), moved here unchanged
 
 Units and coordinates (SPEC 3): px in Tracker's image coordinates (pixel centers at +0.5); mm in
 the user's axes with y up; s; fps_true in frames per second; frames are video frame numbers and
-t_s = frame / fps_true. No Qt. torch is loaded only by `load_segmenter`, when a run needs the model.
+t_s = frame / fps_true. No Qt. torch is loaded only by `load_segmenter` (segmenter/load.py), when a run needs the model.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from outline_tracker.workflows.from_tracker_session import (FpsChoice, build_ses
                                                   choose_run_folder, count_fit_points)
 from outline_tracker.core.geometry import world_frame_from_calibration
 from outline_tracker.measure.results import ResultsStore
+from outline_tracker.segmenter.load import load_segmenter
 from outline_tracker.core.session import SLOW_MOTION_FPS, UNKNOWN_FPS, Session
 from outline_tracker.core.tracker_io import Plan, make_plan
 from outline_tracker.tracking.job import CANCELLED, FAILED, Callbacks, Job, run_job
@@ -86,18 +87,6 @@ class FromTrackerResult:
     flags: list[str]
     plan: Plan
     seconds_per_frame: float
-
-
-def load_segmenter(model: str, device: str):
-    """The real model behind the segmenter protocol: `segmenter.hf.HFSegmenter(model, device)`.
-
-    model: "edgetam", "sam2" or "sam2-small". device: "auto" (the fastest that works), "cpu", "mps"
-    or "cuda". The first call downloads the model. Images and prompts are in px of the image given
-    (segmenter/base.py). This is the one place of the module that loads torch.
-    """
-    from outline_tracker.segmenter.hf import HFSegmenter  # here, never at the top: it loads torch
-
-    return HFSegmenter(model, device)
 
 
 def from_tracker(video, export, *, fine_ids: Iterable[str] = (), step: int | None = None,

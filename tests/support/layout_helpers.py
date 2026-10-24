@@ -37,6 +37,7 @@ PATHS: dict[str, str] = {
     "theme": "outline_tracker/gui/theme.py",
     "prompts": "outline_tracker/gui/prompts.py",
     "review table": "outline_tracker/gui/review_table.py",
+    "model factory": "outline_tracker/segmenter/load.py",
     "worker": "outline_tracker/gui/worker.py",
     "worker engine": "outline_tracker/gui/worker_engine.py",
     "worker jobs": "outline_tracker/gui/worker_jobs.py",

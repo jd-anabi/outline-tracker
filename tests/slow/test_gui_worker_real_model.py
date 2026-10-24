@@ -1,7 +1,7 @@
 """The real EdgeTAM through the window's worker (SPEC 6.4, 10.2, 13.4; task C5), on `cpu` and on the
 Apple GPU. Every test here is slow: it loads torch and the model.
 
-The window is given the real model's factory (`from_tracker.load_segmenter`), so the worker takes
+The window is given the real model's factory (`segmenter.load.load_segmenter`), so the worker takes
 one processor thread for the window before it loads the model, as in the application. The clip is
 last week's selftest clip (`synthetic.selftest_clip`): one dark ellipse on a 1080p frame whose
 center is at (700.5 + 0.6 f, 500.5 + 0.2 f) px in frame f; a new session tracks every 2nd of its
@@ -27,7 +27,7 @@ from pipeline_helpers import expect_minutes
 from prompt_helpers import gui_thread, objects_panel
 from track_helpers import NAME, Heard, results_of, track_panel
 
-from outline_tracker.workflows.from_tracker import load_segmenter
+from outline_tracker.segmenter.load import load_segmenter
 from outline_tracker.synthetic.clips import selftest_clip
 
 pytestmark = [pytest.mark.slow, pytest.mark.weights]

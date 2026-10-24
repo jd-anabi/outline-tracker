@@ -244,7 +244,7 @@ def test_a_window_without_a_factory_has_no_model_and_starts_no_thread(worker, qt
 
 
 def test_the_real_models_factory_gets_the_thread_limit_and_a_stand_in_gets_none():
-    from outline_tracker.workflows.from_tracker import load_segmenter
+    from outline_tracker.segmenter.load import load_segmenter
     from outline_tracker.segmenter import hf
 
     assert before_load_for(load_segmenter) is hf.reserve_ui_thread

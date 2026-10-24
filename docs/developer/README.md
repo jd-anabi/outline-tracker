@@ -61,13 +61,14 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `export/overlay.py` | overlay.mp4: the clip with outlines, centroid dots and ids |
 | `video/probes.py` | brightness probes: the mean color inside named rectangles on every frame |
 | `workflows/__init__.py` | workflows that chain the parts: from a Tracker export to every output file, and the selftest |
-| `workflows/from_tracker.py` | last week's workflow with this week's outputs; `load_segmenter`, the real model's factory |
+| `workflows/from_tracker.py` | last week's workflow with this week's outputs |
 | `workflows/from_tracker_session.py` | what `from_tracker` settles before tracking: fps_true, the name, the run folder, the session |
 | `workflows/selftest.py` | check the installation and time the model on this computer |
 | `segmenter/__init__.py` | what a segmenter is: a frame and a few clicks to one mask per object |
 | `segmenter/base.py` | the segmenter protocol and its two records, `ObjectPrompt` and `MaskResult` |
 | `segmenter/hf.py` | SAM 2.1 and EdgeTAM through Hugging Face transformers, one frame at a time; `MODELS` |
 | `segmenter/edgetam_convert.py` | EdgeTAM's original checkpoint converted for transformers |
+| `segmenter/load.py` | the real model's factory, `load_segmenter(model, device)` |
 | `segmenter/fake.py` | stand-in segmenters for the tests: `ThresholdFake`, `ExactFake`; no torch |
 
 ### The window
@@ -193,4 +194,4 @@ Cancel is a `threading.Event` that `run_job` asks before every frame. Closing th
 
 ## Adding a model
 
-A segmenter is any object with the methods of the protocol in `segmenter/base.py`; the stand-ins in `segmenter/fake.py` are the smallest examples. The real models are the keys of `MODELS` in `segmenter/hf.py`, made by `from_tracker.load_segmenter(model, device)`. A model that panel 7 should offer also gets its name in `MODEL_NAMES` in `gui/panels/track_panel.py`. A new model needs a slow test on a synthetic clip before it is offered, and its numbers in docs/VALIDATION.md.
+A segmenter is any object with the methods of the protocol in `segmenter/base.py`; the stand-ins in `segmenter/fake.py` are the smallest examples. The real models are the keys of `MODELS` in `segmenter/hf.py`, made by `load_segmenter(model, device)` in `segmenter/load.py`. A model that panel 7 should offer also gets its name in `MODEL_NAMES` in `gui/panels/track_panel.py`. A new model needs a slow test on a synthetic clip before it is offered, and its numbers in docs/VALIDATION.md.
