@@ -1,5 +1,6 @@
 """Tracks and truths shared by the tests of derive (tests/measure/test_derive.py: the quantities the plan
-lists; tests/measure/test_derive_rules.py: lost rows, degenerate shapes, the reference rule, settings).
+lists; tests/measure/test_derive_rules.py and tests/measure/test_derive_rules_shapes.py: lost rows, degenerate
+shapes, the reference rule, settings).
 
 A track is made the way tracking makes it: an analytic shape (tests/support/analytic_shapes.py) goes
 through `measure_mask`, the records go into a `ResultsStore`, and `derive_track` gets the store's
