@@ -26,12 +26,12 @@ WITHOUT_WEIGHTS = [
     # arithmetic on made-up series of readings: numpy alone
     "tests/slow/test_memory.py::test_growth_is_not_moved_by_single_readings_and_sees_a_slow_leak",
     # the fixture `processor` (made from its classes, from no file) and a stand-in for the network
-    "tests/slow/test_real_model.py::test_prompt_tensors_for_1_3_and_2_points_have_no_padding",
-    "tests/slow/test_real_model.py::test_start_stores_only_the_points_inside_the_image",
-    "tests/slow/test_real_model.py::test_preview_uses_a_session_of_its_own",
-    "tests/slow/test_real_model.py::test_step_fallback_opens_a_new_session_on_cpu",
+    "tests/slow/test_real_model_without_weights.py::test_prompt_tensors_for_1_3_and_2_points_have_no_padding",
+    "tests/slow/test_real_model_without_weights.py::test_start_stores_only_the_points_inside_the_image",
+    "tests/slow/test_real_model_without_weights.py::test_preview_uses_a_session_of_its_own",
+    "tests/slow/test_real_model_without_weights.py::test_step_fallback_opens_a_new_session_on_cpu",
     # a child process that imports torch and counts its threads
-    "tests/slow/test_real_model.py::test_reserve_ui_thread_with_the_real_torch",
+    "tests/slow/test_real_model_without_weights.py::test_reserve_ui_thread_with_the_real_torch",
     # the fixture `processor` and a stand-in that returns given logits
     "tests/slow/test_regression_reference.py::test_prompt_tensors_have_one_point_and_no_padding",
     "tests/slow/test_regression_reference.py::test_session_equals_the_one_the_reference_builds",

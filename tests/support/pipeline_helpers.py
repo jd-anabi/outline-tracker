@@ -1,6 +1,6 @@
 """A session for a synthetic clip, tracked with the real model and exported: shared by the slow
 pipeline tests (tests/slow/test_fine_mode.py, test_coarse_lowres.py, test_memory.py and its child
-process memory_child.py). It also holds three things that the slow tests of the segmenter share.
+process memory_child.py). It also holds what the slow tests of the segmenter share.
 
 The session is made as the fast tracking tests make one (tests/support/tracking_helpers.py): clicks from
 the scene's own paths, fps_true = the scene's frame rate. It gets a calibration stick at the
@@ -10,10 +10,12 @@ Units and coordinates (SPEC 3): px in Tracker's convention, u to the right, v do
 (column c, row r) with its center at (c + 0.5, r + 0.5); mm in the session's axes, y up, origin at
 the middle of the frame; frames are video frame numbers; times in s. Nothing here imports torch.
 
-What has nothing to do with a session: `HD_W, HD_H`, the frame of the 1080p clips and scenes;
-`position`, where a result of the segmenter lies in the full frame (tests/slow/test_real_model.py,
-test_regression_reference.py, test_frozen_reference.py and, a fast test, tests/segmenter/test_fakes_threshold.py);
-and `write_three_ellipse_clip`, the clip of the regression tests (tests/slow/test_regression_reference.py,
+What has nothing to do with a session: `HD_W, HD_H`, the frame of the 1080p clips and scenes; `NAMES`, the
+names of the three objects of those clips; `position`, where a result of the segmenter lies in the full frame
+(tests/slow/test_real_model.py, test_real_model_without_weights.py, test_regression_reference.py,
+test_frozen_reference.py and, a fast test, tests/segmenter/test_fakes_threshold.py); `_stored`, the prompt that a
+session of the Hugging Face backend holds for an object on its first frame (the two real model files); and
+`write_three_ellipse_clip`, the clip of the regression tests (tests/slow/test_regression_reference.py,
 test_regression_pipeline.py, test_frozen_reference.py). The fixtures of the slow tests are in
 tests/slow/conftest.py.
 """
@@ -36,6 +38,7 @@ from outline_tracker.tracking.job import Callbacks, Job, run_job
 
 STICK_PX = 1000.0  # length of the calibration stick of the sessions made here, px
 HD_W, HD_H = 1920, 1080  # the frame of the 1080p clips and scenes of the slow tests: width and height, px
+NAMES = ["A", "B", "C"]
 
 
 def expect_minutes() -> None:
@@ -104,6 +107,12 @@ def position(result) -> tuple[float, float]:
     cropped mask plus the crop's offset; NaN, NaN if the object was not found."""
     u, v, _ = mask_center(result.mask)
     return u + result.offset[0], v + result.offset[1]
+
+
+def _stored(session, obj_idx: int):
+    """(coordinates, labels) the session holds for an object on its first frame, as tensors."""
+    stored = session.point_inputs_per_obj[obj_idx][0]  # [object index][frame index]
+    return stored["point_coords"], stored["point_labels"]
 
 
 def write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:
