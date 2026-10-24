@@ -45,8 +45,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QSizePolicy, QWidget
 
 from outline_tracker.core import schema
-from outline_tracker.cli.export import UNUSABLE, WARNING_PREFIX, one_line, size_text
-from outline_tracker.export.pipeline import ExportReport, export_all
+from outline_tracker.export.pipeline import UNUSABLE, WARNING_PREFIX, ExportReport, export_all, one_line, size_text
 from outline_tracker.gui import dialogs, estimate, theme
 from outline_tracker.gui.panels.calibration_panel import CONTROL_HEIGHT, DASH, SPACING, Message, button, column
 from outline_tracker.gui.panels.track_panel import PRIMARY_HEIGHT
@@ -98,7 +97,7 @@ def duration(seconds: float) -> str:
 def sentence_of(error: BaseException, folder: Path) -> str:
     """What stopped an export in the run folder `folder`, on one line, as the command line says it
     (`cli_export.run`): the package's own message for what it words itself, with the folder's name
-    in place of its path; for anything else `cli_export.UNUSABLE` with the error's kind."""
+    in place of its path; for anything else `pipeline.UNUSABLE` with the error's kind."""
     text = one_line(str(error))
     if text and isinstance(error, (OSError, RuntimeError, ValueError, cv2.error)):
         return text.replace(str(folder), folder.name)

@@ -15,7 +15,6 @@ import pytest
 from cli_export_helpers import edit_session, error_line, export, listing
 from export_helpers import coarse_run
 
-from outline_tracker.cli import export as cli_export
 from outline_tracker.export import pipeline as export_module
 
 
@@ -113,7 +112,7 @@ def test_a_results_file_cut_short_is_one_error_line_and_writes_nothing(run_folde
     ("", ""),
 ])
 def test_one_line_joins_the_lines_of_a_reason(text, line):
-    assert cli_export.one_line(text) == line
+    assert export_module.one_line(text) == line
 
 
 @pytest.mark.parametrize("error", [

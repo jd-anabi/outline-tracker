@@ -31,7 +31,7 @@ from export_panel_helpers import (END, FRAMES, WRITTEN, Clock, export_panel, exp
 from finish_helpers import menu_texts, record_every_dialog
 from gui_helpers import show
 from outline_tracker.core import schema
-from outline_tracker.cli.export import size_text
+from outline_tracker.export.pipeline import size_text
 from outline_tracker.gui.panels import export_panel as export_module
 from outline_tracker.gui.panels.export_panel import ExportPanel
 from outline_tracker.gui.worker import worker_of

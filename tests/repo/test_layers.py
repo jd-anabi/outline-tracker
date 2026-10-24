@@ -51,9 +51,6 @@ ROOT_RANK = -1  # outline_tracker/__init__.py: below every layer, so it imports 
 # The imports against the rule today: {(importing module, imported module): "what it is; removed by ..."}.
 # Each commit that removes one of them removes its entry.
 EXCEPTIONS: dict[tuple[str, str], str] = {
-    # the window takes names from a command
-    ("outline_tracker.gui.panels.export_panel", "outline_tracker.cli.export"):
-        "takes UNUSABLE, WARNING_PREFIX, one_line and size_text from the command; removed by W2 step 4c",
     # measurement and the segmenters depend on each other by topic
     ("outline_tracker.measure.mask", "outline_tracker.segmenter.base"):
         "takes MaskResult from the segmenters' base; removed by W6 step 2 (the registry of methods)",

@@ -109,9 +109,9 @@ def test_building_the_parser_loads_nothing_heavy():
     (1_234_567_890, "1.2 GB"), (12_000_000_000, "12.0 GB"),
 ])
 def test_sizes_are_printed_in_plain_units_with_one_decimal_from_kb_up(size, text):
-    from outline_tracker.cli import export as cli_export
+    from outline_tracker.export import pipeline
 
-    assert cli_export.size_text(size) == text  # 1 kB = 1000 bytes, as a file manager shows it
+    assert pipeline.size_text(size) == text  # 1 kB = 1000 bytes, as a file manager shows it
 
 
 # ---------------------------------------------------------------------------------------------

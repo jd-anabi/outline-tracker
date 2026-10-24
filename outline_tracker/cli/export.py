@@ -19,9 +19,9 @@ name or the overlay was skipped. Anything that stops the export is one `ERROR: .
 code 1, never a traceback: a message the package words itself (no such file, another schema version, a radial
 step of 10) is printed as it is; anything else, such as a value of the wrong kind in a session.json that was
 edited by hand (a head click that is one number) or a results.npz that was copied only in part, is printed
-as `UNUSABLE` says, with the name of the exception. Nothing is written when the error comes from reading the
-two files; a file that stays locked, or a video path of the wrong kind with `--overlay`, can come after
-some files were written.
+as `UNUSABLE` (in `export/pipeline.py`) says, with the name of the exception. Nothing is written when the error
+comes from reading the two files; a file that stays locked, or a video path of the wrong kind with `--overlay`,
+can come after some files were written.
 
 The files hold what SPEC 8 says: mm in the user's axes with y up, s, rad, and px in Tracker's image
 coordinates (pixel centers at +0.5); frames are the video's frame numbers. The text printed here is ASCII
@@ -47,15 +47,12 @@ block is added to run.log. Use it after you correct the calibration, fps_true or
 tracked again. The overlay video is made again only with --overlay, because that decodes the whole video.
 """
 
-WARNING_PREFIX = "WARNING: "  # how `export_all` words a warning for its log; the report holds the same ones
 PARTIAL = "This session is partial: its run did not finish, so the files hold only the frames tracked so far."
 NEWER_SESSION = ("{new} lies next to {old}: a save of the session could not replace {old} while another program "
                  "held it open, so {new} holds the newer settings. This export used {old}. To use the newer "
                  "settings, close the other program, rename {new} to {old} and export again.")
 NOT_REGENERATED = "{overlay} was not regenerated and is as it was. Add --overlay to make it again from the video."
 NOT_MADE = "{overlay} was not made: add --overlay to make it from the video."
-UNUSABLE = ("The export stopped on something it cannot use ({reason}). Check what was edited last in session.json, "
-            "and that results.npz was copied completely. If neither applies, this is a fault in outline-tracker.")
 
 
 def add_parser(commands) -> None:
@@ -81,25 +78,6 @@ def add_parser(commands) -> None:
     export.set_defaults(run=run)
 
 
-def size_text(n_bytes: int) -> str:
-    """A file size in plain units: `999 B`, then kB, MB and GB with one decimal (`12.3 kB`), where
-    1 kB = 1000 bytes. n_bytes: a number of bytes, 0 or more. A size that rounds up to 1000.0 of a
-    unit is written in the next one (999,999 bytes: `1.0 MB`)."""
-    if n_bytes < 1000:
-        return f"{n_bytes} B"
-    units = ("kB", "MB", "GB")
-    value, step = n_bytes / 1000.0, 0
-    while round(value, 1) >= 1000.0 and step < len(units) - 1:
-        value, step = value / 1000.0, step + 1
-    return f"{value:.1f} {units[step]}"
-
-
-def one_line(text: str) -> str:
-    """`text` on one line: every run of white space, line breaks included, becomes one space, and the ends
-    are trimmed. Some reasons run over several lines (OpenCV's, numpy's); an ERROR is one line."""
-    return " ".join(text.split())
-
-
 def run(args: argparse.Namespace) -> int:
     """Run `export` for parsed arguments: write every output file of the session's run folder, say what
     was written, and return the exit code.
@@ -118,6 +96,7 @@ def run(args: argparse.Namespace) -> int:
     the user's axes (y up), s, rad and px in Tracker's image coordinates, as SPEC 8 says.
     """
     import cv2  # imported here, as the other commands do, so that the command line starts without it
+    from outline_tracker.export.pipeline import UNUSABLE, one_line  # loads numpy and the rest: not at the top
 
     try:
         return _export(Path(args.session), bool(args.overlay))
@@ -130,6 +109,8 @@ def run(args: argparse.Namespace) -> int:
 
 def _fail(reason: str) -> int:
     """Print `ERROR: ` and the reason on one line on stderr; returns the exit code 1."""
+    from outline_tracker.export.pipeline import one_line
+
     print(f"ERROR: {one_line(reason)}", file=sys.stderr)
     return 1
 
@@ -154,19 +135,21 @@ def _export(session_file: Path, overlay: bool) -> int:
         print(f"{schema.OVERLAY_MP4} is made from the video: a long clip takes a few minutes.")
     report = export.export_all(run_folder, overlay=overlay, log=_show)
     for path in report.files:
-        print(f"wrote {path.relative_to(run_folder).as_posix()}: {size_text(path.stat().st_size)}")
+        print(f"wrote {path.relative_to(run_folder).as_posix()}: {export.size_text(path.stat().st_size)}")
     if not overlay:
         notes.append((NOT_REGENERATED if had_overlay else NOT_MADE).format(overlay=schema.OVERLAY_MP4))
     for note in notes:
         print(f"NOTE: {note}")
     for warning in report.warnings:
-        print(f"{WARNING_PREFIX}{warning}")
+        print(f"{export.WARNING_PREFIX}{warning}")
     return 0
 
 
 def _show(line: str) -> None:
     """What `export_all` says while it works, printed as it comes, but for its warnings: the report holds
     the same ones, and they are printed after the list of files."""
+    from outline_tracker.export.pipeline import WARNING_PREFIX
+
     if not line.startswith(WARNING_PREFIX):
         print(line)
 

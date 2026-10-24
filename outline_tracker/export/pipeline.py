@@ -25,6 +25,9 @@ its new data next to it (`<stem>.new<suffix>`) and a warning, and the next expor
 the file removes that neighbor, which is then the older of the two. The rows, arrays and the
 Tracker-format folder are in `export_tables`, the log's text in `export_log`.
 
+The words that an export reports in are here too, because the `export` command and panel 9 of the
+window share them: `WARNING_PREFIX`, `UNUSABLE`, `size_text` and `one_line`.
+
 Units and coordinates (SPEC 3): mm in the user's axes with y up, s, rad; px in Tracker's image
 coordinates (pixel centers at +0.5); frames are video frame numbers. No Qt, no torch.
 """
@@ -49,7 +52,31 @@ from outline_tracker.measure.qc import compute_flags, summary_lines
 from outline_tracker.measure.results import ResultsStore, TrackArrays
 from outline_tracker.core.session import Session
 
-__all__ = ["ExportData", "ExportReport", "derive_all", "export_all"]
+__all__ = ["ExportData", "ExportReport", "UNUSABLE", "WARNING_PREFIX", "derive_all", "export_all", "one_line",
+           "size_text"]
+
+WARNING_PREFIX = "WARNING: "  # how `export_all` words a warning for its log; the report holds the same ones
+UNUSABLE = ("The export stopped on something it cannot use ({reason}). Check what was edited last in session.json, "
+            "and that results.npz was copied completely. If neither applies, this is a fault in outline-tracker.")
+
+
+def size_text(n_bytes: int) -> str:
+    """A file size in plain units: `999 B`, then kB, MB and GB with one decimal (`12.3 kB`), where
+    1 kB = 1000 bytes. n_bytes: a number of bytes, 0 or more. A size that rounds up to 1000.0 of a
+    unit is written in the next one (999,999 bytes: `1.0 MB`)."""
+    if n_bytes < 1000:
+        return f"{n_bytes} B"
+    units = ("kB", "MB", "GB")
+    value, step = n_bytes / 1000.0, 0
+    while round(value, 1) >= 1000.0 and step < len(units) - 1:
+        value, step = value / 1000.0, step + 1
+    return f"{value:.1f} {units[step]}"
+
+
+def one_line(text: str) -> str:
+    """`text` on one line: every run of white space, line breaks included, becomes one space, and the ends
+    are trimmed. Some reasons run over several lines (OpenCV's, numpy's); an ERROR is one line."""
+    return " ".join(text.split())
 
 
 @dataclass(frozen=True)
