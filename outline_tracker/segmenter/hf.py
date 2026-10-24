@@ -10,9 +10,9 @@ the slow tests, which compare with the positions that last week's script confirm
 - the models `sam2`, `sam2-small` and `edgetam`, and the EdgeTAM cache folder.
 
 Changed:
-- prompts go to the session with one call per object. One call for all objects, as last week,
-  makes the processor pad objects that have fewer points (with -10), and the padding changes how a
-  one-click object is decoded. With one click per object both ways leave the same session;
+- prompts go to the session with one call per object (`add_prompts` of segmenter/hf_prompts.py). One call
+  for all objects, as last week, makes the processor pad objects that have fewer points (with -10), and the
+  padding changes how a one-click object is decoded. With one click per object both ways leave the same session;
 - results are `MaskResult`s (segmenter/base.py): logits from `post_process_masks(binarize=False)`,
   one object at a time, mask = logits > 0 (equal to last week's `binarize=True`), both cropped to
   the bounding box +/- 8 px; `score` is the model's object-presence logit (> 0: present);
@@ -49,6 +49,7 @@ from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.base import (MaskResult, ObjectPrompt, PromptError, crop_to_bbox,
                                             points_in_image)
 from outline_tracker.segmenter.edgetam_convert import edgetam_cache
+from outline_tracker.segmenter.hf_prompts import add_prompts
 
 MODELS = {
     "sam2": "facebook/sam2.1-hiera-tiny",
@@ -128,41 +129,6 @@ def file_sha256(path) -> str:
     """SHA-256 of a file's bytes, as 64 hexadecimal digits. No quantities, so no units."""
     with Path(path).open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
-
-
-# --------------------------------------------------------------------------- prompts
-
-def prompt_lists(prompt: ObjectPrompt) -> tuple[list, list]:
-    """One object's points and labels in the nesting the processor expects.
-
-    Returns (input_points, input_labels) = ([[[[x, y], ...]]], [[[label, ...]]]): the levels are
-    [image][object][point], with one image and one object. x and y are px in the pixel frame of
-    the image given to the model (SPEC 3.1), unchanged; a label is 1 (positive) or 0 (negative).
-    The values are Python floats and ints: the processor refuses numpy's float32 and int64 scalars.
-    """
-    points = [[float(x), float(y)] for x, y in prompt.points_px]
-    labels = [int(label) for label in prompt.labels]
-    return [[points]], [[labels]]
-
-
-def add_prompts(processor, session, prompts: list[ObjectPrompt], original_size) -> list[int]:
-    """Put the prompts of a run's first frame into a new session, with one call per object.
-
-    Returns the integers 1..N by which the session knows the objects, in the order of `prompts`
-    (as last week). Points are px in the pixel frame of the image; `original_size` is the image's
-    (height, width) in px, as the processor returned it. Objects are never put into one call: the
-    processor would pad those with fewer points. Each call replaces the session's list of objects
-    with new inputs, so the list is set to all objects at the end, in a list of its own: the model
-    removes entries from it while it runs.
-    """
-    ids = list(range(1, len(prompts) + 1))
-    for obj, prompt in zip(ids, prompts):
-        points, labels = prompt_lists(prompt)
-        processor.add_inputs_to_inference_session(
-            inference_session=session, frame_idx=0, obj_ids=[obj], input_points=points, input_labels=labels,
-            original_size=original_size)
-    session.obj_with_new_inputs = list(ids)
-    return ids
 
 
 # --------------------------------------------------------------------------- threads

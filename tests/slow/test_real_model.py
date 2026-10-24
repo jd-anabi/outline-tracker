@@ -191,10 +191,10 @@ THREE = [  # objects with 1, 3 and 2 points, px in the 1920 x 1080 image
 def test_prompt_tensors_for_1_3_and_2_points_have_no_padding(processor):
     import torch
 
-    from outline_tracker.segmenter import hf
+    from outline_tracker.segmenter import hf_prompts
 
     session = processor.init_video_session(inference_device="cpu", dtype=torch.float32)
-    ids = hf.add_prompts(processor, session, THREE, torch.tensor([HD_H, HD_W]))
+    ids = hf_prompts.add_prompts(processor, session, THREE, torch.tensor([HD_H, HD_W]))
 
     assert ids == [1, 2, 3] and session.obj_ids == ids and session.obj_with_new_inputs == ids
     for obj_idx, prompt in enumerate(THREE):

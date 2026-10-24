@@ -184,12 +184,12 @@ def test_an_empty_mask_gives_an_empty_result():
 
 
 def test_prompt_lists_have_the_nesting_image_object_point():
-    from outline_tracker.segmenter import hf
+    from outline_tracker.segmenter import hf_prompts
     from outline_tracker.segmenter.base import ObjectPrompt
 
     # numpy scalars must not reach the processor: np.float32 and np.int64 raise TypeError there.
     prompt = ObjectPrompt("A", [(np.float32(700.5), np.float64(500.5))], [np.int64(1)])
-    points, labels = hf.prompt_lists(prompt)
+    points, labels = hf_prompts.prompt_lists(prompt)
     assert points == [[[[700.5, 500.5]]]]  # [image][object][point][x, y]
     assert labels == [[[1]]]  # [image][object][point]
     x, y = points[0][0][0]
@@ -212,14 +212,14 @@ class RecordingProcessor:
 
 
 def test_prompts_are_added_with_one_call_per_object():
-    from outline_tracker.segmenter import hf
+    from outline_tracker.segmenter import hf_prompts
     from outline_tracker.segmenter.base import ObjectPrompt
 
     clicks = [(700.5, 500.5), (1000.5, 600.5), (1400.5, 350.5)]
     prompts = [ObjectPrompt(name, [click], [1]) for name, click in zip("ABC", clicks)]
     processor, session, size = RecordingProcessor(), SimpleNamespace(obj_with_new_inputs=[]), object()
 
-    ids = hf.add_prompts(processor, session, prompts, size)
+    ids = hf_prompts.add_prompts(processor, session, prompts, size)
 
     assert ids == [1, 2, 3]  # integers 1..N, as last week
     assert len(processor.calls) == 3
@@ -450,9 +450,9 @@ def _objects_with_1_3_and_2_points():
 
 
 def test_prompt_lists_for_objects_with_1_3_and_2_points():
-    from outline_tracker.segmenter import hf
+    from outline_tracker.segmenter import hf_prompts
 
-    lists = [hf.prompt_lists(prompt) for prompt in _objects_with_1_3_and_2_points()]
+    lists = [hf_prompts.prompt_lists(prompt) for prompt in _objects_with_1_3_and_2_points()]
     assert lists == [
         ([[[[700.5, 500.5]]]], [[[1]]]),
         ([[[[1000.5, 600.5], [1030.5, 640.5], [1010.0, 590.25]]]], [[[1, 0, 1]]]),
@@ -465,10 +465,10 @@ def test_prompt_lists_for_objects_with_1_3_and_2_points():
 
 
 def test_objects_with_different_point_counts_are_never_put_into_one_call():
-    from outline_tracker.segmenter import hf
+    from outline_tracker.segmenter import hf_prompts
 
     processor, session = RecordingProcessor(), SimpleNamespace(obj_with_new_inputs=[])
-    ids = hf.add_prompts(processor, session, _objects_with_1_3_and_2_points(), (1080, 1920))
+    ids = hf_prompts.add_prompts(processor, session, _objects_with_1_3_and_2_points(), (1080, 1920))
 
     assert ids == [1, 2, 3]
     assert [call["obj_ids"] for call in processor.calls] == [[1], [2], [3]]

@@ -68,6 +68,7 @@ Segmenters: what turns a frame and a few clicks into one mask per object (SPEC 6
 | `segmenter/edgetam_convert.py` | EdgeTAM: Meta's original checkpoint converted for Hugging Face transformers. |
 | `segmenter/fake.py` | Stand-in segmenters for the tests, `ThresholdFake` and `ExactFake` (SPEC 12, 13.2): no model, no torch. |
 | `segmenter/hf.py` | SAM 2.1 and EdgeTAM through Hugging Face transformers, one frame at a time; `MODELS` lists them (SPEC 6.2). |
+| `segmenter/hf_prompts.py` | The prompts of a run for the Hugging Face processor: one object's points, and all objects put into a session. |
 | `segmenter/load.py` | The real model's factory: `load_segmenter(model, device)` makes the Hugging Face segmenter (SPEC 6.2). |
 
 ## `tracking/`

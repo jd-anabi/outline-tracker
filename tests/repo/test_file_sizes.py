@@ -35,7 +35,6 @@ OVER_400: dict[str, str] = {
     "outline_tracker/core/schema.py": "6a",
     "outline_tracker/core/schema_docs.py": "6a",
     "outline_tracker/gui/panels/review_panel.py": "6a",
-    "outline_tracker/segmenter/hf.py": "6a",
     # 6b: the tests of core/ and segmenter/
     "tests/core/test_fileio.py": "6b",
     "tests/core/test_geometry.py": "6b",

@@ -149,10 +149,10 @@ def _leaves(value, path="session") -> list[str]:
 def test_prompt_tensors_have_one_point_and_no_padding(processor):
     import torch
 
-    from outline_tracker.segmenter import hf
+    from outline_tracker.segmenter import hf_prompts
 
     session = processor.init_video_session(inference_device="cpu", dtype=torch.float32)
-    ids = hf.add_prompts(processor, session, _prompts(), torch.tensor([HD_H, HD_W]))
+    ids = hf_prompts.add_prompts(processor, session, _prompts(), torch.tensor([HD_H, HD_W]))
 
     assert ids == [1, 2, 3]
     assert session.obj_with_new_inputs == ids
