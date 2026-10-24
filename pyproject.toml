@@ -47,8 +47,8 @@ packages = ["outline_tracker"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # tests/ holds helpers.py and the other helper modules that tests import by name; tests/gui/ holds
-# those of the window's tests, which a test of tests/slow imports too.
-pythonpath = ["tests", "tests/gui"]
+# tests/support/ holds helpers.py and the other helper modules that tests import by name.
+pythonpath = ["tests/support"]
 norecursedirs = [".*", "build", "dist"]
 addopts = "-ra --strict-markers"
 qt_api = "pyside6"
