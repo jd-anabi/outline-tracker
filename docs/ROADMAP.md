@@ -135,8 +135,9 @@ to them. Where they, or an inventory, say otherwise, this section wins.
 
 Nothing below is decided. A line with a default lets the owner say "the default stands"; a line
 that says "no default" needs an answer. Each line ends with the workstreams that need it. A
-session writes the owner's answer under the line as "Decided <date>: ...". Until
-`docs/design/decisions.md` exists (W2 step 3), this section is the record.
+session writes the owner's answer under the line as "Decided <date>: ...". This section is the
+record of the decisions of this phase; the decisions of the first build (X1 to X22) are in
+`docs/design/decisions.md`.
 
 Rules and legal:
 
@@ -283,6 +284,11 @@ The window and the project:
     written `-0.000000`, and the last line end of a file without rows. Default: when W3
     touches the function, the rule goes into its docstring or into `docs/design/formats.md`
     and gets a test; code that nothing calls (`iter_frames`, `read_frame`) is removed. [W3]
+31. Indirect dependencies in the install line (the first plan's question 11). Pins, and the
+    ranges of decision 24, name the direct dependencies only; two indirect ones changed within
+    one day of the first build. Adding `--exclude-newer <date of the tag>` to the install line
+    would freeze them for a tagged release. Default: as built (the line names a tag and no date;
+    the lock file serves development, and `uv tool install` ignores it). [W7]
 
 ## 4. Workstreams
 
