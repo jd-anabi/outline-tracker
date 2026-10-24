@@ -5,10 +5,11 @@ A move of files changes the table and the import lines, and no test body. These 
 - the table is true: every path in it exists, and the dotted name it gives for a package file is the
   name under which Python finds that file;
 - the repository is found by walking up to pyproject.toml, so the helper module can lie at any depth;
-- no test takes a folder of the repository from its own file (`parents[1]` of its own path and its kin),
-  because such a line breaks when the test moves;
+- no test takes a folder of the repository from its own file (`parents[1]` of its own path and its kin,
+  also a second step from a name that holds the test's own folder), because such a line breaks when the
+  test moves;
 - every relative link in a tracked .md file points to a file or folder that exists, so that a move of
-  a document cannot leave a dead link;
+  a document cannot leave a dead link (the scan is `dead_links` of tests/support/layout_helpers.py);
 - `provenance.PACKAGE_FOLDER` comes from the imported package, not from the file of core/provenance.py.
 
 The scans are checked on small made-up files in `tmp_path`, so that a scan that never finds anything
