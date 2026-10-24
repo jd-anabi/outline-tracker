@@ -896,3 +896,41 @@ known.
 - Mask areas and outlines: only the centers are frozen.
 - The fault of section 1.4 (a changed mask threshold) was not repeated against the frozen table;
   the moved rows above stand in for it.
+
+## 8. Every slow test with the real model, before the pre-release `v0.2.0a1` (2026-10-08 and 2026-10-24)
+
+The review of the whole of W1 found that 14 of the slow tests that load the model had not run
+since W1 moved the fixtures and helpers they use, and CI runs none of them. So all of them were
+run once on the laptop of section 7, at commit `e7c63f8` (the code of the pre-release: the commits
+after it change only documents and the version text), with no other job using the model:
+
+```shell
+uv run pytest -m "slow and weights" tests/slow -q -rPs
+```
+
+Result: 30 passed, 10 deselected (the slow tests without weights, which CI runs), in 658 s. No
+test skipped: the Apple GPU cases ran too.
+
+| what | measured | limit |
+|---|---|---|
+| frozen positions, segmenter on `cpu` (selftest clip; three ellipses) | 0.0001 px over 20 and 60 rows | 0.01 px |
+| the same through `from_tracker` | 0.0006 px | 0.01 px |
+| distance from the true centers | 0.460 px; 1.042 px | 3 px |
+| weights, also from a new conversion into an empty folder | 55,912,824 bytes, `8858f8e4…d5fff4` | the frozen file |
+| selftest on `cpu` and `mps` | 0.461 px; 0.38 and 0.12 s per frame | 3 px |
+| fine mode with three clicks (section 4.2), `cpu` and `mps` | peak 9.00 Hz; variation 0.0072 and 0.0068 | 9 ± 0.5 Hz; 0.02 |
+| coarse mode at dish scale (section 4.3) | `LOWRES` on every frame with a mask, for A, B and C; B found on 15 of 30 frames | every frame |
+| memory, 10 coarse objects at 1080p (section 4.4) | peak 1.44 GB; growth +5 MB | 3 GB; 50 MB |
+
+These are the numbers of sections 4.2 to 4.4 and 7 again.
+
+**The pre-release itself.** On 2026-10-24 the commit of the pre-release (`19969be`) was green on
+all three CI jobs (fast tests 2768 passed, 1 skipped on Linux, Windows and macOS; slow tests
+without weights 10 passed on macOS, 9 passed and 1 skipped on Linux and Windows) and was tagged
+`v0.2.0a1`. Installed from the tag into a throwaway environment on the same laptop:
+`outline-tracker --version` printed `outline-tracker 0.2.0a1 (commit 19969be)`, and the selftest
+with the real model said OK, within 0.5 px, 0.15 s per frame. An install from `v0.1.0` still
+printed `outline-tracker 0.1.0 (commit 91095f5)`.
+
+**Not covered.** The real model on Linux, Windows or CUDA; a long real video; the window by hand
+with this version.

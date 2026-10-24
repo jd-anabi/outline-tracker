@@ -690,3 +690,8 @@ One line per session: date, workstream, what was done, the last commit.
   Windows, found by the new CI, is fixed on `main`. The repository is public. This commit is
   the pre-release `v0.2.0a1`; the README still installs `v0.1.0`. Open: the owner's Windows
   check of `v0.1.0`; whether the race fix goes out as `v0.1.1`; decisions 29 and 30. Next: W2.
+- 2026-10-24: W1, the end: `v0.2.0a1` tagged on `19969be` after CI was green on Linux, Windows
+  and macOS; installed from the tag into a throwaway environment, with `--version` and the
+  selftest with the real model (`docs/VALIDATION.md` section 8, with the run of every slow test
+  before the tag); development goes on as `0.2.0a2.dev0`; W1's temporary branches deleted.
+  Next: W2.
