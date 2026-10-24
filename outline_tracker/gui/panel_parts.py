@@ -6,8 +6,9 @@ a tint), `ElidedLabel` (the name of a file or a folder, cut in the middle when i
 keyboard). Builders: `button`, `group_label`, `value_label`, `field_label`, and the layouts `row`, `column`
 and `field_rows`; `follow_tool` ties tool buttons to the video view. Text: `number` and `point_text`. The
 sizes that panels have in common (`SPACING`, `CONTROL_HEIGHT`, `LABEL_WIDTH` and the others) are defined
-here once. The line-of-text parts were in gui/panels/video_panel.py, from where every name is still
-importable; the rest was in gui/panels/calibration_panel.py.
+here once. `Message`, `ElidedLabel`, `guard_wheel`, `field_label` and `field_rows` were in
+gui/panels/video_panel.py, from where they are still importable; the rest was in
+gui/panels/calibration_panel.py.
 
 Lengths of the layout are Qt's device-independent px. `point_text` takes a point in px of the video
 frame (SPEC 3.1).
