@@ -20,7 +20,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
 from gui_helpers import pixels
-from outline_tracker.gui.overlays import FILL_KEY
+from outline_tracker.gui.view.overlays import FILL_KEY
 from outline_tracker.gui.settings import settings
 from outline_tracker.segmenter.fake import ExactFake
 from track_helpers import Tracked, ready_to_track, results_of, run_to_end

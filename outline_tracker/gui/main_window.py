@@ -21,13 +21,13 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QFrame, QHBoxLayout, Q
 from outline_tracker.core.geometry import grid_frames
 from outline_tracker.gui import dialogs, panels
 from outline_tracker.gui.menus import Menus
-from outline_tracker.gui.navigation import NavigationBar
-from outline_tracker.gui.panel import Panel
-from outline_tracker.gui.panel_parts import CONTROL_HEIGHT, PRIMARY_HEIGHT
-from outline_tracker.gui.prompts import Prompts
+from outline_tracker.gui.view.navigation import NavigationBar
+from outline_tracker.gui.widgets.panel_frame import Panel
+from outline_tracker.gui.widgets.panel_parts import CONTROL_HEIGHT, PRIMARY_HEIGHT
+from outline_tracker.gui.view.prompts import Prompts
 from outline_tracker.gui.session_controller import SessionController
-from outline_tracker.gui.status_bar import Readouts
-from outline_tracker.gui.video_view import VideoView
+from outline_tracker.gui.view.status_bar import Readouts
+from outline_tracker.gui.view.video_view import VideoView
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 

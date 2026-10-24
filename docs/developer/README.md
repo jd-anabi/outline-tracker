@@ -78,28 +78,30 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 | `gui/__init__.py` | the package of the window: the only place that imports PySide6 and pyqtgraph |
 | `gui/app.py` | the entry point `main`: imports torch first, then Qt, then makes the application |
 | `gui/main_window.py` | the window: the video, the bar above it, the bottom bar, the dock with nine panels |
-| `gui/panel.py` | one numbered panel: number, title, state, hint line, body |
+| `gui/widgets/__init__.py` | the widgets the panels share: the frame of a numbered panel and its small parts |
+| `gui/widgets/panel_frame.py` | one numbered panel: number, title, state, hint line, body |
 | `gui/theme.py` | color tokens for light and dark, one palette, one style sheet |
 | `gui/menus.py` | the File and Help menus, and which items are off when |
 | `gui/dialogs.py` | every dialog: a message, a question before something that cannot be undone, file and folder choice |
 | `gui/about.py` | Help > About: the versions |
 | `gui/session_controller.py` | the owner of the open video and its session; the one writer of session.json |
-| `gui/video_view.py` | the video view: one frame, zoom, pan, clicks in video pixels |
-| `gui/navigation.py` | the bottom bar: the slider on the frame grid, the frame buttons, play and pause |
-| `gui/status_bar.py` | the read-outs of the status bar: pixel, position, gray value, device |
-| `gui/tools.py` | the calibration tools of the view: Stick, Tape, Circle, Axes |
-| `gui/tool_items.py` | the graphics of those tools on the picture |
-| `gui/click_rules.py` | the rules of a click on the video: which click is negative, which frame takes a click |
-| `gui/prompts.py` | the point tools Positive, Negative, Head, undo, and the outline shown after a click |
-| `gui/prompt_drawing.py` | the items those tools draw: the marks of the clicks, the outline, the id, the fine window |
-| `gui/overlays.py` | results on the picture: stored outlines, centroids, ids, head marks, the mask fill |
+| `gui/view/__init__.py` | the picture of the window: the video view, its tools and clicks, what is drawn on it, the bottom bar and the status bar |
+| `gui/view/video_view.py` | the video view: one frame, zoom, pan, clicks in video pixels |
+| `gui/view/navigation.py` | the bottom bar: the slider on the frame grid, the frame buttons, play and pause |
+| `gui/view/status_bar.py` | the read-outs of the status bar: pixel, position, gray value, device |
+| `gui/view/tools.py` | the calibration tools of the view: Stick, Tape, Circle, Axes |
+| `gui/view/tool_items.py` | the graphics of those tools on the picture |
+| `gui/view/click_rules.py` | the rules of a click on the video: which click is negative, which frame takes a click |
+| `gui/view/prompts.py` | the point tools Positive, Negative, Head, undo, and the outline shown after a click |
+| `gui/view/prompt_drawing.py` | the items those tools draw: the marks of the clicks, the outline, the id, the fine window |
+| `gui/view/overlays.py` | results on the picture: stored outlines, centroids, ids, head marks, the mask fill |
 | `gui/estimate.py` | how long tracking will take, and how the time is worded |
-| `gui/stopwatch_dialog.py` | the Stopwatch dialog of panel 2 |
+| `gui/panels/stopwatch_dialog.py` | the Stopwatch dialog of panel 2 |
 | `gui/worker.py` | the `Worker`: the GUI thread's handle of the worker thread |
 | `gui/worker_engine.py` | the engine: the object that lives in the worker thread, has the model made in a thread of its own, and calls the model |
 | `gui/worker_jobs.py` | `Jobs`: tracking in the worker thread, what a job reports back, and the one lock, `Jobs.writing()` |
-| `gui/review_table.py` | the flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread |
-| `gui/panel_parts.py` | the small parts the panels share, so that no panel imports another: `Message` and `IconMessage`, `ElidedLabel`, `NumberBox`, `guard_wheel`, `button`, `row`, `column`, `field_rows`, `follow_tool`, and the sizes |
+| `gui/panels/review_table.py` | the flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread |
+| `gui/widgets/panel_parts.py` | the small parts the panels share, so that no panel imports another: `Message` and `IconMessage`, `ElidedLabel`, `NumberBox`, `guard_wheel`, `button`, `row`, `column`, `field_rows`, `follow_tool`, and the sizes |
 | `gui/settings.py` | `settings()`: the application's `QSettings`, kept between sittings (the manifest's place, Fill) |
 | `gui/panels/__init__.py` | `PANEL_MODULES` and `build_bodies`: one module per panel, found by its name |
 | `gui/panels/video_panel.py` | panel 1: the name, Open video, Open session, the file's facts, the clip |
@@ -179,7 +181,7 @@ A model is made in a thread of its own, which calls the factory, does nothing el
 
 A signal of the worker or of a job is connected only to a method of an object that lives in the GUI thread, never to a lambda: a lambda would run in the worker thread.
 
-An outline is made by the model that was asked for last. The `Worker` gives the engine a request only while its state is "ready". A request made while a model loads waits in the `Worker`, in the GUI thread, and so does one that is still awaited when another model is asked for; it is handed over when that model is ready. When a model begins to load, `gui/prompts.py` takes the outlines of the model before off the picture and asks for the frame shown again, and panel 7 forgets the time per frame.
+An outline is made by the model that was asked for last. The `Worker` gives the engine a request only while its state is "ready". A request made while a model loads waits in the `Worker`, in the GUI thread, and so does one that is still awaited when another model is asked for; it is handed over when that model is ready. When a model begins to load, `gui/view/prompts.py` takes the outlines of the model before off the picture and asks for the frame shown again, and panel 7 forgets the time per frame.
 
 Who writes which file:
 

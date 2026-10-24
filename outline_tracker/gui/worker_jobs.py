@@ -51,7 +51,7 @@ from PySide6.QtCore import QCoreApplication, QEvent, QObject, Signal
 from outline_tracker.core import schema
 from outline_tracker.core.fileio import append_block
 from outline_tracker.gui import worker as worker_module
-from outline_tracker.gui.click_rules import ResultsOnDisk
+from outline_tracker.gui.view.click_rules import ResultsOnDisk
 from outline_tracker.gui.worker import REASON_LENGTH, plain, traced
 from outline_tracker.tracking.job import (CANCELLED, COMPLETE, FAILED, Callbacks, Job, SessionChanges, plan_runs,
                                       run_job)

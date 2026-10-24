@@ -33,8 +33,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QFormLayout, QHBoxL
 from outline_tracker.tracking import job as tracking
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.estimate import counted
-from outline_tracker.gui.panel_parts import CONTROL_HEIGHT, PRIMARY_HEIGHT, SPACING
-from outline_tracker.gui.prompts import BUSY_TEXT, LOADING_TEXT, Prompts, colour_of
+from outline_tracker.gui.widgets.panel_parts import CONTROL_HEIGHT, PRIMARY_HEIGHT, SPACING
+from outline_tracker.gui.view.prompts import BUSY_TEXT, LOADING_TEXT, Prompts, colour_of
 from outline_tracker.gui.worker import worker_of
 from outline_tracker.gui.worker_jobs import jobs_of
 from outline_tracker.measure.mask import MODES

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QApplication
 
 from finish_helpers import GRAY_OF_MARK, hover, move_mouse, number, small_picture
 from gui_helpers import StandInSource, picture, show
-from outline_tracker.gui import status_bar
+from outline_tracker.gui.view import status_bar
 from outline_tracker.segmenter.fake import ThresholdFake
 from prompt_helpers import objects_panel
 

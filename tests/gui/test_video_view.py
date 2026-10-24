@@ -30,7 +30,7 @@ from gui_helpers import GREEN, ClickRecorder, StandInSource, drag, drawn, fit_of
 from layout_helpers import REPO
 from outline_tracker.video import reader as video
 from outline_tracker.video.frame_source import FrameSource
-from outline_tracker.gui.video_view import VideoView
+from outline_tracker.gui.view.video_view import VideoView
 
 SCREEN_FACTOR = "OUTLINE_TRACKER_TEST_SCREEN_FACTOR"  # set for the runs on a 150% and a 200% screen
 LEFT, RIGHT = Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton

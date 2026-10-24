@@ -19,9 +19,9 @@ from __future__ import annotations
 from PySide6.QtWidgets import QLabel, QWidget
 
 from outline_tracker.core import geometry
-from outline_tracker.gui.panel_parts import (DASH, GROUP_GAP, REDO_TIP, WIDEST, IconMessage, NumberBox, button, column,
+from outline_tracker.gui.widgets.panel_parts import (DASH, GROUP_GAP, REDO_TIP, WIDEST, IconMessage, NumberBox, button, column,
                                              follow_tool, group_label, number, row, value_label)
-from outline_tracker.gui.tools import StickTool, TapeTool, mm_per_px
+from outline_tracker.gui.view.tools import StickTool, TapeTool, mm_per_px
 
 NO_SCALE = "Place the stick first. The tape check needs the scale."
 LIMIT = f"{100 * geometry.TAPE_TOLERANCE:g}%"  # "1%"

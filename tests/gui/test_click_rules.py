@@ -19,7 +19,7 @@ import errno
 from pathlib import Path
 from types import SimpleNamespace
 
-from outline_tracker.gui.click_rules import ResultsOnDisk
+from outline_tracker.gui.view.click_rules import ResultsOnDisk
 from outline_tracker.measure.results import ResultsStore
 from outline_tracker.core.schema import RESULTS_NPZ
 from results_helpers import made_up

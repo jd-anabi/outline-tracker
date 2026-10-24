@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QApplication, QDockWidget, QWidget
 import helpers
 from gui_helpers import shown
 from outline_tracker.gui import main_window
-from outline_tracker.gui.panel import Panel
+from outline_tracker.gui.widgets.panel_frame import Panel
 
 PANELS = [
     (1, "Student and video"),

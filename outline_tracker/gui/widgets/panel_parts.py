@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (QDoubleSpinBox, QFrame, QGridLayout, QHBoxLayout,
                                QSizePolicy, QSpinBox, QStyle, QVBoxLayout, QWidget)
 
 from outline_tracker.gui import theme
-from outline_tracker.gui.navigation import numeric_font
+from outline_tracker.gui.view.navigation import numeric_font
 
 LABEL_WIDTH = 120     # the column of the field labels
 BOX_WIDTH = 104       # the least width of a number box

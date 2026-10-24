@@ -28,7 +28,7 @@ import helpers
 import tracking_helpers
 from gui_helpers import show
 from outline_tracker.video.frame_source import FrameSource
-from outline_tracker.gui.prompts import Prompts
+from outline_tracker.gui.view.prompts import Prompts
 from outline_tracker.gui.worker import Worker, before_load_for, worker_of
 from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake

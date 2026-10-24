@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QApplication
 
 from finish_helpers import is_paused, is_playing, row_parts, tick
 from gui_helpers import ClickRecorder, StandInSource, picture, show
-from outline_tracker.gui import navigation
+from outline_tracker.gui.view import navigation
 from session_helpers import body
 
 LEFT = Qt.MouseButton.LeftButton

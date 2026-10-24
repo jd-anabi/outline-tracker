@@ -36,10 +36,10 @@ from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPus
 from outline_tracker.core import schema
 from outline_tracker.video import reader as video
 from outline_tracker.gui import dialogs, theme
-from outline_tracker.gui.navigation import LARGEST_FRAME
+from outline_tracker.gui.view.navigation import LARGEST_FRAME
 # The parts every panel shares have their own file; their names, and the names they needed, are passed on:
 # whatever this module offered before the two were split is still importable from it.
-from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, LABEL_WIDTH, SPACING, ElidedLabel,  # noqa: F401
+from outline_tracker.gui.widgets.panel_parts import (CONTROL_HEIGHT, LABEL_WIDTH, SPACING, ElidedLabel,  # noqa: F401
                                              Message, _WheelGuard, field_label, field_rows, guard_wheel)
 from outline_tracker.gui.worker_jobs import RUNNING, jobs_of  # noqa: F401
 

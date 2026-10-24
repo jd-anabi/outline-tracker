@@ -226,7 +226,7 @@ def test_without_a_model_the_flags_are_listed_in_the_worker_thread_and_closing_e
                                                                                        tmp_path, monkeypatch):
     """The listing has no thread of its own (X7): without a model too, the worker's one thread
     lists, and closing the window ends that thread."""
-    from outline_tracker.gui import review_table
+    from outline_tracker.gui.panels import review_table
 
     probe = []
     with Gate() as gate:
@@ -701,7 +701,8 @@ def test_every_name_a_split_module_offered_is_still_importable_from_it_and_it_is
 
 
 def test_the_parts_that_moved_are_the_same_objects_wherever_they_are_imported_from():
-    from outline_tracker.gui import panel_parts, prompt_drawing, prompts
+    from outline_tracker.gui.widgets import panel_parts
+    from outline_tracker.gui.view import prompt_drawing, prompts
     from outline_tracker.gui.panels import video_panel
 
     for name in ("Message", "ElidedLabel", "guard_wheel", "field_label", "field_rows", "_WheelGuard"):

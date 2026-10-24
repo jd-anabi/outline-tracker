@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QCheckBox, QWidget
 
-from outline_tracker.gui.panel_parts import (DASH, GROUP_GAP, REDO_TIP, WIDEST, IconMessage, NumberBox, button,
+from outline_tracker.gui.widgets.panel_parts import (DASH, GROUP_GAP, REDO_TIP, WIDEST, IconMessage, NumberBox, button,
                                              column, follow_tool, group_label, point_text, row, value_label)
-from outline_tracker.gui.tools import NEEDS_THREE, AxesTool, CircleTool, mm_per_px
+from outline_tracker.gui.view.tools import NEEDS_THREE, AxesTool, CircleTool, mm_per_px
 
 NOT_KNOWN = "not known"  # what the dish diameter's box says at 0
 

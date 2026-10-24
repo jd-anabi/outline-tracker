@@ -52,8 +52,8 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QProgressBar, QWidget
 
 from outline_tracker.gui import dialogs, estimate
-from outline_tracker.gui.overlays import Overlays
-from outline_tracker.gui.panel_parts import (CONTROL_HEIGHT, PRIMARY_HEIGHT, SPACING, IconMessage, button, column,
+from outline_tracker.gui.view.overlays import Overlays
+from outline_tracker.gui.widgets.panel_parts import (CONTROL_HEIGHT, PRIMARY_HEIGHT, SPACING, IconMessage, button, column,
                                              field_rows, guard_wheel)
 from outline_tracker.gui.session_controller import VIDEO_FIRST
 from outline_tracker.gui.worker import NO_FACTORY, worker_of
