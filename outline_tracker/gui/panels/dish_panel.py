@@ -1,6 +1,5 @@
-"""Panel 4, Dish and axes (SPEC 4.4, 4.5, 10.1): the Circle tool and what the fit gives, the dish's
-known diameter beside 2R, Origin to Center, the Axes tool and the axes angle, and "Crop to dish for
-tracking".
+"""Panel 4, Dish and axes (SPEC 4.4, 4.5, 10.1): Circle, Origin to Center, Axes, "Crop to dish for tracking".
+The panel shows what the circle fit gives and the dish's known diameter beside 2R, and the axes angle.
 
 The values live in the session (`circle`, `axes`, `processing.dish_crop`, SPEC 8.10) and are kept
 there by the two tools (outline_tracker/gui/view/tools.py); this panel chooses the tools, takes the

@@ -1,5 +1,6 @@
-"""Panel 6, Objects (SPEC 5, 10.1): the table of objects, Add and Remove, mode and fine window of
-the selected object, and the buttons of the point tools Positive, Negative and Head.
+"""Panel 6, Objects (SPEC 5, 10.1): the table of objects, Add, Remove, mode, fine window, the point tools.
+Mode and fine window are those of the selected object, and the buttons are those of the point tools Positive,
+Negative and Head.
 
 What a click on the video does, and what is drawn there, is in gui/view/prompts.py (`Prompts`); the
 model that makes the outlines runs in the worker thread (gui/worker.py). This module is the

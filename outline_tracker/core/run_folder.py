@@ -1,5 +1,5 @@
-"""Where a run's files go (SPEC 8.1): the default run folder, and the check that keeps the tool out of a
-folder of Tracker files.
+"""Where a run's files go (SPEC 8.1), and the check that keeps the tool out of a folder of Tracker files.
+It holds the default run folder.
 
 One run folder per video and student, by default `<video folder>/<video stem>_outline_<student>/`, so
 students who share a video folder never overwrite each other. Students keep their Tracker exports as .csv

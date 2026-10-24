@@ -1,5 +1,5 @@
-"""Panel 2, "Time" (SPEC 2 step 4, 3.3, 4.1, 10.1): fps_true, typed, read from the course's
-manifest or measured with a filmed stopwatch, with its source.
+"""Panel 2, "Time" (SPEC 2 step 4, 3.3, 4.1, 10.1): fps_true with its source, the Stopwatch, the manifest.
+fps_true is typed, read from the course's manifest or measured with a filmed stopwatch.
 
 fps_true is the true frame rate in frames per second; the time of a frame is t = frame / fps_true
 in s (SPEC 3.3), which the bottom bar shows as soon as the session has the value. A typed value

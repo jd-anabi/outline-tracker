@@ -1,5 +1,5 @@
-"""The flags table of panel 8 (SPEC 9: "a flags table (track, frame, t, code) whose rows jump to the
-frame"): its rows, how they are shown, and how they are computed.
+"""The flags table of panel 8: its rows, how they are shown, and how they are listed in the worker thread.
+SPEC 9 asks for "a flags table (track, frame, t, code) whose rows jump to the frame".
 
 The rows are `tracking.flags_table(run_folder)`: one row per flag on a frame, by track and then by
 frame, from session.json and results.npz as they are on disk. That function derives every track

@@ -1,5 +1,5 @@
-"""Atomic file writes with the Windows lock retry, the hash that identifies a video, and the relative
-paths that let a run folder be moved (SPEC 8.1).
+"""Atomic file writes with the Windows lock retry, the hash that identifies a video, and relative paths.
+The relative paths let a run folder be moved (SPEC 8.1).
 
 Every output file of a run folder is written through `atomic_write`: the data go into a temporary
 file in the same folder, and only a finished file is renamed onto the target. A reader (a student's

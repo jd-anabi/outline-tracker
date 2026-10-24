@@ -1,5 +1,5 @@
-"""Panel 3, Calibration (SPEC 4.2, 4.3, 10.1): the Stick tool and the stick's length, the scale with
-its uncertainty, and the Tape check with its true distance and its error.
+"""Panel 3, Calibration (SPEC 4.2, 4.3, 10.1): the Stick tool and its length, the scale, and the Tape check.
+The scale comes with its uncertainty, and the Tape check with its true distance and its error.
 
 The values live in the session (`calibration.stick`, `calibration.check`, SPEC 8.10) and are kept
 there by the two tools (outline_tracker/gui/view/tools.py); this panel chooses the tools, takes the two

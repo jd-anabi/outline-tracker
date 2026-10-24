@@ -1,4 +1,4 @@
-"""Stand-in segmenters for the tests (SPEC 12, 13.2): no model, no torch.
+"""Stand-in segmenters for the tests, `ThresholdFake` and `ExactFake` (SPEC 12, 13.2): no model, no torch.
 
 Both implement the protocol of segmenter/base.py (`start`, `step`, `preview`, `close`) and its rule
 for prompts: points outside the image are not used, and an object needs a positive point inside it

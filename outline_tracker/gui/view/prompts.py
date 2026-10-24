@@ -1,4 +1,5 @@
-"""Clicks on objects, and what is drawn of them on the video (SPEC 3.1, 3.5, 5, 10.1, 10.2).
+"""Clicks on objects: the point tools Positive, Negative and Head, undo, and the outline shown after a click.
+Their marks are drawn on the video (SPEC 3.1, 3.5, 5, 10.1, 10.2).
 
 `Prompts` is the part of panel 6 that works on the video view: the three point tools (Positive,
 Negative, Head), undo, the marks of the clicks on the frame shown, and the outline the model

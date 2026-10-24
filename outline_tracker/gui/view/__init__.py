@@ -1,5 +1,4 @@
-"""The picture of the window: the video view, its tools and clicks, the outlines and marks drawn
-on it, the bottom bar and the status bar.
+"""The picture of the window: video view, tools and clicks, what is drawn on it, bottom bar and status bar.
 
 Nothing is imported by this file itself.
 """

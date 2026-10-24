@@ -1,5 +1,5 @@
-"""The main window (SPEC 10.1): the video in the middle, frame navigation under it, and at the
-right a dock with the nine numbered panels in the order of the work.
+"""The main window (SPEC 10.1): the video, the bar above it, navigation below, a dock of nine panels.
+The video is in the middle and the dock at the right. The panels are numbered in the order of the work.
 
 The window owns the parts and connects them: the `SessionController` (the open video and its
 session), the `VideoView`, the `NavigationBar`, and the nine `Panel`s. The controls of a panel are

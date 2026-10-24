@@ -1,5 +1,5 @@
-"""Panel 8, Review and fix (SPEC 6.6, 9, 10.1): the flags table, Previous flag and Next flag, and the
-three corrections Re-track from here, End track here and Continue as new track.
+"""Panel 8, Review and fix (SPEC 6.6, 9, 10.1): the flags table, Previous flag, Next flag and three corrections.
+The corrections are Re-track from here, End track here and Continue as new track.
 
 - The table (gui/panels/review_table.py) lists `tracking.flags_table` of the run folder: by default the
   flags on positions (LOST, JUMP, SIZE, CONTACT, EDGE, MULTI); "Show shape flags too" adds LOWRES,

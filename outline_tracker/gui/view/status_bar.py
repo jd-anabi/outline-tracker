@@ -1,5 +1,5 @@
-"""The read-outs at the right of the status bar (SPEC 3.1, 3.2, 4.6, 10.1): where the cursor is on
-the picture, the gray value under it, and the device the model runs on.
+"""The read-outs at the right of the status bar (SPEC 3.1, 3.2, 4.6, 10.1): pixel, position, gray value, device.
+That is where the cursor is on the picture, the gray value under it, and the device the model runs on.
 
 From left to right: "Pixel 1024.5, 512.5 px", "Position 12.34, −5.67 mm", "Gray 128" and
 "Device cpu"; the state of the model follows them, in the label that panel 6 adds. The last

@@ -1,6 +1,7 @@
-"""Results on the picture (SPEC 6.3, 7.3, 10.1): for the frame the view shows, each track's stored
-outline, its centroid, its id and its head mark, in the track's colour; for a fine track also the
-square the model was shown; and, when "Fill" is on, the stored mask as a translucent fill.
+"""Results on the picture (SPEC 6.3, 7.3, 10.1): stored outlines, centroids, ids, head marks, the mask fill.
+For the frame the view shows, each track's stored outline, its centroid, its id and its head mark are drawn in the
+track's colour; for a fine track also the square the model was shown; and, when "Fill" is on, the stored mask as a
+translucent fill.
 
 What is drawn comes from results.npz as it is on disk, never from a job's memory. The file is read
 again (`reload`) when a job says that it was saved (after every autosave and at the end of a run),

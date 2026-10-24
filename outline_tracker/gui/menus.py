@@ -1,5 +1,5 @@
-"""The menus of the window (SPEC 10.1): File with Open video, Open session, Save session, Save
-session as, Export and Quit; Help with Quickstart and About.
+"""The File and Help menus of the window (SPEC 10.1), and which of their items are off when.
+File has Open video, Open session, Save session, Save session as, Export and Quit; Help has Quickstart and About.
 
 An item does what its button or key does elsewhere, through the same function: Open video is the
 window's `choose_video`; Open session and Save session are connected by panel 1, which has their

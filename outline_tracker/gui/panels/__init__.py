@@ -1,4 +1,4 @@
-"""The controls of the nine panels (SPEC 10.1): one module per panel, found by its name.
+"""The nine panels (SPEC 10.1): `PANEL_MODULES` and `build_bodies`, one module per panel, found by its name.
 
 `PANEL_MODULES` gives each panel's number the name of its module in this package. A panel's task
 adds that module, with one function, `build(window)`, which returns the widget that holds the

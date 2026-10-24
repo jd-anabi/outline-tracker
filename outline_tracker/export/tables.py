@@ -1,5 +1,5 @@
-"""The tables of an export: the rows of positions.csv, shapes.csv and radial.csv, the arrays of
-outlines.npz and the Tracker-format folder `<model>/<id>.csv` (SPEC 8.2-8.6).
+"""The tables of an export: positions.csv, shapes.csv, radial.csv, outlines.npz and the Tracker-format folder.
+They are the rows of the three tables, the arrays of outlines.npz and the folder `<model>/<id>.csv` (SPEC 8.2-8.6).
 
 Everything here is made from derived tracks (`derive.DerivedTrack`) and the flags cells of `qc`;
 the column lists, number formats and file texts are `schema`'s. `export.export_all` decides what is

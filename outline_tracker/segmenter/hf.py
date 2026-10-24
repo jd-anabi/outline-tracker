@@ -1,4 +1,4 @@
-"""SAM 2.1 and EdgeTAM through Hugging Face transformers, one frame at a time (SPEC 6.2).
+"""SAM 2.1 and EdgeTAM through Hugging Face transformers, one frame at a time; `MODELS` lists them (SPEC 6.2).
 
 Ported from `TransformersSegmenter` and `load_model` of the course's shrimp.segment, written for
 transformers 5.18.0. Kept from last week (held by tests/segmenter/test_hf_helpers.py without a model, and by

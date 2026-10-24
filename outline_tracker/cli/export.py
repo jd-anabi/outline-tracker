@@ -1,5 +1,5 @@
-"""The `export` command (SPEC 8, 11): write every output file of a run folder again, from session.json and
-results.npz, with `export.export_all`.
+"""The `export` command (SPEC 8, 11): write every output file of a run folder again.
+It works from session.json and results.npz, with `export.export_all`.
 
 `outline-tracker export SESSION.json [--overlay]` is for what changes after the tracking: a corrected stick
 length, a new fps_true, a head click, a new origin of the axes. Nothing is tracked, no model is loaded and no

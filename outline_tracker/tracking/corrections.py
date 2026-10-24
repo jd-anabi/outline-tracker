@@ -1,6 +1,5 @@
-"""The three corrections of SPEC 6.6, without Qt: `retrack_from` ("Re-track from here"), `end_track`
-("End track here") and `new_piece` ("Continue as new track"). Each adds an entry to `session.corrections`
-(SPEC 8.10).
+"""The three corrections of SPEC 6.6, without Qt: Re-track from here, End track here, Continue as new track.
+They are `retrack_from`, `end_track` and `new_piece`. Each adds an entry to `session.corrections` (SPEC 8.10).
 
 The rest of the edit API is in outline_tracker/tracking/edit.py, which this module imports from: the object
 table (`add_object`, `remove_object`), the clicks, `pending_runs`, the `Edit` that every edit returns, and the

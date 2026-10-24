@@ -1,5 +1,6 @@
-"""The worker thread (SPEC 5, 6.4, 10.2; decision X7): it owns the loaded model and makes the
-outlines that are shown after a click, so that no long operation runs in the GUI thread.
+"""The `Worker`, the GUI thread's handle of the worker thread (SPEC 5, 6.4, 10.2; decision X7).
+The worker thread owns the loaded model and makes the outlines that are shown after a click, so that no long
+operation runs in the GUI thread.
 
 Two objects. The engine (`_Engine`, in gui/worker_engine.py) is the one object that lives in the
 one worker thread: it has the segmenter made and is the only one that calls it. The `Worker` is

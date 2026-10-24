@@ -1,5 +1,4 @@
-"""Help > About (SPEC 10.1): which tool this is, the versions of what it runs on, and where the
-model is stored.
+"""Help > About (SPEC 10.1): which tool this is, the versions of what it runs on, and where the model is stored.
 
 The versions come from the installed packages' metadata (`provenance.library_versions`), so asking
 for them loads neither torch nor transformers: the window must stay usable while the model loads,

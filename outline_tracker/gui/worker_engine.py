@@ -1,7 +1,7 @@
-"""The engine of the worker thread (SPEC 5, 6.4, 10.2; decision X7): the one object that lives in
-the thread, has the segmenter made, and is the only one that calls it. Its handle for the GUI
-thread is the `Worker` of gui/worker.py, whose module text says how the two work together; every
-name here is also importable from there.
+"""The worker thread's engine (SPEC 5, 6.4, 10.2; decision X7): the object that lives in it and calls the model.
+It is the one object that lives in the thread, has the segmenter made in a thread of its own, and is the only one
+that calls it. Its handle for the GUI thread is the `Worker` of gui/worker.py, whose module text says how the two
+work together; every name here is also importable from there.
 
 - `load` has the segmenter made with the factory it is given, in a thread that does nothing else
   (`_Making`, with the worker thread's stack) and ends when the factory has returned. The worker

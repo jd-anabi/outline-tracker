@@ -1,4 +1,4 @@
-"""Exact random access to the frames of a video (SPEC 3.5, 6.5, 13.6; decision X4).
+"""Exact random access to the frames of a video, for the display (SPEC 3.5, 6.5, 13.6; decision X4).
 
 `FrameSource.get(k)` returns frame k of the sequential decode from the start of the file
 (`video.iter_rgb_frames`, the numbering tracking and Tracker use), bit for bit, without decoding

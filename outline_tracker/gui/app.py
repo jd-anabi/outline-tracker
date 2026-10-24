@@ -1,4 +1,4 @@
-"""The window's entry point (SPEC 10.2): `main` starts the application.
+"""The window's entry point (SPEC 10.2): `main` imports torch first, then Qt, and starts the application.
 
 Import order is the reason this module exists as it is. With PyTorch on Windows, importing torch
 after PySide6 fails (WinError 1114, c10.dll), so torch is imported first, in the main thread, before

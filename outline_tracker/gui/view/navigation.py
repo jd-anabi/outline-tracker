@@ -1,4 +1,4 @@
-"""The bottom bar (SPEC 3.3, 3.4, 10.1, 10.2): moving through the clip on its frame grid.
+"""The bottom bar (SPEC 3.3, 3.4, 10.1, 10.2): the slider on the frame grid, the frame buttons, play and pause.
 
 Top to bottom: the slider, room for the strip of flags (a later task draws in it), and a row with
 First, -10, -1, Play, +1, +10 and Last, the frame box and the time t. Everything moves on the grid

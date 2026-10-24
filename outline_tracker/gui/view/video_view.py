@@ -1,4 +1,4 @@
-"""The video view (SPEC 3.1, 10.1, 10.2): one frame of the video, zoomed and moved by the user.
+"""The video view (SPEC 3.1, 10.1, 10.2): one frame, zoom and pan, and clicks in video pixels.
 
 The frame is a pyqtgraph `ImageItem` in a `ViewBox`, with the array read row by row (`row-major`)
 and the y axis pointing down. In the item's coordinates pixel (c, r) of the frame is the square

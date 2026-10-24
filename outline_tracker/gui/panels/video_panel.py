@@ -1,6 +1,7 @@
-"""Panel 1, "Student and video" (SPEC 2 steps 1 to 3, 8.1, 10.1): the student's name, Open video
-and Open session, what the file says about itself, the warnings of last week's check of the video,
-the clip (start, end, step), and where the session is saved.
+"""Panel 1, "Student and video": the name, Open video, Open session, the file's facts, the clip.
+It follows SPEC 2 steps 1 to 3, 8.1 and 10.1. The file's facts are what the file says about itself and the
+warnings of last week's check of the video. The clip is its start, end and step. The panel also shows where the
+session is saved.
 
 `build(window)` makes the panel's controls and connects them to the window's `SessionController`:
 a value typed here goes into the session (`controller.touch()` then tells everyone), and whatever

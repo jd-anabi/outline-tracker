@@ -1,6 +1,6 @@
-"""Panel 7, Track (SPEC 6.1, 6.4, 10.1, 10.2): the model and the device, the estimated time before a
-run, Track, the progress bar with s per frame and the time left, Cancel, and one line that says how
-the run ended.
+"""Panel 7, Track (SPEC 6.1, 6.4, 10.1, 10.2): the model and device, the estimate, Track, progress and Cancel.
+The estimate is the time before a run, the progress bar shows s per frame and the time left, and one line says
+how the run ended.
 
 The job itself is `tracking.run_job` in the worker thread (gui/worker_jobs.py, `Jobs`); what it
 stored is drawn on the picture by gui/view/overlays.py, which this panel makes. This module is the

@@ -1,7 +1,7 @@
-"""Planning the runs of a tracking job (SPEC 6.1, 6.2): which objects are tracked together, on which
-frames, what part of the frame the model is shown, and the clicks as the model gets them. Also
-what is left when jobs have run: the tracks whose results are partial (`partial_tracks`, SPEC 6.4),
-and the frame up to which a track's next run may start (`check_no_gap`, SPEC 8.2).
+"""Planning a tracking job (SPEC 6.1, 6.2): the objects tracked together, their frames, their part of the frame.
+That is which objects are tracked together, on which frames, what part of the frame the model is shown, and the
+clicks as the model gets them. Also what is left when jobs have run: the tracks whose results are partial
+(`partial_tracks`, SPEC 6.4), and the frame up to which a track's next run may start (`check_no_gap`, SPEC 8.2).
 
 A run is a set of tracks plus a start frame: coarse objects with the same start frame share one
 streaming session of the model, a fine object has a session of its own. A run covers the frames of

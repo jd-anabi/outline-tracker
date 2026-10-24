@@ -1,7 +1,7 @@
-"""The rules of a click on the video (SPEC 3.5, 5): which click is a negative point, which click
-is the second of a double click, which picture takes a click, what marks the clicks of a frame
-are, what the model is given for them (`preview_input`), and the results on disk that the edit
-functions read. gui/view/prompts.py works with these; `PointTool` is what it gives the video view.
+"""The rules of a click on the video (SPEC 3.5, 5): which click is negative, which frame takes a click.
+Also which click is the second of a double click, what marks the clicks of a frame are, what the model is given
+for them (`preview_input`), and the results on disk that the edit functions read. gui/view/prompts.py works with
+these; `PointTool` is what it gives the video view.
 
 Negative points. A positive point says "this is the object", a negative one "this is not". A click
 is negative when it is made with the right button, or with the left button while Alt (Option on a

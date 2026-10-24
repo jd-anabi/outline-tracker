@@ -1,4 +1,5 @@
-"""The owner of the open video and of its session (SPEC 8.1, 8.10, 10.1): one per window.
+"""The owner of the open video and of its session, and the one writer of session.json (SPEC 8.1, 8.10, 10.1).
+There is one per window.
 
 The window and its panels all work on the same `Session` and read frames from the same open file;
 this object holds both and says when they change. A panel reads `controller.session`, changes it,

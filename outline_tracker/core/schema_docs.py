@@ -1,4 +1,4 @@
-"""The two texts that describe a run folder, built from the tables of `outline_tracker.core.schema`.
+"""The two texts that describe a run folder, README.txt and docs/OUTPUTS.md, built from the schema tables.
 
 `readme_text()` is README.txt (SPEC 8.11), written into every run folder. `outputs_markdown()` is docs/OUTPUTS.md (SPEC
 8.1 and 16), the contract for the analysis template; the committed file is its output, and a test fails when it is

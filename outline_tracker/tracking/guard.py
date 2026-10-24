@@ -1,5 +1,5 @@
-"""The guard at the start of a tracking job (SPEC 3.5, decision X8): is the frame the tracking
-decoder delivers under a number the frame the user clicked on?
+"""The guard at the start of a job (SPEC 3.5, decision X8): checks that a frame is the frame that was clicked on.
+That is, is the frame the tracking decoder delivers under a number the frame the user clicked on?
 
 When the user clicks on a frame, the session stores a hash of that decoded frame and the tag of
 the decoder that made it (`video.frame_hash`, `video.decoder_tag`). Before anything is tracked,

@@ -1,5 +1,5 @@
-"""The records of session.json below the whole session (SPEC 8.10, schema version 1), and how a record is read
-from and written to JSON.
+"""The records of session.json below the whole session (SPEC 8.10, schema version 1).
+This module also says how a record is read from and written to JSON.
 
 One dataclass per block of session.json, with the field names of SPEC 8.10: `Clip`, `TimeSettings`,
 `CalibrationSettings`, `Axes`, `Circle`, `Processing`, `ProbeBox`, `Prompt`, `Track`, `RunRecord` and

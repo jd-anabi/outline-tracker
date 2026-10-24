@@ -1,5 +1,5 @@
-"""The flags table of a run folder (SPEC 9: "a flags table (track, frame, t, code) whose rows jump
-to the frame"), for the GUI's review panel.
+"""The flags table of a run folder, for the GUI's review panel (SPEC 9).
+SPEC 9 asks for "a flags table (track, frame, t, code) whose rows jump to the frame".
 
 `flags_table` reads session.json and results.npz and gives one row per flag on a frame. The flags
 are the ones the export writes: `derive.derive_track` and `qc.compute_flags` on the same records

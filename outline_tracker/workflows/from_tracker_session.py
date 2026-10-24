@@ -1,5 +1,5 @@
-"""What `from_tracker` settles before anything is tracked: fps_true, the student's name, the run
-folder, and the session that a Tracker export stands for (SPEC 11; decisions X9, X14, X18).
+"""What `from_tracker` settles before anything is tracked: fps_true, the name, the run folder, the session.
+The session is the one that a Tracker export stands for (SPEC 11; decisions X9, X14, X18).
 
 A Tracker export gives last week's `Plan` (`tracker_io.make_plan`): the objects' names, one pixel
 position each on the first marked frame, the frames to track, fps_true and Tracker's calibration.

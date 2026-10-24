@@ -1,5 +1,4 @@
-"""Videos: frames and their times read safely, exact random access, a copy that Tracker can open,
-brightness probes.
+"""Videos: frames and times read safely, exact random access, a copy for Tracker, brightness probes.
 
 Nothing is imported by this file itself.
 """

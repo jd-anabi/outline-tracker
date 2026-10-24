@@ -1,5 +1,5 @@
-"""Export: every output file of a run folder except the overlay's frames, from session.json and
-results.npz alone (SPEC 8.1-8.6, 8.9, 8.11).
+"""Export: every output file of a run folder except the overlay's frames (SPEC 8.1-8.6, 8.9, 8.11).
+It works from session.json and results.npz alone.
 
 `export_all` reads the two files, derives every world quantity with the session's current
 calibration (`derive.derive_track`), computes the flags (`qc.compute_flags`) and writes

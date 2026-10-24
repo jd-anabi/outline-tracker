@@ -1,5 +1,5 @@
-"""The dialogs of the window (SPEC 10.2): a message, a question before something that cannot be
-undone, the choice of a file to open, and the choice of a folder.
+"""The dialogs of the window (SPEC 10.2): a message, a question, and the choice of a file or of a folder.
+The question is asked before something that cannot be undone.
 
 Every module of the window asks through `message`, `confirm`, `open_file` and `choose_folder`, so that
 there is one place for how a dialog looks and behaves, and one set of functions for a test to replace. Each

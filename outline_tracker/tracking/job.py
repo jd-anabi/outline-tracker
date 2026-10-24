@@ -1,4 +1,4 @@
-"""Tracking jobs: from a session with prompts to the pixel-space records of results.npz (SPEC 6).
+"""Tracking jobs: `run_job`, from a session with prompts to the pixel-space records of results.npz (SPEC 6).
 
 `run_job` is the one entry point, for the command line and for the GUI's worker thread. It plans
 the runs (outline_tracker/tracking/plan.py), checks the start frames (tracking/guard.py), and

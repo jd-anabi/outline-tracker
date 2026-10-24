@@ -1,5 +1,6 @@
-"""Tracking jobs in the worker thread (SPEC 6.1, 6.4, 10.2; decision X7): Track runs
-`tracking.run_job` there, with the model the worker loaded, so the window stays usable.
+"""`Jobs`: tracking in the worker thread (SPEC 6.1, 6.4, 10.2; decision X7), and the one lock, `Jobs.writing()`.
+Track runs `tracking.run_job` there, with the model the worker loaded, so the window stays usable. `Jobs` takes
+over what a job reports back.
 
 `Jobs` lives in the GUI thread, one per window (`jobs_of`). `start()` checks what must be there,
 saves the session, and hands the worker one task; the worker thread runs it after what it is

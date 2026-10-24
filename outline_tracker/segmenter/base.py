@@ -1,4 +1,5 @@
-"""The segmenter protocol and its two records (SPEC 12, plus `preview`, decision X21).
+"""The segmenter protocol and its two records, `ObjectPrompt` and `MaskResult`.
+It follows SPEC 12, plus `preview` (decision X21).
 
 A segmenter is given one image at a time. `start` receives the first image of a run together with
 the prompts of every object; `step` receives each later image; both return one `MaskResult` per

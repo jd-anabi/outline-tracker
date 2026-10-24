@@ -1,5 +1,5 @@
-"""The graphics of the calibration tools on the picture (SPEC 10.1; the design note's video view):
-stick, tape, circle points and fitted circle, axes arrows, and their labels.
+"""The graphics of the calibration tools on the picture (SPEC 10.1; the design note's video view).
+They are the stick, the tape, the circle points and the fitted circle, the axes arrows, and their labels.
 
 Everything is white on a black casing, so that it shows on any video and is no track's colour:
 lines 2 px wide on a casing of 4 px (black at alpha 180), the stick solid and the tape dashed, both
