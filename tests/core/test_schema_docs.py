@@ -24,7 +24,7 @@ from helpers import normalized
 from layout_helpers import REPO, module
 from layout_helpers import path as table_path
 
-from outline_tracker.core import csv_format, schema, tracker_io
+from outline_tracker.core import csv_format, schema, schema_prose, tracker_io
 
 # SHA-256 of the UTF-8 bytes of readme_text(), computed with
 #   uv run python -c "import hashlib; from outline_tracker import schema; \
@@ -298,6 +298,7 @@ def test_a_new_column_with_a_hidden_unit_is_listed_under_units(schema_docs, monk
     files = [dataclasses.replace(f, columns=[*f.columns, odd, shown]) if f.name == "shapes.csv" else f
              for f in schema.FILES]
     monkeypatch.setattr(schema_docs, "FILES", files)
+    monkeypatch.setattr(schema_prose, "FILES", files)  # the Units sentence is made in schema_prose
     for units in (units_item(schema_docs.readme_text()), units_item(schema_docs.outputs_markdown())):
         assert re.search(r"in shapes\.csv, .*\bzz_odd is in millimetres", units), units
         assert "zz_shown_mm" not in units
@@ -609,9 +610,11 @@ def test_the_numbers_of_the_text_come_from_the_tables(schema_docs, monkeypatch):
     files = [dataclasses.replace(f, columns=[*f.columns, extra]) if f.name == "positions.csv" else f
              for f in schema.FILES]
     monkeypatch.setattr(schema_docs, "FILES", files)
+    monkeypatch.setattr(schema_prose, "FILES", files)  # the shared prose reads FILES in its own module
     key = schema.ArrayKey("zz_key", "int32", ("n",), "", "a key that only this test adds")
     monkeypatch.setattr(schema_docs, "RESULTS_KEYS", [*schema.RESULTS_KEYS, key])
     monkeypatch.setattr(schema_docs, "OUTLINE_POINTS", 64)
+    monkeypatch.setattr(schema_prose, "OUTLINE_POINTS", 64)  # the reading recipe is made in schema_prose
     text = schema_docs.outputs_markdown()
     assert f"| {code('zz_extra_mm')} | float, 6 decimals | mm | {extra.meaning} |" in file_section(text, "positions.csv")
     assert f"| {code('<id>__zz_key')} | int32 | [n] | none | {key.meaning} |" in file_section(text, "results.npz")

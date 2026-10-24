@@ -27,6 +27,7 @@ The base of the tool: schema, safe file writes, run facts, geometry, calibration
 | `core/run_folder.py` | Where a run's files go (SPEC 8.1), and the check that keeps the tool out of a folder of Tracker files. |
 | `core/schema.py` | The single source of truth for every output file of SPEC 8: columns, flags, file names, formats. |
 | `core/schema_docs.py` | The two texts that describe a run folder, README.txt and docs/OUTPUTS.md, built from the schema tables. |
+| `core/schema_prose.py` | The prose that README.txt and docs/OUTPUTS.md share, and the helpers that make it from the schema tables. |
 | `core/session.py` | session.json <-> dataclasses (SPEC 8.10, schema version 1), and finding the video again (SPEC 8.1). |
 | `core/session_parts.py` | The records of session.json below the whole session (SPEC 8.10, schema version 1). |
 | `core/tracker_io.py` | Tracker's files and calibration, ported from the course's shrimp.segment (unchanged behavior). |
