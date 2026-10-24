@@ -1,6 +1,6 @@
-"""The size of a file: no .py file of `outline_tracker/` or of `tests/` is longer than 400 lines (docs/ROADMAP.md, W2 step 6).
+"""The size of a file: no .py file of `outline_tracker/` or `tests/` is over 400 lines (docs/ROADMAP.md, W2 step 6).
 
-A file that grows past the limit is split by subject (docs/developer/README.md); this test is what notices it.
+A file that grows past the limit is split (docs/developer/README.md says so); this test is what notices it.
 The length is `len(text.splitlines())`, the number `wc -l` gives for a file that ends with a line end.
 
 `OVER_400` names the files that were over the limit when W2 step 6 began, each with the task of that step that
@@ -28,10 +28,10 @@ LIMIT = 400  # lines
 # Where the scan looks: the package and the tests, relative to the repository.
 SCANNED = (PACKAGE_NAME, "tests")
 
-# The files over LIMIT today, each with the task of W2 step 6 that splits it. An entry comes off in the commit
-# that splits its file (the second test below fails until it does).
+# The files over LIMIT when W2 step 6 began, each with the task that splits it (6a, the package files, are all split).
+# An entry comes off in the commit that splits its file: the first test below fails for a long file without an
+# entry, the second for an entry whose file is no longer long.
 OVER_400: dict[str, str] = {
-    # 6a: the package
     # 6b: the tests of core/ and segmenter/
     "tests/core/test_fileio.py": "6b",
     "tests/core/test_geometry.py": "6b",
