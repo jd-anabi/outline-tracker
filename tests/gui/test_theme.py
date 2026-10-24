@@ -3,19 +3,21 @@
 Expected values are the note's: its token tables (a few are spelled out here, and the contrast it
 states for a pair is recomputed with the WCAG 2 formula), its palette roles, the first rule of its
 style-sheet skeleton, and which token colours which part of a panel. Colours are read from the
-drawn window (`grab`, offscreen), never from the style sheet's text. Qt's own messages are
-collected by the `qt_messages` fixture: a rule Qt cannot read is a message (one test shows that
-such a message does arrive there).
+drawn window (`grab`, offscreen), never from the style sheet's text. The smallest window is 600 px
+high and the panels scroll: a panel below the visible part is scrolled into view first (`scroll_to`
+of tests/support/gui_helpers.py), so a taller panel above it does not move it out of the grab. Qt's
+own messages are collected by the `qt_messages` fixture: a rule Qt cannot read is a message (one
+test shows that such a message does arrive there).
 """
 
 import re
 from collections import Counter
 
 import pytest
-from PySide6.QtCore import QPoint, Qt, qInstallMessageHandler
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, qInstallMessageHandler
 from PySide6.QtGui import QPalette
 
-from gui_helpers import badge_pixels, inside_badge
+from gui_helpers import badge_pixels, inside_badge, scroll_to
 from outline_tracker.gui import theme
 
 BOTH = pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
@@ -50,7 +52,9 @@ def about_the_look(messages: list[str]) -> list[str]:
 
 
 def color_at(window, widget, point: QPoint) -> str:
-    """The colour drawn at `point` of `widget` (its own px), as `#RRGGBB` in capitals."""
+    """The colour drawn at `point` of `widget` (its own px), as `#RRGGBB` in capitals. A point of a panel below
+    the visible part of the column is first scrolled into view (`scroll_to`)."""
+    scroll_to(window, widget, QRect(point, QSize(1, 1)))
     image = window.grab().toImage()
     at = widget.mapTo(window, point) * image.devicePixelRatio()
     return image.pixelColor(at).name().upper()

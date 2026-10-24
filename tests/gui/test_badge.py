@@ -7,8 +7,9 @@ the circle with 2 px or more to the circle's edge, its middle is within 1.5 px o
 middle, and the rest of the circle shows the state's fill, which is a theme token.
 
 The badge is read from the drawn window (`grab`, offscreen), never from the style sheet's text.
-Lengths are Qt's device-independent px, x to the right and y down from the badge's top left
-corner.
+The badge of panel 9 lies low in the column, which scrolls in the smallest window (600 px high):
+`badge_pixels` scrolls it into view first. Lengths are Qt's device-independent px, x to the right
+and y down from the badge's top left corner.
 """
 
 import math

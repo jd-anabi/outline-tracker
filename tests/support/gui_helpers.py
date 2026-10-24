@@ -18,7 +18,7 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
-from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtCore import QPoint, QPointF, QRect, Qt
 from PySide6.QtGui import QFont, QImage, QWheelEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QStyle, QStyleOptionButton, QWidget
@@ -210,10 +210,25 @@ def shown_pixels(view) -> np.ndarray:
     return pixels(view.image_item.getPixmap().toImage())
 
 
+def scroll_to(window, widget, area: QRect | None = None) -> None:
+    """Scroll the column of panels of `window` so that `area` of `widget` (in the widget's own px; all of
+    it if None) is on the screen, where `window.grab()` draws it. The smallest window is 960 x 600 px,
+    and the column scrolls: a panel below the visible part is not in a grab of the window until it is
+    scrolled to. `widget` is a panel, a part of one, or the column itself; for a widget outside the column
+    (the video area) nothing is done, as it is always drawn."""
+    column = window.scroll.widget()
+    if widget is not column and not column.isAncestorOf(widget):
+        return
+    area = area if area is not None else widget.rect()
+    middle = widget.mapTo(column, area.center())
+    window.scroll.ensureVisible(middle.x(), middle.y(), area.width() // 2 + 1, area.height() // 2 + 1)
+
+
 def badge_pixels(window, badge) -> list[tuple[float, float, str]]:
     """Every device pixel that `window` draws in `badge`'s square, row by row: (x, y, colour). x and y
     are the pixel's centre in px from the badge's top left corner (x right, y down); the colour is
-    `#RRGGBB` in capitals."""
+    `#RRGGBB` in capitals. The badge is first scrolled into view (`scroll_to`)."""
+    scroll_to(window, badge)
     image = window.grab().toImage()
     ratio = image.devicePixelRatio()
     corner = badge.mapTo(window, QPoint(0, 0)) * ratio

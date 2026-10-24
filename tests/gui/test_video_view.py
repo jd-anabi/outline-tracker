@@ -194,7 +194,10 @@ def test_a_drag_with_the_right_button_does_nothing(window, qtbot, disk_clip):
 # Clicks
 
 
-@pytest.mark.parametrize("column, row", [(0, 0), (200, 100), (319, 239)])
+CLICKED = [(0, 0), (200, 100), (319, 239)]  # (column, row) of the pixel clicked in its middle: two corners, a middle
+
+
+@pytest.mark.parametrize("column, row", CLICKED)
 def test_a_click_in_the_middle_of_a_pixel_reports_its_center(window, qtbot, disk_clip, column, row):
     factor = os.environ.get(SCREEN_FACTOR)
     if factor is not None:  # the run on a 150% or 200% screen: first make sure that it is one
@@ -234,16 +237,20 @@ def test_a_click_in_the_middle_of_a_pixel_reports_its_center(window, qtbot, disk
 
 
 @pytest.mark.parametrize("factor", ["1.5", "2"])
-def test_the_click_test_passes_on_a_screen_scaled_to(factor):
-    # the three cases of the test above, in a fresh process whose screen has this device pixel ratio
-    environment = {**os.environ, "QT_QPA_PLATFORM": "offscreen", "QT_SCALE_FACTOR": factor, SCREEN_FACTOR: factor}
-    command = [sys.executable, "-m", "pytest", "tests/gui/test_video_view.py", "-k", "reports_its_center",
-               "-q", "--color=no", "-p", "no:cacheprovider"]
+def test_the_click_test_passes_on_a_screen_scaled_to(factor, request):
+    # the cases of the test above, in a fresh process whose screen has this device pixel ratio. That run is
+    # named by this file's own path (`request.path`) and the test's own name, so a move of the file or of
+    # the test cannot leave it looking for something that is not there. The options of this run
+    # (`PYTEST_ADDOPTS`) are not passed on: they could select other tests or change the last line.
+    environment = {name: value for name, value in os.environ.items() if name != "PYTEST_ADDOPTS"}
+    environment |= {"QT_QPA_PLATFORM": "offscreen", "QT_SCALE_FACTOR": factor, SCREEN_FACTOR: factor}
+    inner = f"{request.path}::{test_a_click_in_the_middle_of_a_pixel_reports_its_center.__name__}"
+    command = [sys.executable, "-m", "pytest", inner, "-q", "--color=no", "-p", "no:cacheprovider"]
     done = subprocess.run(command, cwd=REPO, env=environment, capture_output=True, text=True, encoding="utf-8",
                           errors="replace", timeout=300)
     assert done.returncode == 0, done.stdout + done.stderr
     lines = done.stdout.strip().splitlines()
-    assert re.match(r"3 passed, \d+ deselected", lines[-1] if lines else ""), done.stdout + done.stderr
+    assert re.match(rf"{len(CLICKED)} passed\b", lines[-1] if lines else ""), done.stdout + done.stderr
 
 
 def test_a_click_outside_the_image_is_ignored(window, qtbot, disk_clip):
