@@ -1,7 +1,7 @@
 """Panel 8, Review and fix (SPEC 6.6, 9, 10.1): the flags table, Previous flag and Next flag, and the
 three corrections Re-track from here, End track here and Continue as new track.
 
-- The table (gui/review_table.py) lists `tracking.flags_table` of the run folder: by default the
+- The table (gui/panels/review_table.py) lists `tracking.flags_table` of the run folder: by default the
   flags on positions (LOST, JUMP, SIZE, CONTACT, EDGE, MULTI); "Show shape flags too" adds LOWRES,
   ORIENT and HEADGUESS, which sit on nearly every frame of a small object; "Only the selected
   object" limits it to the object selected in panel 6. A row that is clicked, or reached with the

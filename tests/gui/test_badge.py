@@ -1,7 +1,7 @@
 """The round number badge of a panel (task C0b; SPEC 10.1): where its digit is drawn, and its fill.
 
 The badge is a circle 20 px across with an outline ring of 1 px; inside it are the fill of the
-panel's state and the panel's number (gui/panel.py, the badge rules of gui/theme.py). What a
+panel's state and the panel's number (gui/widgets/panel_frame.py, the badge rules of gui/theme.py). What a
 well-drawn badge has does not depend on the system's font, it is geometry: the digit lies inside
 the circle with 2 px or more to the circle's edge, its middle is within 1.5 px of the badge's
 middle, and the rest of the circle shows the state's fill, which is a theme token.

@@ -1,8 +1,8 @@
 """What the point tools draw on the video (SPEC 5, 10.1): the look of the marks of the clicks and of
-the outline the model gives for them, with the id and the window of a fine object. gui/prompts.py
+the outline the model gives for them, with the id and the window of a fine object. gui/view/prompts.py
 (`Prompts`) decides what is drawn and puts the items on the view; this module makes them, and
-gui/overlays.py draws the stored results with the same colours and widths. Every name here is also
-importable from gui/prompts.py, where it was before the two were split.
+gui/view/overlays.py draws the stored results with the same colours and widths. Every name here is also
+importable from gui/view/prompts.py, where it was before the two were split.
 
 The look is the design note's: marks told apart by shape (positive a disc with a black +, negative
 a cross, head a white diamond), outlines in the track's colour on a black casing.

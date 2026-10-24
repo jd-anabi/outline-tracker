@@ -2,14 +2,14 @@
 its uncertainty, and the Tape check with its true distance and its error.
 
 The values live in the session (`calibration.stick`, `calibration.check`, SPEC 8.10) and are kept
-there by the two tools (outline_tracker/gui/tools.py); this panel chooses the tools, takes the two
+there by the two tools (outline_tracker/gui/view/tools.py); this panel chooses the tools, takes the two
 typed lengths, and shows what `geometry.stick_scale` and `geometry.tape_check` make of the session:
 "32.40 µm/px ± 0.08%", and the check's error with the word "Passes" or "Does not pass" on green or
 red. A length that cannot be used is refused where it is typed: the box keeps what was typed and
 is marked, a message says why, and the session keeps the length it had.
 
 The parts that panel 4 needs as well (`IconMessage`, `NumberBox`, and the small functions that build
-a row) are in gui/panel_parts.py. Units: lengths typed and shown are mm, points and the stick's
+a row) are in gui/widgets/panel_parts.py. Units: lengths typed and shown are mm, points and the stick's
 length on the picture are px of the video frame (SPEC 3.1), the scale is shown in µm per px; sizes
 of widgets are Qt's device-independent px.
 """

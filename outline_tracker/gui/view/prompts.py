@@ -3,14 +3,14 @@
 `Prompts` is the part of panel 6 that works on the video view: the three point tools (Positive,
 Negative, Head), undo, the marks of the clicks on the frame shown, and the outline the model
 gives for them (the preview), with the window of a fine object. The table and the buttons are in
-gui/panels/objects_panel.py; the items that are drawn are made in gui/prompt_drawing.py.
+gui/panels/objects_panel.py; the items that are drawn are made in gui/view/prompt_drawing.py.
 
 - Every edit goes through `outline_tracker.tracking.job` (`add_prompt`, `undo_prompt`, `set_head`):
   the frame grid, the frame hash and the rule against a gap inside a track are decided there. A
   refusal is shown in that function's words (`message`) and changes nothing. After an edit the
   controller's `touch()` tells the rest of the window.
 - The hash stored with a click is `video.frame_hash` of the frame tracking reads under that
-  number; a picture in the view that is not that frame takes no click (gui/click_rules.py, which
+  number; a picture in the view that is not that frame takes no click (gui/view/click_rules.py, which
   also says which click is negative and which is the second of a double click).
 - After every change of the clicks on the frame shown, the worker is asked for the outlines of all
   objects clicked on that frame, on the part of the frame tracking would show the model

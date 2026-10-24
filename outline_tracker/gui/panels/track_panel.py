@@ -3,7 +3,7 @@ run, Track, the progress bar with s per frame and the time left, Cancel, and one
 the run ended.
 
 The job itself is `tracking.run_job` in the worker thread (gui/worker_jobs.py, `Jobs`); what it
-stored is drawn on the picture by gui/overlays.py, which this panel makes. This module is the
+stored is drawn on the picture by gui/view/overlays.py, which this panel makes. This module is the
 panel's controls:
 
 - Model and device: the model (EdgeTAM, the default, or SAM 2.1 tiny) and the device (auto, cpu,

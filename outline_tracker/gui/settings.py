@@ -1,7 +1,7 @@
 """The application's settings, kept between sittings: `settings()` gives the `QSettings` of the tool.
 
 Two things are remembered there. The time panel (gui/panels/time_panel.py) keeps the manifest the user
-pointed to last (`MANIFEST_KEY`), and the overlays (gui/overlays.py) keep whether Fill was on (`FILL_KEY`).
+pointed to last (`MANIFEST_KEY`), and the overlays (gui/view/overlays.py) keep whether Fill was on (`FILL_KEY`).
 Each of them owns its key; this module owns where the settings are stored. No quantities here.
 """
 

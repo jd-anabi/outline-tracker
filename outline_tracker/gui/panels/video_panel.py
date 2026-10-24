@@ -7,7 +7,7 @@ a value typed here goes into the session (`controller.touch()` then tells everyo
 changes the session is shown here. It also gives the window what belongs to saving: what the File
 menu's Open session and Save session do, the save when the window closes, and the one dialog that
 tells of a save that went wrong. The small parts that the panels share (`Message`, `ElidedLabel`,
-`guard_wheel`, `field_rows`) are in gui/panel_parts.py, and importable from here as before.
+`guard_wheel`, `field_rows`) are in gui/widgets/panel_parts.py, and importable from here as before.
 
 The name is the controller's: one that code gave it (`set_student`, an opened session) shows in the
 field, and the field's text becomes the name only if it was changed since the two last agreed, so a

@@ -13,7 +13,7 @@ Panels 5 to 9 were built side by side. These tests hold the places where two of 
 4. Panel 9 needs attention when session.json or results.npz is newer than positions.csv.
 5. The Quickstart marks the buttons of panels 8 and 9 in bold; docs/developer/README.md names every
    module file, and no file that is not there.
-6. gui/prompts.py and gui/panels/video_panel.py were split: what they offered is still there.
+6. gui/view/prompts.py and gui/panels/video_panel.py were split: what they offered is still there.
 
 Expected values are the brief's sentences and SPEC 8.1's list of files, never the panels' own
 output. A factory, a run or an export is parked on a gate (tests/support/prompt_helpers.py), so

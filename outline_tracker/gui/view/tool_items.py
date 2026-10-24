@@ -11,7 +11,7 @@ the right, v down, pixel centers at +0.5), as `VideoView.add_item` takes them. L
 sizes of ends, squares and text are screen px (Qt's device-independent px) at any zoom: pyqtgraph's
 pens are cosmetic. Nothing here creates a Qt object when the module is imported.
 
-`PointTool`, what the four tools of outline_tracker/gui/tools.py share, is here as well: the cross
+`PointTool`, what the four tools of outline_tracker/gui/view/tools.py share, is here as well: the cross
 cursor, which click places a point, and drawing the graphic again whenever the session changes.
 """
 

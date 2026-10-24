@@ -88,7 +88,7 @@ class MainWindow(QMainWindow):
     parts: `video_area` (the start page, or the view under its bar), `bottom_bar` (the navigation),
     `dock`, `scroll` (the scroll area in the dock); on the start page `start_title`, `open_button`
     and `start_hint`; in the bar above the picture `tool_text`, `fill_box` (the switch of the mask
-    fill, which gui/overlays.py draws and remembers), `fit_button`, `one_to_one_button` and
+    fill, which gui/view/overlays.py draws and remembers), `fit_button`, `one_to_one_button` and
     `zoom_label`; `menus` (the File and Help menus; `open_action` and `quit_action` are two of
     its items) and `readouts` (the status bar's read-outs of the cursor and the device).
 

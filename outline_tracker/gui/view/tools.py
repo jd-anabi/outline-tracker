@@ -11,7 +11,7 @@ the first click counts and the second is dropped. Each tool keeps one block of t
 - `AxesTool`: `axes` (the origin, placed by one click, and the angle).
 
 What the four share (the click rules, following the session) is `PointTool`, and how their graphics
-look is `Graphic`, both in outline_tracker/gui/tool_items.py.
+look is `Graphic`, both in outline_tracker/gui/view/tool_items.py.
 
 A block is in the session only while it is complete (two ends; a circle that was fitted), because
 the core takes a block that is there as usable; points placed before that are the tool's own

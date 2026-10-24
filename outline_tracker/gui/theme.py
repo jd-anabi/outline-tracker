@@ -6,7 +6,7 @@ dialogs; every colour is fixed here, so that each pair of text and background ke
 4.5:1 or more (tests/gui/test_theme.py recomputes it). A colour is `#RRGGBB`. Sizes in the style
 sheet are Qt's device-independent px.
 
-The style sheet styles widgets by the dynamic properties that gui/panel.py sets (`role`, `state`).
+The style sheet styles widgets by the dynamic properties that gui/widgets/panel_frame.py sets (`role`, `state`).
 Qt reads a property for a style sheet only when a widget is polished: change one with
 `set_property`. Style sheets have no variables: `fill` puts the theme's colour in for each `@name`.
 Nothing here creates a Qt object when the module is imported.

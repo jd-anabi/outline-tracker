@@ -1,4 +1,4 @@
-"""`ResultsOnDisk` of outline_tracker/gui/click_rules.py: the results of the run folder as results.npz
+"""`ResultsOnDisk` of outline_tracker/gui/view/click_rules.py: the results of the run folder as results.npz
 holds them now, for the parts of the window that only read them.
 
 During a run the worker thread replaces results.npz at every autosave, and the window reads the file

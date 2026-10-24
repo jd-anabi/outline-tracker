@@ -14,7 +14,7 @@ remembered between sessions in the application's settings (`settings()` of gui/s
 settings are read only when a video is opened and written only when the user chooses a manifest that
 lists the video.
 
-Stopwatch… opens the dialog of gui/stopwatch_dialog.py; on OK its frame rate goes into the session
+Stopwatch… opens the dialog of gui/panels/stopwatch_dialog.py; on OK its frame rate goes into the session
 with the two frames and the two readings it came from. The window cannot be used while the dialog
 is open. So playing stops when it opens (nobody could pause behind it), and what was entered is
 kept for the next time it opens, also after Cancel: the two frames can be looked for one after the

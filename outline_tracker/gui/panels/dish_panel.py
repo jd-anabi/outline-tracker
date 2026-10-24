@@ -3,7 +3,7 @@ known diameter beside 2R, Origin to Center, the Axes tool and the axes angle, an
 tracking".
 
 The values live in the session (`circle`, `axes`, `processing.dish_crop`, SPEC 8.10) and are kept
-there by the two tools (outline_tracker/gui/tools.py); this panel chooses the tools, takes the
+there by the two tools (outline_tracker/gui/view/tools.py); this panel chooses the tools, takes the
 typed values, and shows the session: the center, the radius and the RMS that `geometry.fit_circle`
 returned, the radius in mm once there is a scale, and where the origin is.
 
