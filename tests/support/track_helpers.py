@@ -1,11 +1,11 @@
 """What the tests of panel 7 share (task C5): a named session with clicked objects in a window, a
 stand-in segmenter that keeps how tracking used it, and what a job reported.
 
-Imported by name from tests/gui/test_worker_jobs.py, test_tracking_panel.py and test_overlays.py.
-Nothing here imports torch. A test that tracks works on a copy of its clip in a folder of its own
-(`own_copy`, or the fixture `clip_in_odd_folder`), because the window writes the run folder next
-to the video. A stand-in is parked with the `Gate` of tests/support/prompt_helpers.py; no helper waits
-with a delay.
+Imported by name from tests/gui/test_worker_jobs.py, test_tracking_panel.py,
+test_tracking_panel_run_line.py and test_overlays.py. Nothing here imports torch. A test that tracks
+works on a copy of its clip in a folder of its own (`own_copy`, or the fixture `clip_in_odd_folder`),
+because the window writes the run folder next to the video. A stand-in is parked with the `Gate` of
+tests/support/prompt_helpers.py; no helper waits with a delay.
 
 Coordinates: (u, v) in px of the video frame (SPEC 3.1: u to the right, v downward, pixel centers at
 +0.5). Frames are video frame numbers; "tracked frame n" counts the frames a job gave the model,
@@ -182,6 +182,10 @@ def run_to_end(qtbot, panel, timeout: int = 30_000) -> None:
 def window_hint(panel) -> str:
     """The hint line of panel 7."""
     return panel.window().panels[6].hint.text()
+
+
+def hint(window) -> str:
+    return window.panels[6].hint.text()
 
 
 def ids(window) -> list[str]:
