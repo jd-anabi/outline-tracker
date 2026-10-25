@@ -1,9 +1,9 @@
 """The dish circle and a tilted ellipse record, shared by the two files of the rules of `derive`.
 
 tests/measure/test_derive_rules.py (lost rows, the heading reference, the head guess, settings) and
-tests/measure/test_derive_rules_shapes.py (shapes without an extent or a hull, the size check) build their tracks
-with `tilted` and put the dish round them with `DISH`. Shapes and clicks are in image px, angles of shapes in rad
-from +u toward +v.
+tests/measure/test_derive_rules_shapes.py (shapes without an extent or a hull, the size check) make the records of
+their tracks with `tilted` and use `DISH` as the dish circle. Shapes and clicks are in image px, angles of shapes in
+rad from +u toward +v.
 """
 
 import derive_helpers as h

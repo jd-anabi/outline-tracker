@@ -1,4 +1,4 @@
-"""The coarse runner on synthetic clips (SPEC 6.1, 6.2): the dish crop and run planning.
+"""The coarse runner on synthetic clips (SPEC 6.1, 6.2): the dish crop and run planning, with one job of two starts.
 What the runner makes of the frames, positions against the ground truth (SPEC 13.2), the prompts shifted into the
 crop and the inputs of review focus 1, 2 and 4, is in tests/tracking/test_tracking_coarse_positions.py. What a job
 does around the frames (cancel, autosave, progress, session changes) is in tests/tracking/test_tracking_job.py, the
