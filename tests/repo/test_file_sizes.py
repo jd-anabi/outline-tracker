@@ -3,16 +3,16 @@
 A file that grows past the limit is split (docs/developer/README.md says so); this test is what notices it.
 The length is `len(text.splitlines())`, the number `wc -l` gives for a file that ends with a line end.
 
-`OVER_400` names the files that were over the limit when W2 step 6 began, each with the task of that step that
-splits it: 6a the package files, 6b the tests of core/ and segmenter/, 6c the tests of repo/, support/, tracking/,
-synthetic/, measure/ and slow/, 6d the tests of gui/. The scan of the real repository must find exactly those:
+`OVER_400` named the files that were over the limit when W2 step 6 began, each with the task of that step that
+split it: 6a the package files, 6b the tests of core/ and segmenter/, 6c the tests of repo/, support/, tracking/,
+synthetic/, measure/ and slow/, 6d the tests of gui/. All are split, so the list is empty. The scan of the real
+repository must find exactly the files in the list:
 
 - a file over 400 lines that is not in the list fails the test, so a new long file cannot slip in;
-- a file in the list that is no longer over 400 lines fails it too, so the commit that splits a file takes its
-  entry off, and the list ends empty.
+- a file in the list that is no longer over 400 lines fails it too, so the commit that splits a listed file takes
+  its entry off.
 
-When the list is empty it stays in the file, empty, as the place a future exception would have to be written
-down, with the reason.
+The list stays in the file, empty, as the place a future exception would have to be written down, with the reason.
 
 The scan is checked on small made-up trees in `tmp_path`, so that a scan that finds nothing would show up here.
 Lengths are numbers of lines; paths are repository paths written with `/`.
@@ -28,15 +28,11 @@ LIMIT = 400  # lines
 # Where the scan looks: the package and the tests, relative to the repository.
 SCANNED = (PACKAGE_NAME, "tests")
 
-# The files over LIMIT when W2 step 6 began, each with the task that splits it (6a, the package files, 6b, the
-# tests of core/ and segmenter/, and 6c, the tests of repo/, support/, tracking/, synthetic/, measure/ and slow/, are
-# all split).
+# Empty: every file that was over LIMIT when W2 step 6 began is split (6a the package files, 6b the tests of core/
+# and segmenter/, 6c those of repo/, support/, tracking/, synthetic/, measure/ and slow/, 6d those of gui/).
 # An entry comes off in the commit that splits its file: the first test below fails for a long file without an
 # entry, the second for an entry whose file is no longer long.
-OVER_400: dict[str, str] = {
-    # 6d: the tests of gui/
-    "tests/gui/test_worker.py": "6d",
-}
+OVER_400: dict[str, str] = {}
 
 # The folders of tests/ that each task of step 6 splits; the package belongs to 6a.
 TASK_OF_FOLDER = {

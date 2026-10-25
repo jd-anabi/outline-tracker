@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import threading
 
-from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtCore import QPoint, QPointF, Qt, QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -114,6 +114,13 @@ def asked_of(stand_in: Watched) -> list[list[str]]:
 def this_thread() -> int:
     """The thread this is called in, as Python numbers it (a Qt thread has such a number too)."""
     return threading.get_ident()
+
+
+def loop_runs(qtbot) -> None:
+    """Pass only when the GUI thread's event loop gets to an event posted now."""
+    fired = []
+    QTimer.singleShot(0, lambda: fired.append(True))
+    qtbot.waitUntil(lambda: fired == [True])
 
 
 def gui_thread() -> int:
