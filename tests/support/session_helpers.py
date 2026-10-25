@@ -1,9 +1,10 @@
 """What the tests of panels 1 and 2 and of session saving share (task C2).
 
-Imported by name from tests/gui/test_session_panels.py, test_session_panels_clip_and_fps.py and
-tests/gui/test_session_saving.py. Every clip a test here works on is a copy in the test's own folder
-(the fixture `hd_clip` of tests/gui/conftest.py), because the window writes a run folder next to the
-video. Frames are video frame numbers counted from 0; fps_true is in frames per second.
+Imported by name from tests/gui/test_session_panels.py, test_session_panels_clip_and_fps.py,
+tests/gui/test_session_saving.py and test_session_saving_opening.py. Every clip a test here works on is
+a copy in the test's own folder (the fixture `hd_clip` of tests/gui/conftest.py), because the window
+writes a run folder next to the video. Frames are video frame numbers counted from 0; fps_true is in
+frames per second.
 """
 
 from __future__ import annotations

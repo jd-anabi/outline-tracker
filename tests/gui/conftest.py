@@ -1,7 +1,8 @@
 """Fixtures for the tests of the window (tests/gui/): larger clips, a tracked run folder, a second
 window, a settings folder of the test's own, the bottom bar on a grid of frames, a larger font for
 the application, a worker without a window, a results file that cannot be opened at this moment,
-and two guards (the application's look is put back; a dialog that would block is an error).
+a window with the clip open and the name typed, a controller without a window, and two guards (the
+application's look is put back; a dialog that would block is an error).
 pytest finds a fixture by its name; nothing imports this file (tests/repo/test_repo_rules_test_code.py says why). The
 fixtures for the tests of every folder, `window` among them, are in tests/conftest.py; plain helpers
 are in the helper modules beside this file.
@@ -19,7 +20,9 @@ from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 from gui_helpers import StandInSource, show, with_larger_font
 from helpers import new_window
 from outline_tracker.core.geometry import grid_frames
+from outline_tracker.gui.session_controller import SessionController
 from outline_tracker.segmenter.fake import ExactFake
+from session_helpers import FOLDER_OF_NAME, NAME, body, type_into
 from tracking_helpers import abc_session, run
 
 WIDE = (1280, 720)  # a frame wide enough for the spec's stick of 926 px
@@ -88,9 +91,9 @@ def own_settings(tmp_path):
     go to a folder of this test. Returns that folder. Qt cannot be asked where they went before,
     so the scope is not put back: it stays on a test folder, which no later test may count on.
 
-    It acts on the tests that ask for it and on no other. The two modules whose every test needs it
-    say so in their `pytestmark` (tests/gui/test_session_panels.py, test_session_panels_clip_and_fps.py and
-    tests/gui/test_session_saving.py).
+    It acts on the tests that ask for it and on no other. The modules whose every test needs it
+    say so in their `pytestmark` (tests/gui/test_session_panels.py, test_session_panels_clip_and_fps.py,
+    tests/gui/test_session_saving.py and test_session_saving_opening.py).
     """
     folder = tmp_path / "settings"
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(folder))
@@ -182,6 +185,30 @@ def refuse_open(monkeypatch):
         return opens
 
     return refuse
+
+
+# ---------------------------------------------------------------------------------------------
+# A named session, and a controller without a window (tests/gui/test_session_saving.py and
+# tests/gui/test_session_saving_opening.py; tests/gui/test_controller.py has a `controller` of its own, which
+# overrides this one there)
+
+
+@pytest.fixture
+def named(window, qtbot, clip_in_odd_folder):
+    """The window with the dish clip (a copy in this test's folder) open and the name typed; returns
+    (window, the clip's path, the run folder's session.json, which is not written yet)."""
+    path = clip_in_odd_folder.path
+    window.open_path(path)
+    type_into(qtbot, body(window, 1).name_edit, NAME)
+    return window, path, path.parent / FOLDER_OF_NAME / "session.json"
+
+
+@pytest.fixture
+def controller(qtbot):
+    """A controller of its own, without a window. Its video is released after the test."""
+    made = SessionController()
+    yield made
+    made.close()
 
 
 # ---------------------------------------------------------------------------------------------
