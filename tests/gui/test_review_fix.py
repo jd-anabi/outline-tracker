@@ -1,5 +1,6 @@
 """Panel 8, the three corrections (SPEC 6.6, 10.1; task C7): Re-track from here, End track here and
-Continue as new track, from the window. The table and going through it are in test_review.py.
+Continue as new track, from the window. The table is in test_review.py, going through it in
+test_review_going_to_a_flag.py.
 
 Expected values:
 - The dish clip tracked to frame 80 on every 2nd frame has the frames 0, 2, ..., 80: 41 of them;

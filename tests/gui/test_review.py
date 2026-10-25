@@ -1,5 +1,5 @@
-"""Panel 8, Review and fix (SPEC 9, 10.1; task C7): the flags table, going to a flag, and what the
-panel says. The three corrections are in tests/gui/test_review_fix.py.
+"""Panel 8, Review and fix (SPEC 9, 10.1; task C7): the flags table, and what the panel says. Going to a flag is in
+tests/gui/test_review_going_to_a_flag.py, the three corrections are in tests/gui/test_review_fix.py.
 
 Expected values:
 - The dish scene's B and C are two ellipses on straight paths that pass each other in frame 60
@@ -20,15 +20,14 @@ delay. Frames are video frame numbers; times are s.
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QCheckBox, QPushButton, QTableView
 
 from gui_helpers import picture
 from outline_tracker.core import schema
 from outline_tracker.tracking import job as tracking
 from prompt_helpers import Gate, gui_thread, this_thread
-from review_helpers import (FPS, GRID, contact_frames, current_row, frames_with, give_scale, hint, listed, listed_by,
-                            opened_run, review_panel, shown_rows, tracked_window, written_since)
+from review_helpers import (FPS, GRID, contact_frames, frames_with, give_scale, hint, listed, listed_by, opened_run,
+                            review_panel, row_of, shown_rows, tracked_window, written_since)
 from track_helpers import NAME, Tracked, own_copy, run_log
 
 LISTED = ("LOST", "JUMP", "SIZE", "CONTACT", "EDGE", "MULTI")  # what the table lists by default (task C7)
@@ -36,18 +35,11 @@ MORE = ("LOWRES", "ORIENT", "HEADGUESS")                       # what "Show shap
 NOT_STARTED = "Track first. The flags appear here."
 NO_FLAGS = "No flags on positions. Play the video once and look at the outlines."
 LISTING = "The flags are being listed."
-LEFT = Qt.MouseButton.LeftButton
 
 
 def of_the_function(folder, codes=LISTED) -> list[tuple]:
     """The rows of `tracking.flags_table(folder)` whose code is one of `codes`."""
     return [row for row in tracking.flags_table(folder) if row[3] in codes]
-
-
-def row_of(review, track_id: str, frame: int, code: str = "CONTACT") -> int:
-    """The table's row for that flag of that track on that frame."""
-    (row,) = [row for row, (name, at, _, has) in enumerate(review.rows) if (name, at, has) == (track_id, frame, code)]
-    return row
 
 
 # ---------------------------------------------------------------------------------------------
@@ -294,109 +286,6 @@ def test_results_without_session_json_are_a_problem_until_the_session_is_saved_a
     assert (folder / schema.SESSION_JSON).is_file()
     listed(qtbot, review)
     assert review.rows == rows and hint(window).startswith(f"{len(rows)} flags on ")
-
-
-# ---------------------------------------------------------------------------------------------
-# Going to a flag
-
-
-def test_activating_a_row_moves_the_slider_there_and_selects_its_object(window, qtbot, dish_run, tmp_path):
-    review = opened_run(window, qtbot, dish_run, tmp_path / "run")
-    assert window.view.frame == 0 and review.prompts.selected is None
-    review.go_to_row(row_of(review, "C", 62))
-    assert window.view.frame == window.navigation.frame == 62
-    assert window.navigation.slider.value() == GRID.index(62)  # the slider counts steps of the grid
-    assert review.prompts.selected == "C"
-    assert current_row(review) == row_of(review, "C", 62)
-    # panel 6 shows the same selection
-    objects = window.panels[5].body.itemAt(1).widget()
-    assert objects.table.currentRow() == 2
-
-
-def test_a_click_on_a_row_goes_to_its_frame(window, qtbot, dish_run, tmp_path):
-    review = opened_run(window, qtbot, dish_run, tmp_path / "run")
-    row = row_of(review, "B", 58)
-    review.table.scrollTo(review.table.model().index(row, 0))
-    place = review.table.visualRect(review.table.model().index(row, 1)).center()
-    qtbot.mouseClick(review.table.viewport(), LEFT, Qt.KeyboardModifier.NoModifier, place)
-    assert window.view.frame == window.navigation.frame == 58 and review.prompts.selected == "B"
-    # a click on the same row again comes back to it from another frame
-    window.navigation.step(3)
-    assert window.view.frame == 64
-    qtbot.mouseClick(review.table.viewport(), LEFT, Qt.KeyboardModifier.NoModifier, place)
-    assert window.view.frame == window.navigation.frame == 58
-
-
-def test_next_and_previous_go_through_the_selected_objects_flags_and_wrap(window, qtbot, dish_run, tmp_path):
-    review = opened_run(window, qtbot, dish_run, tmp_path / "run")
-    assert not review.next_button.isEnabled() and not review.previous_button.isEnabled()  # no object selected
-    review.prompts.select("B")
-    frames = frames_with(review.rows, "B", "CONTACT")
-    assert {58, 60, 62} <= set(frames)  # by geometry: gaps of 0.6 to 0.7 px
-    assert review.next_button.isEnabled() and review.previous_button.isEnabled()
-    window.show_frame(60)
-    review.next_flag()
-    assert window.view.frame == window.navigation.frame == 62 and review.prompts.selected == "B"
-    assert current_row(review) == row_of(review, "B", 62)
-    review.previous_flag()
-    review.previous_flag()
-    assert window.view.frame == 58
-    # from a frame between two flags, and from before the first one
-    window.show_frame(0)
-    review.next_flag()
-    assert window.view.frame == frames[0]
-    # around: before the first comes the last, after the last the first
-    review.previous_flag()
-    assert window.view.frame == frames[-1]
-    review.next_flag()
-    assert window.view.frame == frames[0]
-    # every flag of B is reached once in a round, and no frame of another track's alone
-    seen = []
-    for _ in frames:
-        seen.append(window.view.frame)
-        review.next_flag()
-    assert seen == frames and window.view.frame == frames[0]
-
-
-def test_next_flag_goes_through_the_rows_that_are_listed(window, qtbot, dish_run, tmp_path):
-    review = opened_run(window, qtbot, dish_run, tmp_path / "run")
-    review.prompts.select("B")
-    window.show_frame(10)
-    review.next_flag()
-    first = window.view.frame
-    assert first == frames_with(review.rows, "B", "CONTACT")[0] > 12  # B and C are far apart until they meet
-    review.shape_box.setChecked(True)  # now B has a row on every tracked frame (LOWRES, HEADGUESS)
-    window.show_frame(10)
-    review.next_flag()
-    assert window.view.frame == 12
-    review.previous_flag()
-    review.previous_flag()
-    assert window.view.frame == 8
-
-
-def test_left_and_right_stay_the_bottom_bars_and_up_and_down_move_in_the_table(window, qtbot, dish_run, tmp_path):
-    review = opened_run(window, qtbot, dish_run, tmp_path / "run")
-    row = row_of(review, "B", 60)
-    review.go_to_row(row)
-    review.table.setFocus()
-    qtbot.waitUntil(review.table.hasFocus)
-    QTest.keyClick(review.table, Qt.Key.Key_Right)
-    assert window.navigation.frame == window.view.frame == 62 and current_row(review) == row
-    QTest.keyClick(review.table, Qt.Key.Key_Left)
-    QTest.keyClick(review.table, Qt.Key.Key_Left)
-    assert window.navigation.frame == 58 and current_row(review) == row
-    QTest.keyClick(review.table, Qt.Key.Key_End)
-    assert window.navigation.frame == GRID[-1] and current_row(review) == row
-    QTest.keyClick(review.table, Qt.Key.Key_Home)
-    assert window.navigation.frame == 0 and current_row(review) == row
-    # down and up are the table's: the next row, and its frame
-    QTest.keyClick(review.table, Qt.Key.Key_Down)
-    assert current_row(review) == row + 1
-    assert (review.prompts.selected, window.view.frame) == review.rows[row + 1][:2]
-    QTest.keyClick(review.table, Qt.Key.Key_Up)
-    QTest.keyClick(review.table, Qt.Key.Key_Up)
-    assert current_row(review) == row - 1
-    assert (review.prompts.selected, window.view.frame) == review.rows[row - 1][:2]
 
 
 # ---------------------------------------------------------------------------------------------

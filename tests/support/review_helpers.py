@@ -1,10 +1,10 @@
 """What the tests of panel 8 share (task C7): a tracked run in a window, the answer to the question
 before a correction, and the frames on which the dish scene's B and C touch.
 
-Imported by name from tests/gui/test_review.py and test_review_fix.py. Nothing here imports torch,
-and no helper waits with a delay: the flags are listed outside the GUI thread (in the worker
-thread; without a model in a thread of the listing's own), and `listed` waits for the panel to say
-that its table is up to date.
+Imported by name from tests/gui/test_review.py, test_review_going_to_a_flag.py and test_review_fix.py.
+Nothing here imports torch, and no helper waits with a delay: the flags are listed outside the GUI
+thread (in the worker thread; without a model in a thread of the listing's own), and `listed` waits
+for the panel to say that its table is up to date.
 
 Two ways to a tracked run:
 - `opened_run` opens a copy of a run folder that the core made once (the fixture `dish_run` of
@@ -192,6 +192,12 @@ def shown_rows(review) -> list[tuple[str, ...]]:
 def current_row(review) -> int:
     """The table's current row, -1 for none."""
     return review.table.currentIndex().row()
+
+
+def row_of(review, track_id: str, frame: int, code: str = "CONTACT") -> int:
+    """The table's row for that flag of that track on that frame."""
+    (row,) = [row for row, (name, at, _, has) in enumerate(review.rows) if (name, at, has) == (track_id, frame, code)]
+    return row
 
 
 def object_cells(objects, track_id: str) -> tuple[str, ...]:
