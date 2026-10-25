@@ -20,6 +20,7 @@ from outline_tracker.core.session import Session
 LEFT, RIGHT = Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton
 NO_KEY = Qt.KeyboardModifier.NoModifier
 SIX = (0, 60, 120, 180, 240, 300)  # degrees: six points spread evenly around the wall
+SMALL = (320, 240)
 
 
 def opened(window, qtbot, clip, dark_frame: bool = False):
