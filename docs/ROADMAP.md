@@ -36,7 +36,7 @@ What exists (version 0.1.0):
 
 What it rests on:
 
-- About 2,770 fast tests (stand-in models, synthetic clips with ground truth), run in CI on
+- About 2,830 fast tests (stand-in models, synthetic clips with ground truth), run in CI on
   Linux, Windows and macOS. 40 slow tests: 30 need the model's weights and are run by hand on
   one Apple laptop; 10 need none and run in CI (one of them needs an Apple GPU and is skipped
   on Linux and Windows).
@@ -60,11 +60,12 @@ Where things are written down:
 | document | what it is |
 |---|---|
 | `README.md` | install, Quickstart, fallback commands; written for the first class of users |
-| `docs/developer/README.md` | module map, tests, rules, how to add a panel or a model |
-| `docs/OUTPUTS.md` | every output file and column; generated from `outline_tracker/schema.py` |
+| `docs/developer/README.md` | where what is, the layers, tests, rules, how to add a panel or a model |
+| `docs/developer/modules.md` | every module with the first line of its docstring; generated (W2 step 5) |
+| `docs/OUTPUTS.md` | every output file and column; generated from `outline_tracker/core/schema.py` by `core/schema_docs.py` |
 | `docs/VALIDATION.md` | what was measured, and how |
 | `docs/design/SPEC-v0.1.md` | the specification of version 0.1.0, written for one lab class; frozen |
-| `docs/design/decisions.md` | the decisions X1 to X22 of the first build; its plan, `docs/PLAN.md`, left the tree in W2 |
+| `docs/design/decisions.md` | the decisions X1 to X22 of the first build; its plan, `docs/PLAN.md`, left the tree in W2 (`git show 67908d8:docs/PLAN.md`) |
 | `CLAUDE.md` | rules for coding agents, rewritten for this phase in W1 step 1; section 2 holds them in full |
 | `docs/design/gui_design.md` | the design note of the window: spacing, colors, wording rules |
 | `docs/roadmap/*.md` | the inventories behind this roadmap, one for each workstream that is still open |
@@ -168,38 +169,49 @@ Making the tool general (inventory: domain):
 
 5. The word for a tracked thing. Default: "object" everywhere. Head, heading, body and core
    keep their names. [W3]
+   Decided 2026-10-24, ahead of W3: the default stands.
 6. The name field. Default: an optional label. The run folder is `<video stem>_outline/`, with
    the label appended when there is one. When that folder already holds a session, Open video
    offers to open it or to start a new run in `<video stem>_outline_2/`. A label typed before
    results exist renames the empty run folder. `--student` stays as a hidden alias of `--label`
    for one release. Old folders open as they are. [W3]
+   Decided 2026-10-24, ahead of W3: the default stands.
 7. Tracker (the physics video tool). Default: keep the import (`from-tracker`) and the
    Tracker-format export as general features in neutral words; the export becomes a switch that
    is off by default and that `from-tracker` turns on. [W3]
+   Decided 2026-10-24, ahead of W3: the default stands.
 8. Boundary. Default: a circle only, optional, named "Boundary". Without one, panel 4 is done
    from the start (the axes exist, origin at the frame's center) and its hint says that a
    boundary is optional; the crop box is off and disabled until a boundary exists. The two
    distance-to-wall columns of `shapes.csv` are removed: such quantities are the user's own
    analysis, and the boundary's center and radius are in `session.json`. [W3]
+   Decided 2026-10-24, ahead of W3: the default stands.
 9. Brightness probes. Default: keep, with the neutral default name `probe1`. The controls of
    panel 5 are a feature for the list of W7, not part of W3. [W3, W7]
+   Decided 2026-10-24, ahead of W3: the default stands.
 10. Frame rate. Default: the file's own frame rate becomes a source, preselected and labelled
     "from the file: check it for slow-motion recordings"; the stopwatch helper and typing stay;
     the class's manifest file and the warning under 100 fps go; `fps_true` keeps its name in
     files. [W3]
+    Decided 2026-10-24, ahead of W3: the default stands.
 11. The checks of a phone video that run on every opened video. Default: only in the `check`
     command, in neutral words. [W3]
+    Decided 2026-10-24, ahead of W3: the default stands.
 12. `session.json` version 2. Default, as one table that the owner approves before any code:
     `student` becomes `label`; `circle` becomes `boundary` with `shape: "circle"`;
     `circle.dish_mm` becomes `boundary.diameter_mm`; `processing.dish_crop` becomes
     `processing.boundary_crop`; `time.manifest_path` is dropped; a `time.source` of `manifest`
     is read as `typed` with its value kept; the new value `file` is added. [W3]
+    Decided 2026-10-24, ahead of W3: the default stands; the table in `docs/design/formats.md` is
+    still approved before any code (W3 step 1).
 13. Units and defaults. Default: mm stays; the stick and tape boxes start empty; the limit of
     the `JUMP` flag has no built-in value and the flag is off until the user sets one. [W3]
+    Decided 2026-10-24, ahead of W3: the default stands.
 14. What else of the first class goes (inventory: domain 1.7, 2.3, 2.5, 2.10). Default: the
     guard that refuses a folder with other `.csv` files goes; `convert` writes
     `<stem>_h264.mp4`; `from-tracker` keeps its three checks in neutral words; the part "What
     goes into git" of the generated README.txt goes. [W3]
+    Decided 2026-10-24, ahead of W3: the default stands.
 15. `SPEC.md` and `docs/PLAN.md`. Default: `SPEC.md` moves unchanged to `docs/design/` as the
     frozen specification of 0.1.0. The tests that read it keep doing so for version 1: they
     become the tests of the version 1 reader and of the 0.1.0 column lists. The contract of
@@ -246,6 +258,7 @@ The window and the project:
     `pyproject.toml`, the lock file for development, dependency updates automated. [W7]
 25. Track colors: a list that is safer for red-green color blindness is in the design note.
     Default: switch to it. [W3]
+    Decided 2026-10-24, ahead of W3: the default stands.
 26. Two findings about the model, each with slow tests marked `xfail`. Default: the size checks
     use the largest piece of a mask (two stray pixels switched a check off); the 0.02 limit of
     fine mode is for the variation of solidity (RMS after the mean offset is taken out), with a
@@ -285,6 +298,7 @@ The window and the project:
     written `-0.000000`, and the last line end of a file without rows. Default: when W3
     touches the function, the rule goes into its docstring or into `docs/design/formats.md`
     and gets a test; code that nothing calls (`iter_frames`, `read_frame`) is removed. [W3]
+    Decided 2026-10-24, ahead of W3: the default stands.
 31. Indirect dependencies in the install line (the first plan's question 11). Pins, and the
     ranges of decision 24, name the direct dependencies only; two indirect ones changed within
     one day of the first build. Adding `--exclude-newer <date of the tag>` to the install line
@@ -428,9 +442,10 @@ inventory still lists the deleted tests: its sections 1a, 1b and 1d are history.
       read a clock and now count work (rule 6); four sentences of the documents. What is left
       for later workstreams is noted at each of them below ("From W1").
 
-### W2. Reorganize the repository (inventory: `docs/roadmap/repo.md`)
+### W2. Reorganize the repository (closed 2026-10-24)
 
-Goal: a newcomer finds things. Start: 84 package files, 45 of them side by side at the top level
+Goal: a newcomer finds things. The inventory, `docs/roadmap/repo.md`, left the tree when the
+workstream closed; it is in the history at `0920681`. Start: 84 package files, 45 of them side by side at the top level
 in prefix families (`tracking*.py`, `export*.py`, `cli_*.py`); 7 package files at or over the
 400-line limit (13 over 380); eight kinds of imports that go against the layers. The
 inventory's table was made before two modules were added (`gui/panel_parts.py`,
@@ -475,7 +490,7 @@ Decided with the owner on 2026-10-24, where the inventory proposed and this sect
       Done 2026-10-24: `tests/support/layout_helpers.py` holds the one table of the paths that
       tests name (found from `pyproject.toml`, not from a test's own place); 15 new tests in
       `tests/repo/test_layout.py`, among them every relative link of every page.
-- [ ] 2. Commit 1: the package into subpackages, with `git mv` and the import lines, nothing
+- [x] 2. Commit 1: the package into subpackages, with `git mv` and the import lines, nothing
       else. The proposed mapping of every module is in the inventory, section 1.2 (`cli/`,
       `core/`, `video/`, `measure/`, `tracking/`, `segmenter/`, `export/`, `workflows/`,
       `synthetic/`, `gui/`). Done when the fast suite gives the same counts.
@@ -484,14 +499,43 @@ Decided with the owner on 2026-10-24, where the inventory proposed and this sect
       `cli/__main__.py` and the strings that name a moved module. The same counts, the same list
       of every test's fixtures; the real model's 40 slow tests give the same numbers. Comments and
       docstrings follow in the next commit.
-- [ ] 3. Commit 2: tests into the same subjects, helpers into one folder. Commit 3: documents
+- [x] 3. Commit 2: tests into the same subjects, helpers into one folder. Commit 3: documents
       (`docs/user/`, `docs/developer/`, `docs/design/`; decision 15).
-- [ ] 4. Make the layers true, one small commit each: the constants and helpers that the library
+      Done 2026-10-24: `e480ca6` moved the 70 test files of `tests/` into ten folders by subject
+      and the 27 helper modules into `tests/support/`; step 3a2 joined what W1's join of the
+      helpers left and made the two fragile tests firm. `docs/design/decisions.md` holds X1 to
+      X22, held to the plan byte for byte by a test; PLAN.md's 34 open points were sorted (24
+      closed, 9 moved, 1 now decision 31; the list is the message of `0944245`). `49398ac` moved
+      `SPEC.md` and the developer page into `docs/design/` and `docs/developer/`, took
+      `docs/PLAN.md` out of the tree, and made the owner's one edit of `CLAUDE.md`. No
+      `docs/user/` (W3 step 8). The same counts and fixtures before and after each move.
+- [x] 4. Make the layers true, one small commit each: the constants and helpers that the library
       and the window import from command-line modules; the model's factory out of the
       from-tracker module; shared panel widgets into one module (two classes are named `Message`).
-- [ ] 5. A module index generated from each module's first docstring line, kept current by a
+      Done 2026-10-24: `tests/repo/test_layers.py` holds the layers, written for people on
+      `docs/developer/README.md`, with 16 named exceptions. Steps 4b to 4e took 12 of them away:
+      the fps constants to `core/session.py`, the export texts to `export/pipeline.py`,
+      `load_segmenter` to `segmenter/load.py`, the shared panel parts and one definition of the
+      layout constants to `gui/panel_parts.py`, `settings()` to `gui/settings.py`; the four left
+      end with W6 step 2. The rows marked (2) moved in `fe736a3` (`gui/view/`, `gui/widgets/`,
+      two parts of panels into `gui/panels/`); a panel is a module that `PANEL_MODULES` names.
+- [x] 5. A module index generated from each module's first docstring line, kept current by a
       test, as `docs/OUTPUTS.md` is.
-- [ ] 6. Split the files over the limit along the new layout (package files and test files).
+      Done 2026-10-24: `docs/developer/modules.md`, written by `tests/support/module_index.py`
+      from the first docstring line of every module (50 first lines were made to stand alone);
+      `tests/repo/test_module_index.py` fails when the page is out of date and names the command.
+      The developer page links the index instead of keeping two tables.
+- [x] 6. Split the files over the limit along the new layout (package files and test files).
+      Done 2026-10-24: `tests/repo/test_file_sizes.py` fails a `.py` file over 400 lines; its list
+      of 33 files (5 of the package, 28 of the tests) is empty now. Each split moved whole
+      functions or tests: every test kept its name, marks and fixtures; three ids of a test of
+      the schema were replaced, with the reason (`3827993`).
+
+The whole range was reviewed at the end by four readers, one subject each (the moves, the tests,
+the package code, the documents and rules), with a skeptic for every serious finding: nothing
+critical; what they found was text that still named old places, fixed in `c328619`. The real
+model's 40 slow tests gave the numbers of the start after step 2 and at the end. What W2 hands on
+is noted at W3, W4, W6 and W7 ("From W2").
 
 ### W3. Make the tool general (inventory: `docs/roadmap/domain.md`)
 
@@ -509,6 +553,16 @@ say "last week" or "the reference" although nothing compares with the template a
 6). The README tests ask for exactly two install lines and a tag of the form `vX.Y.Z` (step 8).
 `docs/design/SPEC-v0.1.md` 7.8 and 13.4 state the rules that decision 26 changed; code comments still point to
 them (decision 15: `docs/design/decisions.md`).
+
+From W2: the package is in subpackages and the tests in folders by subject;
+`docs/developer/modules.md` is generated from first docstring lines, so a reworded first line means
+running the command that `tests/repo/test_module_index.py` names. `SLOW_MOTION_FPS` and
+`UNKNOWN_FPS` sit in `core/session.py` until decision 10 removes them. Decision 30's
+`iter_frames` and `read_frame` are in `video/reader.py`. Panel 4's module is still
+`gui/panels/dish_panel.py`: its rename (decision 8) changes `PANEL_MODULES` and the table of paths
+of the tests, `tests/support/layout_helpers.py`. No file may grow past 400 lines
+(`tests/repo/test_file_sizes.py`); `segmenter/hf.py` has 385. `docs/VALIDATION.md` (step 5) gives
+the commands and counts of each section's day, with a note at its top.
 
 - [ ] 1. `session.json` version 2 (decision 12): the table goes into `docs/design/formats.md`
       and is approved; then the reader lands and maps every row; steps 2 to 4 switch the code
@@ -544,6 +598,12 @@ own; keys and gestures are explained only in scattered tooltips (11 of 14 keys, 
 gestures; Esc, the undo key and the keys 1 to 9 appear nowhere, and there is no list); a control
 that is off shows the reason in place of its description; 22 terms need a definition or a fuller
 one (clip step, coarse and fine, the nine flags, the "±" of the scale).
+
+From W2: the shared parts of the panels are in `gui/widgets/panel_parts.py`, and a panel imports
+no other panel (`tests/repo/test_layers.py`). Two layout constants are still defined apart:
+`ROW_HEIGHT` (24, in `gui/panels/objects_panel.py` and `gui/panels/review_table.py`) and the
+stopwatch dialog's `BOX_SIZE` (the values of `BOX_WIDTH` and `CONTROL_HEIGHT`). Two functions are
+named `size_text`, with different output (`export/pipeline.py`, `gui/panels/video_panel.py`).
 
 - [ ] 1. One table of help texts without Qt (key, label, one sentence, a longer text, glossary
       terms), with the flags' texts taken from the schema.
@@ -605,6 +665,10 @@ pyramidal iterative Lucas-Kanade (OpenCV; the owner's "Iterative Lucas-Kanade") 
 and are installed already. A first probe: Lucas-Kanade took 1.8 ms per frame pair for 100 points
 and 49 ms for 100,000; chained phase correlation drifted 0.4 to 2.5 px over 29 steps.
 
+From W2: the four imports that `tests/repo/test_layers.py` still names as exceptions
+(measurement and the segmenters import each other; the stand-in segmenter names the synthetic
+ground truth) end with step 2, the registry. The real model's factory is `segmenter/load.py`.
+
 - [ ] 1. A design session with the owner on decisions 16 to 21; write the result to
       `docs/design/backends.md`.
 - [ ] 2. One registry of methods with declared capabilities (masks or points, several objects,
@@ -641,11 +705,15 @@ something fails.
 From W1, for step 3: the test of the model's conversion asks the Hugging Face Hub on every run
 and pins no revision, and it compares the weights file only (the two config files have no
 frozen value). For step 6: the rule test for personal paths does not know a Linux home (two
-made-up lines of `tests/test_provenance.py` would match); the fast step of CI is not offline;
+made-up lines of `tests/core/test_provenance.py` would match); the fast step of CI is not offline;
 the text test of the workflow accepts a test step with `continue-on-error`; tests that call git
 fail in a source archive without `.git`; the condition on the macOS job would skip it without
 a sign if the repository were made private again. For the list of step 1: large fonts at the
 smallest window (decision 28).
+
+From W2, for step 6: in CI the byte comparison of `docs/design/decisions.md` with the first
+build's plan is skipped, because the checkout is shallow and lacks `67908d8`
+(`tests/repo/test_decisions_page.py`); a full checkout would let it run there.
 
 - [ ] 1. Hold the brainstorm with the owner: the inventory's section 3 lists about 50 candidates
       in six groups (stability, usability, features, distribution, community, quality gates),
@@ -745,3 +813,11 @@ One line per session: date, workstream, what was done, the last commit.
   selftest with the real model (`docs/VALIDATION.md` section 8, with the run of every slow test
   before the tag); development goes on as `0.2.0a2.dev0`; W1's temporary branches deleted.
   Next: W2.
+- 2026-10-24: W2 (reorganize the repository): steps 1 to 6 done. The package in eight
+  subpackages and `gui/view/`, `gui/widgets/`; the tests in folders by subject, helpers in
+  `tests/support/`; `SPEC.md` and the developer page in `docs/design/` and `docs/developer/`,
+  `docs/PLAN.md` out of the tree (decisions in `docs/design/decisions.md`, open points sorted, new
+  decision 31); rule tests for the paths, the layers, the module index and the 400-line limit;
+  every move proved by the same counts and fixtures, the real model's numbers unchanged; the
+  whole range reviewed. The owner's answers to W3's decisions are written in section 3. Last
+  commit before this line: `c328619`. Next: W3.
