@@ -1,7 +1,7 @@
 """What the tests of panel 7 share (task C5): a named session with clicked objects in a window, a
 stand-in segmenter that keeps how tracking used it, and what a job reported.
 
-Imported by name from tests/gui/test_worker_jobs.py, test_tracking_panel.py,
+Imported by name from tests/gui/test_worker_jobs.py, test_worker_jobs_log.py, test_tracking_panel.py,
 test_tracking_panel_run_line.py and test_overlays.py. Nothing here imports torch. A test that tracks
 works on a copy of its clip in a folder of its own (`own_copy`, or the fixture `clip_in_odd_folder`),
 because the window writes the run folder next to the video. A stand-in is parked with the `Gate` of
@@ -23,7 +23,7 @@ from PySide6.QtCore import QObject
 
 from outline_tracker.core import schema
 from outline_tracker.measure.results import ResultsStore
-from outline_tracker.segmenter.fake import ThresholdFake
+from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
 from prompt_helpers import Gate, gui_thread, panel_with, this_thread
 from tracking_helpers import center
 
@@ -177,6 +177,17 @@ def run_to_end(qtbot, panel, timeout: int = 30_000) -> None:
     panel.track()
     assert panel.jobs.running, panel.message.text() or window_hint(panel)
     qtbot.waitUntil(lambda: not panel.jobs.running, timeout=timeout)
+
+
+def parked_in_frame_6(window, qtbot, clip, gate):
+    """A job on the dish clip's object A whose stand-in is parked in its call for the 6th tracked
+    frame. Returns (panel, segmenter, what the job reported so far)."""
+    segmenter = Tracked(ExactFake(clip), gate=gate, park_at={6})
+    panel, _ = ready_to_track(window, qtbot, clip, segmenter)
+    heard = Heard(panel.jobs, window.controller)
+    panel.track()
+    qtbot.waitUntil(gate.parked.is_set)
+    return panel, segmenter, heard
 
 
 def window_hint(panel) -> str:

@@ -40,7 +40,6 @@ OVER_400: dict[str, str] = {
     "tests/gui/test_prompts.py": "6d",
     "tests/gui/test_review.py": "6d",
     "tests/gui/test_worker.py": "6d",
-    "tests/gui/test_worker_jobs.py": "6d",
 }
 
 # The folders of tests/ that each task of step 6 splits; the package belongs to 6a.
