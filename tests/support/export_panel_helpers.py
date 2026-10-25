@@ -1,7 +1,7 @@
 """What the tests of panel 9 (Export) and the smoke test of the whole flow share (task C6).
 
-Imported by name from tests/gui/test_export_panel.py, tests/gui/test_joins.py, test_joins_lock.py,
-test_joins_exported_files.py and tests/gui/test_smoke.py. Nothing here imports torch.
+Imported by name from tests/gui/test_export_panel.py, test_export_panel_export_all.py, tests/gui/test_joins.py,
+test_joins_lock.py, test_joins_exported_files.py and tests/gui/test_smoke.py. Nothing here imports torch.
 
 - `ExportWatch` stands where panel 9 calls `export.export_all`: it keeps how it was called, can say
   lines and wait at a `Gate` (tests/support/prompt_helpers.py) first, and then calls the real one. No
@@ -43,6 +43,8 @@ P0_FILES = {schema.SESSION_JSON, schema.POSITIONS_CSV, "edgetam", schema.SHAPES_
 WRITTEN = {schema.POSITIONS_CSV, "edgetam/A.csv", schema.SHAPES_CSV, schema.RADIAL_CSV, schema.OUTLINES_NPZ,
            schema.README_TXT, schema.OVERLAY_MP4, schema.RUN_LOG}
 EXPORT_TIP = "Write the CSV files, the overlay video, the log and README.txt to the run folder"  # while it is on
+NAME_FIRST = "Type your name in panel 1 first."
+RUN_FOLDER = "dish_tracker_outline_Ada"  # SPEC 8.1: <video stem>_outline_<student>
 
 
 def export_panel(window):
