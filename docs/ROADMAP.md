@@ -513,12 +513,13 @@ Decided with the owner on 2026-10-24, where the inventory proposed and this sect
       and the window import from command-line modules; the model's factory out of the
       from-tracker module; shared panel widgets into one module (two classes are named `Message`).
       Done 2026-10-24: `tests/repo/test_layers.py` holds the layers, written for people on
-      `docs/developer/README.md`, with 16 named exceptions. Steps 4b to 4e took 12 of them away:
-      the fps constants to `core/session.py`, the export texts to `export/pipeline.py`,
-      `load_segmenter` to `segmenter/load.py`, the shared panel parts and one definition of the
-      layout constants to `gui/panel_parts.py`, `settings()` to `gui/settings.py`; the four left
-      end with W6 step 2. The rows marked (2) moved in `fe736a3` (`gui/view/`, `gui/widgets/`,
-      two parts of panels into `gui/panels/`); a panel is a module that `PANEL_MODULES` names.
+      `docs/developer/README.md`, with 16 named exceptions. Steps 4b, 4c and 4e took 12 of them
+      away: the fps constants to `core/session.py`, the export texts to `export/pipeline.py`, the
+      shared panel parts and one definition of most layout constants to `gui/panel_parts.py` (now
+      `gui/widgets/`), `settings()` to `gui/settings.py`; the four left end with W6 step 2. Step 4d
+      moved the real model's factory, `load_segmenter`, to `segmenter/load.py`. The rows marked (2)
+      moved in `fe736a3` (`gui/view/`, `gui/widgets/`, two parts of panels into `gui/panels/`); a
+      panel is a module that `PANEL_MODULES` names.
 - [x] 5. A module index generated from each module's first docstring line, kept current by a
       test, as `docs/OUTPUTS.md` is.
       Done 2026-10-24: `docs/developer/modules.md`, written by `tests/support/module_index.py`
@@ -533,7 +534,8 @@ Decided with the owner on 2026-10-24, where the inventory proposed and this sect
 
 The whole range was reviewed at the end by four readers, one subject each (the moves, the tests,
 the package code, the documents and rules), with a skeptic for every serious finding: nothing
-critical; what they found was text that still named old places, fixed in `c328619`. The real
+critical. Most of what they found was text that still named old places, fixed in `c328619` and
+the commit after it; four small findings about tests were left, and are noted at W7. The real
 model's 40 slow tests gave the numbers of the start after step 2 and at the end. What W2 hands on
 is noted at W3, W4, W6 and W7 ("From W2").
 
@@ -559,8 +561,8 @@ From W2: the package is in subpackages and the tests in folders by subject;
 running the command that `tests/repo/test_module_index.py` names. `SLOW_MOTION_FPS` and
 `UNKNOWN_FPS` sit in `core/session.py` until decision 10 removes them. Decision 30's
 `iter_frames` and `read_frame` are in `video/reader.py`. Panel 4's module is still
-`gui/panels/dish_panel.py`: its rename (decision 8) changes `PANEL_MODULES` and the table of paths
-of the tests, `tests/support/layout_helpers.py`. No file may grow past 400 lines
+`gui/panels/dish_panel.py`: its rename (decision 8) changes `PANEL_MODULES`,
+`tests/gui/test_panel_modules.py` and the generated module index. No file may grow past 400 lines
 (`tests/repo/test_file_sizes.py`); `segmenter/hf.py` has 385. `docs/VALIDATION.md` (step 5) gives
 the commands and counts of each section's day, with a note at its top.
 
@@ -713,7 +715,14 @@ smallest window (decision 28).
 
 From W2, for step 6: in CI the byte comparison of `docs/design/decisions.md` with the first
 build's plan is skipped, because the checkout is shallow and lacks `67908d8`
-(`tests/repo/test_decisions_page.py`); a full checkout would let it run there.
+(`tests/repo/test_decisions_page.py`); a full checkout would let it run there. Four small findings
+of W2's last review, left for this step: two rules of `tests/repo/test_layers.py` (the version
+imports nothing of the package; the package `gui.panels` may import a panel) and the order of
+rows of `tests/repo/test_module_index.py` (`__init__.py` first) have no made-up case that would
+fail without them; `core/csv_format.py` is not among the modules that the checks of a light
+import load (`tests/core/test_schema_docs.py`); the splits of the tests put three helpers with
+private names (`_write_json`, `_stored`, `_prompts`) into `tests/support/`, where W1 made such
+names public.
 
 - [ ] 1. Hold the brainstorm with the owner: the inventory's section 3 lists about 50 candidates
       in six groups (stability, usability, features, distribution, community, quality gates),

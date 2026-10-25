@@ -3,7 +3,7 @@
 `run_job` is the one entry point, for the command line and for the GUI's worker thread. It plans
 the runs (outline_tracker/tracking/plan.py), checks the start frames (tracking/guard.py), and
 tracks each run: every frame of the run is decoded, cut to the part the model sees, given to the
-segmenter, measured (`measure.measure_mask`) and discarded. A coarse run shows the model one fixed
+segmenter, measured (`measure.mask.measure_mask`) and discarded. A coarse run shows the model one fixed
 part of the frame, for all its objects; a fine run shows it a window that follows its one object
 (outline_tracker/tracking/fine.py).
 

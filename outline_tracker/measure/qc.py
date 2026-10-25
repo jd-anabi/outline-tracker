@@ -15,12 +15,12 @@ The nine codes and where each comes from:
 - SIZE: last week's rule. The mask's area in px is strictly above 2 times or strictly below 0.5
   times the median area over the track's visible frames.
 - CONTACT: the outline is within max(3 px, 2 grid cells) of another track's outline on the same
-  video frame (`qc_contact`; decision X6). Both tracks get it.
+  video frame (`measure/contact.py`; decision X6). Both tracks get it.
 - EDGE: the mask touches the border of the image the model saw (`edge` of the records).
 - MULTI: the mask has more than one piece and the second-largest has at least 10% of the pixels
   of the largest (`n_components`, `second_fraction` of the records).
 - LOWRES: `shape_ok` of the derived track is 0 (SPEC 7.8).
-- ORIENT, HEADGUESS: as the derived track says (SPEC 7.3; `derive_heading`). HEADGUESS is on
+- ORIENT, HEADGUESS: as the derived track says (SPEC 7.3; `measure/heading.py`). HEADGUESS is on
   every row of a track without a head click, lost rows included.
 
 JUMP, SIZE and HEADGUESS are decided per track id: a later piece of an animal (A2) is a track of
@@ -30,7 +30,7 @@ Units and frames: positions and times are read from the derived tracks, in mm in
 (y up) and in s; areas, grid cells and outlines from the records, in image px (u to the right,
 v down, pixel centers at +0.5). Frames are video frame numbers.
 
-The comparison of two tracks' outlines is in `qc_contact`; its `polygon_distance` (the least
+The comparison of two tracks' outlines is in `measure/contact.py`; its `polygon_distance` (the least
 distance between two outlines, in px for stored ones) is offered here too.
 
 No Qt, no torch.

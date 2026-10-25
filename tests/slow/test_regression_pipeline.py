@@ -1,6 +1,6 @@
 """The whole pipeline with the real model: what a run leaves in its folder (SPEC 8.1, 6.2).
 
-`from_tracker` (a session from the Tracker export, `tracking.job.run_job`, `export.export_all`) with the
+`from_tracker` (a session from the Tracker export, `tracking.job.run_job`, `export.pipeline.export_all`) with the
 real EdgeTAM on `cpu`: coarse, the whole frame (a Tracker export has no dish circle), no overlay.
 Two clips:
 1. last week's selftest clip (`synthetic.selftest_clip`: 1080p, one dark ellipse) with its export of

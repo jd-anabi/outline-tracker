@@ -210,7 +210,7 @@ def test_a_click_on_a_frame_off_the_grid_is_moved_forward_and_the_panel_says_so(
     assert panel.prompts.add_point(u, v, 1)
     (track,) = session_of(window).tracks
     assert points_of(track) == [(4, [[u, v]], [1])] and track.start_frame == 4  # forward, to the grid (X20)
-    # the stored hash would be frame 3's, so none is stored (tracking.edit.add_prompt)
+    # the stored hash would be frame 3's, so none is stored (`add_prompt` of tracking/edit.py)
     assert (track.prompts[0].frame_hash, track.prompts[0].decoder) == (None, None)
     # the panel says so in the function's own words, and the view shows the frame the point is on
     expected = tracking.add_prompt(copy.deepcopy(session_of(window)), ResultsStore(), "A", 3, (u, v), 1, None, None)

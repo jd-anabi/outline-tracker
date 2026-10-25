@@ -25,7 +25,7 @@ from outline_tracker.core import schema
 # SHA-256 of the UTF-8 bytes of readme_text(), computed with
 #   uv run python -c "import hashlib; from outline_tracker.core import schema; \
 #       print(hashlib.sha256(schema.readme_text().encode('utf-8')).hexdigest())"
-# Commit 1 of task B6a moved the builders out of core/schema.py without changing a character. Its pinned value
+# Commit 1 of task B6a moved the builders out of schema.py without changing a character. Its pinned value
 # was computed from the unmodified schema.py (now core/schema.py) of commit e49a088, before the move:
 #   9cede8f4c9ba9cc98f4ee3ebbdb1907aa992700e9bde43c2013131705109b57b   (13751 characters, 249 lines)
 # Commit 2 changed the wording of four places (the intro, Units, Rows and the core_frac entry, see the
@@ -55,9 +55,9 @@ from outline_tracker.core import schema
 # now has 14877 characters and 262 lines.
 README_SHA256 = "20ec79686c3b77a80a5966f7d1e929274861aaf07c3956d8d88a8a5435ce7c73"
 
-# Every public name that core/schema.py had before the move of the builders (dir() of the unmodified module,
-# without the imported helpers), except the three that left it later (NAMES_THAT_LEFT_SCHEMA). Other modules
-# import these by name, so each must still be importable.
+# Every public name that schema.py (now core/schema.py) had before the move of the builders (dir() of the
+# unmodified module, without the imported helpers), except the three that left it later
+# (NAMES_THAT_LEFT_SCHEMA). Other modules import these by name, so each must still be importable.
 PUBLIC_NAMES_OF_SCHEMA = [
     "ArrayKey", "CSV_ENCODING", "CSV_NEWLINE", "Column", "FILES", "FLAGS", "FLAG_INFO", "FLAG_SEPARATOR",
     "FileSpec", "FlagInfo", "OUTLINES_KEYS", "OUTLINES_META_FIELDS", "OUTLINES_META_KEY", "OUTLINES_NPZ",

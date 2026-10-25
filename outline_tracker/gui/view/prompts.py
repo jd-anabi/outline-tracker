@@ -15,7 +15,7 @@ gui/panels/objects_panel.py; the items that are drawn are made in gui/view/promp
   also says which click is negative and which is the second of a double click).
 - After every change of the clicks on the frame shown, the worker is asked for the outlines of all
   objects clicked on that frame, on the part of the frame tracking would show the model
-  (`tracking.plan.view_box`: the dish square, or the whole frame). The newest request wins.
+  (`view_box` of tracking/plan.py: the dish square, or the whole frame). The newest request wins.
 - An outline on the picture is of the model that is chosen now. When another model begins to load
   (panel 7, an opened session), the outlines of the model before are taken away and the frame
   shown is asked of the new one; the worker keeps that request until the model is ready.

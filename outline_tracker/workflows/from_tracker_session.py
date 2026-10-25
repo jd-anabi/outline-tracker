@@ -145,8 +145,8 @@ def build_session(plan: Plan, world: WorldFrame, info: VideoInfo, video: Path, r
     session stores. last_frame: the last video frame number to track, on the plan's grid. fps: where
     plan.fps came from. fine_ids: the names tracked in fine mode. model, device: as given to the
     command; `model` names the Tracker-format folder. n_fit_points: rows the calibration was fitted
-    to. start_hash, decoder: `video.frame_hash` of the start frame as tracking decodes it, and
-    `video.decoder_tag()`, so that the run-start guard has something to compare (SPEC 3.5).
+    to. start_hash, decoder: `video.reader.frame_hash` of the start frame as tracking decodes it, and
+    `video.reader.decoder_tag()`, so that the run-start guard has something to compare (SPEC 3.5).
 
     There is no stick: the scale is `calibration.tracker_fit` (X18). Each name is a track with one
     positive click at its first pixel position, in last week's colors. `complete` is False until a

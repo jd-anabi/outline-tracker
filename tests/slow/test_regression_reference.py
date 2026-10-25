@@ -50,7 +50,7 @@ pytestmark = pytest.mark.slow
 
 def _track(segmenter, video, frames, prompts) -> SimpleNamespace:
     """Drive a segmenter over the frames of a clip, read one after the other with
-    `video.iter_rgb_frames`: `start` with the prompts on the first, `step` on every later one.
+    `video.reader.iter_rgb_frames`: `start` with the prompts on the first, `step` on every later one.
 
     Returns frames (video frame numbers), results (one list of MaskResult per frame) and seconds
     (per frame, decoding included).

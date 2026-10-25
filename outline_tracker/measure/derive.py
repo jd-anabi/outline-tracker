@@ -22,7 +22,7 @@ Which number comes from where:
 - Perimeter, Feret diameter, wall distance of the outline and the radial rays use the stored
   256-point outline, mapped to world coordinates and turned counterclockwise there.
 - `major_mm`, `minor_mm` and `eccentricity` come from the full mask's moments (the stored
-  `cov_full`); the heading and `core_x_mm`, `core_y_mm` from the core's (`derive_heading`).
+  `cov_full`); the heading and `core_x_mm`, `core_y_mm` from the core's (`measure/heading.py`).
 - The resolution indicators `px_along_major`, `cells_along_major` and `shape_ok` are of the
   largest piece of the mask, the piece the outline goes around (`measure.mask.largest_piece`), so that
   a few stray pixels far from the object cannot lengthen them; this replaces the full mask of
@@ -31,7 +31,7 @@ Which number comes from where:
   largest piece is measured: of pieces of equal size the one that the row's stored outline runs
   along. A crop without a pixel keeps the value of `cov_full`.
 
-The polygon geometry is in `derive_outline`; its `radial_profile` and `feret_max` (the maximum
+The polygon geometry is in `measure/outline.py`; its `radial_profile` and `feret_max` (the maximum
 Feret diameter of an outline, also for one in px) are offered here too. No Qt, no torch.
 """
 
@@ -134,7 +134,7 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
     processing: `outline_points` (N), `radial_step_deg` (degrees), `shape_ok_min` (px or cells).
 
     Returns a `DerivedTrack`: mm, s and rad in world coordinates, y up (see the class). The
-    heading follows `derive_heading`. Raises ValueError for an fps_true that is not a positive
+    heading follows `measure/heading.py`. Raises ValueError for an fps_true that is not a positive
     number, fewer than 3 outline points, or a radial step that does not divide 360 degrees.
     """
     fps = float(fps_true)

@@ -70,7 +70,7 @@ def fine_window(preview_result: MaskResult, factor: float = 3.0) -> int:
     maximum Feret diameter of the mask's outline in px.
 
     `preview_result` is the object's result from `segmenter.preview`; its offset does not matter.
-    F is `measure.outline.feret_max` of the 256-point outline that `measure.measure_mask` stores,
+    F is `measure.outline.feret_max` of the 256-point outline that `measure.mask.measure_mask` stores,
     the diameter shapes.csv reports, here in px. Returns W in px: 96 for an empty mask and for an
     outline without a hull (all of it on one line). `factor` as in `fine_window_px`.
     """

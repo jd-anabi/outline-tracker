@@ -202,10 +202,10 @@ With the real processor and session and a stand-in for the network (seconds):
 - `reserve_ui_thread()` in a process of its own: torch has one thread fewer after the first call,
   and a second call changes nothing.
 
-The same logic without torch (fast tests, `tests/segmenter/test_hf_helpers.py`): an object that was never
-found gets no click and stays lost; a `RuntimeError` on cpu, or an error of another kind on mps,
-is raised and not hidden; every model call and every move of the model happens with the one model
-lock held.
+The same logic without torch (fast tests, `tests/segmenter/test_hf_helpers.py` and
+`test_hf_helpers_fallback.py` beside it): an object that was never found gets no click and stays
+lost; a `RuntimeError` on cpu, or an error of another kind on mps, is raised and not hidden; every
+model call and every move of the model happens with the one model lock held.
 
 ### 2.5 Can these tests fail?
 
@@ -627,7 +627,7 @@ Differences are taken before rounding.
 
 ## 5. The `selftest` command with the real model (task B2, 2026-10-07)
 
-**What was tested.** `outline_tracker.selftest.selftest`, the port of last week's selftest, called
+**What was tested.** `outline_tracker.workflows.selftest.selftest`, the port of last week's selftest, called
 as the command `outline-tracker selftest` calls it: it makes last week's clip (one dark ellipse,
 semi-axes 8 and 3 px, on a 1080p frame; 20 tracked frames at step 2), loads EdgeTAM itself, tracks
 the clip through `from_tracker` (coarse, whole frame, no overlay, fps_true 240) and compares the
@@ -887,13 +887,13 @@ known.
 - The other branch, with the chip's name changed in both headers for one run: 15 passed, 1 skipped.
   The position tests printed that the limit of 0.01 px was not measured, with 0.0001 px and
   0.0006 px; the weights test was skipped.
-- The fast tests of `tests/repo/test_frozen_files.py` need no model and run in CI. They compare the
-  table with the true centers worked out from the clips' recipes, and check what the header says
-  about the truth against the table. 13 single changes of the two files each made one of them
-  fail: a row moved by 3.2 px, lost, removed, doubled, with 3 decimals, with u and v swapped; a
-  changed header line (four kinds); CRLF line ends; a weights file without its size, and one with
-  a short hash. The rule and the judgement of positions are tested there with made-up headers and
-  positions.
+- The fast tests of `tests/repo/test_frozen_files.py` and `test_frozen_numbers.py` need no model and
+  run in CI. They compare the table with the true centers worked out from the clips' recipes, and
+  check what the header says about the truth against the table. 13 single changes of the two files
+  each made one of them fail: a row moved by 3.2 px, lost, removed, doubled, with 3 decimals, with u
+  and v swapped; a changed header line (four kinds); CRLF line ends; a weights file without its
+  size, and one with a short hash. The rule and the judgement of positions are tested there with
+  made-up headers and positions.
 
 **Not covered.**
 - The Apple GPU: no `mps` numbers are frozen; `mps` is held to the 3 px criterion (section 1.2).
