@@ -1,7 +1,7 @@
 """What the tests of panel 9 (Export) and the smoke test of the whole flow share (task C6).
 
-Imported by name from tests/gui/test_export_panel.py, tests/gui/test_joins.py and
-tests/gui/test_smoke.py. Nothing here imports torch.
+Imported by name from tests/gui/test_export_panel.py, tests/gui/test_joins.py, test_joins_lock.py,
+test_joins_exported_files.py and tests/gui/test_smoke.py. Nothing here imports torch.
 
 - `ExportWatch` stands where panel 9 calls `export.export_all`: it keeps how it was called, can say
   lines and wait at a `Gate` (tests/support/prompt_helpers.py) first, and then calls the real one. No
