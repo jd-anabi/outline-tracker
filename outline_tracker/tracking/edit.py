@@ -26,11 +26,11 @@ program, they raise RuntimeError and change nothing: no correction is recorded w
 results. They do the same while the run folder holds a results.new.npz, where a job leaves its
 results when it cannot write results.npz: that file is never replaced or removed here, the user
 renames or removes it first. `session.complete` follows the results
-(`tracking_plan.partial_tracks`).
+(`tracking.plan.partial_tracks`).
 
 The sequence of a correction, "Re-track from here" for one, is in tracking/corrections.py. No edit
 makes a gap inside a track (SPEC 8.2): a track with results is clicked on, and re-tracked from, the
-first grid frame after its last record at the latest (`tracking_plan.check_no_gap`).
+first grid frame after its last record at the latest (`tracking.plan.check_no_gap`).
 
 Units and coordinates (SPEC 3.1, 3.4): frames are video frame numbers; a start, re-track or
 new-piece frame that is not on the clip's grid is moved forward to the next grid frame (X20), and
@@ -225,8 +225,8 @@ def add_prompt(session: Session, store: ResultsStore, track_id: str, frame, poin
 
     frame: the video frame the click was placed on; off the clip's grid it is moved forward to
     the grid (the returned `Edit` says so). point_px: (u, v) in px of the full frame. label: 1
-    for a positive click, 0 for a negative one. frame_hash, decoder: `video.frame_hash` of that
-    decoded frame and `video.decoder_tag()`, from the caller, which shows the frame (SPEC 3.5);
+    for a positive click, 0 for a negative one. frame_hash, decoder: `video.reader.frame_hash` of that
+    decoded frame and `video.reader.decoder_tag()`, from the caller, which shows the frame (SPEC 3.5);
     both are stored with the click, unless the frame was moved: then they are of another frame.
 
     Clicks on one frame share a `Prompt`. The first click of a track sets its start frame. A
@@ -237,7 +237,7 @@ def add_prompt(session: Session, store: ResultsStore, track_id: str, frame, poin
     numbers, a label other than 1 or 0, a frame after the end of a track that was ended, a second
     frame of clicks while the track has clicks that are not tracked yet (its run starts on the
     frame of those, `plan_runs`), and a frame later than the first grid frame after the track's
-    last record: a run from there would leave a gap (`tracking_plan.check_no_gap`).
+    last record: a run from there would leave a gap (`tracking.plan.check_no_gap`).
     """
     track = _track(session, track_id)
     point = _point(point_px)
@@ -321,7 +321,7 @@ def set_head(session: Session, track_id: str, frame: int, point_px) -> None:
 
 
 def pending_runs(session: Session, store: ResultsStore) -> list[RunPlan]:
-    """The runs "Track" would start now (`tracking_plan.plan_runs`): for each, its tracks, start
+    """The runs "Track" would start now (`tracking.plan.plan_runs`): for each, its tracks, start
     frame, mode and video frames. Empty when nothing waits. Raises ValueError like `plan_runs`."""
     return plan_runs(session, store)
 

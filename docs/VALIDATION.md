@@ -4,6 +4,12 @@ Results of the slow tests: the real model on short synthetic clips (SPEC 13.3 an
 section names the command that produced its numbers. A test that fails is reported here with
 numbers and images; nothing is tuned until it passes.
 
+The commands and counts of each section are those of its day. Since W2 (2026-10-24) the fast tests are in folders
+of `tests/` by subject and their helpers in `tests/support/`; the tests of `tests/slow/test_real_model.py` and
+`tests/slow/test_regression_reference.py` that need no weights are in `test_real_model_without_weights.py` and
+`test_regression_reference_without_weights.py` beside them, so a command below that names one of the two files
+runs fewer tests now than its result line counts.
+
 ## 1. The Hugging Face backend against last week's script (task A04a, 2026-10-06)
 
 **Note, 2026-10-08.** This comparison was retired on this date (W1 step 5 of `docs/ROADMAP.md`):
@@ -196,7 +202,7 @@ With the real processor and session and a stand-in for the network (seconds):
 - `reserve_ui_thread()` in a process of its own: torch has one thread fewer after the first call,
   and a second call changes nothing.
 
-The same logic without torch (fast tests, `tests/test_hf_helpers.py`): an object that was never
+The same logic without torch (fast tests, `tests/segmenter/test_hf_helpers.py`): an object that was never
 found gets no click and stays lost; a `RuntimeError` on cpu, or an error of another kind on mps,
 is raised and not hidden; every model call and every move of the model happens with the one model
 lock held.
@@ -302,7 +308,7 @@ the selftest clip and 0.2611 px on the three-ellipse clip. These are the values 
 at the level of the segmenter.
 
 **Not covered.** The test asserts the pixel columns only; the bytes of whole files are asserted by
-the fast tests with a stand-in model (`tests/test_from_tracker_port.py`). A real video was not run:
+the fast tests with a stand-in model (`tests/workflows/test_from_tracker_port.py`). A real video was not run:
 that is the owner's go/no-go check.
 
 ### 4.2 Fine mode on the close-up shrimp (SPEC 13.4): in 0.1.0 two of three criteria failed from one click on the body; with a click on each antenna and the limit of 0.02 on the variation all three pass
@@ -538,10 +544,10 @@ checked and are those of section 1. Nothing was tuned.
 flags one frame as `ORIENT`, not the rest of the track: a frame whose axis is more than 60 degrees
 from that of the last frame with an axis before it is flagged, and the frames after it are
 compared with it
-(`tests/test_derive_rules.py::test_one_axis_jump_flags_one_frame_and_becomes_the_reference`). A
+(`tests/measure/test_derive_rules.py::test_one_axis_jump_flags_one_frame_and_becomes_the_reference`). A
 long shape always takes the core fallback: the opening leaves less than half of its mask, so the
 full mask stands for the core
-(`tests/test_measure_core.py::test_a_slender_ellipse_falls_back_to_the_full_mask`, an ellipse of
+(`tests/measure/test_measure_core.py::test_a_slender_ellipse_falls_back_to_the_full_mask`, an ellipse of
 72 × 12 px, aspect ratio 6). The other half of that reading, appendages longer than about 1.7
 body lengths, is held by no test.
 
@@ -666,7 +672,7 @@ uv run outline-tracker selftest
 
 ### 5.1 Can the selftest say PROBLEM?
 
-Checked with stand-ins in the fast tests (`tests/test_selftest.py`, no model): a stand-in whose
+Checked with stand-ins in the fast tests (`tests/workflows/test_selftest.py`, no model): a stand-in whose
 masks lie 5 px beside the ellipse gives `PROBLEM`, `ok` false and exit code 1; one that loses the
 ellipse after 10 frames gives `PROBLEM` and `ok` false too. A run stopped with Ctrl+C, and a model
 that cannot be loaded, give one `ERROR:` line and exit code 1, without a verdict.
@@ -816,7 +822,7 @@ OUTLINE_TRACKER_FREEZE=1 uv run pytest -m slow tests/slow/test_regression_refere
 uv run pytest -m slow tests/slow/test_regression_reference.py tests/slow/test_regression_pipeline.py tests/slow/test_frozen_reference.py -q -rP -p no:cacheprovider
 ```
 
-Without `OUTLINE_TRACKER_FREEZE=1` no test writes under `tests/data/` (`tests/frozen_helpers.py`).
+Without `OUTLINE_TRACKER_FREEZE=1` no test writes under `tests/data/` (`tests/support/frozen_helpers.py`).
 With it, nothing was written unless the package was as committed and last week's code and the
 truth had agreed first.
 
@@ -881,7 +887,7 @@ known.
 - The other branch, with the chip's name changed in both headers for one run: 15 passed, 1 skipped.
   The position tests printed that the limit of 0.01 px was not measured, with 0.0001 px and
   0.0006 px; the weights test was skipped.
-- The fast tests of `tests/test_frozen_files.py` need no model and run in CI. They compare the
+- The fast tests of `tests/repo/test_frozen_files.py` need no model and run in CI. They compare the
   table with the true centers worked out from the clips' recipes, and check what the header says
   about the truth against the table. 13 single changes of the two files each made one of them
   fail: a row moved by 3.2 px, lost, removed, doubled, with 3 decimals, with u and v swapped; a

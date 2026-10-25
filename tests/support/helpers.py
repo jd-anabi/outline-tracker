@@ -31,7 +31,7 @@ GAPS_BEFORE = (30, 72, 72, 101)
 
 
 def frame_times(skip_before=(), n_frames=120, fps=240.0):
-    """The time stamped on every frame of a clip written by `synthetic.render`, in s, frame 0 at 0:
+    """The time stamped on every frame of a clip written by `synthetic.clips.render`, in s, frame 0 at 0:
     one frame duration (1 / fps) each, plus one more for every entry of `skip_before` up to the frame."""
     import numpy as np
 

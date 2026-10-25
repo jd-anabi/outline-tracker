@@ -82,7 +82,7 @@ Base size B = `QApplication.font()` (Segoe UI 9 pt = 12 px on Windows, the syste
 
 ## 4. Track colours
 
-One list for the GUI, `session.json` and `overlay.mp4`. It is core data: define it once outside `gui/` (suggested `schema.TRACK_COLORS`) and import it. A stays yellow and the hue order of last week is kept (PLAN X14; see §10). `export/overlay.py` (built, tested) draws 1 px lines without a casing; the GUI tasks do not change it.
+One list for the GUI, `session.json` and `overlay.mp4`. It is core data: define it once outside `gui/` (suggested `schema.TRACK_COLORS`) and import it. A stays yellow and the hue order of last week is kept (decision X14 of docs/design/decisions.md; see §10). `export/overlay.py` (built, tested) draws 1 px lines without a casing; the GUI tasks do not change it.
 
 | # | id | hex | name | # | id | hex | name |
 |---|---|---|---|---|---|---|---|
@@ -251,8 +251,8 @@ Where SPEC §10 goes against plugin advice (the spec wins; what softens it):
 Not a conflict: the numbers on the panels (the plugins allow them when the order carries information; here it is the workflow). Plugin advice not carried over to Qt: 16 px body text and 44 px targets (web and touch; here the system font and 28 px controls), custom fonts, icon sets, toasts, skeleton loaders, motion.
 
 Questions a designer would still ask, with the default used here:
-1. **Track colours against PLAN X14** ("colours follow last week's overlay"). Last week's list has pairs that look the same with red-green colour blindness. Default: the list of §4 (A stays yellow, same hue order), used by the GUI, `session.json` and `overlay.mp4`.
+1. **Track colours against decision X14** (docs/design/decisions.md) ("colours follow last week's overlay"). Last week's list has pairs that look the same with red-green colour blindness. Default: the list of §4 (A stays yellow, same hue order), used by the GUI, `session.json` and `overlay.mp4`.
 2. **Title of panel 1.** The spec lists its content but gives no title. Default: "Student and video".
 3. **Colour of a piece (A2, A3).** Default: the colour of its letter, so one animal keeps one colour.
-4. **Shape flags in the Flags table.** `LOWRES` and `HEADGUESS` sit on nearly every frame of a dish-scale track (PLAN X22) and would bury the rest. Default: the table shows position flags; a check box "Show shape flags too" (off) adds the others.
+4. **Shape flags in the Flags table.** `LOWRES` and `HEADGUESS` sit on nearly every frame of a dish-scale track (decision X22 of docs/design/decisions.md) and would bury the rest. Default: the table shows position flags; a check box "Show shape flags too" (off) adds the others.
 5. **Export all a second time.** It replaces the exported files. Default: no confirmation dialog; the button is no longer primary and the hint line says that the files are replaced.

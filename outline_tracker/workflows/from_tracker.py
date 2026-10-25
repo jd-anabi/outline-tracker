@@ -3,7 +3,7 @@
 Calibration and start points come from a file exported from Tracker (one track, or several point
 masses marked on one frame), exactly as last week: `tracker_io.make_plan` decides the frames, the
 start positions, fps_true and the pixel -> mm map. `from_tracker` turns that into a session
-(outline_tracker/workflows/from_tracker_session.py), tracks it with `tracking.run_job` on the whole frame (a
+(outline_tracker/workflows/from_tracker_session.py), tracks it with `tracking.job.run_job` on the whole frame (a
 Tracker export has no dish circle, so there is no dish crop), and writes every file of SPEC 8 with
 `export.export_all`. Objects named with `fine_ids` get a fine run each, in a window chosen from
 their mask on the first frame (SPEC 6.3).

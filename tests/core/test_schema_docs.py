@@ -1,6 +1,6 @@
 """Tests of outline_tracker/core/schema_docs.py: what the move out of core/schema.py must not change (SPEC 8.11).
 
-The builders used to live in core/schema.py. They moved out (task B6a) because core/schema.py had grown to 591
+The builders used to live in schema.py (now core/schema.py). They moved out (task B6a) because it had grown to 591
 lines and SPEC 12 says to split past about 400. The tests here pin what must not change in the move (the
 text, the names, the sizes, the imports). Expected values are typed from the specification or computed from the
 schema tables, never copied from the output under test.
@@ -23,10 +23,10 @@ from outline_tracker.core import schema
 
 
 # SHA-256 of the UTF-8 bytes of readme_text(), computed with
-#   uv run python -c "import hashlib; from outline_tracker import schema; \
+#   uv run python -c "import hashlib; from outline_tracker.core import schema; \
 #       print(hashlib.sha256(schema.readme_text().encode('utf-8')).hexdigest())"
 # Commit 1 of task B6a moved the builders out of core/schema.py without changing a character. Its pinned value
-# was computed from the unmodified core/schema.py of commit e49a088, before the move:
+# was computed from the unmodified schema.py (now core/schema.py) of commit e49a088, before the move:
 #   9cede8f4c9ba9cc98f4ee3ebbdb1907aa992700e9bde43c2013131705109b57b   (13751 characters, 249 lines)
 # Commit 2 changed the wording of four places (the intro, Units, Rows and the core_frac entry, see the
 # tests below). The value pinned now was computed after that change, and the diff between the two texts was

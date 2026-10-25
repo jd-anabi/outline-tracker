@@ -4,8 +4,8 @@ The clip is `synthetic.closeup_scene()` as it stands: 1920 x 1080 px, 480 frames
 second (2 s), 0.010 mm per px. Its object A is a shrimp, a 47 x 20 px body with two antennae 30 px
 long and 3 px wide that beat at 9 Hz. A is tracked in fine mode on every frame (step 1) from three
 positive clicks on frame 0, on the center of its body and on the middle of each antenna, through
-the whole pipeline: `tracking.run_job` chooses the window from the preview mask (SPEC 6.3),
-`export.export_all` writes shapes.csv. Once on `cpu` and once on the Apple GPU (`mps`, skipped
+the whole pipeline: `tracking.job.run_job` chooses the window from the preview mask (SPEC 6.3),
+`export.pipeline.export_all` writes shapes.csv. Once on `cpu` and once on the Apple GPU (`mps`, skipped
 where there is none); each device is one run, shared by its three tests (about 3.5 min on cpu and
 1.5 min on mps; `-k cpu` or `-k mps` runs one).
 

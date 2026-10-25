@@ -1,6 +1,7 @@
 """The prompts of a run for the Hugging Face processor: one object's points, and all objects put into a session.
 
-`hf.py` calls `add_prompts` when a run starts or a fall back from the Apple GPU begins a new session. Prompt points
+`hf.py` calls `add_prompts` whenever it opens a session: when a run starts, for every preview, and when a fall
+back from the Apple GPU begins a new session. Prompt points
 are px in the pixel frame of the image given to the model, Tracker's convention (pixel centers at +0.5, SPEC 3.1),
 and go to the model unchanged, as last week. Nothing here imports torch or transformers.
 """

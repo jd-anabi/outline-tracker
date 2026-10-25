@@ -13,7 +13,7 @@ of the frame. The parts:
   where it is while the object is lost, its corner rounded to whole pixels, and of the same size
   where it hangs over the frame, where the edge pixels are repeated (`cut_crop`).
 
-`tracking.run_job` runs the frames of a fine run with the same loop as a coarse one.
+`tracking.job.run_job` runs the frames of a fine run with the same loop as a coarse one.
 
 Units and coordinates (SPEC 3.1): px in Tracker's convention, the origin at the top-left corner of
 the frame, u to the right, v downward, the pixel in column c and row r with its center at
@@ -70,7 +70,7 @@ def fine_window(preview_result: MaskResult, factor: float = 3.0) -> int:
     maximum Feret diameter of the mask's outline in px.
 
     `preview_result` is the object's result from `segmenter.preview`; its offset does not matter.
-    F is `derive_outline.feret_max` of the 256-point outline that `measure.measure_mask` stores,
+    F is `measure.outline.feret_max` of the 256-point outline that `measure.measure_mask` stores,
     the diameter shapes.csv reports, here in px. Returns W in px: 96 for an empty mask and for an
     outline without a hull (all of it on one line). `factor` as in `fine_window_px`.
     """
@@ -189,7 +189,7 @@ class FineStart:
     on the start frame, in px of the first crop (one prompt). chosen: the window was chosen by the
     rule (the track had none). found: the model found the object on the start frame; if not, the
     window lies around the first positive click. A chosen window is stored in the session only
-    when the object was found (`tracking.run_job`): the 96 px chosen without a mask were measured
+    when the object was found (`tracking.job.run_job`): the 96 px chosen without a mask were measured
     on nothing, and a stored window is used as it is by every later run of the track."""
 
     crop: FollowCrop

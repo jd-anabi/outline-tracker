@@ -1,4 +1,4 @@
-"""The one `ERROR: ...` line that the commands print on stderr when they stop (SPEC 11)."""
+"""The `ERROR: ...` line that convert, check, probe, synth and compare-tracks print on stderr when they stop."""
 
 from __future__ import annotations
 

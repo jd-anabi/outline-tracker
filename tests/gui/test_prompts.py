@@ -9,7 +9,7 @@ Expected values come from the spec, from geometry and from the synthetic clip:
   macOS and `ControlModifier` elsewhere; Command, which Qt calls Control on a Mac, stays positive);
 - a click lands at the (u, v) under the cursor (a frame of W x H px that is shown whole in a view
   of w x h px is drawn at min(w / W, h / H) screen px per video px, in the middle), on the frame
-  shown, with the hash of that frame as the tracking decoder delivers it (`video.iter_rgb_frames`);
+  shown, with the hash of that frame as the tracking decoder delivers it (`video.reader.iter_rgb_frames`);
 - a frame off the clip's grid is moved forward to the grid (X20).
 Nothing is read from a pixel of text.
 """
@@ -210,7 +210,7 @@ def test_a_click_on_a_frame_off_the_grid_is_moved_forward_and_the_panel_says_so(
     assert panel.prompts.add_point(u, v, 1)
     (track,) = session_of(window).tracks
     assert points_of(track) == [(4, [[u, v]], [1])] and track.start_frame == 4  # forward, to the grid (X20)
-    # the stored hash would be frame 3's, so none is stored (tracking_edit.add_prompt)
+    # the stored hash would be frame 3's, so none is stored (tracking.edit.add_prompt)
     assert (track.prompts[0].frame_hash, track.prompts[0].decoder) == (None, None)
     # the panel says so in the function's own words, and the view shows the frame the point is on
     expected = tracking.add_prompt(copy.deepcopy(session_of(window)), ResultsStore(), "A", 3, (u, v), 1, None, None)

@@ -3,7 +3,7 @@ Apple GPU. Every test here is slow: it loads torch and the model.
 
 The window is given the real model's factory (`segmenter.load.load_segmenter`), so the worker takes
 one processor thread for the window before it loads the model, as in the application. The clip is
-last week's selftest clip (`synthetic.selftest_clip`): one dark ellipse on a 1080p frame whose
+last week's selftest clip (`synthetic.clips.selftest_clip`): one dark ellipse on a 1080p frame whose
 center is at (700.5 + 0.6 f, 500.5 + 0.2 f) px in frame f; a new session tracks every 2nd of its
 40 frames, the 20 frames 0, 2, ..., 38. The object gets one positive click on its center on frame
 0, in the window, as a student places it; the outline of that click comes from the model first.

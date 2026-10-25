@@ -1,6 +1,6 @@
 """Run folders and exact answers shared by the export tests (tests/test_export*.py).
 
-A run folder is made the way the tool makes one: coarse tracks by `tracking.run_job` with `ExactFake`
+A run folder is made the way the tool makes one: coarse tracks by `tracking.job.run_job` with `ExactFake`
 (`coarse_run`), a fine track by `add_fine`, which stores what the fine runner stores: the scene's
 ground-truth mask and logits cut to a W x W window centered on the object, measured with
 `measure_mask(..., input_box=<that window>, mode="fine")`. Every session here has the same stick,

@@ -70,7 +70,7 @@ def calibrated_session(clip, run_folder, tracks, *, step, end=None, circle=None)
 
 
 def track_job(clip, session, run_folder, segmenter, on_frame=None) -> SimpleNamespace:
-    """Track the session's pending objects with `tracking.run_job` and the given segmenter.
+    """Track the session's pending objects with `tracking.job.run_job` and the given segmenter.
 
     `on_frame(done)`, if given, is called after every tracked frame with the number of frames
     tracked so far over the whole job. Returns status ("complete", "cancelled" or "failed"), log
@@ -93,7 +93,7 @@ def track_job(clip, session, run_folder, segmenter, on_frame=None) -> SimpleName
 
 
 def track_and_export(clip, session, run_folder, segmenter) -> SimpleNamespace:
-    """`track_job`, then `export.export_all` without the overlay. Returns what `track_job` returns
+    """`track_job`, then `export.pipeline.export_all` without the overlay. Returns what `track_job` returns
     and, read back from the run folder, positions and shapes: positions.csv and shapes.csv as
     tables (their columns carry the units: mm, px, s, rad), and session: session.json as written
     by the job, parsed."""

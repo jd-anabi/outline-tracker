@@ -1,5 +1,5 @@
 """`Jobs`: tracking in the worker thread (SPEC 6.1, 6.4, 10.2; decision X7), and the one lock, `Jobs.writing()`.
-Track runs `tracking.run_job` there, with the model the worker loaded, so the window stays usable. `Jobs` takes
+Track runs `tracking.job.run_job` there, with the model the worker loaded, so the window stays usable. `Jobs` takes
 over what a job reports back.
 
 `Jobs` lives in the GUI thread, one per window (`jobs_of`). `start()` checks what must be there,
@@ -8,7 +8,7 @@ doing, and an outline asked for meanwhile waits until the job has ended (one job
 time). The task calls `run_job` with a copy of the session, made in the GUI thread.
 
 Who writes what. The worker thread writes results.npz and nothing else. Every change a job makes
-to the session (`tracking.SessionChanges`: a run's record, whether the results are complete, a
+to the session (`tracking.job.SessionChanges`: a run's record, whether the results are complete, a
 frame hash, a fine window) crosses to the GUI thread as the value of a signal, is applied to
 `controller.session` there, and is saved there. The task reports through private signals of the
 `Jobs` object, which are connected to its own bound methods: emitted in the worker thread, they
@@ -132,7 +132,7 @@ class Jobs(QObject):
     """Tracking for one window, from the GUI thread (see the module's text).
 
     `running`: a job was handed to the worker and has not reported its end. `cancelling`: it was
-    asked to stop. `plans`: the runs of the job (`tracking.RunPlan`), `run_number` the one that is
+    asked to stop. `plans`: the runs of the job (`tracking.job.RunPlan`), `run_number` the one that is
     tracked (from 1). `done`, `total`: tracked frames and frames to track over all runs;
     `s_per_frame`, `eta_s`: s per tracked frame so far and s left. `status`, `reason`: how the last
     job ended ("complete", "cancelled", "failed"; "" before the first) and the plain reason of a
@@ -204,7 +204,7 @@ class Jobs(QObject):
     # ------------------------------------------------------------------ before a job
 
     def pending(self) -> list:
-        """The runs Track would start now (`tracking.plan_runs` of the session and the results on
+        """The runs Track would start now (`tracking.job.plan_runs` of the session and the results on
         disk), none without a session. Raises ValueError, with a sentence for the user, for clicks
         or a clip that cannot be tracked, and for a results file of another version."""
         session = self._controller.session

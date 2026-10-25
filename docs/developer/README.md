@@ -8,6 +8,8 @@ The package is `outline_tracker/`. The core has no window: everything outside `g
 
 Which module holds what is in [modules.md](modules.md): one row for each module, with the first line of its docstring. The page is generated from those first lines, and a test fails when it is out of date; write it again with `uv run python tests/support/module_index.py docs/developer/modules.md`. A new module therefore starts with a docstring whose first line is a sentence of its own.
 
+The subpackages are layers, from the bottom: `core`; `video`; `measure` and `segmenter`; `tracking` and `synthetic`; `export`; `workflows`; `gui`; `cli` (its `gui` command opens the window); and `launch.py`. A module imports modules of its own subpackage and of lower layers only, and two subpackages of one layer do not import each other. In `gui/`, a panel (a module that `PANEL_MODULES` names) imports no other panel, and no module that is not a panel imports one; a part of one panel, such as `gui/panels/review_table.py`, lies beside it. `tests/repo/test_layers.py` holds the rule; its list `EXCEPTIONS` names the imports that still break it, each with the workstream that removes it.
+
 Panel 5 has no module (`probes_panel` in `PANEL_MODULES`): it shows its hint line alone, and the `probe` command does its work.
 
 ## Tests
@@ -52,7 +54,7 @@ How the tests are laid out:
 The rules that every change has to keep are in [CLAUDE.md](../../CLAUDE.md), in short, and in
 section 2 of [ROADMAP.md](../ROADMAP.md), in full. They are not repeated here. One more, from SPEC 12:
 
-- Every public function says its units and its coordinate frame in its docstring. Split a file that grows past about 400 lines.
+- Every public function says its units and its coordinate frame in its docstring. No `.py` file of the package or of the tests is over 400 lines: `tests/repo/test_file_sizes.py` fails one that is, unless its list `OVER_400` names the file with the reason.
 
 ## Adding a panel
 
@@ -72,7 +74,7 @@ A model is made in a thread of its own, which calls the factory, does nothing el
 
 - `gui/worker_engine.py`, `_Engine`: the object that lives in the worker thread. `_Making`: the thread that makes one model and ends.
 - `gui/worker.py`, `Worker`: its handle in the GUI thread. Its methods return at once (`start`, `load`, `request_preview`, `run`, `stop`). Its signals are always emitted in the GUI thread.
-- `gui/worker_jobs.py`, `Jobs`: starts `tracking.run_job` in the worker thread with a copy of the session, and takes over what the job reports. `Jobs.writing()` is the one lock: it says whether, and why, the worker is busy with a task that writes files (a tracking run, or the export that panel 9 reports with `set_exporting`).
+- `gui/worker_jobs.py`, `Jobs`: starts `run_job` (`tracking/job.py`) in the worker thread with a copy of the session, and takes over what the job reports. `Jobs.writing()` is the one lock: it says whether, and why, the worker is busy with a task that writes files (a tracking run, or the export that panel 9 reports with `set_exporting`).
 
 A signal of the worker or of a job is connected only to a method of an object that lives in the GUI thread, never to a lambda: a lambda would run in the worker thread.
 
@@ -83,8 +85,8 @@ Who writes which file:
 | file | written by |
 |---|---|
 | session.json | the GUI thread only (`SessionController`). What a job changes in the session crosses as the value of a signal and is applied and saved there. A closing window writes it only when a save is due: its time tells panel 9 whether the exported files are older than the session. |
-| results.npz | the worker thread while a job runs (`tracking.run_job`). Between jobs, the GUI thread's edits that delete records write it (Remove, and the corrections of panel 8), which is one reason why they are off during a run and during an export. |
-| positions.csv and the other exported files | the worker thread during Export all (`export.export_all`), from session.json and results.npz as they are on disk. |
+| results.npz | the worker thread while a job runs (`run_job`, `tracking/job.py`). Between jobs, the GUI thread's edits that delete records write it (Remove, and the corrections of panel 8), which is one reason why they are off during a run and during an export. |
+| positions.csv and the other exported files | the worker thread during Export all (`export_all`, `export/pipeline.py`), from session.json and results.npz as they are on disk. |
 | run.log | the GUI thread, when a job has ended, with the lines the job said and the trace of a failure; an export appends its own block. |
 | the settings (the manifest's place, Fill) | the GUI thread (`gui/settings.py`, `settings()`). |
 

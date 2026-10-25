@@ -4,7 +4,7 @@ The clip is `synthetic.dish_scene()` as it stands: 1920 x 1080 px at 240 frames 
 0.0324 mm per px, a dish of radius 486 px with three objects: A, a shrimp whose body is 14.5 px
 long, and B and C, plain bodies of the same size. All three are tracked in coarse mode from one
 positive click each, on frames 0, 2, ..., 58, with the scene's dish circle, so the model is shown
-the dish square (SPEC 6.2), through `tracking.run_job` and `export.export_all`: one run on `cpu`,
+the dish square (SPEC 6.2), through `tracking.job.run_job` and `export.pipeline.export_all`: one run on `cpu`,
 shared by the three tests (one per object). On those frames B and C are more than 200 px apart
 (they meet on frame 240).
 

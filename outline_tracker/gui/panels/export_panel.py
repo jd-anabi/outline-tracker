@@ -95,7 +95,7 @@ def duration(seconds: float) -> str:
 
 def sentence_of(error: BaseException, folder: Path) -> str:
     """What stopped an export in the run folder `folder`, on one line, as the command line says it
-    (`cli_export.run`): the package's own message for what it words itself, with the folder's name
+    (`cli.export.run`): the package's own message for what it words itself, with the folder's name
     in place of its path; for anything else `pipeline.UNUSABLE` with the error's kind."""
     text = one_line(str(error))
     if text and isinstance(error, (OSError, RuntimeError, ValueError, cv2.error)):

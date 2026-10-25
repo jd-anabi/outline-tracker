@@ -86,7 +86,7 @@ class Found:
 def found_in(preview: Preview, session) -> tuple[dict[str, Found], list[str]]:
     """What `preview` holds for the tracks of `session`: (found by track id, the ids of the
     objects the model did not find). Each mask is put back into the full frame and measured as
-    tracking measures it (`measure.measure_mask`), so the outline is the one a run would store.
+    tracking measures it (`measure.mask.measure_mask`), so the outline is the one a run would store.
     A result for an object the session no longer has is left out. Raises ValueError for a result
     that cannot be measured."""
     (c0, r0), box = preview.offset, (*preview.offset, *preview.size)

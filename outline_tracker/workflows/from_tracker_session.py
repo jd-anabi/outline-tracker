@@ -136,7 +136,7 @@ def count_fit_points(export: Path) -> int:
 def build_session(plan: Plan, world: WorldFrame, info: VideoInfo, video: Path, run: Path, *, last_frame: int,
                   fps: FpsChoice, student: str, fine_ids: list[str], model: str, device: str, n_fit_points: int,
                   start_hash: str, decoder: str) -> Session:
-    """The session a Tracker export stands for, ready for `tracking.run_job`.
+    """The session a Tracker export stands for, ready for `tracking.job.run_job`.
 
     plan: last week's plan (names, first pixel positions in image px, start frame, step, fps_true
     in frames per second, the fitted calibration). world: that calibration as scale (mm per px),

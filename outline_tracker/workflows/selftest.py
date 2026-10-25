@@ -1,7 +1,7 @@
 """selftest: check the installation and time the model on this computer (SPEC 11, 13.4).
 
 Last week's `shrimp.segment.selftest`, ported. What is last week's and stays: the made-up clip
-(`synthetic.selftest_clip`: one shrimp-sized dark ellipse on a 1080p frame, 40 frames, tracked on
+(`synthetic.clips.selftest_clip`: one shrimp-sized dark ellipse on a 1080p frame, 40 frames, tracked on
 every 2nd), the limit of 3 px, the estimate for 1,200 frames with `EXTRA_PER_SHRIMP`, and the two
 last lines. What changed is how the clip is tracked: through `from_tracker.from_tracker`, as a
 student's own run is (coarse, no overlay, fps_true typed as 240 frames per second, so that no

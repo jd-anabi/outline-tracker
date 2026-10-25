@@ -11,7 +11,7 @@ stays locked the data are kept next to it as `<stem>.new<suffix>`.
 That rename is `replace_with_retry`, the one place that says what counts as locked, how long to
 wait and what to tell the user. A folder that cannot take `atomic_write`'s names calls it with names
 of its own: the Tracker-format folder, where students' loaders read every .csv file as a track
-(`export_tables.write_tracker_folder`). `append_block` adds an entry to run.log; every command that
+(`export.tables.write_tracker_folder`). `append_block` adds an entry to run.log; every command that
 writes to that file uses it.
 
 No units or coordinates here: paths and bytes only. No Qt, no torch.

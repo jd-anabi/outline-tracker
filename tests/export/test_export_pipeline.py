@@ -1,5 +1,5 @@
 """Export through the code a user's click reaches (SPEC 6.3, 6.6, 8.2-8.6, 8.9, 13.2): fine tracks
-made by `tracking.run_job`, and the three corrections made by `retrack_from`, `end_track` and
+made by `tracking.job.run_job`, and the three corrections made by `retrack_from`, `end_track` and
 `new_piece`, each followed by the job it asks for and by `export.export_all`. The same checks with
 results.npz made by hand are in tests/export/test_export_shapes.py and tests/export/test_export_corrections.py.
 

@@ -1,7 +1,8 @@
 """The layers of the package: which subpackage may import which, kept as a rule of the repository.
 
-The rule comes from docs/roadmap/repo.md section 3 ("Allowed direction") and from the decisions of W2 in
-docs/ROADMAP.md. `RANK` is its table, from the bottom up:
+The rule is written for people on docs/developer/README.md ("Where what is"); it came from the inventory of W2
+(docs/roadmap/repo.md section 3, "Allowed direction", in the history at 0920681) and from the decisions of W2
+in docs/ROADMAP.md. `RANK` is its table, from the bottom up:
 
 - a module may import a module of its own subpackage, or of a subpackage of lower rank; two subpackages of
   the same rank do not import each other;

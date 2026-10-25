@@ -13,7 +13,7 @@ frame. Frames are video frame numbers. Nothing here knows about mm or seconds.
 
 The file: `version` (a whole number, `schema.RESULTS_VERSION`), and for every track the arrays of
 `schema.RESULTS_KEYS` under the keys `<track id>__<name>`. The mask crops of a track lie one after
-another in `mask_bits`, each packed by `measure.pack_mask`. It is written without compression and
+another in `mask_bits`, each packed by `measure.mask.pack_mask`. It is written without compression and
 without pickled objects, through `fileio.atomic_write`.
 
 No Qt, no torch.
@@ -62,7 +62,7 @@ class TrackArrays:
     `mask_bits` holds the bytes of all crops). Positions (u, v) and outline points are in px in
     full-frame image coordinates, pixel centers at +0.5; covariances are (mu_uu, mu_uv, mu_vv) in
     px^2; `frames` are video frame numbers. A lost frame keeps its row: `visible` False, counts 0,
-    NaN in the measured numbers, an empty crop (see `measure.PixelRecord`). `len()` is n.
+    NaN in the measured numbers, an empty crop (see `measure.mask.PixelRecord`). `len()` is n.
     """
 
     frames: np.ndarray
@@ -132,7 +132,7 @@ class ResultsStore:
         return sorted(self._tracks)
 
     def put(self, track_id: str, record: PixelRecord) -> None:
-        """Store `record` (from `measure.measure_mask`, in full-frame px) as frame `record.frame` of
+        """Store `record` (from `measure.mask.measure_mask`, in full-frame px) as frame `record.frame` of
         track `track_id`. A record already stored for that frame is replaced. Frames may come in
         any order. Raises ValueError for a track id that is not a non-empty text, and for a record
         that the file could not hold: a field of another shape than `schema.RESULTS_KEYS` gives
@@ -222,7 +222,7 @@ class ResultsStore:
 
 
 def _crop_bytes(rows, cols):
-    """Bytes that `measure.pack_mask` makes of a crop of `rows` x `cols` pixels (numbers or arrays)."""
+    """Bytes that `measure.mask.pack_mask` makes of a crop of `rows` x `cols` pixels (numbers or arrays)."""
     return (rows * cols + 7) // 8
 
 

@@ -31,7 +31,7 @@ LEFT, RIGHT, MIDDLE = Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton, Qt.
 NO_KEY, ALT, SHIFT = (Qt.KeyboardModifier.NoModifier, Qt.KeyboardModifier.AltModifier,
                       Qt.KeyboardModifier.ShiftModifier)
 QT_CONTROL, QT_META = Qt.KeyboardModifier.ControlModifier, Qt.KeyboardModifier.MetaModifier
-DISK_RADIUS = 12.0  # of the three disks of `synthetic.disk_scene`, px
+DISK_RADIUS = 12.0  # of the three disks of `synthetic.clips.disk_scene`, px
 SAFETY_S = 30       # a gate that nobody opens gives up after this long, so that no run hangs
 
 

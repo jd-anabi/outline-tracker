@@ -25,7 +25,7 @@ def seconds_per_object_frame(seconds_per_frame: float, objects: int) -> float:
 
 
 def estimate_seconds(seconds_per_frame: float, plans: Iterable) -> float:
-    """The estimated time of a job in s: for each run of `plans` (`tracking_plan.RunPlan`), the s
+    """The estimated time of a job in s: for each run of `plans` (`tracking.plan.RunPlan`), the s
     per frame of one object (`seconds_per_frame`) x the run's frames x (1 + 0.5 per extra object
     of the run)."""
     return sum(float(seconds_per_frame) * len(plan.frames) * (1.0 + EXTRA_PER_OBJECT * (len(plan.track_ids) - 1))

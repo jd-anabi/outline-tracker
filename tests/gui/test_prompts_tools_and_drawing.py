@@ -7,7 +7,7 @@ tests/gui/test_prompts.py.
 Expected values come from the spec, from geometry and from the synthetic clip:
 - a click lands at the (u, v) under the cursor (a frame of W x H px that is shown whole in a view
   of w x h px is drawn at min(w / W, h / H) screen px per video px, in the middle);
-- the disks of `synthetic.disk_scene` have radius 12 px and known centers, so the outline of a
+- the disks of `synthetic.clips.disk_scene` have radius 12 px and known centers, so the outline of a
   clicked disk lies on that circle;
 - the texts and cursors of the tools are the design note's.
 Nothing is read from a pixel of text; the one test that reads the drawn view looks for the track's

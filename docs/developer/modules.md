@@ -199,7 +199,7 @@ The command line (SPEC 11): the parser in `main`, and one module for each of the
 | `cli/check.py` | The `check` command (SPEC 11): check a video before you analyze it, with `--seek` also its frame jumps. |
 | `cli/compare_tracks.py` | The hidden `compare-tracks` command (decision X10): compare the track files of two folders, in px. |
 | `cli/convert.py` | The `convert` command (SPEC 11): make a copy of a phone video that Tracker can open. |
-| `cli/errors.py` | The one `ERROR: ...` line that the commands print on stderr when they stop (SPEC 11). |
+| `cli/errors.py` | The `ERROR: ...` line that convert, check, probe, synth and compare-tracks print on stderr when they stop. |
 | `cli/export.py` | The `export` command (SPEC 8, 11): write every output file of a run folder again. |
 | `cli/from_tracker.py` | The `from-tracker` command (SPEC 11, decision X19): its options, and `from_tracker` behind them. |
 | `cli/gui.py` | The `gui` command (SPEC 10, 11): open the window, with a video or a session if one is named. |

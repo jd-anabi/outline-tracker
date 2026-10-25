@@ -147,7 +147,7 @@ def run_job(job: Job, callbacks: Callbacks) -> str:
     into what the model sees (`run_prompts`) and the start frames are checked (`check_start_frames`).
     Then `make_segmenter` is called, and each fine object is looked for on its start frame, which
     gives its window, the window's first place and its clicks in that window
-    (`tracking_fine.fine_starts`; that reads the video up to the last such frame once more).
+    (`tracking.fine.fine_starts`; that reads the video up to the last such frame once more).
     What fails there is raised, nothing is written and `finished` is not called: ValueError
     (`core_open_frac` not finite or negative, `fps_true` not a positive number, a fine window or
     `fine_window_factor` that cannot be used, an unknown track, a prompt that cannot be used, a
@@ -238,7 +238,7 @@ def _now() -> str:
 class _FixedView:
     """What the model is shown during a coarse run: always the same `box` = (c0, r0, width, height),
     whole px of the full frame (the dish square or the whole frame, SPEC 6.2). `frame_size` =
-    (width, height) of the video's frames, px. A fine run has `tracking_fine.FollowCrop` instead."""
+    (width, height) of the video's frames, px. A fine run has `tracking.fine.FollowCrop` instead."""
 
     mode = "coarse"
 

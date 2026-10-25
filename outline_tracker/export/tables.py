@@ -2,7 +2,7 @@
 They are the rows of the three tables, the arrays of outlines.npz and the folder `<model>/<id>.csv` (SPEC 8.2-8.6).
 
 Everything here is made from derived tracks (`derive.DerivedTrack`) and the flags cells of `qc`;
-the column lists, number formats and file texts are `schema`'s. `export.export_all` decides what is
+the column lists, number formats and file texts are `schema`'s. `export.pipeline.export_all` decides what is
 written where.
 
 Rules of the rows:

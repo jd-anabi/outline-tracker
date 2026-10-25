@@ -19,7 +19,7 @@ program, they raise RuntimeError and change nothing: no correction is recorded w
 results. They do the same while the run folder holds a results.new.npz, where a job leaves its
 results when it cannot write results.npz: that file is never replaced or removed here, the user
 renames or removes it first. `session.complete` follows the results
-(`tracking_plan.partial_tracks`).
+(`tracking.plan.partial_tracks`).
 
 "Re-track from here", the whole sequence:
 
@@ -30,7 +30,7 @@ renames or removes it first. `session.complete` follows the results
 The job tracks what is pending: the tracks named, from frame k on. `new_piece` and a new object
 are tracked by the same last two lines. No edit makes a gap inside a track (SPEC 8.2): a track
 with results is clicked on, and re-tracked from, the first grid frame after its last record at the
-latest (`tracking_plan.check_no_gap`).
+latest (`tracking.plan.check_no_gap`).
 
 Units and coordinates (SPEC 3.1, 3.4): frames are video frame numbers; a start, re-track or
 new-piece frame that is not on the clip's grid is moved forward to the next grid frame (X20), and
@@ -107,7 +107,7 @@ def retrack_from(session: Session, store: ResultsStore | None, track_ids: Sequen
     is not named, clicks whose points and labels do not match, a track without a positive click
     on k, a k after the end of a track that was ended, a k after the frame of clicks that still
     wait to be tracked, and a k later than the first grid frame after a track's last record: the
-    frames between would have no results (`tracking_plan.check_no_gap`). Raises RuntimeError,
+    frames between would have no results (`tracking.plan.check_no_gap`). Raises RuntimeError,
     changing nothing, when results.npz stays locked by another program, or the run folder holds a
     results.new.npz (the module's text).
     """

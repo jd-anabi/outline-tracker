@@ -4,7 +4,7 @@ memory is flat in the number of frames.
 The clip is `memory_child.ten_ellipse_scene()`: 1920 x 1080 px, 100 frames at 240 frames per
 second, ten dark ellipses (semi-axes 8 and 3 px) more than 250 px apart. A child process
 (tests/slow/memory_child.py, started with this Python) tracks all ten in one coarse run on the
-whole frame, every frame, with EdgeTAM on `cpu`, through `tracking.run_job`, and samples its own
+whole frame, every frame, with EdgeTAM on `cpu`, through `tracking.job.run_job`, and samples its own
 memory in the job's progress callback. It runs alone in its process, so pytest, the rendering of
 the clip and the other tests are not in the numbers.
 

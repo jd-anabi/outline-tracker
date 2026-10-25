@@ -12,7 +12,7 @@ on Windows and Linux the Control key is `ControlModifier` and the Windows key is
 So the platform decides which of the two is the physical Control key, and a Command-click on a Mac
 stays a positive point.
 
-The frame of a click. The hash stored with a click is `video.frame_hash` of the frame as
+The frame of a click. The hash stored with a click is `video.reader.frame_hash` of the frame as
 `FrameSource.get` returns it: the frame of the sequential decode, bit for bit, which tracking
 reads and the guard at a run's start compares. A picture in the view that is not that frame
 (another source, no frame, a frame that cannot be read) takes no click (`frame_shown`).
@@ -179,7 +179,7 @@ def preview_input(session, frame: int, rgb: np.ndarray):
     positive point there that the model would be shown.
 
     box = (c0, r0, width, height), whole px of the full frame: the part tracking shows the model
-    (`tracking_plan.view_box`: the dish square, or the whole frame). image: that part of `rgb`.
+    (`tracking.plan.view_box`: the dish square, or the whole frame). image: that part of `rgb`.
     prompts: one per object with clicks on the frame, in the session's order, points in px of
     `image`; points outside it are left out, as tracking leaves them out. signature: equal for
     equal clicks on the same frame and part, for telling whether an outline is still up to date.

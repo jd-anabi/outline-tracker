@@ -12,7 +12,7 @@ checks a read passes through depends on whether it is a step forward or a jump.
 
 The clips, the 27 frame numbers and the helpers are those of tests/support/frame_source_helpers.py. Frame numbers
 count from 0; times are s or ms of file time, as each name says; one frame step is 1/240 s. Expected
-frames come from the sequential decode `video.iter_rgb_frames`. Every fault here is injected: none
+frames come from the sequential decode `video.reader.iter_rgb_frames`. Every fault here is injected: none
 was seen on a real file.
 """
 

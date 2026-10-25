@@ -1,6 +1,6 @@
 """Shared by the tests of the `export` command (tests/cli/test_cli_export.py).
 
-The run folders are the ones of tests/support/export_helpers.py: tracked by `tracking.run_job` with `ExactFake` on
+The run folders are the ones of tests/support/export_helpers.py: tracked by `tracking.job.run_job` with `ExactFake` on
 the synthetic dish clip, with a calibration stick of 300 px = 30 mm (K = 0.1 mm per px). Expected numbers
 come from the scene's true masks and that stick, never from the command's own output. Sessions are edited
 as a person would edit them, as JSON text.

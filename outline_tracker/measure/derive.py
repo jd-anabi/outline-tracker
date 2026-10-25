@@ -24,7 +24,7 @@ Which number comes from where:
 - `major_mm`, `minor_mm` and `eccentricity` come from the full mask's moments (the stored
   `cov_full`); the heading and `core_x_mm`, `core_y_mm` from the core's (`derive_heading`).
 - The resolution indicators `px_along_major`, `cells_along_major` and `shape_ok` are of the
-  largest piece of the mask, the piece the outline goes around (`measure.largest_piece`), so that
+  largest piece of the mask, the piece the outline goes around (`measure.mask.largest_piece`), so that
   a few stray pixels far from the object cannot lengthen them; this replaces the full mask of
   SPEC 7.8 (decision 26 of docs/ROADMAP.md). With one piece that is the full mask, and `cov_full`
   gives them. With more pieces (`n_components` > 1) the row's stored mask crop is unpacked and its
@@ -207,7 +207,7 @@ def _largest_piece_px(crop: np.ndarray, outline: np.ndarray) -> float:
     centers, the formula of the full mask's major axis on fewer pixels. `outline` is the stored
     outline of the same row, (u, v) in px from the crop's top-left corner (the full-frame points
     minus the crop's offset): of pieces of equal size it says which one the outline was taken
-    from, and that one is measured (see `measure.largest_piece`)."""
+    from, and that one is measured (see `measure.mask.largest_piece`)."""
     piece, _ = largest_piece(crop, outline)
     rows, cols = np.nonzero(piece)
     du, dv = cols - cols.mean(), rows - rows.mean()

@@ -2,7 +2,7 @@
 The estimate is the time before a run, the progress bar shows s per frame and the time left, and one line says
 how the run ended.
 
-The job itself is `tracking.run_job` in the worker thread (gui/worker_jobs.py, `Jobs`); what it
+The job itself is `tracking.job.run_job` in the worker thread (gui/worker_jobs.py, `Jobs`); what it
 stored is drawn on the picture by gui/view/overlays.py, which this panel makes. This module is the
 panel's controls:
 

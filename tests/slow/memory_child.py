@@ -3,7 +3,7 @@ the real EdgeTAM on `cpu` and writes down its own memory after every tracked fra
 
 Run as `python memory_child.py VIDEO RUN_FOLDER SAMPLES.json` with the folder of the helper modules
 (tests/support/) on PYTHONPATH, so that it finds `pipeline_helpers` and `tracking_helpers`. VIDEO is
-`ten_ellipse_scene()` written by `synthetic.render`. The process holds what a run of the tool holds
+`ten_ellipse_scene()` written by `synthetic.clips.render`. The process holds what a run of the tool holds
 (the model, the job, the results); the clip was rendered by the parent.
 
 SAMPLES.json: status, frames (tracked), lost (object-frames without a mask), seconds_per_frame (s),

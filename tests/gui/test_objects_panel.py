@@ -6,7 +6,7 @@ Expected values come from the spec and the design note: ids are A, B, ... with t
 clicks; the status words are "no prompts", "ready", "tracked" and "ended" (SPEC 5); the panel is
 done when at least one object has a click, and its hint line says the next step. Results that a
 job would have left are made from the synthetic clip (`prompt_helpers.tracked_folder`). A disk of
-`synthetic.disk_scene` has radius 12 px, so its fine window is clip(ceil(3 x 24), 96, 512) = 96 px
+`synthetic.clips.disk_scene` has radius 12 px, so its fine window is clip(ceil(3 x 24), 96, 512) = 96 px
 around its center (SPEC 6.3). Nothing is read from a pixel of text.
 """
 

@@ -2,8 +2,8 @@
 That is, is the frame the tracking decoder delivers under a number the frame the user clicked on?
 
 When the user clicks on a frame, the session stores a hash of that decoded frame and the tag of
-the decoder that made it (`video.frame_hash`, `video.decoder_tag`). Before anything is tracked,
-`check_start_frames` decodes every run's start frame as tracking will (`video.iter_rgb_frames`,
+the decoder that made it (`video.reader.frame_hash`, `video.reader.decoder_tag`). Before anything is tracked,
+`check_start_frames` decodes every run's start frame as tracking will (`video.reader.iter_rgb_frames`,
 the definition of frame numbers) and compares. A different frame under the same number would put
 every click on the wrong picture, so the job stops there.
 
@@ -36,7 +36,7 @@ class FrameHashUpdate:
     made (decision X8).
 
     track_id, frame: the clicks it is for, those of that track on that video frame. frame_hash:
-    `video.frame_hash` of the frame as tracking decodes it here. decoder: `video.decoder_tag()` here.
+    `video.reader.frame_hash` of the frame as tracking decodes it here. decoder: `video.reader.decoder_tag()` here.
     """
 
     track_id: str
@@ -71,7 +71,7 @@ def check_start_frames(video_path, session: Session, plans: Sequence[RunPlan],
     that frame, of a track of the run, stores another hash than the decoded frame has.
 
     A prompt without a hash is not compared. A hash without a decoder tag is compared as it is. A
-    hash made by another decoder (its tag differs from `video.decoder_tag()` here: the folder came
+    hash made by another decoder (its tag differs from `video.reader.decoder_tag()` here: the folder came
     from another computer) cannot be compared; the frame's hash here takes its place (X8). Those
     are returned, one `FrameHashUpdate` per track and start frame, for the session's writer to
     store, and said once per other decoder through `log`. `session` itself is not changed.

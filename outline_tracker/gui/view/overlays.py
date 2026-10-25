@@ -11,12 +11,12 @@ the file in one step, so a read never meets half a file. Showing another frame r
 - A track is drawn on a frame only if it has a record there and was found: a frame that was not
   tracked and a lost frame draw nothing for that track. A track the session does not list is not
   drawn.
-- The head mark sits where the head direction (`derive_heading.track_headings`, the rule of SPEC
+- The head mark sits where the head direction (`measure.heading.track_headings`, the rule of SPEC
   7.3, the same that export uses) leaves the stored outline: at the outline point farthest along
   it from the core's center. It is filled when the head was clicked and an edge only when the head
   side is a guess (the flag HEADGUESS). The direction does not depend on the calibration, so it is
   worked out in px with y turned upward.
-- The square of a fine track on a frame is `tracking_fine.crop_box` around the object's centroid
+- The square of a fine track on a frame is `tracking.fine.crop_box` around the object's centroid
   on the tracked frame before (the last one on which it was found), with the side the record
   holds (256 grid cells); on the track's first record, around the centroid of that record, which
   is where the model found the object on that frame.

@@ -1,7 +1,7 @@
 """`outline-tracker export SESSION.json [--overlay]`: every output again from the session and results.npz
 (SPEC 8, 11; review focus 1 and 5).
 
-The run folders are tracked by `tracking.run_job` with `ExactFake` on the synthetic dish clip
+The run folders are tracked by `tracking.job.run_job` with `ExactFake` on the synthetic dish clip
 (tests/support/export_helpers.py: a stick of 300 px = 30 mm, so K = 0.1 mm per px, origin (100.5, 60.25) px, axis
 angle 0), so every expected number comes from the scene: the true centroids of the masks and the stick. The
 files themselves are tested in tests/test_export*.py; here it is what the command prints and returns, what it

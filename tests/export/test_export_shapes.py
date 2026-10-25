@@ -2,7 +2,7 @@
 13.1, 13.2).
 
 `shapes_scene` holds an ellipse (A: semi-axes 40 and 15 px, turning) and a disk (B: radius 50 px).
-Coarse tracks come from `tracking.run_job` with `ExactFake`, with the dish crop on and off; fine
+Coarse tracks come from `tracking.job.run_job` with `ExactFake`, with the dish crop on and off; fine
 tracks are stored by `export_helpers.add_fine` (the fine runner is tested where it is written).
 Every expected value is the shape's own: 2a, 2b, the heading of the scene's path, 2 pi R, the exact
 crossing of a ray with the true ellipse; the core's centroid is that of the true mask's core, worked
