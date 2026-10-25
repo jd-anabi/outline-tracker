@@ -39,7 +39,6 @@ OVER_400: dict[str, str] = {
     "tests/gui/test_model_choice.py": "6d",
     "tests/gui/test_prompts.py": "6d",
     "tests/gui/test_review.py": "6d",
-    "tests/gui/test_session_panels.py": "6d",
     "tests/gui/test_session_saving.py": "6d",
     "tests/gui/test_tools.py": "6d",
     "tests/gui/test_tracking_panel.py": "6d",

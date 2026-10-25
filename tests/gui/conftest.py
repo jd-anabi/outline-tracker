@@ -89,7 +89,8 @@ def own_settings(tmp_path):
     so the scope is not put back: it stays on a test folder, which no later test may count on.
 
     It acts on the tests that ask for it and on no other. The two modules whose every test needs it
-    say so in their `pytestmark` (tests/gui/test_session_panels.py, tests/gui/test_session_saving.py).
+    say so in their `pytestmark` (tests/gui/test_session_panels.py, test_session_panels_clip_and_fps.py and
+    tests/gui/test_session_saving.py).
     """
     folder = tmp_path / "settings"
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(folder))

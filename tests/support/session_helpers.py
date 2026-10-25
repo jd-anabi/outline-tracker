@@ -1,9 +1,9 @@
 """What the tests of panels 1 and 2 and of session saving share (task C2).
 
-Imported by name from tests/gui/test_session_panels.py and tests/gui/test_session_saving.py. Every
-clip a test here works on is a copy in the test's own folder (the fixture `hd_clip` of
-tests/gui/conftest.py), because the window writes a run folder next to the video. Frames are video
-frame numbers counted from 0; fps_true is in frames per second.
+Imported by name from tests/gui/test_session_panels.py, test_session_panels_clip_and_fps.py and
+tests/gui/test_session_saving.py. Every clip a test here works on is a copy in the test's own folder
+(the fixture `hd_clip` of tests/gui/conftest.py), because the window writes a run folder next to the
+video. Frames are video frame numbers counted from 0; fps_true is in frames per second.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from gui_helpers import body
 NAME = "Ada Lovelace"
 FOLDER_OF_NAME = "dish_tracker_outline_Ada_Lovelace"  # SPEC 8.1: <video stem>_outline_<student>, blanks as _
 LEFT = Qt.MouseButton.LeftButton
+TIME_HINT = "Type the true frame rate (fps_true), or measure it with the stopwatch."
 
 
 def type_into(qtbot, field, text: str, enter: bool = True) -> None:
@@ -72,3 +73,9 @@ def write_manifest(path, rows) -> Path:
     lines = ["video_file,fps_true", *(f"{name},{fps}" for name, fps in rows)]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+def state(window, number: int) -> tuple[str, str]:
+    """(state, hint) of panel `number`."""
+    panel = window.panels[number - 1]
+    return panel.state, panel.hint.text()
