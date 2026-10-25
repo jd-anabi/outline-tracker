@@ -106,6 +106,11 @@ class Watched:
         return getattr(self.inner, name)
 
 
+def asked_of(stand_in: Watched) -> list[list[str]]:
+    """The objects of each preview that was asked of a `Watched` stand-in, in order."""
+    return [[name for name, _, _ in call] for call in stand_in.previews]
+
+
 def this_thread() -> int:
     """The thread this is called in, as Python numbers it (a Qt thread has such a number too)."""
     return threading.get_ident()

@@ -132,7 +132,7 @@ def larger_font(qapp, request):
 
 
 # ---------------------------------------------------------------------------------------------
-# A worker without a window (tests/gui/test_joins.py, tests/gui/test_model_choice.py)
+# A worker without a window (tests/gui/test_joins.py, tests/gui/test_model_choice_worker.py)
 
 
 @pytest.fixture

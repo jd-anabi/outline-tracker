@@ -1,8 +1,8 @@
 """What the tests of task C8b share: a run parked inside the model, the question before Remove,
 a stand-in that names its device, and the README's Quickstart read as data.
 
-Imported by name from tests/gui/test_run_lock.py, test_model_choice.py, test_fill.py and
-test_finish.py. Nothing here imports torch.
+Imported by name from tests/gui/test_run_lock.py, test_model_choice.py, test_model_choice_worker.py,
+test_fill.py and test_finish.py. Nothing here imports torch.
 
 - `parked` gives a stand-in whose tracked frame `park_at` waits at a `Gate` (prompt_helpers), and
   `press_track` presses Track and waits until the worker thread stands there: the run is going,
