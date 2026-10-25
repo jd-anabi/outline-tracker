@@ -3,7 +3,7 @@ test_joins_exported_files.py): a run folder that was tracked before the window o
 of the window that a task which writes files switches off, and the times of the three files that
 decide the state of panel 9.
 
-Imported by name from those three files. Nothing here imports torch, and no helper waits
+Imported by name from the three test files of the joins. Nothing here imports torch, and no helper waits
 with a delay: a factory, a run or an export is parked on a `Gate` (tests/support/prompt_helpers.py).
 
 Frames are video frame numbers; times of files are the computer's local time.
