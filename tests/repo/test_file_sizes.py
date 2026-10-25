@@ -35,7 +35,6 @@ SCANNED = (PACKAGE_NAME, "tests")
 # entry, the second for an entry whose file is no longer long.
 OVER_400: dict[str, str] = {
     # 6d: the tests of gui/
-    "tests/gui/test_prompts.py": "6d",
     "tests/gui/test_worker.py": "6d",
 }
 
