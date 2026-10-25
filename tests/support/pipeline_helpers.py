@@ -11,8 +11,9 @@ Units and coordinates (SPEC 3): px in Tracker's convention, u to the right, v do
 the middle of the frame; frames are video frame numbers; times in s. Nothing here imports torch.
 
 What has nothing to do with a session: `HD_W, HD_H`, the frame of the 1080p clips and scenes; `NAMES`, the
-names of the three objects of those clips; `position`, where a result of the segmenter lies in the full frame
-(tests/slow/test_real_model.py, test_real_model_without_weights.py, test_regression_reference.py,
+names of the three objects of those clips, and `CLICKS` and `_prompts`, one positive click on each as prompts;
+`position`, where a result of the segmenter lies in the full frame (tests/slow/test_real_model.py,
+test_real_model_without_weights.py, test_regression_reference.py, test_regression_reference_without_weights.py,
 test_frozen_reference.py and, a fast test, tests/segmenter/test_fakes_threshold.py); `_stored`, the prompt that a
 session of the Hugging Face backend holds for an object on its first frame (the two real model files); and
 `write_three_ellipse_clip`, the clip of the regression tests (tests/slow/test_regression_reference.py,
@@ -34,11 +35,13 @@ from tracking_helpers import make_session
 from outline_tracker.core import schema
 from outline_tracker.export.pipeline import export_all
 from outline_tracker.measure.mask import mask_center
+from outline_tracker.segmenter.base import ObjectPrompt
 from outline_tracker.tracking.job import Callbacks, Job, run_job
 
 STICK_PX = 1000.0  # length of the calibration stick of the sessions made here, px
 HD_W, HD_H = 1920, 1080  # the frame of the 1080p clips and scenes of the slow tests: width and height, px
 NAMES = ["A", "B", "C"]
+CLICKS = [(700.5, 500.5), (1000.5, 600.5), (1400.5, 350.5)]  # px, one positive click per object
 
 
 def expect_minutes() -> None:
@@ -113,6 +116,10 @@ def _stored(session, obj_idx: int):
     """(coordinates, labels) the session holds for an object on its first frame, as tensors."""
     stored = session.point_inputs_per_obj[obj_idx][0]  # [object index][frame index]
     return stored["point_coords"], stored["point_labels"]
+
+
+def _prompts(clicks=CLICKS) -> list[ObjectPrompt]:
+    return [ObjectPrompt(name, [click], [1]) for name, click in zip(NAMES, clicks)]
 
 
 def write_three_ellipse_clip(path) -> list[list[tuple[float, float]]]:

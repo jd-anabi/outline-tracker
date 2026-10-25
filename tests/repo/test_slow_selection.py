@@ -33,10 +33,10 @@ WITHOUT_WEIGHTS = [
     # a child process that imports torch and counts its threads
     "tests/slow/test_real_model_without_weights.py::test_reserve_ui_thread_with_the_real_torch",
     # the fixture `processor` and a stand-in that returns given logits
-    "tests/slow/test_regression_reference.py::test_prompt_tensors_have_one_point_and_no_padding",
-    "tests/slow/test_regression_reference.py::test_session_equals_the_one_the_reference_builds",
-    "tests/slow/test_regression_reference.py::test_per_object_logits_give_the_reference_masks[random]",
-    "tests/slow/test_regression_reference.py::test_per_object_logits_give_the_reference_masks[blobs]",
+    "tests/slow/test_regression_reference_without_weights.py::test_prompt_tensors_have_one_point_and_no_padding",
+    "tests/slow/test_regression_reference_without_weights.py::test_session_equals_the_one_the_reference_builds",
+    "tests/slow/test_regression_reference_without_weights.py::test_per_object_logits_give_the_reference_masks[random]",
+    "tests/slow/test_regression_reference_without_weights.py::test_per_object_logits_give_the_reference_masks[blobs]",
 ]
 
 
