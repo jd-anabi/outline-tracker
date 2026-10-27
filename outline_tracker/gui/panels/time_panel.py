@@ -31,11 +31,10 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBox
 from outline_tracker.core.geometry import find_manifest, fps_from_manifest
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.widgets.panel_parts import SPACING, Message, field_rows
-from outline_tracker.gui.settings import settings
+from outline_tracker.gui.settings import MANIFEST_KEY, settings
 from outline_tracker.gui.panels.stopwatch_dialog import StopwatchDialog
 
 WARN_BELOW = 100.0  # frames per second (SPEC 3.3)
-MANIFEST_KEY = "manifest_path"  # in the settings: the manifest the user pointed to last
 MANIFEST_FILTERS = ["Manifest (*.csv)", "All files (*)"]
 SOURCE_WORDS = {"manifest": "from the manifest", "stopwatch": "from the stopwatch", "typed": "typed in",
                 "tracker-export": "from the Tracker export"}
