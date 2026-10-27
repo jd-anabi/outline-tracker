@@ -58,6 +58,7 @@ PATHS: dict[str, str] = {
     "module index generator": "tests/support/module_index.py",
     # documents
     "spec": "docs/design/SPEC-v0.1.md",
+    "formats": "docs/design/formats.md",
     "developer page": "docs/developer/README.md",
     "module index page": "docs/developer/modules.md",
     "agent rules": "CLAUDE.md",
