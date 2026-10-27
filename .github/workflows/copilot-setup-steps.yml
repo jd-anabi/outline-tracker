@@ -1,0 +1,49 @@
+name: Copilot setup steps
+
+# The environment that GitHub Copilot's coding agent works in: the setup of the ubuntu job of
+# tests.yml (the system libraries Qt needs, uv, the locked dependencies with CPU-only torch), so that
+# the agent can run `uv run pytest -m "not slow"` and `uv run pytest -m "slow and not weights"
+# tests/slow` itself. The job must be named copilot-setup-steps. The model's weights are not
+# downloaded here: the slow tests with the mark `weights` run on the owner's computer only.
+# This workflow also runs when this file changes, so that a broken setup shows before the agent uses it.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: System libraries Qt needs (offscreen)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libx11-6
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install (CPU-only torch from the PyTorch index)
+        env:
+          UV_MANAGED_PYTHON: "1"
+        run: uv sync --locked
+      - name: The tool starts, and every test collects
+        env:
+          UV_MANAGED_PYTHON: "1"
+          QT_QPA_PLATFORM: offscreen
+        shell: bash # with pipefail: a collection that fails is not hidden by tail
+        run: |
+          uv run outline-tracker --version
+          uv run pytest --collect-only -q | tail -1
