@@ -8,8 +8,8 @@ writes.
 
 ## session.json, version 2
 
-W3 step 1 (decisions 12 and 32 to 39). Status: written, and waiting for the owner's approval. The code
-still writes version 1.
+W3 step 1 (decisions 12 and 32 to 39). Status: approved by the owner on 2026-10-27, and in the code from
+W3 step 1 on.
 
 ### What changes
 

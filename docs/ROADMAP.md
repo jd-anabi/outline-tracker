@@ -204,6 +204,7 @@ Making the tool general (inventory: domain):
     is read as `typed` with its value kept; the new value `file` is added. [W3]
     Decided 2026-10-24, ahead of W3: the default stands; the table in `docs/design/formats.md` is
     still approved before any code (W3 step 1).
+    Decided 2026-10-27: the owner approved the table in `docs/design/formats.md`.
 13. Units and defaults. Default: mm stays; the stick and tape boxes start empty; the limit of
     the `JUMP` flag has no built-in value and the flag is off until the user sets one. [W3]
     Decided 2026-10-24, ahead of W3: the default stands.
