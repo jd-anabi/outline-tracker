@@ -75,12 +75,12 @@ def arrays_of(records):
     return store.arrays("A")
 
 
-def derive(records, world=TILTED, *, head_px=None, circle=None, fps=FPS, start_frame=None, **settings):
+def derive(records, world=TILTED, *, head_px=None, fps=FPS, start_frame=None, **settings):
     """derive_track for a track made of `records`; `head_px` is the head click (u, v) in px or None,
     `settings` are fields of session.Processing."""
     track = Track(id="A", start_frame=records[0].frame if start_frame is None else start_frame,
                   head_px=None if head_px is None else [float(head_px[0]), float(head_px[1])])
-    return derive_track(arrays_of(records), track, world, fps, circle, Processing(**settings))
+    return derive_track(arrays_of(records), track, world, fps, Processing(**settings))
 
 
 def along(center, angle, distance):

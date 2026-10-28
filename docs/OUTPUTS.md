@@ -76,7 +76,7 @@ The run folder holds these files, in this order. `<model>` is the name of the mo
 
 ### `shapes.csv`
 
-- **What it holds:** one row per track and tracked frame: size, axes, heading, solidity, resolution, wall distance.
+- **What it holds:** one row per track and tracked frame: size, axes, heading, solidity, resolution.
 - **Rows:** the same rows as `positions.csv`.
 - **In git:** yes.
 
@@ -102,9 +102,16 @@ The run folder holds these files, in this order. `<model>` is the name of the mo
 | `px_along_major` | float, 3 decimals | px | camera pixels along the major axis of the largest piece of the mask: 4 sqrt(lambda1) of that piece, in px |
 | `cells_along_major` | float, 3 decimals | cells | model grid cells along that axis: px_along_major / cell, with cell = max(width, height) / 256 px of the image the model saw |
 | `shape_ok` | int | none | 1 if min(px_along_major, cells_along_major) >= 20 (setting shape_ok_min), else 0 |
-| `wall_dist_centroid_mm` | float, 6 decimals | mm | dish radius minus the centroid's distance from the dish center; empty without a dish circle; negative = outside the circle |
-| `wall_dist_min_mm` | float, 6 decimals | mm | dish radius minus the outline's largest distance from the dish center (how close the outline comes to the wall); empty without a dish circle |
 | `flags` | str | none | quality codes, separated by ';' (see the quality flags); the same text as in positions.csv |
+
+**Columns removed since 0.1.0.** These columns of version 0.1.0 are no longer written; each can be computed from the other files with its formula of that version:
+
+| removed column | unit | formula in 0.1.0 |
+| --- | --- | --- |
+| `wall_dist_centroid_mm` | mm | R - hypot(x_mm - cx, y_mm - cy) |
+| `wall_dist_min_mm` | mm | R - max of hypot(x - cx, y - cy) over the outline's points (x, y) |
+
+Here (cx, cy) is the boundary's center in your axes: `boundary.center_px` of `session.json`, mapped as positions are (Your axes, under Conventions). R = k times `boundary.radius_px`, with k the scale in mm per pixel that `run.log` gives. The outline's points are the 256 points of `results.npz` (`<id>__outline_px`), mapped the same way. A negative value means outside the circle. Without a boundary, both columns were empty.
 
 ### `radial.csv`
 

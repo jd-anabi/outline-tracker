@@ -2,9 +2,10 @@
 
 Tracking stores what it measured in pixels (results.npz). `derive_track` turns one track's arrays
 into everything that carries a unit: positions, areas, axes, the heading, the outline in world and
-body coordinates, the radial profile, the shape numbers, the resolution indicators and the
-distances to the dish wall. Nothing here looks at a video or a model, so a new calibration, a new
-fps_true or a new head click costs a call of `derive_track` and no tracking.
+body coordinates, the radial profile, the shape numbers and the resolution indicators. Nothing
+here looks at a video or a model, so a new calibration, a new fps_true or a new head click costs a
+call of `derive_track` and no tracking. The boundary plays no part: the distances to it that
+SPEC 7.9 derived went out with their columns (decision 8 of docs/ROADMAP.md).
 
 Units and frames:
 - Input: image pixels (u, v), Tracker's convention (SPEC 3.1): u to the right, v down, pixel
@@ -19,7 +20,7 @@ Units and frames:
 Which number comes from where:
 - `area_mm2` is k^2 times the mask's pixel count. Solidity and circularity use the area of the
   outline polygon instead.
-- Perimeter, Feret diameter, wall distance of the outline and the radial rays use the stored
+- Perimeter, Feret diameter and the radial rays use the stored
   256-point outline, mapped to world coordinates and turned counterclockwise there.
 - `major_mm`, `minor_mm` and `eccentricity` come from the full mask's moments (the stored
   `cov_full`); the heading and `core_x_mm`, `core_y_mm` from the core's (`measure/heading.py`).
@@ -47,7 +48,7 @@ from outline_tracker.measure.outline import feret_max, outline_quantities, radia
 from outline_tracker.core.geometry import WorldFrame
 from outline_tracker.measure.mask import largest_piece
 from outline_tracker.measure.results import TrackArrays
-from outline_tracker.core.session import Boundary, Processing, Track
+from outline_tracker.core.session import Processing, Track
 
 __all__ = ["DerivedTrack", "derive_track", "feret_max", "radial_profile"]
 
@@ -69,9 +70,6 @@ class DerivedTrack:
     - px_along_major: the major axis 4 sqrt(lambda1) of the largest piece of the mask, in camera
       px (with one piece: of the full mask). cells_along_major: the same in model grid cells.
       shape_ok: 1 if the smaller of the two reaches `shape_ok_min`, else 0.
-    - wall_dist_centroid_mm, wall_dist_min_mm: dish radius minus the centroid's distance, and
-      minus the outline's largest distance, from the dish center, mm; negative outside the
-      circle; NaN without a circle.
     On a lost frame the counts and `shape_ok` are 0 and every other number is NaN.
 
     Beyond the CSV columns:
@@ -111,8 +109,6 @@ class DerivedTrack:
     px_along_major: np.ndarray
     cells_along_major: np.ndarray
     shape_ok: np.ndarray
-    wall_dist_centroid_mm: np.ndarray
-    wall_dist_min_mm: np.ndarray
     outline_xy_mm: np.ndarray
     outline_xieta_mm: np.ndarray
     radial_mm: np.ndarray
@@ -122,7 +118,7 @@ class DerivedTrack:
 
 
 def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps_true: float,
-                 circle: Boundary | None, processing: Processing) -> DerivedTrack:
+                 processing: Processing) -> DerivedTrack:
     """Every world quantity of one track (SPEC 7.1-7.9) from its pixel records.
 
     arrays: the track's records from the results store, in image px, one row per tracked frame.
@@ -130,7 +126,7 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
     track: its entry in the session; `head_px` (the head click, image px, or None) and
     `start_frame` (the frame the click belongs to) fix the head side, `id` names the result.
     world_frame: the calibration: scale in mm per px, origin in px, axis angle in rad.
-    fps_true: frames per second of the recording. circle: the dish wall in image px, or None.
+    fps_true: frames per second of the recording.
     processing: `outline_points` (N), `radial_step_deg` (degrees), `shape_ok_min` (px or cells).
 
     Returns a `DerivedTrack`: mm, s and rad in world coordinates, y up (see the class). The
@@ -180,13 +176,6 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
     xieta = np.stack([from_core[..., 0] * hx + from_core[..., 1] * hy,
                       -from_core[..., 0] * hy + from_core[..., 1] * hx], axis=-1)
 
-    wall_centroid, wall_min = np.full(len(arrays), np.nan), np.full(len(arrays), np.nan)
-    if circle is not None:
-        cx, cy = world_frame.to_world(circle.center_px[0], circle.center_px[1])
-        radius = k * float(circle.radius_px)
-        wall_centroid = radius - np.hypot(x - cx, y - cy)
-        wall_min = radius - np.hypot(polygons[..., 0] - cx, polygons[..., 1] - cy).max(axis=1)
-
     return DerivedTrack(
         track_id=track.id, frame=arrays.frames.copy(), t_s=arrays.frames / fps, x_mm=x, y_mm=y,
         u_px=arrays.u.copy(), v_px=arrays.v.copy(), area_mm2=k * k * arrays.area_px, visible=visible.astype(np.int32),
@@ -195,7 +184,7 @@ def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps
         core_frac=arrays.core_frac.copy(), solidity=solidity, circularity=circularity, feret_max_mm=shape.feret,
         n_components=arrays.n_components.copy(), largest_fraction=arrays.largest_fraction.copy(),
         px_along_major=px_along_major, cells_along_major=cells_along_major, shape_ok=shape_ok.astype(np.int32),
-        wall_dist_centroid_mm=wall_centroid, wall_dist_min_mm=wall_min, outline_xy_mm=shape.outline,
+        outline_xy_mm=shape.outline,
         outline_xieta_mm=xieta, radial_mm=shape.radial, heading=headings.heading, orient=headings.orient,
         headguess=np.full(len(arrays), headings.headguess),
     )

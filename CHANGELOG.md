@@ -23,6 +23,21 @@ Development version `0.2.0a2.dev0`. The files it writes say so.
   `boundary: none`; the known diameter is `diameter_mm` (was `dish_mm`); and a coarse run inside
   the boundary's square says `boundary crop, N px` (was `dish crop, N px`).
 
+### Removed
+
+- `shapes.csv` no longer has the two distances to the wall. A notebook that needs them can
+  compute them from the other files, with the formulas of 0.1.0:
+  - `wall_dist_centroid_mm` (mm): R - hypot(x_mm - cx, y_mm - cy)
+  - `wall_dist_min_mm` (mm): R - max of hypot(x - cx, y - cy) over the outline's points (x, y)
+
+  Here (cx, cy) is the boundary's center in your axes (`boundary.center_px` of `session.json`,
+  mapped as positions are), R is k times `boundary.radius_px` with k the scale in mm per pixel
+  of `run.log`, and the outline's points are the 256 points of `results.npz`
+  (`<id>__outline_px`), mapped the same way. A negative value means outside the circle. The other
+  columns keep their names, order and formats; `README.txt` and `docs/OUTPUTS.md` give the same
+  formulas. A run exported with or without a boundary now has the same `positions.csv` and
+  `shapes.csv`.
+
 ## 0.2.0a1 (2026-10-08)
 
 A pre-release. It marks the end of the first workstream of `docs/ROADMAP.md`, a clean base for

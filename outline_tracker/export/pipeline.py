@@ -117,8 +117,8 @@ class ExportData:
 def derive_all(session: Session, store: ResultsStore) -> ExportData:
     """Every exported track in world units, with its flags: what `export_all` writes, in memory.
 
-    session: its calibration, axes, fps_true (frames per s), circle and settings are used as they
-    are now. store: the pixel-space records (image px, video frame numbers). Nothing is read from
+    session: its calibration, axes, fps_true (frames per s) and settings are used as they are now;
+    the boundary is not (decision 8 of docs/ROADMAP.md). store: the pixel-space records (image px, video frame numbers). Nothing is read from
     disk. A stored mask is measured again only on a frame whose mask has more than one piece: its
     largest piece gives the size check (`derive.derive_track`).
 
@@ -141,7 +141,7 @@ def derive_all(session: Session, store: ResultsStore) -> ExportData:
     ids = [track_id for track_id in store.track_ids if track_id in tracks]  # the store gives text order
     arrays = {track_id: store.arrays(track_id) for track_id in ids}
     derived = {track_id: derive_track(arrays[track_id], tracks[track_id], world_frame, session.time.fps_true,
-                                      session.boundary, session.processing) for track_id in ids}
+                                      session.processing) for track_id in ids}
     flags = compute_flags(derived, arrays, world_frame, session.processing)
     every = bool(session.processing.shape_files_for_coarse)
     shape_tracks = [track_id for track_id in ids if every or bool(np.any(arrays[track_id].mode == "fine"))]

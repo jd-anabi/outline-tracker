@@ -10,6 +10,7 @@ tests/core/conftest.py; what this file and the last one share is in tests/suppor
 """
 
 import dataclasses
+import itertools
 import json
 import re
 import subprocess
@@ -49,8 +50,11 @@ HOME_PATH = re.compile(rf"[/\\]{_USERS}[/\\]+[^/\\\s]|{_TMP}[^/\\\s]|[A-Za-z]:\\
 
 
 def md_table(lines: list[str]) -> tuple[list[str], list[list[str]]]:
-    """Header cells and body rows of the first table in `lines`."""
-    table = [line for line in lines if line.startswith("|")]
+    """Header cells and body rows of the first table in `lines`: its lines run up to the first line that is not
+    a table line (the section of shapes.csv has a second table, of its removed columns)."""
+    starts = [i for i, line in enumerate(lines) if line.startswith("|")]
+    assert starts, "no table"
+    table = list(itertools.takewhile(lambda line: line.startswith("|"), lines[starts[0]:]))
     assert len(table) >= 3, "no table"
     width = len(cells(table[0]))
     assert all(len(cells(line)) == width for line in table), "a row has more or fewer cells than the header"
@@ -255,6 +259,13 @@ def test_the_crop_of_coarse_mode_is_the_boundarys_square(outputs):
     assert ("| `mode` | str | none | coarse (the model saw the whole frame or the boundary's square) or fine (a "
             "crop that follows the object) |") in outputs
     assert "the mask touches the border of the model's input (frame, boundary crop or fine crop)" in outputs
+
+
+def test_the_texts_say_dish_only_in_dish_scale(outputs, readme):
+    # decision 8: the dish is now a boundary, and its two distances went from shapes.csv. "dish scale" (how
+    # large the objects are in the picture) is a word of W3 step 5 and stays until then.
+    for text in (outputs, readme):
+        assert re.findall(r"dish(?! scale)", normalized(text), flags=re.IGNORECASE) == []
 
 
 def test_the_page_says_how_to_read_it_and_regenerate_it(outputs):

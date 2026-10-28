@@ -119,10 +119,6 @@ SHAPES: list[Column] = [
     _float("cells_along_major", "cells", 3, "model grid cells along that axis: px_along_major / cell, "
            "with cell = max(width, height) / 256 px of the image the model saw"),
     _int("shape_ok", "1 if min(px_along_major, cells_along_major) >= 20 (setting shape_ok_min), else 0"),
-    _float("wall_dist_centroid_mm", "mm", 6, "dish radius minus the centroid's distance from the dish center; "
-           "empty without a dish circle; negative = outside the circle"),
-    _float("wall_dist_min_mm", "mm", 6, "dish radius minus the outline's largest distance from the dish center "
-           "(how close the outline comes to the wall); empty without a dish circle"),
     _str("flags", "quality codes, separated by ';' (see the quality flags); the same text as in positions.csv"),
 ]
 
@@ -133,6 +129,28 @@ _RADIAL_MEANING = (
 )
 RADIAL: list[Column] = [_TRACK_ID, _FRAME, _T_S] + [
     _float(f"r_{deg:03d}", "mm", 6, _RADIAL_MEANING) for deg in range(0, 360, RADIAL_STEP_DEG)
+]
+
+
+
+@dataclass(frozen=True)
+class RemovedColumn:
+    """A column that `file` had up to `version` and no longer has. Nothing reads it (ROADMAP rule 5); the texts
+    name it with its unit and its `formula` of that version, in the names of the other files, so that whoever
+    needs the number can compute it."""
+
+    file: str
+    name: str
+    unit: str
+    version: str
+    formula: str
+
+
+# The distances to the wall of 0.1.0 (decision 8 of docs/ROADMAP.md; docs/design/formats.md).
+REMOVED_COLUMNS: list[RemovedColumn] = [
+    RemovedColumn(SHAPES_CSV, "wall_dist_centroid_mm", "mm", "0.1.0", "R - hypot(x_mm - cx, y_mm - cy)"),
+    RemovedColumn(SHAPES_CSV, "wall_dist_min_mm", "mm", "0.1.0",
+                  "R - max of hypot(x - cx, y - cy) over the outline's points (x, y)"),
 ]
 
 PROBES: list[Column] = [
@@ -230,8 +248,8 @@ FILES: list[FileSpec] = [
     FileSpec(POSITIONS_CSV, "one row per track and tracked frame: where the object is", True, columns=POSITIONS),
     FileSpec(TRACKER_FILE, "one file per track in the layout of last week's Tracker files, in a folder named "
              "after the model, e.g. edgetam/A.csv; the folder holds nothing else", True, columns=TRACKER_COLUMNS),
-    FileSpec(SHAPES_CSV, "one row per track and tracked frame: size, axes, heading, solidity, resolution, wall "
-             "distance", True, columns=SHAPES),
+    FileSpec(SHAPES_CSV, "one row per track and tracked frame: size, axes, heading, solidity, resolution", True,
+             columns=SHAPES),
     FileSpec(RADIAL_CSV, "the outline's radius at 72 angles around the body center, for fine tracks", True,
              columns=RADIAL),
     FileSpec(OUTLINES_NPZ, "the outlines themselves (128 points per frame), in your axes and in the body frame, "

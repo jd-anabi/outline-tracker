@@ -73,7 +73,7 @@ def tracks(records, heads=None, world=WORLD, fps=FPS, **settings):
     """What export hands to qc: (derived_by_track, arrays_by_track, processing).
 
     `records` = {track id: [record, ...]}; `heads` = {track id: head click (u, v) in px} for the
-    tracks that have one; `settings` are fields of session.Processing. No dish circle.
+    tracks that have one; `settings` are fields of session.Processing.
     """
     store = ResultsStore()
     for track_id, rows in records.items():
@@ -86,7 +86,7 @@ def tracks(records, heads=None, world=WORLD, fps=FPS, **settings):
         click = (heads or {}).get(track_id)
         track = Track(id=track_id, start_frame=rows[0].frame,
                       head_px=None if click is None else [float(click[0]), float(click[1])])
-        derived[track_id] = derive_track(arrays[track_id], track, world, fps, None, processing)
+        derived[track_id] = derive_track(arrays[track_id], track, world, fps, processing)
     return derived, arrays, processing
 
 

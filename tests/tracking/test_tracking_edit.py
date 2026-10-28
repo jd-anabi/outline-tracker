@@ -287,7 +287,7 @@ def test_flags_table_lists_every_flag_of_every_frame_by_track_then_frame(tracked
     arrays = {name: store.arrays(name) for name in "ABC"}
     world = session.world_frame()
     tracks = {a_track.id: a_track for a_track in session.tracks}
-    derived = {name: derive_track(arrays[name], tracks[name], world, FPS, None, session.processing) for name in "ABC"}
+    derived = {name: derive_track(arrays[name], tracks[name], world, FPS, session.processing) for name in "ABC"}
     cells = compute_flags(derived, arrays, world, session.processing)
     assert rows == [(name, frame, frame / FPS, code) for name in "ABC" for frame, cell in zip(GRID, cells[name])
                     for code in cell.split(FLAG_SEPARATOR) if code]

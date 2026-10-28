@@ -27,6 +27,7 @@ from schema_helpers import (
     SHAPES_DTYPES,
     SHAPES_NAMES,
     names,
+    removed_columns,
 )
 
 from outline_tracker.core import csv_format, schema, tracker_io
@@ -111,12 +112,15 @@ def test_dtypes():
 
 
 def test_columns_match_the_spec_tables():
-    """The spec's own table of positions.csv, and its lists for the other three files."""
+    """The spec's own table of positions.csv, and its lists for the other three files. shapes.csv is SPEC 8.4's
+    list without the columns that docs/design/formats.md removes (decision 8 of docs/ROADMAP.md)."""
     table = spec_table("### 8.2")
     assert [row[0] for row in table] == names(schema.POSITIONS)
     assert [row[1] for row in table] == [c.dtype for c in schema.POSITIONS]
     assert [row[2].replace("²", "^2") for row in table] == [c.unit for c in schema.POSITIONS]
-    assert spec_code_list("### 8.4") == names(schema.SHAPES)
+    removed = [name for name, _, _ in removed_columns()]
+    assert removed and set(removed) <= set(spec_code_list("### 8.4"))
+    assert [name for name in spec_code_list("### 8.4") if name not in removed] == names(schema.SHAPES)
     radial = spec_code_list("### 8.5")  # "track_id, frame, t_s, r_000, r_005, ..., r_355"
     assert names(schema.RADIAL)[:4] == radial[:4] and names(schema.RADIAL)[-1] == radial[-1] == "r_355"
     assert spec_code_list("### 8.7") == names(schema.PROBES)

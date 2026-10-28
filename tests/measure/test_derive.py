@@ -1,6 +1,7 @@
 """Tests for outline_tracker.measure.derive: the world quantities of SPEC 7 from the pixel records and a
-calibration (SPEC 13.1: Moments, Head continuity, Outline geometry, Radial profile, Solidity and
-wall distance, Resolution).
+calibration (SPEC 13.1: Moments, Head continuity, Outline geometry, Radial profile, Solidity, Resolution).
+The wall distance of SPEC 13.1 went with its two columns (decision 8 of docs/ROADMAP.md); that the
+boundary changes no exported number is tested in tests/export/test_export.py.
 
 Tracks are analytic shapes sent through measure_mask (tests/support/derive_helpers.py). Expected values
 come from the shapes and from SPEC 3.2: with the axis angle alpha, an image direction (cos a,
@@ -17,7 +18,6 @@ from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 
 from outline_tracker.measure import derive
 from outline_tracker.core import csv_format, schema
-from outline_tracker.core.session import Boundary
 
 ALPHA = np.radians(25.0)   # the axis angle of TILTED
 
@@ -305,21 +305,3 @@ def test_a_far_piece_of_two_pixels_does_not_lengthen_an_ellipse():
     assert track.n_components.tolist() == [1, 2]
     assert track.px_along_major[1] == pytest.approx(80.0, rel=0.02)
     assert track.px_along_major[0] == track.major_mm[0] / K   # one piece: the full mask's value, to the bit
-
-
-# --------------------------------------------------------------------------- dish wall
-
-
-@pytest.mark.parametrize("distance", [0.0, 150.0, 395.0, 430.0])
-def test_wall_distances_of_a_disk_at_a_known_distance_from_the_dish_center(distance):
-    # Dish of radius 400 px; a disk of radius 12 px with its center `distance` px from the dish's.
-    dish = Boundary(center_px=[900.2, 520.7], radius_px=400.0)
-    center = h.along(dish.center_px, np.radians(200.0), distance)
-    one = h.disk_record(0, center, 12.0, half=30)
-    track = h.derive([one], TILTED, circle=dish)
-    assert track.wall_dist_centroid_mm[0] == pytest.approx((400.0 - distance) * K, abs=0.1 * K)
-    assert track.wall_dist_min_mm[0] == pytest.approx((400.0 - distance - 12.0) * K, abs=0.1 * K)
-    assert (track.wall_dist_centroid_mm[0] < 0) == (distance > 400.0)       # negative outside the circle
-    assert (track.wall_dist_min_mm[0] < 0) == (distance > 388.0)
-    without = h.derive([one], TILTED)
-    assert np.isnan(without.wall_dist_centroid_mm[0]) and np.isnan(without.wall_dist_min_mm[0])

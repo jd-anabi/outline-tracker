@@ -57,8 +57,14 @@ from outline_tracker.core import schema
 # boundary's square" and the EDGE flag "frame, boundary crop or fine crop". The diff of the old and the new
 # text was read and shows those two entries and nothing else (three lines). The text before this change had
 # the hash 20ec79686c3b77a80a5966f7d1e929274861aaf07c3956d8d88a8a5435ce7c73 (14877 characters, 262 lines);
-# the text now has 14898 characters and 262 lines.
-README_SHA256 = "a7819e6c9967444e2d66d89600cf7622a91984fe8d131d6c4e3288d7734f7c66"
+# the text then had 14898 characters and 262 lines.
+# W3 step 2 (decisions 8 and 40) removed the two wall distances from shapes.csv: the file's line in FILES no
+# longer says "wall distance", their two entries are gone, and under shapes.csv a paragraph names each removed
+# column with its unit and formula of 0.1.0 (tests/core/test_schema_removed_columns.py). The diff of the old and
+# the new text was read and shows those three places and nothing else. The text before this change had the hash
+# a7819e6c9967444e2d66d89600cf7622a91984fe8d131d6c4e3288d7734f7c66 (14898 characters, 262 lines); the text
+# now has 15257 characters and 269 lines.
+README_SHA256 = "b2917b92c11501dabd4cc64faa865a29386a0e1219a7b656ed398603e7c96ed7"
 
 # Every public name that schema.py (now core/schema.py) had before the move of the builders (dir() of the
 # unmodified module, without the imported helpers), except the three that left it later
