@@ -22,16 +22,23 @@ _CLASHES = {"": ("label", "boundary"), "circle": ("shape", "diameter_mm"),
             "processing": ("boundary_crop", "tracker_format")}
 
 
-class MixedVersionError(ValueError):
-    """A session file of version 1 holds a key of version 2 (formats.md, "Reading a file", item 6). `key` is
-    the key's path in the file, e.g. "circle.shape"."""
+class SessionKeyError(ValueError):
+    """A session file holds a key whose value this build refuses (formats.md, "Reading a file", item 6).
+    `key` is the key's path in the file, e.g. "boundary.shape"; the message names the file and the key."""
+
+    def __init__(self, key: str, message: str):
+        self.key = key
+        super().__init__(message)
+
+
+class MixedVersionError(SessionKeyError):
+    """A session file of version 1 holds a key of version 2 (decision 39)."""
 
     def __init__(self, key: str, where: str = "The session file"):
-        self.key = key
-        super().__init__(f'{where} has session format version 1 but also holds "{key}", a key of version 2. '
-                         "Version 0.1.0 never writes that key, so this outline-tracker cannot tell which value "
-                         "counts. Take the key out of the file, or open the file with the outline-tracker that "
-                         "wrote it.")
+        super().__init__(key, f'{where} has session format version 1 but also holds "{key}", a key of version 2. '
+                              "Version 0.1.0 never writes that key, so this outline-tracker cannot tell which "
+                              "value counts. Take the key out of the file, or open the file with the "
+                              "outline-tracker that wrote it.")
 
 
 def upgrade(data: dict[str, Any], where: str = "The session file") -> dict[str, Any]:

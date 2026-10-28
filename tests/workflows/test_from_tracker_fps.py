@@ -54,20 +54,21 @@ def test_fps_sources_in_their_order(tmp_path, monkeypatch):
     in_cwd, by_export, by_video = manifest(here, 238.0), manifest(tracks, 237.0), manifest(videos, 236.0)
 
     time, line, in_file = fps_of(run(clip, export, fps=239.6))  # typed in: before every manifest
-    assert time == {"fps_true": 239.6, "source": "typed", "manifest_path": None, "stopwatch": None}
+    assert time == {"fps_true": 239.6, "source": "typed", "stopwatch": None}
     assert "239.6" in line and "source: typed" in line and in_file == pytest.approx(239.6)
 
     for found, fps in ((in_cwd, 238.0), (by_export, 237.0), (by_video, 236.0)):
         lines = []
         time, line, in_file = fps_of(run(clip, export, lines))
-        assert time == {"fps_true": fps, "source": "manifest", "manifest_path": str(found), "stopwatch": None}
-        assert "source: manifest" in line and str(found) in line and in_file == pytest.approx(fps)
+        # version 2 has no manifest source and no manifest_path (docs/design/formats.md): the rate is typed
+        assert time == {"fps_true": fps, "source": "typed", "stopwatch": None}
+        assert "source: typed" in line and in_file == pytest.approx(fps)
         assert any(str(found) in said for said in lines)  # the console names the manifest too
         found.unlink()  # the next one in the order is found now
 
     lines = []
     time, line, in_file = fps_of(run(clip, export, lines))  # no manifest left: Tracker's t column, 240
-    assert (time["source"], time["manifest_path"]) == ("tracker-export", None)
+    assert time["source"] == "tracker-export" and "manifest_path" not in time
     assert time["fps_true"] == pytest.approx(FPS, rel=1e-5) and in_file == pytest.approx(FPS, rel=1e-5)
     assert "source: tracker-export" in line
     assert any("t column" in said for said in lines)  # the printed note

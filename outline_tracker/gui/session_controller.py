@@ -34,7 +34,8 @@ from outline_tracker.core import schema
 from outline_tracker.core.fileio import atomic_write, new_name, sha256_first_64mib
 from outline_tracker.video.frame_source import FrameSource
 from outline_tracker.core.run_folder import default_run_folder, folder_has_foreign_tables
-from outline_tracker.core.session import Clip, Session, SessionVersionError, VideoNotFoundError, VideoRef, WrongVideoError
+from outline_tracker.core.session import (Clip, Session, SessionKeyError, SessionVersionError, VideoNotFoundError,
+                                          VideoRef, WrongVideoError)
 
 SAVE_DELAY_MS = 750  # session.json is written this long after the last change
 ACTIONS = ("track", "export")
@@ -162,7 +163,7 @@ class SessionController(QObject):
         path = Path(path)
         try:
             session = Session.load(path)
-        except SessionVersionError as error:
+        except (SessionVersionError, SessionKeyError) as error:
             raise ValueError(str(error).replace(str(path), path.name)) from error
         except ValueError as error:
             raise ValueError(NO_SESSION.format(name=path.name)) from error

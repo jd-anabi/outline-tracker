@@ -1,4 +1,4 @@
-"""The records of session.json below the whole session (SPEC 8.10, schema version 1).
+"""The records of session.json below the whole session (schema version 2: docs/design/formats.md).
 This module also says how a record is read from and written to JSON.
 
 One dataclass per block of session.json, with the field names of SPEC 8.10: `Clip`, `TimeSettings`,
@@ -18,6 +18,8 @@ Rules of the file:
 - Values are kept as JSON holds them (lists, not tuples; numbers as written), so load and save lose nothing.
   numpy numbers and arrays are converted when saving.
 - Keys this version does not know are kept in each record's `extra` and written back.
+- Where version 2 renamed a key (docs/design/formats.md), the field keeps its name of SPEC 8.10 until the
+  later steps of W3 rename it, and `metadata["key"]` gives the key of the file.
 - The keys added by decision X18 are optional, written only when they have a value: `calibration.tracker_fit`,
   a prompt's `decoder`, a run's `model_id` and `weights_sha256`.
 
@@ -135,13 +137,12 @@ class Clip(_Record):
 @dataclass
 class TimeSettings(_Record):
     """fps_true and where it came from (SPEC 4.1, X18). fps_true: true frames per second; None until it is
-    known. source: "manifest", "stopwatch", "typed" or "tracker-export". manifest_path: the manifest used, or
-    None. stopwatch: None or {"frame_a", "time_a_s", "frame_b", "time_b_s"}, two video frames and the
+    known. source: "stopwatch", "typed" or "tracker-export" (a rate read from a manifest counts as typed,
+    decision 32). stopwatch: None or {"frame_a", "time_a_s", "frame_b", "time_b_s"}, two video frames and the
     stopwatch readings in s."""
 
     fps_true: float | None = None
     source: str = "typed"
-    manifest_path: str | None = None
     stopwatch: dict[str, Any] | None = None
 
 
@@ -169,25 +170,29 @@ class Axes(_Record):
 
 @dataclass
 class Circle(_Record):
-    """The dish wall (SPEC 4.4), in image px: the clicked points [[u, v], ...], the fitted center [u, v], the
-    radius and the RMS residual. dish_mm: the dish's known inner diameter in mm, or None."""
+    """The dish wall (SPEC 4.4), key "boundary" in the file. shape: "circle", the only shape (decision 8). In
+    image px: the clicked points [[u, v], ...], the fitted center [u, v], the radius and the RMS residual.
+    dish_mm: the dish's known inner diameter in mm, or None (key "diameter_mm")."""
 
+    shape: str = "circle"
     points_px: list[list[float]] = field(default_factory=list)
     center_px: list[float] = field(default_factory=lambda: [0.0, 0.0])
     radius_px: float = 0.0
     rms_px: float = 0.0
-    dish_mm: float | None = None
+    dish_mm: float | None = field(default=None, metadata={"key": "diameter_mm"})
 
 
 @dataclass
 class Processing(_Record):
     """Settings of tracking and export, with the defaults of SPEC 8.10. radial_step_deg in degrees;
     shape_ok_min in px or grid cells along the major axis (SPEC 7.8); core_open_frac a fraction of the body
-    length (SPEC 7.3); jump_mm_s in mm per s (SPEC 9); fine_window_factor times the object's length (6.3)."""
+    length (SPEC 7.3); jump_mm_s in mm per s (SPEC 9); fine_window_factor times the object's length (6.3).
+    dish_crop has the key "boundary_crop". tracker_format: whether an export writes the Tracker-format files
+    (decisions 7 and 34; false for a new session, true for a file of version 1)."""
 
     model: str = "edgetam"
     device: str = "auto"
-    dish_crop: bool = True
+    dish_crop: bool = field(default=True, metadata={"key": "boundary_crop"})
     outline_points: int = 128
     radial_step_deg: int = 5
     shape_ok_min: int = 20
@@ -195,6 +200,7 @@ class Processing(_Record):
     jump_mm_s: float = 100.0
     fine_window_factor: float = 3.0
     shape_files_for_coarse: bool = False
+    tracker_format: bool = False
 
 
 @dataclass

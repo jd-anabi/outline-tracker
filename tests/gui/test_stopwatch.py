@@ -87,14 +87,14 @@ def test_ok_puts_the_frame_rate_and_the_four_numbers_into_the_session(with_video
     qtbot.mouseClick(dialog.ok_button, LEFT)
     assert not dialog.isVisible()
     frame_a, time_a_s, frame_b, time_b_s = numbers
-    assert (time.fps_true, time.source, time.manifest_path) == (fps, "stopwatch", None)
+    assert (time.fps_true, time.source) == (fps, "stopwatch")
     assert time.stopwatch == {"frame_a": frame_a, "time_a_s": time_a_s, "frame_b": frame_b, "time_b_s": time_b_s}
     panel = body(window, 2)
     assert panel.source_label.text() == "from the stopwatch" and float(panel.fps_edit.text()) == fps
     assert window.panels[1].state == ("done" if fps >= 100 else "attention")  # under 100 fps: a warning, as typed
     assert window.navigation.time_label.text() == "t = 0.000 s"  # frame 0 of the clip, now with a time
     saved = read_json(window.controller.save_now())["time"]
-    assert saved == {"fps_true": fps, "source": "stopwatch", "manifest_path": None, "stopwatch": time.stopwatch}
+    assert saved == {"fps_true": fps, "source": "stopwatch", "stopwatch": time.stopwatch}
 
 
 @pytest.mark.parametrize("numbers", [(12, 1.5, 492, 1.5), (12, 1.5, 12, 3.5), (12, 3.5, 492, 1.5)],

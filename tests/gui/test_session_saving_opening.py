@@ -147,7 +147,7 @@ def test_a_session_of_another_schema_version_gives_its_plain_message(window, mon
     _, path, _ = named
     target = window.controller.save_now()
     newer = target.with_name("from the future.json")
-    newer.write_text(target.read_text(encoding="utf-8").replace('"schema_version": 1', '"schema_version": 2'),
+    newer.write_text(target.read_text(encoding="utf-8").replace('"schema_version": 2', '"schema_version": 3'),
                      encoding="utf-8")
     session = window.controller.session
     window.open_path(newer)
@@ -155,8 +155,8 @@ def test_a_session_of_another_schema_version_gives_its_plain_message(window, mon
     assert parent is window and kind == "problem"
     heading, rest = text.split("\n", 1)
     assert heading == NOT_OPENED
-    assert rest.startswith("from the future.json has session format version 2, but this outline-tracker")
-    assert "reads only version 1" in rest and "update yours" in rest
+    assert rest.startswith("from the future.json has session format version 3, but this outline-tracker")
+    assert "reads only versions 1 and 2" in rest and "update yours" in rest
     assert helpers.ODD_FOLDER not in text and str(path.parent) not in text
     assert window.controller.session is session and window.controller.video_path == path  # what was open stays
     assert window.statusBar().currentMessage() == "from the future.json could not be opened."

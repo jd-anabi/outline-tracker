@@ -1,9 +1,9 @@
 """Tests of outline_tracker/core/session.py: session.json <-> dataclasses, optional and unknown keys, world frame.
 
-Expected values come from docs/design/SPEC-v0.1.md itself (the session.json example of section 8.10 is
-read from the file and must come back unchanged), from decision X18 (the optional keys), and from
-SPEC 3.2 and 4.2 worked by hand (the world frame). Nothing is copied from the output of the code under
-test.
+Expected values come from docs/design/SPEC-v0.1.md itself (the session.json example of section 8.10, a file of
+version 1, is read from the file and must become the records), from docs/design/formats.md (its examples of
+version 2 must come back unchanged), from decision X18 (the optional keys), and from SPEC 3.2 and 4.2 worked by
+hand (the world frame). Nothing is copied from the output of the code under test.
 
 Coordinates: (u, v) are image pixels in Tracker's convention (origin at the top-left corner of the
 frame, u to the right, v down, pixel centers at +0.5); (x, y) are mm in the user's axes, y up.
@@ -19,7 +19,7 @@ import math
 from pathlib import Path
 
 import pytest
-from session_json_helpers import VIDEO_NAME, _write_json, assert_same_json, spec_example
+from session_json_helpers import VIDEO_NAME, _write_json, assert_same_json, formats_example, spec_example
 
 import outline_tracker
 from outline_tracker.core.geometry import WorldFrame
@@ -41,16 +41,16 @@ from outline_tracker.core.session import (
 
 
 def tracker_fit_example() -> dict:
-    """A session as `from-tracker` makes it (X18): no stick and no check, the scale from the fit to
-    the Tracker export, fps from the export's t column, and the facts `export` needs without torch.
-    The new keys sit where the session file puts them: `tracker_fit` after `check`, `decoder` after
+    """A session as `from-tracker` makes it (X18), as a file of version 2: no stick and no check, the scale
+    from the fit to the Tracker export, fps from the export's t column, and the facts `export` needs without
+    torch. The new keys sit where the session file puts them: `tracker_fit` after `check`, `decoder` after
     `frame_hash`, `model_id` and `weights_sha256` at the end of a run entry."""
-    data = spec_example()
-    data["time"] = {"fps_true": 240.0096, "source": "tracker-export", "manifest_path": None, "stopwatch": None}
+    data = formats_example(1, 2)
+    data["time"] = {"fps_true": 240.0096, "source": "tracker-export", "stopwatch": None}
     data["calibration"] = {"stick": None, "click_sigma_px": 0.5, "check": None,
                            "tracker_fit": {"mm_per_px": 0.0323999942, "rms_mm": 5.0e-06, "n_points": 8}}
     data["axes"] = {"origin_px": [960.50006, 540.49999], "angle_deg": -5.83e-06}
-    data["circle"] = None
+    data["boundary"] = None
     data["probes"] = []
     data["tracks"][0]["prompts"][0] = {"frame": 96, "frame_hash": "5f" * 32, "decoder": "opencv 5.0.0; darwin; arm64",
                                        "points_px": [[812.5, 377.25]], "labels": [1]}
@@ -81,11 +81,12 @@ def test_the_example_is_the_one_in_the_spec():
     assert example["corrections"][0]["action"] == "retrack|end|new_piece"
 
 
-def test_spec_example_round_trips_without_loss(tmp_path):
-    example = spec_example()
+@pytest.mark.parametrize("number", [1, 2])
+def test_the_version_2_examples_round_trip_without_loss(tmp_path, number):
+    example = formats_example(number, 2)
     saved = _through_a_file(tmp_path, example)
     assert saved == example  # as JSON
-    assert_same_json(saved, example)  # and with the key order and the number types of the spec
+    assert_same_json(saved, example)  # and with the key order and the number types of the page
 
 
 def test_spec_example_becomes_the_dataclasses():
@@ -99,7 +100,7 @@ def test_spec_example_becomes_the_dataclasses():
     assert (s.video.width, s.video.height, s.video.n_frames, s.video.fps_container) == (1920, 1080, 0, 240.0)
     assert isinstance(s.clip, Clip) and (s.clip.start, s.clip.end, s.clip.step) == (0, 2399, 2)
     assert isinstance(s.time, TimeSettings)
-    assert (s.time.fps_true, s.time.source, s.time.manifest_path) == (239.6, "manifest|stopwatch|typed", None)
+    assert (s.time.fps_true, s.time.source) == (239.6, "manifest|stopwatch|typed")  # the text is not "manifest"
     assert s.time.stopwatch == {"frame_a": 0, "time_a_s": 0.0, "frame_b": 0, "time_b_s": 0.0}
     assert isinstance(s.calibration, CalibrationSettings)
     assert s.calibration.stick == {"p1_px": [0, 0], "p2_px": [0, 0], "length_mm": 30.0}
@@ -109,8 +110,9 @@ def test_spec_example_becomes_the_dataclasses():
     assert isinstance(s.axes, Axes) and (s.axes.origin_px, s.axes.angle_deg) == ([960.5, 540.5], 0.0)
     assert isinstance(s.circle, Circle)
     assert (s.circle.points_px, s.circle.center_px, s.circle.radius_px) == ([[0, 0]], [0, 0], 0.0)
-    assert (s.circle.rms_px, s.circle.dish_mm) == (0.0, None)
+    assert (s.circle.shape, s.circle.rms_px, s.circle.dish_mm) == ("circle", 0.0, None)
     assert isinstance(s.processing, Processing)
+    assert (s.processing.dish_crop, s.processing.jump_mm_s, s.processing.tracker_format) == (True, 100.0, True)
     assert len(s.probes) == 1 and isinstance(s.probes[0], ProbeBox)
     assert (s.probes[0].name, s.probes[0].rect_px) == ("LED1", [0, 0, 0, 0])
     (track,) = s.tracks
@@ -136,13 +138,16 @@ def test_spec_example_becomes_the_dataclasses():
     assert [type(r).__name__ for r in records if r.extra] == []
 
 
-def test_defaults_are_those_of_the_spec():
-    # SPEC 8.10 (the processing block), 4.2 (click precision 0.5 px), 4.6 (LED1), 7.4, 7.6, 7.8
+def test_defaults_are_those_of_the_spec_and_of_version_2():
+    # SPEC 8.10 (the processing block), 4.2 (click precision 0.5 px), 4.6 (LED1), 7.4, 7.6, 7.8; formats.md
     p = Processing()
     assert (p.model, p.device, p.dish_crop) == ("edgetam", "auto", True)
     assert (p.outline_points, p.radial_step_deg, p.shape_ok_min) == (128, 5, 20)
     assert (p.core_open_frac, p.jump_mm_s, p.fine_window_factor, p.shape_files_for_coarse) == (0.1, 100.0, 3.0, False)
-    assert Processing().to_json() == spec_example()["processing"]
+    assert p.tracker_format is False  # a new session (decision 34)
+    spec = {("boundary_crop" if key == "dish_crop" else key): value for key, value in spec_example()["processing"].items()}
+    assert_same_json(Processing().to_json(), {**spec, "tracker_format": False})
+    assert Circle().shape == "circle"
     assert CalibrationSettings().click_sigma_px == 0.5
     assert Clip().step == 2
     assert Axes().angle_deg == 0.0
@@ -155,8 +160,8 @@ def test_defaults_are_those_of_the_spec():
     assert s.time.fps_true is None  # not known yet
     assert (s.calibration.stick, s.calibration.check, s.calibration.tracker_fit) == (None, None, None)
     data = s.to_json()
-    assert list(data) == list(spec_example())  # the top-level keys of SPEC 8.10, in its order
-    assert (data["format"], data["schema_version"]) == ("outline-tracker-session", 1)
+    assert list(data) == list(formats_example(1, 2))  # the top-level keys of version 2, in their order
+    assert (data["format"], data["schema_version"]) == ("outline-tracker-session", 2)
 
 
 def test_default_sessions_share_nothing():
@@ -218,7 +223,7 @@ def test_optional_keys_are_written_only_when_set():
 # --------------------------------------------------------------------------- unknown keys
 
 def test_unknown_keys_survive_load_and_save(tmp_path):
-    example = spec_example()
+    example = formats_example(1, 2)
     example["later_addition"] = {"a": [1, 2.5, None], "b": "text"}
     example["extra"] = "a key that happens to be called extra"
     example["video"]["duration_s"] = 10.0
@@ -242,7 +247,7 @@ def test_unknown_keys_survive_load_and_save(tmp_path):
 
 
 def test_unknown_keys_between_known_ones_are_kept(tmp_path):
-    example = spec_example()
+    example = formats_example(1, 2)
     example["clip"] = {"start": 0, "note": "trimmed", "end": 2399, "step": 2}
     saved = _through_a_file(tmp_path, example)
     assert saved == example
@@ -327,7 +332,7 @@ def test_format_and_version_are_constants_of_the_file(tmp_path):
     s = Session()
     s.extra.update({"format": "something-else", "schema_version": 7, "kept": 1})
     data = s.to_json()
-    assert (data["format"], data["schema_version"], data["kept"]) == ("outline-tracker-session", 1, 1)
+    assert (data["format"], data["schema_version"], data["kept"]) == ("outline-tracker-session", 2, 1)
     assert list(data)[:2] == ["format", "schema_version"]
     s.save(tmp_path / "session.json")
     assert Session.load(tmp_path / "session.json").extra == {"kept": 1}

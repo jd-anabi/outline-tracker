@@ -42,7 +42,8 @@ def test_the_session_holds_the_plan_the_fit_and_one_click_per_object(tmp_path):
     assert result.run_folder == tmp_path / "clip_tracker_outline_ana"
     session = session_json(result.run_folder)
 
-    assert session["student"] == "ana" and session["complete"] is True
+    assert session["schema_version"] == 2 and "student" not in session and "circle" not in session
+    assert session["label"] == "ana" and session["complete"] is True
     assert session["clip"] == {"start": 40, "end": 60, "step": 4}  # the Tracker track's frames
     assert session["video"]["relpath"] == "../clip_tracker.mp4"
     assert (session["video"]["width"], session["video"]["height"], session["video"]["n_frames"]) == (320, 240, 70)
@@ -57,7 +58,8 @@ def test_the_session_holds_the_plan_the_fit_and_one_click_per_object(tmp_path):
     assert 0 <= calibration["tracker_fit"]["rms_mm"] < 1e-5  # Tracker writes 7 digits
     assert session["axes"]["origin_px"] == pytest.approx([150.25, 110.5], abs=1e-3)
     assert session["axes"]["angle_deg"] == pytest.approx(12.0, abs=1e-3)
-    assert session["circle"] is None
+    assert session["boundary"] is None
+    assert session["processing"]["tracker_format"] is False  # a new session; from-tracker sets it from W3 step 4 (decision 34)
     assert session["processing"]["model"] == MODEL and session["processing"]["device"] == "auto"
 
     (track,) = session["tracks"]
@@ -121,14 +123,14 @@ def test_the_student_is_the_exports_home_folder_unless_given(tmp_path):
     lines = []
     result = run(clip, export, lines, seconds=8 / FPS, step=4, fps=FPS)
     assert result.run_folder == tmp_path / "clip_tracker_outline_ana"
-    assert session_json(result.run_folder)["student"] == "ana"
+    assert session_json(result.run_folder)["label"] == "ana"
     assert any("ana" in line and "--student" in line for line in lines)  # it says which name it used
     assert any(str(result.run_folder) in line for line in lines)  # and which folder
 
     lines = []
     result = run(clip, export, lines, seconds=8 / FPS, step=4, fps=FPS, student="Zoë M. / B")
     assert result.run_folder == tmp_path / "clip_tracker_outline_Zoë_M.___B"  # made safe for a folder name
-    assert session_json(result.run_folder)["student"] == "Zoë M. / B"  # the name itself is kept
+    assert session_json(result.run_folder)["label"] == "Zoë M. / B"  # the name itself is kept
     assert any("Zoë M. / B" in line for line in lines)
 
 

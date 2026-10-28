@@ -120,7 +120,7 @@ def test_a_typed_fps_true_reaches_the_session_and_the_time_of_the_frame(window, 
     assert state(window, 2) == ("todo", TIME_HINT) and panel.source_label.text() == ""
 
     type_into(qtbot, panel.fps_edit, "239.6")
-    assert time.fps_true == 239.6 and time.source == "typed" and time.manifest_path is None
+    assert time.fps_true == 239.6 and time.source == "typed" and time.stopwatch is None
     assert state(window, 2) == ("done", "fps_true = 239.60 fps (typed in).")
     assert panel.source_label.text() == "typed in"
     assert panel.message.isHidden() and panel.fps_edit.property("check") in (None, "")
@@ -168,13 +168,14 @@ def test_fps_true_comes_from_the_manifest_above_the_video(window, qtbot, clip_in
     manifest = write_manifest(path.parent / "data" / "manifest.csv", [("other.MOV", "120"), ("dish.MOV", "239.6")])
     window.open_path(path)
     panel, time = body(window, 2), window.controller.session.time
-    assert time.fps_true == 239.6 and time.source == "manifest"
-    assert time.manifest_path is not None and manifest.samefile(time.manifest_path)
-    assert state(window, 2) == ("done", "fps_true = 239.60 fps (from the manifest).")
-    assert panel.source_label.text() == "from the manifest" and panel.fps_edit.text() == "239.6"
+    assert manifest.is_file()
+    # until W3 step 4 removes the manifest, its number is stored as typed, without a path (decision 32)
+    assert (time.fps_true, time.source, time.stopwatch) == (239.6, "typed", None)
+    assert state(window, 2) == ("done", "fps_true = 239.60 fps (typed in).")
+    assert panel.source_label.text() == "typed in" and panel.fps_edit.text() == "239.6"
 
     type_into(qtbot, panel.fps_edit, "238")  # a typed value takes over
-    assert (time.fps_true, time.source, time.manifest_path) == (238.0, "typed", None)
+    assert (time.fps_true, time.source) == (238.0, "typed")
     assert panel.source_label.text() == "typed in"
 
 
@@ -199,8 +200,8 @@ def test_a_manifest_the_user_points_to_is_used_and_remembered(window, qtbot, mon
 
     on_chosen(manifest)
     time = window.controller.session.time
-    assert (time.fps_true, time.source) == (239.6, "manifest") and manifest.samefile(time.manifest_path)
-    assert state(window, 2) == ("done", "fps_true = 239.60 fps (from the manifest).")
+    assert (time.fps_true, time.source) == (239.6, "typed")  # stored as typed, without a path (decision 32)
+    assert state(window, 2) == ("done", "fps_true = 239.60 fps (typed in).")
     kept = settings()
     assert kept.format() == QSettings.Format.IniFormat and kept.scope() == QSettings.Scope.UserScope
     assert Path(kept.fileName()).is_relative_to(own_settings)  # in this test's folder, not the user's own
@@ -208,7 +209,7 @@ def test_a_manifest_the_user_points_to_is_used_and_remembered(window, qtbot, mon
 
     window.open_path(hd_clip.path)  # another video, with no manifest above it: the remembered one is asked
     time = window.controller.session.time
-    assert (time.fps_true, time.source) == (119.88, "manifest") and manifest.samefile(time.manifest_path)
+    assert (time.fps_true, time.source) == (119.88, "typed")  # the hd clip's row of the remembered manifest
 
 
 def test_a_manifest_without_the_video_changes_nothing_and_is_not_remembered(window, qtbot, monkeypatch,

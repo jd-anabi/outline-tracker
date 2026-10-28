@@ -39,7 +39,7 @@ def test_a_name_set_from_code_shows_in_the_field_and_survives_a_save(window, cli
     assert field.text() == "Ada"
     written = controller.save_now()  # a save asks the panels for what is typed: the empty field's turn before
     assert controller.student == "Ada" and controller.session.student == "Ada"
-    assert written is not None and read_json(written)["student"] == "Ada"
+    assert written is not None and read_json(written)["label"] == "Ada"
     assert written.parent.name == "dish_tracker_outline_Ada" and field.text() == "Ada"
 
 
