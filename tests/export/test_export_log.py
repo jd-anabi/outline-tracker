@@ -2,9 +2,9 @@
 
 Every number looked for comes from the session the test wrote: the stick of tests/support/export_helpers.py
 (300 px for 30 mm: k = 0.1 mm per px, and sqrt(2) x 0.5 / 300 = 0.24 % from click precision), a tape
-check of 201 px for 20 mm (measured 20.1 mm, +0.50 %), the dish circle of the scene (R = 108 px, so
-2R = 21.6 mm), the video's own facts, and the run records that tracking stored. The text is plain
-ASCII (um, mm^2, deg).
+check of 201 px for 20 mm (measured 20.1 mm, +0.50 %), the scene's circle as the boundary (R = 108 px, so
+2R = 21.6 mm; against a known diameter of 22 mm, 2R is (21.6 - 22) / 22 = -1.82 % off), the video's own facts,
+and the run records that tracking stored. The text is plain ASCII (um, mm^2, deg).
 """
 
 import platform
@@ -30,8 +30,8 @@ WEIGHTS = "ab" * 32
 
 @pytest.fixture(scope="module")
 def tracked(dish_clip, tmp_path_factory):
-    """The dish clip's A, B and C tracked coarse inside the dish crop, with a tape check, a dish
-    diameter, the model's facts in the run record and one correction in the session."""
+    """The dish clip's A, B and C tracked coarse inside the boundary crop, with a tape check, the
+    boundary's diameter, the model's facts in the run record and one correction in the session."""
     folder = tmp_path_factory.mktemp("log") / "run"
     session = coarse_run(dish_clip, folder, ["A", "B", "C"])
     session.calibration.check = {"p1_px": [10.0, 40.0], "p2_px": [211.0, 40.0], "true_mm": 20.0}
@@ -104,20 +104,31 @@ def test_video_time_and_calibration(run_folder, dish_clip):
     assert "(10.000, 20.000)" in stick and "(310.000, 20.000)" in stick and "30 mm" in stick
     tape = _line(text, "tape check:")
     assert "true 20 mm" in tape and "measured 20.1000 mm" in tape and "+0.50 %" in tape
-    circle = _line(text, "circle:")
-    assert "(160.300, 119.800)" in circle and "R = 108.000 px" in circle and "rms 0.400 px" in circle
-    assert "2R = 21.6000 mm" in circle and "dish_mm = 22" in circle
+    boundary = _line(text, "boundary:").strip()
+    assert boundary == ("boundary: circle, center (160.300, 119.800) px, R = 108.000 px, rms 0.400 px; "
+                        "2R = 21.6000 mm, diameter_mm = 22 (2R is -1.82 % off)")
+    assert not [line for line in text.split("\n") if line.strip().startswith("circle:")]
     axes = _line(text, "axes:")
     assert "(100.500, 60.250)" in axes and "alpha = 0 deg" in axes
+
+
+def test_a_boundary_without_a_known_diameter_says_so(run_folder):
+    session, _ = load(run_folder)
+    session.boundary.diameter_mm = None
+    session.save(run_folder / "session.json")
+    boundary = _line(_log(run_folder), "boundary:").strip()
+    assert boundary == ("boundary: circle, center (160.300, 119.800) px, R = 108.000 px, rms 0.400 px; "
+                        "2R = 21.6000 mm, diameter_mm not given")
 
 
 def test_runs_corrections_qc_summary_and_outputs(run_folder):
     session, store = load(run_folder)
     text = _log(run_folder)
     run = _line(text, "run 1:")
-    for part in ("A, B, C", "coarse", "start frame 0", "step 2", "60 frames", "dish", "224",
+    for part in ("A, B, C", "coarse", "start frame 0", "step 2", "60 frames", "; boundary crop, 224 px;",
                  f"{session.runs[0].seconds_per_frame:.3f} s per frame"):
         assert part in run, part
+    assert "dish" not in run
     assert _line(text, "results:") == "results: complete"
     correction = _line(text, "2026-10-07T03:10:00-07:00")
     assert "retrack" in correction and "B" in correction and "frame 60" in correction
@@ -183,5 +194,6 @@ def test_a_session_from_a_tracker_export_has_a_fitted_scale_and_no_stick(run_fol
     text = _log(run_folder)
     scale = _line(text, "scale:")
     assert "0.0324000 mm per px" in scale and "Tracker export" in scale and "12 points" in scale
-    assert "stick: none" in text and "circle: none" in text
+    assert "stick: none" in text and _line(text, "boundary:").strip() == "boundary: none"
+    assert "circle:" not in text
     assert "tracker-export" in _line(text, "time:")

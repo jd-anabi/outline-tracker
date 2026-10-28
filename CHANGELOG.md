@@ -19,6 +19,9 @@ Development version `0.2.0a2.dev0`. The files it writes say so.
   open it is done without a boundary, with the origin at the frame's center. Its crop box is
   called "Crop to boundary for tracking" and is off and disabled until a boundary is fitted;
   the setting saved in `session.json` keeps its value.
+- `run.log` names the boundary. Its line `circle: …` is now `boundary: circle, …`, or
+  `boundary: none`; the known diameter is `diameter_mm` (was `dish_mm`); and a coarse run inside
+  the boundary's square says `boundary crop, N px` (was `dish crop, N px`).
 
 ## 0.2.0a1 (2026-10-08)
 

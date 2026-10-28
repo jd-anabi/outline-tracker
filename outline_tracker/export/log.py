@@ -93,7 +93,7 @@ def _time_line(session: Session) -> str:
 
 
 def _calibration_lines(session: Session) -> list[str]:
-    """Scale, stick, tape check, circle and axes; lengths in px of the image, mm and um."""
+    """Scale, stick, tape check, boundary and axes; lengths in px of the image, mm and um."""
     cal = session.calibration
     k = session.world_frame().k_mm_per_px
     scale = f"scale: k = {k:.7f} mm per px ({1000 * k:.3f} um per px)"
@@ -109,18 +109,18 @@ def _calibration_lines(session: Session) -> list[str]:
                   f"{fit.get('n_points', '?')} points); no click uncertainty")
         stick_line = "stick: none"
     lines = [scale, stick_line, _tape_text(cal.check, k)]
-    circle = session.boundary
-    if circle is None:
-        lines.append("circle: none")
+    boundary = session.boundary
+    if boundary is None:
+        lines.append("boundary: none")
     else:
-        (cu, cv), radius = circle.center_px, float(circle.radius_px)
-        text = (f"circle: center ({cu:.3f}, {cv:.3f}) px, R = {radius:.3f} px, rms {float(circle.rms_px):.3f} px; "
-                f"2R = {2 * radius * k:.4f} mm")
-        if circle.diameter_mm:
-            off = 100 * (2 * radius * k - circle.diameter_mm) / circle.diameter_mm
-            text += f", dish_mm = {circle.diameter_mm:g} (2R is {off:+.2f} % off)"
+        (cu, cv), radius = boundary.center_px, float(boundary.radius_px)
+        text = (f"boundary: circle, center ({cu:.3f}, {cv:.3f}) px, R = {radius:.3f} px, "
+                f"rms {float(boundary.rms_px):.3f} px; 2R = {2 * radius * k:.4f} mm")
+        if boundary.diameter_mm:
+            off = 100 * (2 * radius * k - boundary.diameter_mm) / boundary.diameter_mm
+            text += f", diameter_mm = {boundary.diameter_mm:g} (2R is {off:+.2f} % off)"
         else:
-            text += ", dish_mm not given"
+            text += ", diameter_mm not given"
         lines.append(text)
     u0, v0 = session.axes.origin_px
     lines.append(f"axes: origin ({u0:.3f}, {v0:.3f}) px, alpha = {session.axes.angle_deg:g} deg")
@@ -170,4 +170,4 @@ def _crop_text(session: Session, run: RunRecord, arrays_by_track: Mapping[str, T
     width, height = session.video.width, session.video.height
     if side == max(width, height):
         return f"whole frame ({width} x {height} px)"
-    return f"dish crop, {side} px"
+    return f"boundary crop, {side} px"
