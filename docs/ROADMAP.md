@@ -348,6 +348,33 @@ Found at the start of W3 (2026-10-27):
     [W3]
     Decided 2026-10-27: the default stands.
 
+Found at the start of W3 step 2 (2026-10-28):
+
+40. `shapes.csv` loses two columns (decision 8), so its format changes (decision 15). Default: a
+    section of `docs/design/formats.md` names them and gives their formulas; the tests take
+    them from it. [W3]
+    Decided 2026-10-28: the default stands.
+41. The tool and its button. Default: `CircleTool` and the button "Circle" keep their names,
+    because the circle is the boundary's shape; only their "dish" names change. [W3]
+    Decided 2026-10-28: the default stands.
+42. The crop box without a boundary. Default: unchecked and disabled on the screen only; the
+    stored `processing.boundary_crop` keeps its value, and the crop still needs both. [W3]
+    Decided 2026-10-28: the default stands.
+43. Panel 4 without a video. Default: it waits ("todo") like the other panels; "done from the
+    start" (decision 8) holds once a video is open. [W3]
+    Decided 2026-10-28: the default stands.
+44. The new texts of panel 4, the tool, the crop's errors, `run.log` and the generated
+    descriptions. Default: the wording proposed in PR #2. [W3]
+    Decided 2026-10-28: the default stands.
+45. The test file of panel 4. Default: it is renamed in the commit that moves the module. [W3]
+    Decided 2026-10-28: the default stands.
+46. `derive_track` and the review table's key of staleness. Default: both lose the circle,
+    which only the two removed columns used. [W3]
+    Decided 2026-10-28: the default stands.
+47. `docs/design/gui_design.md`. Default: its texts of panel 4 follow the code in the same
+    commits. [W3]
+    Decided 2026-10-28: the default stands.
+
 ## 4. Workstreams
 
 ### W0. Close version 0.1.0 (the first build's own session)
