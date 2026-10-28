@@ -67,7 +67,7 @@ def body_widgets(panel) -> list:
 
 def test_the_table_names_one_module_for_each_of_the_nine_panels():
     assert panels.PANEL_MODULES == {
-        1: "video_panel", 2: "time_panel", 3: "calibration_panel", 4: "dish_panel", 5: "probes_panel",
+        1: "video_panel", 2: "time_panel", 3: "calibration_panel", 4: "boundary_panel", 5: "probes_panel",
         6: "objects_panel", 7: "track_panel", 8: "review_panel", 9: "export_panel",
     }
 
@@ -109,7 +109,7 @@ def test_an_error_inside_build_is_not_hidden(panel_folder, window):
 
 
 def test_an_error_while_a_module_is_imported_is_not_taken_for_a_missing_module(panel_folder, window):
-    panel_folder("dish_panel", "import a_module_that_does_not_exist_anywhere\n\n\ndef build(window):\n    pass\n")
+    panel_folder("boundary_panel", "import a_module_that_does_not_exist_anywhere\n\n\ndef build(window):\n    pass\n")
     with pytest.raises(ModuleNotFoundError, match="a_module_that_does_not_exist_anywhere"):
         panels.build_bodies(window)
 

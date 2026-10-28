@@ -16,7 +16,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 
-PANEL_MODULES = {1: "video_panel", 2: "time_panel", 3: "calibration_panel", 4: "dish_panel",
+PANEL_MODULES = {1: "video_panel", 2: "time_panel", 3: "calibration_panel", 4: "boundary_panel",
                  5: "probes_panel", 6: "objects_panel", 7: "track_panel", 8: "review_panel", 9: "export_panel"}
 
 
