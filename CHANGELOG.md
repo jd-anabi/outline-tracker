@@ -7,6 +7,15 @@ repository (`vX.Y.Z`; a pre-release adds a suffix such as `a1`).
 
 Development version `0.2.0a2.dev0`. The files it writes say so.
 
+### Changed
+
+- `session.json` is written in format version 2; its keys and how each key of version 1 maps to
+  them are in `docs/design/formats.md`. A run folder of version 1 opens and exports as before,
+  and opening and closing it writes nothing. The first save over a `session.json` of version 1
+  keeps that file beside the new one as `session.v1.json`, and the window or the console says
+  so. Version 0.1.0 refuses a file of version 2; it opens the kept file once it is renamed back
+  to `session.json`.
+
 ## 0.2.0a1 (2026-10-08)
 
 A pre-release. It marks the end of the first workstream of `docs/ROADMAP.md`, a clean base for

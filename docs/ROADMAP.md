@@ -609,7 +609,7 @@ running the command that `tests/repo/test_module_index.py` names. `SLOW_MOTION_F
 (`tests/repo/test_file_sizes.py`); `segmenter/hf.py` has 385. `docs/VALIDATION.md` (step 5) gives
 the commands and counts of each section's day, with a note at its top.
 
-- [ ] 1. `session.json` version 2 (decision 12): the table goes into `docs/design/formats.md`
+- [x] 1. `session.json` version 2 (decision 12): the table goes into `docs/design/formats.md`
       and is approved; then the reader lands and maps every row; steps 2 to 4 switch the code
       over one row at a time. No tag is made between step 1 and step 4. Done when a version 1
       file of each kind (made in the window, made by `from-tracker`) opens and exports; after
@@ -873,3 +873,11 @@ One line per session: date, workstream, what was done, the last commit.
   every move proved by the same counts and fixtures, the real model's numbers unchanged; the
   whole range reviewed. The owner's answers to W3's decisions are written in section 3. Last
   commit before this line: `c328619`. Next: W3.
+- 2026-10-28: W3 (make the tool general): the start checked; decisions 32 to 39, found at the
+  start, answered (the defaults). Step 1 done: the table of `session.json` version 2 in
+  `docs/design/formats.md`, approved; the reader of version 1 (`core/session_v1.py`) maps every
+  row; the tool writes version 2; the first save over a version 1 file keeps it as
+  `session.v1.json` and says so, and opening and closing writes nothing (rule 5); a run folder
+  of each kind that 0.1.0 made opens and exports, end to end. Open: the owner's run of the
+  `weights` tests, and two details added to `formats.md` after its approval (PR #1). Last commit
+  before this line: `0a050b8`. Next: W3 step 2.
