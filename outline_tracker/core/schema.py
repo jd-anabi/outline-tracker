@@ -89,7 +89,8 @@ POSITIONS: list[Column] = [
     _float("v_px", "px", 3, "the same point in image coordinates (Tracker's pixely)"),
     _float("area_mm2", "mm^2", 6, "mask area"),
     _int("visible", "1 if the mask is non-empty, else 0"),
-    _str("mode", "coarse (the model saw the whole frame or dish) or fine (a crop that follows the object)"),
+    _str("mode", "coarse (the model saw the whole frame or the boundary's square) or fine (a crop that follows "
+                 "the object)"),
     _str("flags", "quality codes, separated by ';' (see the quality flags); empty if none"),
 ]
 
@@ -180,7 +181,7 @@ FLAG_INFO: dict[str, FlagInfo] = {
                  "this track's outline comes within max(3 px, 2 grid cells) of another track's outline "
                  "on the same frame", "identities may swap here: check"),
         FlagInfo("EDGE", "position",
-                 "the mask touches the border of the model's input (frame, dish crop or fine crop)",
+                 "the mask touches the border of the model's input (frame, boundary crop or fine crop)",
                  "outline may be cut off"),
         FlagInfo("MULTI", "shape", "more than one component, the second at least 10% of the largest",
                  "ragged or split mask"),

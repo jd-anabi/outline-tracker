@@ -40,7 +40,7 @@ from skimage.measure import find_contours
 from outline_tracker.core.schema import STORED_OUTLINE_POINTS
 from outline_tracker.segmenter.base import MaskResult
 
-MODES = ("coarse", "fine")  # what the model saw: the frame or the dish crop, or a crop that follows one object
+MODES = ("coarse", "fine")  # what the model saw: the frame or the boundary crop, or a crop that follows one object
 GRID_CELLS = 256            # the model predicts its masks on a 256 x 256 grid, whatever its input (SPEC 6.2)
 _BESIDE_PX = 1.0 + 1e-3     # an outline point is at most this far, in u and in v, from a pixel center of its piece
 
@@ -165,7 +165,7 @@ def measure_mask(result: MaskResult, frame: int, input_box: tuple[int, int, int,
     the segmenter's offset first (SPEC 6.2, 6.3). `result.mask` is boolean [row, column];
     `result.logits`, if present, has the same shape and is positive exactly on the mask.
     `frame` is the video frame number. `input_box` = (c0, r0, width, height), in full-frame px, is
-    the image the model saw: the whole frame, the dish crop or a fine crop. It gives `cell_px` and
+    the image the model saw: the whole frame, the boundary crop or a fine crop. It gives `cell_px` and
     `edge`. `mode` is "coarse" or "fine". `core_open_frac` is the opening radius as a fraction of
     the mask's major axis L1 (SPEC 7.3).
 

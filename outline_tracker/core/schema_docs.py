@@ -180,8 +180,8 @@ def _glossary() -> list[str]:
         ("centroid", "the average position of all pixels of the mask, like its balance point. It is the official "
                      "position of the animal."),
         ("outline", f"the line around the mask, kept as {OUTLINE_POINTS} points per frame for fine tracks."),
-        ("coarse and fine", "in coarse mode the model looks at the whole frame (or the dish); in fine mode it "
-                            "looks at a small crop that follows the animal, which gives a sharper outline."),
+        ("coarse and fine", "in coarse mode the model looks at the whole frame (or the boundary's square); in fine "
+                            "mode it looks at a small crop that follows the animal, which gives a sharper outline."),
         ("core", "the mask with thin parts such as antennae cut away; its centroid is the body center."),
         ("heading", "the direction from the body center to the head, as an angle in your axes."),
         ("empty cell", "how a CSV file says that a number does not exist (for example, the animal is lost on that "

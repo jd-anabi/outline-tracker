@@ -14,7 +14,7 @@ It is generated from the schema of the tool, and a test fails when it is out of 
 - **mask**: the pixels of one frame that the model says belong to the animal.
 - **centroid**: the average position of all pixels of the mask, like its balance point. It is the official position of the animal.
 - **outline**: the line around the mask, kept as 128 points per frame for fine tracks.
-- **coarse and fine**: in coarse mode the model looks at the whole frame (or the dish); in fine mode it looks at a small crop that follows the animal, which gives a sharper outline.
+- **coarse and fine**: in coarse mode the model looks at the whole frame (or the boundary's square); in fine mode it looks at a small crop that follows the animal, which gives a sharper outline.
 - **core**: the mask with thin parts such as antennae cut away; its centroid is the body center.
 - **heading**: the direction from the body center to the head, as an angle in your axes.
 - **empty cell**: how a CSV file says that a number does not exist (for example, the animal is lost on that frame). pandas reads it as `NaN`, short for not a number.
@@ -56,7 +56,7 @@ The run folder holds these files, in this order. `<model>` is the name of the mo
 | `v_px` | float, 3 decimals | px | the same point in image coordinates (Tracker's pixely) |
 | `area_mm2` | float, 6 decimals | mm^2 | mask area |
 | `visible` | int | none | 1 if the mask is non-empty, else 0 |
-| `mode` | str | none | coarse (the model saw the whole frame or dish) or fine (a crop that follows the object) |
+| `mode` | str | none | coarse (the model saw the whole frame or the boundary's square) or fine (a crop that follows the object) |
 | `flags` | str | none | quality codes, separated by ';' (see the quality flags); empty if none |
 
 ### `<model>/<id>.csv`
@@ -224,7 +224,7 @@ The column `flags` of `positions.csv` and `shapes.csv` holds the quality codes o
 | `JUMP` | position | centroid speed between consecutive visible frames above jump_mm_s (default 100 mm/s) | probably jumped to another object |
 | `SIZE` | position | area outside 0.5 to 2 times the track's median area | merged with a neighbor, or partly lost |
 | `CONTACT` | position | this track's outline comes within max(3 px, 2 grid cells) of another track's outline on the same frame | identities may swap here: check |
-| `EDGE` | position | the mask touches the border of the model's input (frame, dish crop or fine crop) | outline may be cut off |
+| `EDGE` | position | the mask touches the border of the model's input (frame, boundary crop or fine crop) | outline may be cut off |
 | `MULTI` | shape | more than one component, the second at least 10% of the largest | ragged or split mask |
 | `LOWRES` | shape | shape_ok = 0 (fewer than 20 camera pixels or fewer than 20 grid cells along the major axis) | shape columns unreliable; use fine mode or closer footage |
 | `ORIENT` | shape | core nearly round (lambda2 / lambda1 > 0.8), heading axis jumped by more than 60 degrees, or the core fallback was used | heading unreliable |

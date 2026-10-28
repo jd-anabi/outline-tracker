@@ -47,11 +47,11 @@ from outline_tracker.tracking.edit import (Edit, add_object, add_prompt, end_tra
                                            undo_prompt)
 from outline_tracker.tracking.fine import FineStart, check_fine_settings, fine_starts, fine_window, fine_window_px
 from outline_tracker.tracking.guard import FrameHashMismatch, FrameHashUpdate, check_start_frames
-from outline_tracker.tracking.plan import RunPlan, dish_box, partial_tracks, plan_job, plan_runs, run_prompts
+from outline_tracker.tracking.plan import RunPlan, boundary_box, partial_tracks, plan_job, plan_runs, run_prompts
 from outline_tracker.video.reader import iter_rgb_frames
 
 __all__ = ["AUTOSAVE_EVERY", "Callbacks", "Edit", "FrameHashMismatch", "FrameHashUpdate", "Job", "RunPlan",
-           "SessionChanges", "add_object", "add_prompt", "dish_box", "end_track", "fine_window", "fine_window_px",
+           "SessionChanges", "add_object", "add_prompt", "boundary_box", "end_track", "fine_window", "fine_window_px",
            "flags_table", "new_piece", "next_track_id", "partial_tracks", "pending_runs", "plan_runs",
            "remove_object", "retrack_from", "run_job", "set_head", "undo_prompt"]
 
@@ -237,7 +237,7 @@ def _now() -> str:
 
 class _FixedView:
     """What the model is shown during a coarse run: always the same `box` = (c0, r0, width, height),
-    whole px of the full frame (the dish square or the whole frame, SPEC 6.2). `frame_size` =
+    whole px of the full frame (the boundary's square or the whole frame, SPEC 6.2). `frame_size` =
     (width, height) of the video's frames, px. A fine run has `tracking.fine.FollowCrop` instead."""
 
     mode = "coarse"

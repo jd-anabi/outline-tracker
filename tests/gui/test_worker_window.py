@@ -172,7 +172,7 @@ def test_a_model_that_fails_on_a_frame_is_reported_in_the_panel(window, qtbot, d
 
 
 def test_the_model_is_shown_the_part_of_the_frame_that_tracking_shows_it(window, qtbot, dish_clip):
-    # With a dish circle and "Crop to dish" on, tracking shows the model the dish square (SPEC 6.2):
+    # With a boundary and "Crop to boundary" on, tracking shows the model the boundary's square (SPEC 6.2):
     # the preview shows it the same part, and the outline comes back to the full frame's coordinates.
     segmenter = tracking_helpers.Watched(ExactFake(dish_clip))
     panel = panel_with(window, qtbot, dish_clip, segmenter)

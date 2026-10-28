@@ -248,6 +248,15 @@ def test_the_words_used_are_explained(outputs):
         assert f"**{term}**" in glossary, term
 
 
+def test_the_crop_of_coarse_mode_is_the_boundarys_square(outputs):
+    # decisions 8 and 44: the square that coarse mode may show the model is the boundary's
+    glossary = "\n".join(md_section(outputs, "## Words used on this page"))
+    assert "the model looks at the whole frame (or the boundary's square); in fine mode" in glossary
+    assert ("| `mode` | str | none | coarse (the model saw the whole frame or the boundary's square) or fine (a "
+            "crop that follows the object) |") in outputs
+    assert "the mask touches the border of the model's input (frame, boundary crop or fine crop)" in outputs
+
+
 def test_the_page_says_how_to_read_it_and_regenerate_it(outputs):
     top = "\n".join(outputs.splitlines()[:12])
     assert REGENERATE in top and "do not edit" in top.lower()

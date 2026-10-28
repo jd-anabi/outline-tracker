@@ -52,8 +52,13 @@ from outline_tracker.core import schema
 # and say that cells_along_major is px_along_major / cell. The diff of the old and the new text was read and
 # shows those two entries and nothing else (three lines). The text before this change had the hash
 # 0a3d0042970e10beaaee704d18ef648c6203ee8ac68af5600c0ccdc4dccfe098 (14847 characters, 262 lines); the text
-# now has 14877 characters and 262 lines.
-README_SHA256 = "20ec79686c3b77a80a5966f7d1e929274861aaf07c3956d8d88a8a5435ce7c73"
+# then had 14877 characters and 262 lines.
+# W3 step 2 (decision 8) renamed the crop of coarse mode: the mode column says "the whole frame or the
+# boundary's square" and the EDGE flag "frame, boundary crop or fine crop". The diff of the old and the new
+# text was read and shows those two entries and nothing else (three lines). The text before this change had
+# the hash 20ec79686c3b77a80a5966f7d1e929274861aaf07c3956d8d88a8a5435ce7c73 (14877 characters, 262 lines);
+# the text now has 14898 characters and 262 lines.
+README_SHA256 = "a7819e6c9967444e2d66d89600cf7622a91984fe8d131d6c4e3288d7734f7c66"
 
 # Every public name that schema.py (now core/schema.py) had before the move of the builders (dir() of the
 # unmodified module, without the imported helpers), except the three that left it later

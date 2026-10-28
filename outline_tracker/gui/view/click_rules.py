@@ -179,7 +179,7 @@ def preview_input(session, frame: int, rgb: np.ndarray):
     positive point there that the model would be shown.
 
     box = (c0, r0, width, height), whole px of the full frame: the part tracking shows the model
-    (`tracking.plan.view_box`: the dish square, or the whole frame). image: that part of `rgb`.
+    (`tracking.plan.view_box`: the boundary's square, or the whole frame). image: that part of `rgb`.
     prompts: one per object with clicks on the frame, in the session's order, points in px of
     `image`; points outside it are left out, as tracking leaves them out. signature: equal for
     equal clicks on the same frame and part, for telling whether an outline is still up to date.
@@ -188,7 +188,7 @@ def preview_input(session, frame: int, rgb: np.ndarray):
         return None
     try:
         c0, r0, width, height = box = view_box(session)
-    except ValueError:  # no frame size, or a dish circle that gives no crop: tracking would refuse too
+    except ValueError:  # no frame size, or a boundary that gives no crop: tracking would refuse too
         return None
     prompts = []
     for track in session.tracks:
