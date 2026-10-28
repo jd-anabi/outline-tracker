@@ -74,7 +74,7 @@ class DishPanel(QWidget):
     def set_dish_mm(self, mm: float) -> None:
         """Take the dish's inner diameter in mm, as typed; 0 means it is not known. A value that is
         not positive and finite is refused: the session keeps what it had, and a message says so."""
-        self._take("dish", self.circle_tool.set_dish_mm, None if mm == 0 else mm)
+        self._take("dish", self.circle_tool.set_diameter_mm, None if mm == 0 else mm)
 
     def set_angle(self, degrees: float) -> None:
         """Take the direction of +x in degrees, counterclockwise on screen from the image's
@@ -116,7 +116,7 @@ class DishPanel(QWidget):
         self.rms_value.setText(DASH if circle is None else f"{circle.rms_px:.1f} px")
         self.two_r_value.setText(f"{2 * scale * circle.radius_px:.2f} mm" if circle is not None and scale else DASH)
         self.origin_value.setText(point_text(origin))
-        self.dish_box.show_value(self.circle_tool.dish_mm or 0.0, "dish" in self._refused)
+        self.dish_box.show_value(self.circle_tool.diameter_mm or 0.0, "dish" in self._refused)
         self.angle_box.show_value(session.axes.angle_deg, "angle" in self._refused)
         self.crop_box.blockSignals(True)
         self.crop_box.setChecked(bool(session.processing.boundary_crop))

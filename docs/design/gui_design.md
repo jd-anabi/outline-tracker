@@ -193,7 +193,7 @@ QAbstractSpinBox[check="warn"], QLineEdit[check="warn"] { background-color: @war
 | 1 | Student and video | Open video | Type your name. Then open your video (a _tracker.mp4 file). | {file} · {W} × {H} px · {N} frames · clip {a} to {b}, step {k}. | This video has {n} warnings. Read them below before you continue. |
 | 2 | Time | Stopwatch… (secondary) | Type the true frame rate (fps_true), or measure it with the stopwatch. | fps_true = 240.00 fps (from the manifest). | fps_true is under 100 fps. This usually means a re-timed copy of the video. Check the value. |
 | 3 | Calibration | Stick, then Tape | Click Stick. Click the two ends of a known length on the ruler. Type the length. | Scale: 32.40 µm/px ± 0.08%. Tape check: 0.4%, passes (limit 1%). | The tape check does not pass: 1.8% (limit 1%). Click Redo and place the stick again. |
-| 4 | Dish and axes | Circle, then Origin to Center | Click Circle. Click 6 or more points on the inner wall of the dish, spread around it. | Dish: R = 16.20 mm (500.0 px), RMS 0.6 px. The origin is at the center. | The circle needs 3 or more points. Click more points on the dish wall. |
+| 4 | Dish and axes | Circle, then Origin to Center | Click Circle. Click 6 or more points on the inner wall of the dish, spread around it. | Dish: R = 16.20 mm (500.0 px), RMS 0.6 px. The origin is at the center. | The circle needs 3 or more points. Click more points on the boundary's edge. |
 | 5 | Probes | Add box, then Measure | Optional. Add a box over the LED. Then click Measure. | {n} boxes are measured on {N} frames. | Box {name} has one corner. Click the opposite corner in the video. |
 | 6 | Objects | Add | Click Add. Then click on one animal in the video. An outline appears. | {n} objects are ready to track. | Object {id} has no points. Click on the animal, or remove the object. |
 | 7 | Track | Track | Estimated time: about {m} min for {N} frames and {n} objects. | Tracking is complete: {n} objects, {N} frames. | Tracking was cancelled at frame {k}. The tracked frames were kept. |
@@ -222,7 +222,7 @@ The GUI checks these cases before it calls the core. Any other core error is sho
 |---|---|---|---|
 | Pan (default; Esc returns here) | `OpenHandCursor`; `ClosedHandCursor` during a drag | nothing | "Pan: drag to move the picture. Scroll to zoom." |
 | Stick, Tape | `CrossCursor` | places an end | "Stick: click the first end on the ruler." then "Stick: click the second end." (Tape: "ruler mark" for "end") |
-| Circle | `CrossCursor` | adds a wall point | "Circle: click points on the inner wall of the dish. {n} placed; 6 or more is best." |
+| Circle | `CrossCursor` | adds a point of the edge | "Circle: click points on the edge of the boundary. {n} placed; 6 or more is best." |
 | Axes | `CrossCursor` | places the origin | "Axes: click the new origin." |
 | Probe | `CrossCursor` | places a corner | "Probe: click one corner of the box." then "Probe: click the opposite corner." |
 | Positive, Negative, Head | `CrossCursor` | adds a point to the selected object | "Positive: click on animal {id}." "Negative: click on what is not animal {id}." "Head: click on the head of {id}." |

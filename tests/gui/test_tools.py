@@ -57,7 +57,7 @@ def test_the_tool_lines_are_the_design_notes(window, qtbot, dish_clip):
     calibration.tape_tool.add_tool_point(60.5, 200.5)
     assert window.tool_text.text() == "Tape: click the second ruler mark."
     view.set_tool(dish.circle_tool)
-    assert window.tool_text.text() == ("Circle: click points on the inner wall of the dish. 0 placed; "
+    assert window.tool_text.text() == ("Circle: click points on the edge of the boundary. 0 placed; "
                                        "6 or more is best.")
     place(dish.circle_tool, wall(dish_clip)[:2])
     assert "2 placed" in window.tool_text.text()
@@ -240,9 +240,24 @@ def test_fewer_than_three_points_fit_nothing_and_say_how_many_are_needed(window,
     for count, point in enumerate(wall(dish_clip)[:2], start=1):
         tool.add_tool_point(*point)
         assert session.boundary is None and len(tool.points) == count
-        assert tool.refusal == "The circle needs 3 or more points. Click more points on the dish wall."
+        assert tool.refusal == "The circle needs 3 or more points. Click more points on the boundary's edge."
     tool.add_tool_point(*wall(dish_clip)[2])
     assert session.boundary is not None and tool.refusal is None
+
+
+def test_the_known_diameter_goes_with_the_boundary_and_must_be_more_than_0_mm(window, qtbot, dish_clip):
+    _, dish = opened(window, qtbot, dish_clip)
+    tool, session = dish.circle_tool, window.controller.session
+    tool.set_diameter_mm(32.0)  # typed before there is a boundary: kept for the fit
+    assert tool.diameter_mm == 32.0 and session.boundary is None
+    place(tool, wall(dish_clip))
+    assert session.boundary.diameter_mm == 32.0
+    for bad in (0.0, -1.0, math.nan, math.inf):
+        with pytest.raises(ValueError, match=r"^The diameter must be more than 0 mm\.$"):
+            tool.set_diameter_mm(bad)
+        assert tool.diameter_mm == 32.0 and session.boundary.diameter_mm == 32.0
+    tool.set_diameter_mm(None)  # "not known"
+    assert tool.diameter_mm is None and session.boundary.diameter_mm is None
 
 
 def test_three_points_on_a_line_give_the_message_of_fit_circle(window, qtbot, dish_clip):

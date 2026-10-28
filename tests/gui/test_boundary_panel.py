@@ -20,7 +20,7 @@ from outline_tracker.core import geometry
 from outline_tracker.gui.settings import MANIFEST_KEY, settings
 
 START_HINT = "Click Circle. Click 6 or more points on the inner wall of the dish, spread around it."
-NEEDS_THREE = "The circle needs 3 or more points. Click more points on the dish wall."
+NEEDS_THREE = "The circle needs 3 or more points. Click more points on the boundary's edge."
 STICK = [(50.5, 20.5), (250.5, 20.5)]  # 200 px: with 30 mm, 0.15 mm per px
 
 
@@ -178,7 +178,7 @@ def test_a_dish_diameter_that_is_not_positive_and_finite_is_refused(window, qtbo
     panel.set_dish_mm(35.0)
     panel.set_dish_mm(bad)
     assert window.controller.session.boundary.diameter_mm == 35.0
-    assert (panel.message.kind, panel.message.text()) == ("problem", "The dish diameter must be more than 0 mm.")
+    assert (panel.message.kind, panel.message.text()) == ("problem", "The diameter must be more than 0 mm.")
     assert panel.dish_box.property("check") == "error" and window.panels[3].state == "attention"
     panel.set_dish_mm(35.0)
     assert panel.message.isHidden() and window.panels[3].state == "done"
