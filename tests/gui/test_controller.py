@@ -100,7 +100,7 @@ def test_open_video_makes_a_session_for_the_file(controller, request, name):
     assert block.fps_container == pytest.approx(scene.fps)
     # nothing else is known yet
     assert session.student == "" and session.time.fps_true is None
-    assert session.tracks == [] and session.calibration.stick is None and session.circle is None
+    assert session.tracks == [] and session.calibration.stick is None and session.boundary is None
     # the frames come from the open file, one at a time
     frame = controller.source.get(5)
     assert frame.shape == (240, 320, 3) and frame.dtype == "uint8"

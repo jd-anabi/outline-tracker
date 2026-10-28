@@ -57,7 +57,7 @@ def calibrated_session(clip, run_folder, tracks, *, step, end=None, circle=None)
     `end` (the clip's last frame if None) every `step`, the given tracks, fps_true = the scene's
     frame rate, a horizontal stick of 1000 px whose length in mm is 1000 x the scene's mm per px,
     and the origin of the axes at the middle of the frame, px. `circle`: the dish wall
-    (`session.Circle`, px) or None; with a circle, coarse tracking shows the model the dish square.
+    (`session.Boundary`, px) or None; with a circle, coarse tracking shows the model the dish square.
     """
     scene = clip.scene
     for one in tracks:

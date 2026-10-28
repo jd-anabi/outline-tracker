@@ -17,7 +17,7 @@ from derive_helpers import CENTER, FPS, TILTED, UPRIGHT, K
 
 from outline_tracker.measure import derive
 from outline_tracker.core import csv_format, schema
-from outline_tracker.core.session import Circle
+from outline_tracker.core.session import Boundary
 
 ALPHA = np.radians(25.0)   # the axis angle of TILTED
 
@@ -313,7 +313,7 @@ def test_a_far_piece_of_two_pixels_does_not_lengthen_an_ellipse():
 @pytest.mark.parametrize("distance", [0.0, 150.0, 395.0, 430.0])
 def test_wall_distances_of_a_disk_at_a_known_distance_from_the_dish_center(distance):
     # Dish of radius 400 px; a disk of radius 12 px with its center `distance` px from the dish's.
-    dish = Circle(center_px=[900.2, 520.7], radius_px=400.0)
+    dish = Boundary(center_px=[900.2, 520.7], radius_px=400.0)
     center = h.along(dish.center_px, np.radians(200.0), distance)
     one = h.disk_record(0, center, 12.0, half=30)
     track = h.derive([one], TILTED, circle=dish)

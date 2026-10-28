@@ -141,7 +141,7 @@ def derive_all(session: Session, store: ResultsStore) -> ExportData:
     ids = [track_id for track_id in store.track_ids if track_id in tracks]  # the store gives text order
     arrays = {track_id: store.arrays(track_id) for track_id in ids}
     derived = {track_id: derive_track(arrays[track_id], tracks[track_id], world_frame, session.time.fps_true,
-                                      session.circle, session.processing) for track_id in ids}
+                                      session.boundary, session.processing) for track_id in ids}
     flags = compute_flags(derived, arrays, world_frame, session.processing)
     every = bool(session.processing.shape_files_for_coarse)
     shape_tracks = [track_id for track_id in ids if every or bool(np.any(arrays[track_id].mode == "fine"))]

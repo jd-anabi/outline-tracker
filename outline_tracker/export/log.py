@@ -109,16 +109,16 @@ def _calibration_lines(session: Session) -> list[str]:
                   f"{fit.get('n_points', '?')} points); no click uncertainty")
         stick_line = "stick: none"
     lines = [scale, stick_line, _tape_text(cal.check, k)]
-    circle = session.circle
+    circle = session.boundary
     if circle is None:
         lines.append("circle: none")
     else:
         (cu, cv), radius = circle.center_px, float(circle.radius_px)
         text = (f"circle: center ({cu:.3f}, {cv:.3f}) px, R = {radius:.3f} px, rms {float(circle.rms_px):.3f} px; "
                 f"2R = {2 * radius * k:.4f} mm")
-        if circle.dish_mm:
-            off = 100 * (2 * radius * k - circle.dish_mm) / circle.dish_mm
-            text += f", dish_mm = {circle.dish_mm:g} (2R is {off:+.2f} % off)"
+        if circle.diameter_mm:
+            off = 100 * (2 * radius * k - circle.diameter_mm) / circle.diameter_mm
+            text += f", dish_mm = {circle.diameter_mm:g} (2R is {off:+.2f} % off)"
         else:
             text += ", dish_mm not given"
         lines.append(text)

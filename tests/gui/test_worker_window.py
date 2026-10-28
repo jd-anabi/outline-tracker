@@ -176,7 +176,7 @@ def test_the_model_is_shown_the_part_of_the_frame_that_tracking_shows_it(window,
     # the preview shows it the same part, and the outline comes back to the full frame's coordinates.
     segmenter = tracking_helpers.Watched(ExactFake(dish_clip))
     panel = panel_with(window, qtbot, dish_clip, segmenter)
-    window.controller.session.circle = dish_circle(dish_clip.scene)
+    window.controller.session.boundary = dish_circle(dish_clip.scene)
     window.controller.touch()
     panel.add_object()
     assert panel.prompts.add_point(*center(dish_clip, "A", 0), 1)

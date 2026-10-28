@@ -35,8 +35,8 @@ def tracked(dish_clip, tmp_path_factory):
     folder = tmp_path_factory.mktemp("log") / "run"
     session = coarse_run(dish_clip, folder, ["A", "B", "C"])
     session.calibration.check = {"p1_px": [10.0, 40.0], "p2_px": [211.0, 40.0], "true_mm": 20.0}
-    session.circle.dish_mm = 22.0
-    session.circle.rms_px = 0.4
+    session.boundary.diameter_mm = 22.0
+    session.boundary.rms_px = 0.4
     session.runs[0].device = "cpu"
     session.runs[0].model_id = "yonigozlan/EdgeTAM-hf"
     session.runs[0].weights_sha256 = WEIGHTS
@@ -178,7 +178,7 @@ def test_a_session_from_a_tracker_export_has_a_fitted_scale_and_no_stick(run_fol
     session.calibration.stick = None
     session.calibration.tracker_fit = {"mm_per_px": 0.0324, "rms_mm": 5.0e-6, "n_points": 12}
     session.time.source = "tracker-export"
-    session.circle = None
+    session.boundary = None
     session.save(run_folder / "session.json")
     text = _log(run_folder)
     scale = _line(text, "scale:")

@@ -1,7 +1,7 @@
 """Panel 4, Dish and axes (SPEC 4.4, 4.5, 10.1): Circle, Origin to Center, Axes, "Crop to dish for tracking".
 The panel shows what the circle fit gives and the dish's known diameter beside 2R, and the axes angle.
 
-The values live in the session (`circle`, `axes`, `processing.dish_crop`, SPEC 8.10) and are kept
+The values live in the session (`boundary`, `axes`, `processing.boundary_crop`, SPEC 8.10) and are kept
 there by the two tools (outline_tracker/gui/view/tools.py); this panel chooses the tools, takes the
 typed values, and shows the session: the center, the radius and the RMS that `geometry.fit_circle`
 returned, the radius in mm once there is a scale, and where the origin is.
@@ -82,10 +82,10 @@ class DishPanel(QWidget):
         self._take("angle", self.axes_tool.set_angle, degrees)
 
     def set_crop(self, on: bool) -> None:
-        """Switch "Crop to dish for tracking" (`processing.dish_crop`) on or off."""
+        """Switch "Crop to dish for tracking" (`processing.boundary_crop`) on or off."""
         session = self._controller.session
-        if session is not None and session.processing.dish_crop != bool(on):
-            session.processing.dish_crop = bool(on)
+        if session is not None and session.processing.boundary_crop != bool(on):
+            session.processing.boundary_crop = bool(on)
             self._controller.touch()
 
     def _take(self, name: str, setter, value) -> None:
@@ -105,7 +105,7 @@ class DishPanel(QWidget):
         if session is not self._shown:
             self._shown = session
             self._refused.clear()
-        circle, scale, origin = session.circle, mm_per_px(session), session.axes.origin_px
+        circle, scale, origin = session.boundary, mm_per_px(session), session.axes.origin_px
         radius = None
         if circle is not None:
             radius = f"{circle.radius_px:.1f} px"
@@ -119,7 +119,7 @@ class DishPanel(QWidget):
         self.dish_box.show_value(self.circle_tool.dish_mm or 0.0, "dish" in self._refused)
         self.angle_box.show_value(session.axes.angle_deg, "angle" in self._refused)
         self.crop_box.blockSignals(True)
-        self.crop_box.setChecked(bool(session.processing.dish_crop))
+        self.crop_box.setChecked(bool(session.processing.boundary_crop))
         self.crop_box.blockSignals(False)
         self.origin_button.setEnabled(circle is not None)
 
@@ -135,7 +135,7 @@ class DishPanel(QWidget):
             kind, text, state = None, "", "done"
             hint = f"Dish: R = {radius}, RMS {circle.rms_px:.1f} px. " + ("The origin is at the center." if centered
                                                                          else at_origin)
-        elif not session.processing.dish_crop and self.axes_tool.placed:
+        elif not session.processing.boundary_crop and self.axes_tool.placed:
             kind, text, state, hint = None, "", "done", f"No dish circle. {at_origin}"
         else:
             kind, text, state, hint = None, "", "todo", self._start_hint

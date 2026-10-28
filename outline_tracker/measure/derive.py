@@ -47,7 +47,7 @@ from outline_tracker.measure.outline import feret_max, outline_quantities, radia
 from outline_tracker.core.geometry import WorldFrame
 from outline_tracker.measure.mask import largest_piece
 from outline_tracker.measure.results import TrackArrays
-from outline_tracker.core.session import Circle, Processing, Track
+from outline_tracker.core.session import Boundary, Processing, Track
 
 __all__ = ["DerivedTrack", "derive_track", "feret_max", "radial_profile"]
 
@@ -122,7 +122,7 @@ class DerivedTrack:
 
 
 def derive_track(arrays: TrackArrays, track: Track, world_frame: WorldFrame, fps_true: float,
-                 circle: Circle | None, processing: Processing) -> DerivedTrack:
+                 circle: Boundary | None, processing: Processing) -> DerivedTrack:
     """Every world quantity of one track (SPEC 7.1-7.9) from its pixel records.
 
     arrays: the track's records from the results store, in image px, one row per tracked frame.

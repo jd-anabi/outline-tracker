@@ -7,7 +7,7 @@ the first click counts and the second is dropped. Each tool keeps one block of t
 
 - `StickTool`: `calibration.stick` = {"p1_px", "p2_px", "length_mm"}; the second end finishes it.
 - `TapeTool`: `calibration.check` = {"p1_px", "p2_px", "true_mm"}; it needs the stick's scale.
-- `CircleTool`: `circle` (points, and center, radius and RMS of `geometry.fit_circle`, `dish_mm`).
+- `CircleTool`: `boundary` (points, and center, radius and RMS of `geometry.fit_circle`, `diameter_mm`).
 - `AxesTool`: `axes` (the origin, placed by one click, and the angle).
 
 What the four share (the click rules, following the session) is `PointTool`, and how their graphics
@@ -34,7 +34,7 @@ from PySide6.QtCore import QObject
 from outline_tracker.core import geometry
 from outline_tracker.gui.settings import MANIFEST_KEY, settings
 from outline_tracker.gui.view.tool_items import PointTool
-from outline_tracker.core.session import Circle
+from outline_tracker.core.session import Boundary
 
 STICK_MM, TAPE_MM = 30.0, 20.0  # the lengths a new session starts with (the course's ruler, SPEC 8.10)
 AXIS_FRACTION = 0.15            # an axis arrow's length, as a part of the frame's shorter side
@@ -242,7 +242,7 @@ class AxesTool(PointTool):
         return AXIS_FRACTION * min(self.session.video.width, self.session.video.height)
 
     def _default(self) -> list[float]:
-        circle, video = self.session.circle, self.session.video
+        circle, video = self.session.boundary, self.session.video
         return [float(c) for c in circle.center_px] if circle is not None else [video.width / 2, video.height / 2]
 
     def _load(self) -> None:
@@ -272,8 +272,8 @@ class AxesTool(PointTool):
     def origin_to_center(self) -> None:
         """Copy the fitted circle's center to the origin (px of the video frame). Without a circle
         nothing happens."""
-        if self.session is not None and self.session.circle is not None:
-            self.session.axes.origin_px, self.placed = [float(c) for c in self.session.circle.center_px], True
+        if self.session is not None and self.session.boundary is not None:
+            self.session.axes.origin_px, self.placed = [float(c) for c in self.session.boundary.center_px], True
             self.controller.touch()
 
     def set_angle(self, degrees: float) -> None:
@@ -310,7 +310,7 @@ class CircleTool(PointTool):
 
     def _load(self) -> None:
         self.points, self._stored = [], False
-        self.dish_mm = None if self.session.circle is not None else self._manifest_dish_mm()
+        self.dish_mm = None if self.session.boundary is not None else self._manifest_dish_mm()
 
     def _manifest_dish_mm(self) -> float | None:
         """The dish diameter in mm that the course's manifest states for the open video (SPEC 4.4): the
@@ -326,9 +326,9 @@ class CircleTool(PointTool):
         return None
 
     def _sync(self) -> None:
-        circle = self.session.circle
+        circle = self.session.boundary
         if circle is not None:
-            self.points, self.dish_mm = [list(point) for point in circle.points_px], circle.dish_mm
+            self.points, self.dish_mm = [list(point) for point in circle.points_px], circle.diameter_mm
         elif self._stored:
             self.points = []  # cleared elsewhere
         self._stored = circle is not None
@@ -355,8 +355,8 @@ class CircleTool(PointTool):
                 raise ValueError("The dish diameter must be more than 0 mm.")
         self.dish_mm = mm
         if self.session is not None:
-            if self.session.circle is not None:
-                self.session.circle.dish_mm = mm
+            if self.session.boundary is not None:
+                self.session.boundary.diameter_mm = mm
             self.controller.touch()
 
     def _fit(self) -> None:
@@ -371,13 +371,13 @@ class CircleTool(PointTool):
             except ValueError as refused:
                 self.refusal = str(refused)
         if fitted is None:
-            session.circle = None
+            session.boundary = None
         else:
-            session.circle = Circle(points_px=[list(point) for point in self.points],
-                                    center_px=[float(c) for c in fitted.center_px],
-                                    radius_px=float(fitted.radius_px), rms_px=float(fitted.rms_px),
-                                    dish_mm=self.dish_mm,
-                                    extra=session.circle.extra if session.circle is not None else {})
+            session.boundary = Boundary(points_px=[list(point) for point in self.points],
+                                        center_px=[float(c) for c in fitted.center_px],
+                                        radius_px=float(fitted.radius_px), rms_px=float(fitted.rms_px),
+                                        diameter_mm=self.dish_mm,
+                                        extra=session.boundary.extra if session.boundary is not None else {})
         self._stored = fitted is not None
         self.axes.follow_circle()
         self.controller.touch()
@@ -387,7 +387,7 @@ class CircleTool(PointTool):
         return f"Circle: click points on the inner wall of the dish. {len(self.points)} placed; 6 or more is best."
 
     def draw(self) -> None:
-        circle, scale = self.session.circle, mm_per_px(self.session)
+        circle, scale = self.session.boundary, mm_per_px(self.session)
         if circle is None:
             self.graphic.dish(self.points)
         else:

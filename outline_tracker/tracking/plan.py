@@ -27,7 +27,7 @@ from outline_tracker.core.geometry import grid_frames
 from outline_tracker.measure.mask import MODES
 from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import ObjectPrompt, points_in_image
-from outline_tracker.core.session import Circle, Session, Track
+from outline_tracker.core.session import Boundary, Session, Track
 
 DISH_MARGIN = 0.03  # the dish crop reaches m = 0.03 R beyond the fitted wall on every side (SPEC 6.2)
 
@@ -56,7 +56,7 @@ def _finite(*values) -> bool:
     return all(isinstance(value, numbers.Real) and math.isfinite(value) for value in values)
 
 
-def dish_box(circle: Circle, frame_size: tuple[int, int]) -> tuple[int, int, int, int]:
+def dish_box(circle: Boundary, frame_size: tuple[int, int]) -> tuple[int, int, int, int]:
     """The dish crop of SPEC 6.2: the square [uc - R - m, uc + R + m] x [vc - R - m, vc + R + m] with
     m = 0.03 R, widened to whole pixels (floor and ceil) and clipped to the frame.
 
@@ -82,15 +82,15 @@ def dish_box(circle: Circle, frame_size: tuple[int, int]) -> tuple[int, int, int
 
 def view_box(session: Session) -> tuple[int, int, int, int]:
     """What coarse tracking shows the model (SPEC 6.2): the dish square (`dish_box`) when the session
-    has a circle and `processing.dish_crop` is on, else the whole frame. Returns
+    has a circle and `processing.boundary_crop` is on, else the whole frame. Returns
     (c0, r0, width, height) in whole px of the full frame. Raises ValueError when the session does
     not hold the frame size of its video, or the circle gives no crop."""
     width, height = session.video.width, session.video.height
     if not (isinstance(width, int) and isinstance(height, int) and width > 0 and height > 0):
         raise ValueError(f"The session does not know the frame size of its video ({width!r} x {height!r} px): "
                          "open the video again.")
-    if session.circle is not None and session.processing.dish_crop:
-        return dish_box(session.circle, (width, height))
+    if session.boundary is not None and session.processing.boundary_crop:
+        return dish_box(session.boundary, (width, height))
     return 0, 0, width, height
 
 

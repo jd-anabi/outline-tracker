@@ -10,9 +10,9 @@ import derive_helpers as h
 import numpy as np
 from derive_helpers import CENTER
 
-from outline_tracker.core.session import Circle
+from outline_tracker.core.session import Boundary
 
-DISH = Circle(center_px=[900.2, 520.7], radius_px=400.0)
+DISH = Boundary(center_px=[900.2, 520.7], radius_px=400.0)
 
 
 def tilted(frame, angle_deg, a=40.0, b=15.0):

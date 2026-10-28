@@ -40,7 +40,7 @@ def test_the_controls_are_the_specs(window, qtbot, dish_clip):
     assert [panel.circle_button.text(), panel.circle_redo.text()] == ["Circle", "Redo"]
     assert [panel.origin_button.text(), panel.axes_button.text()] == ["Origin to Center", "Axes"]
     assert panel.crop_box.text() == "Crop to dish for tracking"
-    assert panel.crop_box.isChecked() and window.controller.session.processing.dish_crop is True  # on by default
+    assert panel.crop_box.isChecked() and window.controller.session.processing.boundary_crop is True  # on by default
     assert panel.circle_button.isCheckable() and panel.axes_button.isCheckable()
     assert not panel.origin_button.isEnabled()  # no circle yet: no center to go to
     assert panel.angle_box.suffix() == "°" and panel.angle_box.decimals() == 1 and panel.angle_box.value() == 0.0
@@ -93,7 +93,7 @@ def test_points_off_the_circle_show_their_rms(window, qtbot, dish_clip):
     # wall itself, and every point is 2 px from it
     points = [on_circle((cu, cv), radius + (2 if index % 2 else -2), (angle,))[0] for index, angle in enumerate(SIX)]
     place(panel.circle_tool, points)
-    circle = window.controller.session.circle
+    circle = window.controller.session.boundary
     assert circle.center_px == pytest.approx([cu, cv], abs=1e-6) and circle.radius_px == pytest.approx(radius)
     assert circle.rms_px == pytest.approx(2.0, abs=1e-6)
     assert panel.rms_value.text() == "2.0 px"
@@ -126,7 +126,7 @@ def test_redo_clears_the_circle(window, qtbot, dish_clip):
     _, panel = opened(window, qtbot, dish_clip)
     place(panel.circle_tool, wall(dish_clip))
     qtbot.mouseClick(panel.circle_redo, Qt.MouseButton.LeftButton)
-    assert window.controller.session.circle is None and panel.circle_tool.points == []
+    assert window.controller.session.boundary is None and panel.circle_tool.points == []
     assert [panel.center_value.text(), panel.radius_value.text(), panel.rms_value.text()] == ["–"] * 3
     assert window.panels[3].state == "todo" and window.panels[3].hint.text() == START_HINT
     assert panel.message.isHidden() and not panel.origin_button.isEnabled()
@@ -155,20 +155,20 @@ def test_the_circle_button_chooses_the_tool_and_stays_while_points_are_placed(wi
 def test_the_dish_diameter_lands_in_the_session_with_or_before_the_circle(window, qtbot, dish_clip):
     calibration, panel = opened(window, qtbot, dish_clip)
     panel.set_dish_mm(35.0)  # typed before there is a circle
-    assert window.controller.session.circle is None and panel.dish_box.value() == 35.0
+    assert window.controller.session.boundary is None and panel.dish_box.value() == 35.0
     place(panel.circle_tool, wall(dish_clip))
-    assert window.controller.session.circle.dish_mm == 35.0
+    assert window.controller.session.boundary.diameter_mm == 35.0
     panel.dish_box.setValue(32.0)  # typed into the box, with the circle there
-    assert window.controller.session.circle.dish_mm == 32.0
+    assert window.controller.session.boundary.diameter_mm == 32.0
     place(calibration.stick_tool, STICK)
     assert panel.two_r_value.text() == "32.40 mm"  # next to the 32.00 mm of the box
     panel.set_dish_mm(0.0)  # "not known"
-    assert window.controller.session.circle.dish_mm is None
+    assert window.controller.session.boundary.diameter_mm is None
     assert panel.dish_box.text() == "not known"
     qtbot.mouseClick(panel.circle_redo, Qt.MouseButton.LeftButton)
     panel.set_dish_mm(34.0)
     place(panel.circle_tool, wall(dish_clip))  # the diameter outlives Redo: it is the dish's, not the clicks'
-    assert window.controller.session.circle.dish_mm == 34.0
+    assert window.controller.session.boundary.diameter_mm == 34.0
 
 
 @pytest.mark.parametrize("bad", [-5.0, math.nan, math.inf])
@@ -177,7 +177,7 @@ def test_a_dish_diameter_that_is_not_positive_and_finite_is_refused(window, qtbo
     place(panel.circle_tool, wall(dish_clip))
     panel.set_dish_mm(35.0)
     panel.set_dish_mm(bad)
-    assert window.controller.session.circle.dish_mm == 35.0
+    assert window.controller.session.boundary.diameter_mm == 35.0
     assert (panel.message.kind, panel.message.text()) == ("problem", "The dish diameter must be more than 0 mm.")
     assert panel.dish_box.property("check") == "error" and window.panels[3].state == "attention"
     panel.set_dish_mm(35.0)
@@ -198,7 +198,7 @@ def test_the_dish_diameter_of_the_manifest_is_filled_in(window, qtbot, dish_clip
     panel = body(window, 4)
     assert panel.dish_box.value() == 34.5
     place(panel.circle_tool, wall(dish_clip))
-    assert window.controller.session.circle.dish_mm == 34.5
+    assert window.controller.session.boundary.diameter_mm == 34.5
 
 
 def test_the_dish_diameter_of_the_manifest_pointed_to_last_is_filled_in(window, qtbot, dish_clip, tmp_path,
@@ -234,7 +234,7 @@ def test_origin_to_center_copies_the_center_to_the_axes(window, qtbot, dish_clip
     assert window.panels[3].hint.text() == "Dish: R = 108.0 px, RMS 0.0 px. The origin is at 100.5, 50.5 px."
     qtbot.mouseClick(panel.origin_button, Qt.MouseButton.LeftButton)
     assert session.axes.origin_px == pytest.approx([160.3, 119.8], abs=1e-6)
-    assert session.axes.origin_px == session.circle.center_px
+    assert session.axes.origin_px == session.boundary.center_px
     assert panel.origin_value.text() == "160.3, 119.8 px"
     assert window.panels[3].hint.text().endswith("The origin is at the center.")
 
@@ -257,11 +257,11 @@ def test_crop_to_dish_is_on_until_the_user_unticks_it(window, qtbot, dish_clip):
     _, panel = opened(window, qtbot, dish_clip)
     session = window.controller.session
     changes = []
-    window.controller.session_changed.connect(lambda: changes.append(session.processing.dish_crop))
+    window.controller.session_changed.connect(lambda: changes.append(session.processing.boundary_crop))
     panel.crop_box.click()
-    assert session.processing.dish_crop is False and changes == [False]
+    assert session.processing.boundary_crop is False and changes == [False]
     panel.set_crop(True)
-    assert session.processing.dish_crop is True and panel.crop_box.isChecked()
+    assert session.processing.boundary_crop is True and panel.crop_box.isChecked()
 
 
 def test_without_a_circle_the_panel_is_done_when_the_crop_is_off_and_the_origin_is_placed(window, qtbot, dish_clip):

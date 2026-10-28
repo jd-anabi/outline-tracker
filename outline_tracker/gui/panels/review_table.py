@@ -294,7 +294,7 @@ class Listing(QObject):
             return None
         saved = (Path(folder) / schema.SESSION_JSON).is_file()  # without it nothing can be listed: see `_Task`
         return (str(folder), found.st_size, found.st_mtime_ns, found.st_ino, saved, session.time.fps_true,
-                repr(session.calibration), repr(session.axes), repr(session.circle), repr(session.processing), tracks)
+                repr(session.calibration), repr(session.axes), repr(session.boundary), repr(session.processing), tracks)
 
     def sync(self, *_) -> None:
         """List the flags again if what they are made of changed since `rows` was listed. Call it

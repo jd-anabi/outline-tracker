@@ -25,8 +25,8 @@ import outline_tracker
 from outline_tracker.core.geometry import WorldFrame
 from outline_tracker.core.session import (
     Axes,
+    Boundary,
     CalibrationSettings,
-    Circle,
     Clip,
     Correction,
     ProbeBox,
@@ -108,11 +108,11 @@ def test_spec_example_becomes_the_dataclasses():
     assert s.calibration.check == {"p1_px": [0, 0], "p2_px": [0, 0], "true_mm": 20.0}
     assert s.calibration.tracker_fit is None
     assert isinstance(s.axes, Axes) and (s.axes.origin_px, s.axes.angle_deg) == ([960.5, 540.5], 0.0)
-    assert isinstance(s.circle, Circle)
-    assert (s.circle.points_px, s.circle.center_px, s.circle.radius_px) == ([[0, 0]], [0, 0], 0.0)
-    assert (s.circle.shape, s.circle.rms_px, s.circle.dish_mm) == ("circle", 0.0, None)
+    assert isinstance(s.boundary, Boundary)
+    assert (s.boundary.points_px, s.boundary.center_px, s.boundary.radius_px) == ([[0, 0]], [0, 0], 0.0)
+    assert (s.boundary.shape, s.boundary.rms_px, s.boundary.diameter_mm) == ("circle", 0.0, None)
     assert isinstance(s.processing, Processing)
-    assert (s.processing.dish_crop, s.processing.jump_mm_s, s.processing.tracker_format) == (True, 100.0, True)
+    assert (s.processing.boundary_crop, s.processing.jump_mm_s, s.processing.tracker_format) == (True, 100.0, True)
     assert len(s.probes) == 1 and isinstance(s.probes[0], ProbeBox)
     assert (s.probes[0].name, s.probes[0].rect_px) == ("LED1", [0, 0, 0, 0])
     (track,) = s.tracks
@@ -133,7 +133,7 @@ def test_spec_example_becomes_the_dataclasses():
     assert (correction.time, correction.tracks, correction.action) == ("ISO-8601", ["A"], "retrack|end|new_piece")
     assert (correction.frame, correction.prompts) == (0, [])
     # every key of the example is a field: nothing was only carried along as an unknown key
-    records = [s, s.video, s.clip, s.time, s.calibration, s.axes, s.circle, s.processing, s.probes[0], track,
+    records = [s, s.video, s.clip, s.time, s.calibration, s.axes, s.boundary, s.processing, s.probes[0], track,
                prompt, run, correction]
     assert [type(r).__name__ for r in records if r.extra] == []
 
@@ -141,13 +141,13 @@ def test_spec_example_becomes_the_dataclasses():
 def test_defaults_are_those_of_the_spec_and_of_version_2():
     # SPEC 8.10 (the processing block), 4.2 (click precision 0.5 px), 4.6 (LED1), 7.4, 7.6, 7.8; formats.md
     p = Processing()
-    assert (p.model, p.device, p.dish_crop) == ("edgetam", "auto", True)
+    assert (p.model, p.device, p.boundary_crop) == ("edgetam", "auto", True)
     assert (p.outline_points, p.radial_step_deg, p.shape_ok_min) == (128, 5, 20)
     assert (p.core_open_frac, p.jump_mm_s, p.fine_window_factor, p.shape_files_for_coarse) == (0.1, 100.0, 3.0, False)
     assert p.tracker_format is False  # a new session (decision 34)
     spec = {("boundary_crop" if key == "dish_crop" else key): value for key, value in spec_example()["processing"].items()}
     assert_same_json(Processing().to_json(), {**spec, "tracker_format": False})
-    assert Circle().shape == "circle"
+    assert Boundary().shape == "circle"
     assert CalibrationSettings().click_sigma_px == 0.5
     assert Clip().step == 2
     assert Axes().angle_deg == 0.0
@@ -156,7 +156,7 @@ def test_defaults_are_those_of_the_spec_and_of_version_2():
     assert (track.mode, track.fine_window_px, track.head_px, track.ended_at, track.prompts) == ("coarse", None, None, None, [])
     s = Session()
     assert (s.tool_version, s.student, s.notes, s.complete) == (outline_tracker.__version__, "", "", True)
-    assert (s.circle, s.probes, s.tracks, s.runs, s.corrections) == (None, [], [], [], [])
+    assert (s.boundary, s.probes, s.tracks, s.runs, s.corrections) == (None, [], [], [], [])
     assert s.time.fps_true is None  # not known yet
     assert (s.calibration.stick, s.calibration.check, s.calibration.tracker_fit) == (None, None, None)
     data = s.to_json()
@@ -167,9 +167,9 @@ def test_defaults_are_those_of_the_spec_and_of_version_2():
 def test_default_sessions_share_nothing():
     a, b = Session(), Session()
     a.tracks.append(Track(id="A"))
-    a.processing.dish_crop = False
+    a.processing.boundary_crop = False
     a.video.size = 5
-    assert (b.tracks, b.processing.dish_crop, b.video.size) == ([], True, 0)
+    assert (b.tracks, b.processing.boundary_crop, b.video.size) == ([], True, 0)
     assert Track().prompts is not Track().prompts
     assert a != b and Session() == Session()
 
@@ -195,7 +195,7 @@ def test_tracker_fit_session_round_trips(tmp_path):
     assert_same_json(saved, example)
     s = Session.from_json(example)
     assert s.calibration.tracker_fit == {"mm_per_px": 0.0323999942, "rms_mm": 5.0e-06, "n_points": 8}
-    assert (s.calibration.stick, s.calibration.check, s.circle) == (None, None, None)
+    assert (s.calibration.stick, s.calibration.check, s.boundary) == (None, None, None)
     assert s.time.source == "tracker-export"
     assert s.tracks[0].prompts[0].decoder == "opencv 5.0.0; darwin; arm64"
     assert (s.runs[0].model_id, s.runs[0].weights_sha256) == ("a-model-id", "c4" * 32)

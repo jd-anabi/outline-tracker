@@ -19,7 +19,7 @@ import numpy as np
 
 from outline_tracker.measure.mask import mask_center
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.core.session import Circle, Clip, Processing, Prompt, Session, TimeSettings, Track, VideoRef
+from outline_tracker.core.session import Boundary, Clip, Processing, Prompt, Session, TimeSettings, Track, VideoRef
 from outline_tracker.tracking.job import Callbacks, Job, run_job
 from outline_tracker.video.reader import decoder_tag, frame_hash, iter_rgb_frames
 
@@ -36,7 +36,7 @@ GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions of the 
 def dish_circle(scene):
     """The dish wall of a scene as the session stores it: center (u, v) and radius, px."""
     cu, cv, radius = scene.dish
-    return Circle(center_px=[cu, cv], radius_px=radius)
+    return Boundary(center_px=[cu, cv], radius_px=radius)
 
 
 def track_at(track_id, frame, points, labels, mode="coarse"):
@@ -82,8 +82,8 @@ def make_session(clip, run_folder, tracks, *, start=0, end=None, step=2, circle=
     video = VideoRef.from_file(clip.path, run_folder, width=width, height=height, n_frames=scene.n_frames,
                                fps_container=scene.fps)
     return Session(video=video, clip=Clip(start, scene.n_frames - 1 if end is None else end, step),
-                   time=TimeSettings(fps_true=scene.fps, source="typed"), circle=circle,
-                   processing=Processing(dish_crop=dish_crop), tracks=list(tracks))
+                   time=TimeSettings(fps_true=scene.fps, source="typed"), boundary=circle,
+                   processing=Processing(boundary_crop=dish_crop), tracks=list(tracks))
 
 
 def abc_session(clip, run_folder):
