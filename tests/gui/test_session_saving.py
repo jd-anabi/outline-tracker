@@ -38,8 +38,8 @@ def test_a_change_is_saved_by_a_single_shot_timer_of_750_ms_that_a_new_change_re
     controller, timer = window.controller, window.controller.save_timer
     threads = []
     real = Session.save
-    monkeypatch.setattr(Session, "save", lambda session, where: (
-        threads.append(threading.current_thread() is threading.main_thread()), real(session, where))[1])
+    monkeypatch.setattr(Session, "save", lambda session, where, on_kept=None: (
+        threads.append(threading.current_thread() is threading.main_thread()), real(session, where, on_kept))[1])
     assert timer.interval() == 750 and timer.isSingleShot()
     assert timer.isActive() and not target.exists()  # the name was a change: the save is due, not done
 
@@ -51,8 +51,8 @@ def test_a_change_is_saved_by_a_single_shot_timer_of_750_ms_that_a_new_change_re
     qtbot.waitUntil(target.is_file, timeout=10_000)
     assert not timer.isActive() and threads == [True]  # written once, from the GUI thread
     saved = read_json(target)
-    assert saved["format"] == "outline-tracker-session" and saved["schema_version"] == 1
-    assert saved["student"] == NAME and saved["clip"] == {"start": 0, "end": 119, "step": 4}
+    assert saved["format"] == "outline-tracker-session" and saved["schema_version"] == 2  # formats.md
+    assert saved["label"] == NAME and saved["clip"] == {"start": 0, "end": 119, "step": 4}
     assert saved["video"]["relpath"] == "../dish_tracker.mp4"  # relative to the run folder (SPEC 8.1)
     assert Path(saved["video"]["abspath"]) == path and saved["video"]["size"] == path.stat().st_size
     assert controller.saved_path == target and controller.save_problem is None
@@ -62,7 +62,7 @@ def test_a_change_is_saved_by_a_single_shot_timer_of_750_ms_that_a_new_change_re
 def test_the_timers_own_signal_writes_the_file(named):
     window, _, target = named
     window.controller.save_timer.timeout.emit()
-    assert target.is_file() and read_json(target)["student"] == NAME
+    assert target.is_file() and read_json(target)["label"] == NAME
 
 
 def test_save_now_writes_at_once_and_returns_the_file(named):
@@ -95,8 +95,7 @@ def test_the_save_key_saves_what_is_being_typed(named, qtbot):
     assert panel.save_action.shortcut() == QKeySequence(QKeySequence.StandardKey.Save)
     qtbot.keyClick(window, Qt.Key.Key_S, Qt.KeyboardModifier.ControlModifier)  # Qt's Ctrl is the Mac's Cmd
     assert target.is_file()
-    assert read_json(target)["time"] == {"fps_true": 239.6, "source": "typed", "manifest_path": None,
-                                         "stopwatch": None}
+    assert read_json(target)["time"] == {"fps_true": 239.6, "source": "typed", "stopwatch": None}
     assert FOLDER_OF_NAME in window.statusBar().currentMessage()
 
 
@@ -117,7 +116,7 @@ def test_closing_the_window_saves_also_a_name_that_was_typed_and_not_entered(win
     assert window.controller.session.student == ""
     assert window.close()
     saved = read_json(path.parent / FOLDER_OF_NAME / "session.json")
-    assert saved["student"] == NAME and saved["clip"] == {"start": 0, "end": 99, "step": 2}
+    assert saved["label"] == NAME and saved["clip"] == {"start": 0, "end": 99, "step": 2}
     path.unlink()  # the video was released after the save (Windows refuses this while a file is open)
 
 
@@ -135,7 +134,7 @@ def test_opening_another_video_first_saves_what_was_due(named, hd_clip):
     window, _, target = named
     assert window.controller.save_timer.isActive() and not target.exists()
     window.open_path(hd_clip.path)
-    assert read_json(target)["student"] == NAME
+    assert read_json(target)["label"] == NAME
     # the new video is another session: the name stays in its field, and names the new run folder
     assert window.controller.session.student == NAME
     assert window.controller.run_folder == hd_clip.path.parent / "hd_tracker_outline_Ada_Lovelace"
@@ -156,7 +155,7 @@ def test_after_a_new_name_the_session_is_saved_in_the_new_names_folder_and_the_o
     assert controller.run_folder == second.parent
     assert panel.folder_label.full_text == "dish_tracker_outline_Grace"  # where the files are now
     assert controller.save_now() == second
-    assert read_json(second)["student"] == "Grace" and read_json(second)["video"]["relpath"] == "../dish_tracker.mp4"
+    assert read_json(second)["label"] == "Grace" and read_json(second)["video"]["relpath"] == "../dish_tracker.mp4"
     assert first.read_bytes() == before  # the old folder is left as it is
 
     type_into(qtbot, panel.name_edit, NAME)  # back to the first name: that folder is this window's own
@@ -270,7 +269,7 @@ def test_a_name_typed_again_in_another_case_stays_in_this_sessions_folder(window
     type_into(qtbot, panel.name_edit, "Ada")  # the name, corrected
     assert controller.run_folder == again.parent
     assert controller.save_now() == again and controller.save_problem is None
-    assert read_json(first)["student"] == "Ada"  # the one file holds the corrected name
+    assert read_json(first)["label"] == "Ada"  # the one file holds the corrected name
     assert panel.save_message.isHidden() and asked.messages == []
     panel.step_box.setValue(7)  # and the session goes on being saved there
     assert controller.save_now() == again and read_json(first)["clip"]["step"] == 7
@@ -302,7 +301,7 @@ def test_a_folder_that_cannot_be_written_is_told_once_and_never_raised(named, mo
     asked = record_dialogs(monkeypatch)
     controller = window.controller
 
-    def refuse(session, where):
+    def refuse(session, where, on_kept=None):
         raise OSError(30, "Read-only file system")
 
     monkeypatch.setattr(Session, "save", refuse)

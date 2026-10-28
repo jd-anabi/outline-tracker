@@ -59,7 +59,7 @@ def test_with_results_in_the_run_folder_a_new_name_keeps_the_folder(saved, qtbot
     assert controller.session.student == "Grace" and controller.student == "Grace"  # the name does change
     assert controller.run_folder == folder  # and the folder with the results is not left
     assert controller.save_now() == folder / "session.json" and controller.save_problem is None
-    assert read_json(folder / "session.json")["student"] == "Grace"
+    assert read_json(folder / "session.json")["label"] == "Grace"
     assert panel.folder_label.full_text == FOLDER_OF_NAME and panel.folder_label.toolTip() == str(folder)
     assert not (path.parent / GRACE).exists()  # no second folder beside the video
     assert (folder / "results.npz").read_bytes() == results
@@ -75,7 +75,7 @@ def test_with_results_a_name_that_is_cleared_and_typed_again_stays_in_the_folder
     assert controller.refusal("track") == controller.refusal("export") == "Type your name in panel 1 first."
     type_into(qtbot, name, "Grace")
     assert controller.run_folder == folder and controller.save_now() == folder / "session.json"
-    assert read_json(folder / "session.json")["student"] == "Grace"
+    assert read_json(folder / "session.json")["label"] == "Grace"
     assert not (path.parent / GRACE).exists()
 
 
@@ -149,7 +149,7 @@ def test_save_session_as_without_results_writes_the_session_alone(saved, tmp_pat
     chosen = tmp_path / "elsewhere"
     assert window.controller.save_as(chosen) == chosen / "session.json"
     assert files_of(chosen) == ["session.json"] and files_of(folder) == ["session.json"]
-    assert read_json(chosen / "session.json")["student"] == "Ada Lovelace"
+    assert read_json(chosen / "session.json")["label"] == "Ada Lovelace"
 
 
 def test_save_session_as_saves_what_is_typed_and_not_entered(saved, qtbot, tmp_path):

@@ -319,7 +319,7 @@ def test_a_track_left_out_is_reported_once(run_folder, capsys):
 # What is refused: one ERROR line on stderr, exit code 1, nothing written
 
 
-@pytest.mark.parametrize(("version", "written_by"), [(2, "a newer outline-tracker"), (0, "an older outline-tracker")])
+@pytest.mark.parametrize(("version", "written_by"), [(3, "a newer outline-tracker"), (0, "an older outline-tracker")])
 def test_a_session_of_another_schema_version_gives_the_plain_message(run_folder, capsys, version, written_by):
     edit_session(run_folder, lambda data: data.update(schema_version=version))
     before = listing(run_folder)
@@ -327,7 +327,7 @@ def test_a_session_of_another_schema_version_gives_the_plain_message(run_folder,
     shown = capsys.readouterr()
     assert shown.out == ""
     assert shown.err.startswith("ERROR: ") and shown.err.endswith("\n") and shown.err.count("\n") == 1, shown.err
-    assert f"session format version {version}" in shown.err and "reads only version 1" in shown.err
+    assert f"session format version {version}" in shown.err and "reads only versions 1 and 2" in shown.err
     assert f"written by {written_by}" in shown.err
     assert listing(run_folder) == before
 

@@ -46,6 +46,7 @@ from outline_tracker.gui.worker_jobs import RUNNING, jobs_of  # noqa: F401
 
 SESSION_FILTERS = ["Session (*.json)", "All files (*)"]
 NOT_WRITTEN = "A file could not be written"  # the heading of the dialog; what to do follows it
+KEPT = "The session file has a new format"  # the heading of the dialog after a file of 0.1.0 was kept
 
 NAME_MISSING = "Type your name in panel 1 first. The run folder is named after you. Nothing is saved until then."
 HINT_NAME = "Type your name. The run folder is named after you."
@@ -188,6 +189,7 @@ class VideoPanel(QWidget):
         controller.about_to_save.connect(self._name_typed)
         controller.saved.connect(self._show)
         controller.trouble.connect(lambda text: dialogs.message(window, "problem", f"{NOT_WRITTEN}\n{text}"))
+        controller.kept.connect(lambda text: dialogs.message(window, "info", f"{KEPT}\n{text}"))
         window.closing.connect(self._closing)
         # the parts that are off while a run or an export is going, each with its own tooltip to put back after it
         self._lockable = {part: part.toolTip() for part in (self.name_edit, self.open_video_button,

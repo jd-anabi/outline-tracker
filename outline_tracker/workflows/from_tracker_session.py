@@ -164,8 +164,8 @@ def build_session(plan: Plan, world: WorldFrame, info: VideoInfo, video: Path, r
         video=VideoRef.from_file(video, run, width=info.width, height=info.height, n_frames=info.n_frames,
                                  fps_container=info.fps_container),
         clip=Clip(start=plan.start, end=int(last_frame), step=plan.step),
-        time=TimeSettings(fps_true=plan.fps, source=fps.source,
-                          manifest_path=None if fps.manifest is None else str(fps.manifest)),
+        # a rate from a manifest is stored as typed, without the manifest's path (decision 32)
+        time=TimeSettings(fps_true=plan.fps, source="typed" if fps.source == "manifest" else fps.source),
         calibration=CalibrationSettings(stick=None, check=None, tracker_fit={
             "mm_per_px": world.k_mm_per_px, "rms_mm": float(plan.calibration.rms_mm), "n_points": n_fit_points}),
         axes=Axes(origin_px=[world.u0, world.v0], angle_deg=math.degrees(world.alpha_rad)),

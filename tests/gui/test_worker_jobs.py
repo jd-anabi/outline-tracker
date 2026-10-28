@@ -159,9 +159,9 @@ def test_session_json_is_written_by_the_gui_thread_and_results_npz_by_the_worker
     writers = {"session": [], "results": []}
     save_session, save_results = Session.save, ResultsStore.save
 
-    def session_saved(self, path):
+    def session_saved(self, path, on_kept=None):
         writers["session"].append(this_thread())
-        return save_session(self, path)
+        return save_session(self, path, on_kept)
 
     def results_saved(self, path):
         writers["results"].append(this_thread())

@@ -204,6 +204,7 @@ Making the tool general (inventory: domain):
     is read as `typed` with its value kept; the new value `file` is added. [W3]
     Decided 2026-10-24, ahead of W3: the default stands; the table in `docs/design/formats.md` is
     still approved before any code (W3 step 1).
+    Decided 2026-10-27: the owner approved the table in `docs/design/formats.md`.
 13. Units and defaults. Default: mm stays; the stick and tape boxes start empty; the limit of
     the `JUMP` flag has no built-in value and the flag is off until the user sets one. [W3]
     Decided 2026-10-24, ahead of W3: the default stands.
@@ -304,6 +305,48 @@ The window and the project:
     one day of the first build. Adding `--exclude-newer <date of the tag>` to the install line
     would freeze them for a tagged release. Default: as built (the line names a tag and no date;
     the lock file serves development, and `uv tool install` ignores it). [W7]
+
+Found at the start of W3 (2026-10-27):
+
+32. When `session.json` changes. Default: the whole format changes in W3 step 1. From then on
+    version 2 is written, and version 1 is read through a reader. Steps 2 to 4 switch the code
+    over one row at a time. Until step 4 removes the manifest, an fps_true taken from a manifest
+    is stored as `typed`, without a path, and `run.log` names no manifest. [W3]
+    Decided 2026-10-27: the default stands.
+33. `time.source = "tracker-export"`, which decision 12 does not name. Default: it stays in
+    version 2, because Tracker is the name of a file format. [W3]
+    Decided 2026-10-27: the default stands.
+34. Decision 7's switch in the file. Default: a new key `processing.tracker_format` (true or
+    false). It is false for a new session and true for a version 1 file, because 0.1.0 always
+    wrote those files. `from-tracker` sets it from step 4. [W3]
+    Decided 2026-10-27: the default stands.
+35. Decision 13's limit in the file. Default: `processing.jump_mm_s` may be null, which means no
+    `JUMP` flag; a version 1 file keeps its number. The probe name `probe1`, the empty stick and
+    tape boxes and the track colors (decisions 9, 13, 25) are defaults of new sessions only. [W3]
+    Decided 2026-10-27: the default stands.
+36. The kept file when its name is taken. Default: the old file goes to `session.v1.json`.
+    - If that name holds the same bytes already, nothing more is written.
+    - If it holds other bytes, the old file goes to the next free name: `session.v1-2.json`,
+      `session.v1-3.json`, and so on. A file is never overwritten.
+    - If the copy fails, `session.json` is not replaced, and the user is told why.
+
+    This is done in `Session.save`, so that every writer keeps the old file. [W3]
+    Decided 2026-10-27: the default stands.
+37. A version 1 session whose video has moved. Default: its new place is written with the first
+    real change, not on opening (rule 5). A version 2 file is handled as before. [W3]
+    Decided 2026-10-27: the default stands.
+38. Track and Export in the window. Default: both save first, as before. For an untouched
+    version 1 session, that save is the one that keeps the old file. `outline-tracker export`
+    writes no `session.json`. [W3]
+    Decided 2026-10-27: the default stands.
+39. What the user is told, and a version 1 file that holds a name of version 2. Default:
+    - The window shows one message per session, at the save that kept the old file.
+    - A command prints one line.
+    - A version 1 file that already holds a key of version 2 as an unknown key is refused,
+      with a message that names the key.
+
+    [W3]
+    Decided 2026-10-27: the default stands.
 
 ## 4. Workstreams
 
@@ -566,7 +609,7 @@ running the command that `tests/repo/test_module_index.py` names. `SLOW_MOTION_F
 (`tests/repo/test_file_sizes.py`); `segmenter/hf.py` has 385. `docs/VALIDATION.md` (step 5) gives
 the commands and counts of each section's day, with a note at its top.
 
-- [ ] 1. `session.json` version 2 (decision 12): the table goes into `docs/design/formats.md`
+- [x] 1. `session.json` version 2 (decision 12): the table goes into `docs/design/formats.md`
       and is approved; then the reader lands and maps every row; steps 2 to 4 switch the code
       over one row at a time. No tag is made between step 1 and step 4. Done when a version 1
       file of each kind (made in the window, made by `from-tracker`) opens and exports; after
@@ -830,3 +873,11 @@ One line per session: date, workstream, what was done, the last commit.
   every move proved by the same counts and fixtures, the real model's numbers unchanged; the
   whole range reviewed. The owner's answers to W3's decisions are written in section 3. Last
   commit before this line: `c328619`. Next: W3.
+- 2026-10-28: W3 (make the tool general): the start checked; decisions 32 to 39, found at the
+  start, answered (the defaults). Step 1 done: the table of `session.json` version 2 in
+  `docs/design/formats.md`, approved; the reader of version 1 (`core/session_v1.py`) maps every
+  row; the tool writes version 2; the first save over a version 1 file keeps it as
+  `session.v1.json` and says so, and opening and closing writes nothing (rule 5); a run folder
+  of each kind that 0.1.0 made opens and exports, end to end. Open: the owner's run of the
+  `weights` tests, and two details added to `formats.md` after its approval (PR #1). Last commit
+  before this line: `0a050b8`. Next: W3 step 2.

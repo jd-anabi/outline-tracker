@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 RESULTS_VERSION = 1  # results.npz format version (SPEC 8.12), stored under RESULTS_VERSION_KEY
 RESULTS_VERSION_KEY = "version"
-SESSION_SCHEMA_VERSION = 1  # session.json "schema_version" (SPEC 8.10)
+SESSION_SCHEMA_VERSION = 2  # session.json "schema_version" (docs/design/formats.md; version 1 is SPEC 8.10)
 
 CSV_ENCODING = "utf-8"
 CSV_NEWLINE = "\n"  # on every platform: write the encoded text as bytes, or open with newline="\n"

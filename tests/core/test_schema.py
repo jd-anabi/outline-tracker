@@ -257,7 +257,7 @@ def test_file_name_constants():
 
 def test_versions_and_text_rules():
     assert schema.RESULTS_VERSION == 1
-    assert schema.SESSION_SCHEMA_VERSION == 1
+    assert schema.SESSION_SCHEMA_VERSION == 2  # docs/design/formats.md
     assert schema.CSV_ENCODING == "utf-8"
     assert schema.CSV_NEWLINE == "\n"
 

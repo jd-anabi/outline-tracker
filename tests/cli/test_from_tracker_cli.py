@@ -132,7 +132,7 @@ def test_folders_with_spaces_and_other_alphabets_with_the_disk_clip(tmp_path, st
     assert sorted(p.name for p in out.iterdir()) == sorted([
         "README.txt", "outlines.npz", "overlay.mp4", "positions.csv", "radial.csv", "results.npz", "run.log",
         "session.json", "shapes.csv", "edgetam"])
-    assert session_json(out)["student"] == "Zoë Ünal"
+    assert session_json(out)["label"] == "Zoë Ünal"  # the key of version 2
     assert session_json(out)["video"]["relpath"] == "../clip_tracker.mp4"
     positions = pd.read_csv(out / "positions.csv")
     assert positions.frame.tolist() == frames
@@ -143,7 +143,7 @@ def test_folders_with_spaces_and_other_alphabets_with_the_disk_clip(tmp_path, st
     # and the default run folder, next to the video, from the export's own folder name
     assert command(clip, export, "--no-overlay") == 0
     default = clip.parent / "clip_tracker_outline_mes_exports"
-    assert session_json(default)["student"] == "mes exports"
+    assert session_json(default)["label"] == "mes exports"
     assert read_track(default / "edgetam" / "A.csv")["frame"].tolist() == frames
 
 

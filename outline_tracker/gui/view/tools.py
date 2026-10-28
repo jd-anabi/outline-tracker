@@ -32,6 +32,7 @@ import math
 from PySide6.QtCore import QObject
 
 from outline_tracker.core import geometry
+from outline_tracker.gui.settings import MANIFEST_KEY, settings
 from outline_tracker.gui.view.tool_items import PointTool
 from outline_tracker.core.session import Circle
 
@@ -312,13 +313,17 @@ class CircleTool(PointTool):
         self.dish_mm = None if self.session.circle is not None else self._manifest_dish_mm()
 
     def _manifest_dish_mm(self) -> float | None:
-        """The dish diameter in mm that the course's manifest states for the open video (SPEC 4.4)."""
+        """The dish diameter in mm that the course's manifest states for the open video (SPEC 4.4): the
+        manifest above the video, else the one the user pointed to last, as for fps_true."""
         video = self.controller.video_path
-        try:
-            manifest = self.session.time.manifest_path or geometry.find_manifest(video)
-            return None if manifest is None else geometry.dish_mm_from_manifest(video, manifest)
-        except (OSError, TypeError):
-            return None
+        for manifest in (geometry.find_manifest(video), settings().value(MANIFEST_KEY)):
+            try:
+                dish_mm = geometry.dish_mm_from_manifest(video, manifest) if manifest else None
+            except (OSError, TypeError):
+                dish_mm = None
+            if dish_mm is not None:
+                return dish_mm
+        return None
 
     def _sync(self) -> None:
         circle = self.session.circle

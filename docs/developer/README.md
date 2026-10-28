@@ -1,6 +1,6 @@
 # Developer notes
 
-For whoever changes the code. Students read [README.md](../../README.md); the files a run writes are described in [OUTPUTS.md](../OUTPUTS.md); the plan is [ROADMAP.md](../ROADMAP.md), and [decisions.md](../design/decisions.md) holds the decisions of the first build; the measured results of the real model are in [VALIDATION.md](../VALIDATION.md). The specification of version 0.1.0 is [SPEC-v0.1.md](../design/SPEC-v0.1.md).
+For whoever changes the code. Students read [README.md](../../README.md); the files a run writes are described in [OUTPUTS.md](../OUTPUTS.md); the plan is [ROADMAP.md](../ROADMAP.md), and [decisions.md](../design/decisions.md) holds the decisions of the first build; the measured results of the real model are in [VALIDATION.md](../VALIDATION.md). The specification of version 0.1.0 is [SPEC-v0.1.md](../design/SPEC-v0.1.md); a saved file whose format changes after it is described first, by hand, in [formats.md](../design/formats.md).
 
 ## Where what is
 

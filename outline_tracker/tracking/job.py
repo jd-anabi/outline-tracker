@@ -384,12 +384,13 @@ class _Runner:
 
 
 def _save_to_run_folder(job: Job, log: Callable[[str], None]) -> Callable[[SessionChanges], None]:
-    """The default `save_session`: apply the changes to the job's session and save session.json."""
+    """The default `save_session`: apply the changes to the job's session and save session.json. A session.json
+    of an older version is kept beside it by `Session.save`, which gives the one line that says so to `log`."""
     target = Path(job.run_folder) / SESSION_JSON
 
     def save(changes: SessionChanges) -> None:
         changes.apply(job.session)
-        written = job.session.save(target)
+        written = job.session.save(target, on_kept=lambda note: log(f"  {note}"))
         if written != target:
             log(f"  {target.name} is open in another program: the session is in {written.name} next to it. Close "
                 "that program, then rename the file.")

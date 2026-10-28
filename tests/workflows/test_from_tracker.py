@@ -23,6 +23,7 @@ from from_tracker_helpers import (FPS, MODEL, RUN_FILES, StopsAfter, disk_video,
                                   names_in, one_disk, read_track, rotated_map, run, session_json, two_disks,
                                   write_start_file)
 from helpers import MM_PER_PX, java_sci, tracker_map
+from session_v1_helpers import OLD_NS, tracker_session, write_v1
 
 from outline_tracker.core import fileio
 from outline_tracker.synthetic import clips as synthetic
@@ -42,7 +43,8 @@ def test_the_session_holds_the_plan_the_fit_and_one_click_per_object(tmp_path):
     assert result.run_folder == tmp_path / "clip_tracker_outline_ana"
     session = session_json(result.run_folder)
 
-    assert session["student"] == "ana" and session["complete"] is True
+    assert session["schema_version"] == 2 and "student" not in session and "circle" not in session
+    assert session["label"] == "ana" and session["complete"] is True
     assert session["clip"] == {"start": 40, "end": 60, "step": 4}  # the Tracker track's frames
     assert session["video"]["relpath"] == "../clip_tracker.mp4"
     assert (session["video"]["width"], session["video"]["height"], session["video"]["n_frames"]) == (320, 240, 70)
@@ -57,7 +59,8 @@ def test_the_session_holds_the_plan_the_fit_and_one_click_per_object(tmp_path):
     assert 0 <= calibration["tracker_fit"]["rms_mm"] < 1e-5  # Tracker writes 7 digits
     assert session["axes"]["origin_px"] == pytest.approx([150.25, 110.5], abs=1e-3)
     assert session["axes"]["angle_deg"] == pytest.approx(12.0, abs=1e-3)
-    assert session["circle"] is None
+    assert session["boundary"] is None
+    assert session["processing"]["tracker_format"] is False  # a new session; from-tracker sets it from W3 step 4 (decision 34)
     assert session["processing"]["model"] == MODEL and session["processing"]["device"] == "auto"
 
     (track,) = session["tracks"]
@@ -121,14 +124,14 @@ def test_the_student_is_the_exports_home_folder_unless_given(tmp_path):
     lines = []
     result = run(clip, export, lines, seconds=8 / FPS, step=4, fps=FPS)
     assert result.run_folder == tmp_path / "clip_tracker_outline_ana"
-    assert session_json(result.run_folder)["student"] == "ana"
+    assert session_json(result.run_folder)["label"] == "ana"
     assert any("ana" in line and "--student" in line for line in lines)  # it says which name it used
     assert any(str(result.run_folder) in line for line in lines)  # and which folder
 
     lines = []
     result = run(clip, export, lines, seconds=8 / FPS, step=4, fps=FPS, student="Zoë M. / B")
     assert result.run_folder == tmp_path / "clip_tracker_outline_Zoë_M.___B"  # made safe for a folder name
-    assert session_json(result.run_folder)["student"] == "Zoë M. / B"  # the name itself is kept
+    assert session_json(result.run_folder)["label"] == "Zoë M. / B"  # the name itself is kept
     assert any("Zoë M. / B" in line for line in lines)
 
 
@@ -175,6 +178,23 @@ def test_a_second_run_replaces_the_first(tmp_path):
     assert list(read_track(second.files[0])["frame"]) == [40, 44, 48, 52, 56, 60]
     assert len(session_json(second.run_folder)["runs"]) == 1  # a new session, not a longer one
     assert any("replace" in line for line in lines)  # and it says so
+
+
+def test_replacing_a_run_of_version_1_keeps_its_session_json_and_says_so_in_one_line(tmp_path):
+    clip, export = one_disk(tmp_path)  # the export is in the folder "ana": the run folder is hers (SPEC 8.1)
+    run_folder = tmp_path / "clip_tracker_outline_ana"
+    earlier = write_v1(run_folder / "session.json", tracker_session(clip, run_folder))  # rule 5, decision 36
+    old = earlier.read_bytes()
+    lines = []
+    done = run(clip, export, lines)
+    assert done.run_folder == run_folder
+    kept = run_folder / "session.v1.json"
+    assert kept.read_bytes() == old and kept.stat().st_mtime_ns == OLD_NS
+    assert session_json(run_folder)["schema_version"] == 2 and session_json(run_folder)["label"] == "ana"
+    told = [line for line in lines if "session.v1.json" in line]
+    assert len(told) == 1 and "\n" not in told[0]  # one line (decision 39)
+    assert "0.1.0" in told[0] and "renamed to session.json" in told[0] and str(tmp_path) not in told[0]
+    assert sorted(names_in(run_folder)) == sorted(RUN_FILES[:2] + RUN_FILES[3:] + ["session.v1.json"])  # no overlay
 
 
 def test_a_run_made_or_corrected_in_the_app_is_not_replaced(tmp_path):

@@ -31,11 +31,10 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBox
 from outline_tracker.core.geometry import find_manifest, fps_from_manifest
 from outline_tracker.gui import dialogs, theme
 from outline_tracker.gui.widgets.panel_parts import SPACING, Message, field_rows
-from outline_tracker.gui.settings import settings
+from outline_tracker.gui.settings import MANIFEST_KEY, settings
 from outline_tracker.gui.panels.stopwatch_dialog import StopwatchDialog
 
 WARN_BELOW = 100.0  # frames per second (SPEC 3.3)
-MANIFEST_KEY = "manifest_path"  # in the settings: the manifest the user pointed to last
 MANIFEST_FILTERS = ["Manifest (*.csv)", "All files (*)"]
 SOURCE_WORDS = {"manifest": "from the manifest", "stopwatch": "from the stopwatch", "typed": "typed in",
                 "tracker-export": "from the Tracker export"}
@@ -119,7 +118,7 @@ class TimePanel(QWidget):
             self._show()
             return
         settings().setValue(MANIFEST_KEY, str(manifest))
-        self._take(fps, "manifest", manifest)
+        self._take(fps, "typed")  # stored as typed, without the manifest's path (decision 32)
 
     def open_stopwatch(self) -> None:
         """Open the Stopwatch dialog over the window, and return at once. Playing stops first: the
@@ -136,12 +135,12 @@ class TimePanel(QWidget):
         dialog.finished.connect(lambda: setattr(self, "_stopwatch_draft", dialog.values()))
         dialog.open()
 
-    def _take(self, fps: float, source: str, manifest: Path | None = None, stopwatch: dict | None = None) -> None:
-        """Put fps_true (frames per second) and where it came from into the session: the manifest's
-        path, or the stopwatch's two frames and two readings in s; what belongs to another source goes."""
+    def _take(self, fps: float, source: str, stopwatch: dict | None = None) -> None:
+        """Put fps_true (frames per second) and where it came from into the session, with the
+        stopwatch's two frames and two readings in s; the stopwatch goes for another source. A rate
+        from a manifest is stored as typed (decision 32)."""
         time = self._controller.session.time
         time.fps_true, time.source, time.stopwatch = fps, source, stopwatch
-        time.manifest_path = None if manifest is None else str(manifest)
         self._refused = ""
         self.fps_edit.setModified(False)
         self._controller.touch()
@@ -179,7 +178,7 @@ class TimePanel(QWidget):
                 manifest = settings().value(MANIFEST_KEY)
                 fps = usable_fps(video_path, manifest) if isinstance(manifest, str) and manifest else None
             if fps is not None:
-                self._take(fps, "manifest", Path(manifest))
+                self._take(fps, "typed")
                 return
         self._show()
 

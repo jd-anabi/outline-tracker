@@ -17,6 +17,7 @@ from PySide6.QtCore import Qt
 
 from calibration_helpers import SIX, body, on_circle, opened, place, restart, wall
 from outline_tracker.core import geometry
+from outline_tracker.gui.settings import MANIFEST_KEY, settings
 
 START_HINT = "Click Circle. Click 6 or more points on the inner wall of the dish, spread around it."
 NEEDS_THREE = "The circle needs 3 or more points. Click more points on the dish wall."
@@ -198,6 +199,25 @@ def test_the_dish_diameter_of_the_manifest_is_filled_in(window, qtbot, dish_clip
     assert panel.dish_box.value() == 34.5
     place(panel.circle_tool, wall(dish_clip))
     assert window.controller.session.circle.dish_mm == 34.5
+
+
+def test_the_dish_diameter_of_the_manifest_pointed_to_last_is_filled_in(window, qtbot, dish_clip, tmp_path,
+                                                                       own_settings):
+    """A manifest that is not data/manifest.csv above the video, which the time panel remembers. The
+    settings scope stays on this test's folder afterwards, so the remembered manifest is taken out again."""
+    video = tmp_path / "videos" / dish_clip.path.name
+    video.parent.mkdir()
+    shutil.copyfile(dish_clip.path, video)
+    manifest = tmp_path / "course" / "my manifest.csv"
+    manifest.parent.mkdir()
+    manifest.write_text("video_file,fps_true,dish_mm\nother.MOV,240.0,90\ndish.MOV,240.0,34.5\n", encoding="utf-8")
+    assert geometry.find_manifest(video) is None  # none above the video
+    settings().setValue(MANIFEST_KEY, str(manifest))
+    try:
+        window.open_path(video)
+        assert body(window, 4).dish_box.value() == 34.5
+    finally:
+        settings().remove(MANIFEST_KEY)
 
 
 # ---------------------------------------------------------------------------------------------

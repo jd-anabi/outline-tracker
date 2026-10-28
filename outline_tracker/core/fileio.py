@@ -12,7 +12,8 @@ That rename is `replace_with_retry`, the one place that says what counts as lock
 wait and what to tell the user. A folder that cannot take `atomic_write`'s names calls it with names
 of its own: the Tracker-format folder, where students' loaders read every .csv file as a track
 (`export.tables.write_tracker_folder`). `append_block` adds an entry to run.log; every command that
-writes to that file uses it.
+writes to that file uses it. `keep_beside` keeps a file of an older format before it is replaced (rule 5 of
+docs/ROADMAP.md section 2).
 
 No units or coordinates here: paths and bytes only. No Qt, no torch.
 """
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import itertools
 import os
 import secrets
 import time
@@ -110,6 +112,38 @@ def append_block(path, lines: Iterable[str]) -> Path:
         earlier += b"\n"
     block = ("\n".join(lines) + "\n").encode("utf-8")
     return atomic_write(path, lambda tmp: tmp.write_bytes(earlier + (b"\n" if earlier else b"") + block))
+
+
+def keep_beside(path, tag: str, data: bytes, mtime_ns: int | None = None) -> Path:
+    """Keep `data`, the bytes `path` holds before it is replaced, in a file beside it: `<stem>.<tag><suffix>`
+    (session.json with tag "v1": session.v1.json), or, when that name holds other bytes, the first of
+    `<stem>.<tag>-2<suffix>`, `<stem>.<tag>-3<suffix>`, ... that is free or holds the same bytes. A name that
+    holds the same bytes already is taken as it is, and nothing is written; a file is never overwritten
+    (decision 36). A new file gets the time `mtime_ns` (ns since the epoch) when one is given.
+
+    Returns the path of the kept file. Raises OSError when the new file cannot be written; nothing of it is
+    left then.
+    """
+    path = Path(path)
+    for number in itertools.count(1):
+        kept = path.with_name(f"{path.stem}.{tag}{'' if number == 1 else f'-{number}'}{path.suffix}")
+        try:
+            file = open(kept, "xb")  # made here, or FileExistsError: never onto a file that is there
+        except FileExistsError:
+            if kept.is_file() and kept.read_bytes() == data:
+                return kept
+            continue
+        try:
+            with file:
+                file.write(data)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                kept.unlink()
+            raise
+        if mtime_ns is not None:
+            with contextlib.suppress(OSError):  # the time is a courtesy; the bytes are what is kept
+                os.utime(kept, ns=(mtime_ns, mtime_ns))
+        return kept
 
 
 def relative_path(target, folder, pathmod=os.path) -> str | None:

@@ -1,7 +1,8 @@
 """Tests of outline_tracker/core/session.py: the file on disk, its version, odd files, what is not saved.
 
-Expected values are the session.json example of SPEC 8.10 (read from docs/design/SPEC-v0.1.md) and values
-typed in each test. Nothing is copied from the output of the code under test.
+Expected values are the session.json example of SPEC 8.10 (read from docs/design/SPEC-v0.1.md), the examples
+of docs/design/formats.md, and values typed in each test. Nothing is copied from the output of the code under
+test.
 
 The rest of the tests of the session are in tests/core/test_session.py (session.json <-> dataclasses,
 the optional and unknown keys, the world frame) and tests/core/test_session_video.py (the video's path
@@ -15,7 +16,7 @@ import numpy as np
 import pytest
 from helpers import names
 from results_helpers import names_number
-from session_json_helpers import _write_json, assert_same_json, spec_example
+from session_json_helpers import _write_json, assert_same_json, formats_example, spec_example
 
 from outline_tracker.core.session import (
     Clip,
@@ -28,8 +29,8 @@ from outline_tracker.core.session import (
 
 # --------------------------------------------------------------------------- versions and other files
 
-@pytest.mark.parametrize("found", [0, 2])
-def test_other_schema_version_raises_and_names_both_versions(tmp_path, found):
+@pytest.mark.parametrize("found", [0, 3])
+def test_other_schema_version_raises_and_names_it_and_the_versions_read(tmp_path, found):
     data = spec_example()
     data["schema_version"] = found
     data["tool_version"] = "9.8.7"
@@ -39,8 +40,9 @@ def test_other_schema_version_raises_and_names_both_versions(tmp_path, found):
     assert "session.json" in str(err.value)
     message = str(err.value).replace(str(path), "<the file>")  # a temp folder's name may hold any digit
     assert names_number(message, found), message  # the file's version
-    assert names_number(message, 1), message  # the version this tool reads
-    assert (err.value.found, err.value.supported) == (found, 1)
+    assert names_number(message, 1) and names_number(message, 2), message  # the versions this tool reads
+    assert (err.value.found, err.value.supported) == (found, (1, 2))
+    assert ("newer" if found == 3 else "older") in message
     assert isinstance(err.value, ValueError)  # one "bad input" family for the command line to catch
     with pytest.raises(SessionVersionError):
         Session.from_json(data)
@@ -105,8 +107,8 @@ def test_a_block_of_the_wrong_kind_gives_a_plain_error(key, value, needed):
 
 
 def test_null_is_fine_where_a_block_may_be_absent():
-    data = spec_example()
-    data["circle"] = None
+    data = formats_example(1, 2)
+    data["boundary"] = None
     data["calibration"]["stick"] = None
     data["time"]["stopwatch"] = None
     s = Session.from_json(data)
@@ -114,12 +116,12 @@ def test_null_is_fine_where_a_block_may_be_absent():
     assert s.to_json() == data
 
 
-def test_a_file_saved_with_a_byte_order_mark_loads(tmp_path):
+@pytest.mark.parametrize("version", [1, 2])
+def test_a_file_saved_with_a_byte_order_mark_loads(tmp_path, version):
     # older Windows editors put one in front of UTF-8 text; students edit session.json by hand
-    example = spec_example()
     path = tmp_path / "session.json"
-    path.write_bytes(b"\xef\xbb\xbf" + json.dumps(example).encode("utf-8"))
-    assert Session.load(path).to_json() == example
+    path.write_bytes(b"\xef\xbb\xbf" + json.dumps(formats_example(1, version)).encode("utf-8"))
+    assert Session.load(path).to_json() == formats_example(1, 2)
 
 
 # --------------------------------------------------------------------------- the file on disk

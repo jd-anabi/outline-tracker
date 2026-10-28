@@ -89,8 +89,7 @@ def _video_line(session: Session) -> str:
 
 def _time_line(session: Session) -> str:
     time = session.time
-    manifest = f", manifest {time.manifest_path}" if time.manifest_path else ""
-    return f"time: fps_true = {time.fps_true!r} frames per s (source: {time.source}{manifest})"
+    return f"time: fps_true = {time.fps_true!r} frames per s (source: {time.source})"
 
 
 def _calibration_lines(session: Session) -> list[str]:
