@@ -651,7 +651,7 @@ the commands and counts of each section's day, with a note at its top.
       file of each kind (made in the window, made by `from-tracker`) opens and exports; after
       opening and closing, the version 1 file is byte for byte what it was; after a change,
       `session.v1.json` holds it (rule 5).
-- [ ] 2. Dish to Boundary (decision 8): session keys, panel 4, the crop's names, run.log, the
+- [x] 2. Dish to Boundary (decision 8): session keys, panel 4, the crop's names, run.log, the
       tool; remove the two distance columns and regenerate `docs/OUTPUTS.md`.
 - [ ] 3. The name field becomes an optional label, with the folder rules of decision 6.
 - [ ] 4. Frame rate sources (decision 10), the phone-video checks (decision 11), the switch for
@@ -917,3 +917,11 @@ One line per session: date, workstream, what was done, the last commit.
   of each kind that 0.1.0 made opens and exports, end to end. Open: the owner's run of the
   `weights` tests, and two details added to `formats.md` after its approval (PR #1). Last commit
   before this line: `0a050b8`. Next: W3 step 2.
+- 2026-10-28: W3 step 2 (Dish to Boundary, decision 8; PR #2): decisions 40 to 47 answered (the
+  defaults). Panel 4's module moved to `gui/panels/boundary_panel.py`; the Python names are the
+  keys of version 2; the crop, the Circle tool, panel 4 ("Boundary and axes", done without a
+  boundary once a video is open) and `run.log` say boundary; `shapes.csv` lost the two wall
+  distances, which `README.txt`, `docs/OUTPUTS.md` and `CHANGELOG.md` name with their formulas
+  (rule 5); `derive_track` and the review table no longer use the boundary. Open: decision 48
+  (the Quickstart test, a strict xfail until step 8); the owner's run of the `weights` tests.
+  Last commit before this line: `b235467`. Next: W3 step 3.
