@@ -34,8 +34,8 @@ from outline_tracker.core import schema
 from outline_tracker.core.fileio import atomic_write, new_name, sha256_first_64mib
 from outline_tracker.video.frame_source import FrameSource
 from outline_tracker.core.run_folder import default_run_folder, folder_has_foreign_tables
-from outline_tracker.core.session import (Clip, Session, SessionKeyError, SessionVersionError, VideoNotFoundError,
-                                          VideoRef, WrongVideoError)
+from outline_tracker.core.session import (Clip, OlderFileNotKept, Session, SessionKeyError, SessionVersionError,
+                                          VideoNotFoundError, VideoRef, WrongVideoError)
 
 SAVE_DELAY_MS = 750  # session.json is written this long after the last change
 ACTIONS = ("track", "export")
@@ -92,6 +92,8 @@ class SessionController(QObject):
     session (a panel then puts in what is typed and not entered yet), `saved` after every save
     that was tried, and `trouble(text)` when a save has something to tell the user (`save_problem`):
     once for the same text in a row; also each time `save_as` could not go on in the chosen folder.
+    `kept(text)` is emitted after the save that kept a session.json of an older version beside the
+    new one (`Session.save`), with the line that says so.
     """
 
     video_opened = Signal()
@@ -99,6 +101,7 @@ class SessionController(QObject):
     about_to_save = Signal()
     saved = Signal()
     trouble = Signal(str)
+    kept = Signal(str)
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -152,7 +155,8 @@ class SessionController(QObject):
         The folder of the file is the run folder. The video is looked for where the session says
         (`Session.locate_video`: the path relative to the run folder, then the absolute one), or
         taken from `video`, the user's answer to where it is now; either way it must have the
-        session's size in bytes and hash. Its new place is put into the session, to be saved.
+        session's size in bytes and hash. Its new place is put into the session, to be saved; for
+        a file of an older schema version only with the first change (decision 37).
 
         Raises `session.VideoNotFoundError` (a `FileNotFoundError`) when the video is at none of
         the session's places: ask the user and call again with `video`. Raises `ValueError`, with
@@ -187,7 +191,8 @@ class SessionController(QObject):
         before = (session.video.relpath, session.video.abspath)
         session.video.point_to(video_path, run_folder)
         self._take(session, video_path, source, run_folder)
-        if (session.video.relpath, session.video.abspath) != before:
+        moved = (session.video.relpath, session.video.abspath) != before
+        if moved and session.read_version == schema.SESSION_SCHEMA_VERSION:  # an older file waits for a change
             self.save_timer.start()  # the video is somewhere else now: write where
 
     def _read(self, path: Path) -> FrameSource:
@@ -259,7 +264,8 @@ class SessionController(QObject):
         which), into a folder whose `session.json` this session was neither opened from nor wrote
         (an earlier session, also one of this window: Open session goes on with it), or when the
         file cannot be written; `save_problem` then says why, and nothing is raised. The video's
-        path relative to the run folder is put into the session first (SPEC 8.1).
+        path relative to the run folder is put into the session first (SPEC 8.1). A session.json of
+        an older version is kept beside the new one, and `kept` says so (`Session.save`).
         """
         self.about_to_save.emit()
         return self._save()
@@ -273,15 +279,18 @@ class SessionController(QObject):
         target = self.run_folder / schema.SESSION_JSON
         names = {"name": target.name, "folder": self.run_folder.name, "beside": new_name(target).name}
         written = problem = None
+        notes: list[str] = []
         if not self._is_own(target) and target.exists():
             problem = HELD.format(**names)
         else:
             self.session.video.point_to(self.video_path, self.run_folder)
             try:
-                written = self.session.save(target)
+                written = self.session.save(target, on_kept=notes.append)
                 self._own.add(target)
             except ValueError as error:  # a number in the session that a file must never hold
                 problem = f"{target.name} could not be written. {error}"
+            except OlderFileNotKept as error:  # says which file, and why
+                problem = str(error)
             except OSError:
                 problem = NOT_WRITTEN.format(**names)
         if written is not None and written != target:
@@ -291,6 +300,8 @@ class SessionController(QObject):
             self.trouble.emit(problem)
         self._told = problem
         self.saved.emit()
+        for note in notes:  # the file of an older version was kept: once per file (decision 39)
+            self.kept.emit(note)
         return written
 
     def _holds_results(self) -> bool:

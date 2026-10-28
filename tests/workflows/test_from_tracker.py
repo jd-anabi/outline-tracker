@@ -23,6 +23,7 @@ from from_tracker_helpers import (FPS, MODEL, RUN_FILES, StopsAfter, disk_video,
                                   names_in, one_disk, read_track, rotated_map, run, session_json, two_disks,
                                   write_start_file)
 from helpers import MM_PER_PX, java_sci, tracker_map
+from session_v1_helpers import OLD_NS, tracker_session, write_v1
 
 from outline_tracker.core import fileio
 from outline_tracker.synthetic import clips as synthetic
@@ -177,6 +178,23 @@ def test_a_second_run_replaces_the_first(tmp_path):
     assert list(read_track(second.files[0])["frame"]) == [40, 44, 48, 52, 56, 60]
     assert len(session_json(second.run_folder)["runs"]) == 1  # a new session, not a longer one
     assert any("replace" in line for line in lines)  # and it says so
+
+
+def test_replacing_a_run_of_version_1_keeps_its_session_json_and_says_so_in_one_line(tmp_path):
+    clip, export = one_disk(tmp_path)  # the export is in the folder "ana": the run folder is hers (SPEC 8.1)
+    run_folder = tmp_path / "clip_tracker_outline_ana"
+    earlier = write_v1(run_folder / "session.json", tracker_session(clip, run_folder))  # rule 5, decision 36
+    old = earlier.read_bytes()
+    lines = []
+    done = run(clip, export, lines)
+    assert done.run_folder == run_folder
+    kept = run_folder / "session.v1.json"
+    assert kept.read_bytes() == old and kept.stat().st_mtime_ns == OLD_NS
+    assert session_json(run_folder)["schema_version"] == 2 and session_json(run_folder)["label"] == "ana"
+    told = [line for line in lines if "session.v1.json" in line]
+    assert len(told) == 1 and "\n" not in told[0]  # one line (decision 39)
+    assert "0.1.0" in told[0] and "renamed to session.json" in told[0] and str(tmp_path) not in told[0]
+    assert sorted(names_in(run_folder)) == sorted(RUN_FILES[:2] + RUN_FILES[3:] + ["session.v1.json"])  # no overlay
 
 
 def test_a_run_made_or_corrected_in_the_app_is_not_replaced(tmp_path):

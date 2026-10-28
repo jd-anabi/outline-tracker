@@ -38,8 +38,8 @@ def test_a_change_is_saved_by_a_single_shot_timer_of_750_ms_that_a_new_change_re
     controller, timer = window.controller, window.controller.save_timer
     threads = []
     real = Session.save
-    monkeypatch.setattr(Session, "save", lambda session, where: (
-        threads.append(threading.current_thread() is threading.main_thread()), real(session, where))[1])
+    monkeypatch.setattr(Session, "save", lambda session, where, on_kept=None: (
+        threads.append(threading.current_thread() is threading.main_thread()), real(session, where, on_kept))[1])
     assert timer.interval() == 750 and timer.isSingleShot()
     assert timer.isActive() and not target.exists()  # the name was a change: the save is due, not done
 
@@ -301,7 +301,7 @@ def test_a_folder_that_cannot_be_written_is_told_once_and_never_raised(named, mo
     asked = record_dialogs(monkeypatch)
     controller = window.controller
 
-    def refuse(session, where):
+    def refuse(session, where, on_kept=None):
         raise OSError(30, "Read-only file system")
 
     monkeypatch.setattr(Session, "save", refuse)

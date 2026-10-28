@@ -204,3 +204,11 @@ def test_a_boundary_block_of_the_wrong_kind_is_refused_under_the_files_own_name(
     data[name] = [1, 2]
     with pytest.raises(ValueError, match=f'"{name}" must be an object'):
         Session.from_json(data)
+
+
+def test_a_session_knows_the_version_of_the_file_it_was_read_from():
+    # the window writes nothing for a file of version 1 until a real change (decision 37)
+    old = Session.from_json(formats_example(1, 1))
+    assert (old.read_version, Session.from_json(formats_example(1, 2)).read_version) == (1, 2)
+    assert Session().read_version == 2  # a new session is of the version this build writes
+    assert "read_version" not in old.to_json() and "read_version" not in str(list(old.to_json()))

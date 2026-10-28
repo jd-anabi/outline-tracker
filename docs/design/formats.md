@@ -77,9 +77,12 @@ This follows rule 5 of the ROADMAP and decisions 36 to 39.
 - **The first save keeps the old file.** It goes to `session.v1.json` beside the new `session.json`.
   - If `session.v1.json` holds the same bytes already, nothing more is written.
   - If it holds other bytes, the old file goes to the next free name: `session.v1-2.json`,
-    `session.v1-3.json`, and so on.
+    `session.v1-3.json`, and so on. A later name that holds the same bytes already is used as well,
+    so that saves while `session.json` is locked make one copy, not one per save.
   - A kept file is never overwritten.
   - If the copy fails, `session.json` is not replaced, and the save says why.
+  - If `session.json` cannot be read (on Windows: another program holds it open), it is not
+    replaced either: the session goes to `session.new.json`, as for any locked file.
   - `Session.save` does this, so it holds for every writer: the window, a tracking run, a correction,
     and `from-tracker` when it replaces an earlier run.
 - **The user is told once.**

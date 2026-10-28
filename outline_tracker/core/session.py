@@ -5,7 +5,9 @@ needed to reopen a run, run it again and export again. The format is that of doc
 of version 1, the format of 0.1.0, is read through outline_tracker/core/session_v1.py.
 
 This module holds `Session` (load, save, `world_frame`, `locate_video`, and the reading and writing of the
-whole file), the video block `VideoRef` with the errors of finding the video again, and `SessionVersionError`.
+whole file), the video block `VideoRef` with the errors of finding the video again, `SessionVersionError`, and
+`OlderFileNotKept`: a save keeps a session file of an older version beside the new one first (rule 5 of
+docs/ROADMAP.md section 2, decision 36).
 It also holds two names about fps_true that the `probe` and `from-tracker` commands share: `UNKNOWN_FPS`, what
 they say when fps_true is neither typed nor in a manifest, and `SLOW_MOTION_FPS`, below which they warn.
 The other blocks (`Clip`, `TimeSettings`, `CalibrationSettings`, `Axes`, `Circle`, `Processing`, `ProbeBox`,
@@ -39,10 +41,11 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from collections.abc import Callable
+from typing import Any, ClassVar
 
 from outline_tracker import __version__
-from outline_tracker.core.fileio import atomic_write, relative_path, sha256_first_64mib
+from outline_tracker.core.fileio import atomic_write, keep_beside, new_name, relative_path, sha256_first_64mib
 from outline_tracker.core.geometry import WorldFrame, stick_scale
 from outline_tracker.core.schema import SESSION_SCHEMA_VERSION
 
@@ -55,6 +58,9 @@ from outline_tracker.core.session_v1 import MixedVersionError, SessionKeyError, 
 
 SESSION_FORMAT = "outline-tracker-session"  # the "format" key of session.json
 READ_VERSIONS = (1, SESSION_SCHEMA_VERSION)  # the schema versions this build reads; it writes the last
+# What a save that kept the file of an older version says, in one line, once the new file is in place (decision 39)
+KEPT_OLDER = ("{name} is saved in session format version {new} now. The file as it was, of version {old}, is kept "
+              "beside it as {kept}: outline-tracker 0.1.0 opens it after it is renamed to {name}.")
 
 # What the two commands that read fps_true from `--fps` or from a manifest say about it (decision X9). They are
 # here because this is the lowest module that both `cli/probe.py` and `workflows/from_tracker.py` import and
@@ -82,6 +88,17 @@ class SessionVersionError(ValueError):
         read = " and ".join(str(version) for version in READ_VERSIONS)
         super().__init__(f"{where} has {has}, but this outline-tracker ({__version__}) reads only versions {read}. "
                          f"{advice}")
+
+
+class OlderFileNotKept(OSError):
+    """A save found a session file of an older schema version and could not keep a copy of it (decision 36), so
+    it wrote nothing. The message names the files without their folders and says why."""
+
+    def __init__(self, name: str, version: int, error: OSError):
+        kept = Path(error.filename).name if isinstance(error.filename, str) else f"{Path(name).stem}.v{version}{Path(name).suffix}"
+        super().__init__(f"{name} is of session format version {version} and is kept as {kept} before it is "
+                         f"replaced, but {kept} could not be written ({error.strerror or error}). {name} was not "
+                         "replaced. Check that the folder is not read-only and that the disk is not full.")
 
 
 class VideoNotFoundError(FileNotFoundError):
@@ -153,8 +170,10 @@ class Session(_Record):
     """A whole session.json (docs/design/formats.md). tool_version: the outline-tracker version that made the
     session. student: key "label". complete: False while a run is partial (SPEC 6.4). circle: key "boundary";
     None when no dish wall was fitted. The file's "format" and "schema_version" are constants written by
-    `to_json`."""
+    `to_json`. read_version: the schema version of the file the session was read from (this build's for a new
+    session); it is no key of the file."""
 
+    read_version: ClassVar[int] = SESSION_SCHEMA_VERSION
     tool_version: str = __version__
     student: str = field(default="", metadata={"key": "label"})
     notes: str = ""
@@ -192,6 +211,7 @@ class Session(_Record):
         if found == 1:
             data = upgrade(data, where)
         session = super().from_json({k: v for k, v in data.items() if k not in ("format", "schema_version")})
+        session.read_version = found
         if session.circle is not None and session.circle.shape != "circle":
             raise SessionKeyError("boundary.shape", f'{where} has "boundary.shape" {session.circle.shape!r}, but '
                                   'this outline-tracker knows only the shape "circle". It may have been written by '
@@ -221,11 +241,19 @@ class Session(_Record):
             raise ValueError(f"fps_true must be a positive number of frames per second, not {fps!r}. Take it from "
                              "the manifest or the stopwatch clip, or type it in.")
 
-    def save(self, path) -> Path:
+    def save(self, path, on_kept: Callable[[str], None] | None = None) -> Path:
         """Write the session to `path` (a session.json; its folder is created if needed): UTF-8, LF line
         ends, one key per line, atomically (`fileio.atomic_write`). Returns the path written: `path`, or
         `<stem>.new<suffix>` next to it when `path` stayed locked by another program. Raises ValueError,
-        before anything is written, when fps_true is not positive or a number is NaN or infinite."""
+        before anything is written, when fps_true is not positive or a number is NaN or infinite.
+
+        A session file of an older schema version at `path` is kept first, byte for byte, as session.v1.json
+        beside it (`fileio.keep_beside` says what happens when that name is taken; decision 36). Once `path`
+        holds the new session, `on_kept` is called with a line for the user (`KEPT_OLDER`) that names the kept
+        file. Raises OlderFileNotKept (an OSError) when that copy cannot be written, and OSError when `path` is
+        there but cannot be read: `path` is then left as it was. A `path` that may not be read (PermissionError;
+        on Windows, another program holds it open) is left as it was too, and the session goes to
+        `<stem>.new<suffix>` beside it, as for a locked file."""
         self.validate()
         try:
             text = json.dumps(self.to_json(), indent=2, ensure_ascii=False, allow_nan=False)
@@ -233,7 +261,22 @@ class Session(_Record):
             raise ValueError("The session cannot be saved: a number in it is not finite (NaN or infinity), or it "
                              f"refers to itself ({err}).") from None
         data = (text + "\n").encode("utf-8")
-        return atomic_write(path, lambda tmp: tmp.write_bytes(data))
+        path = target = Path(path)
+        kept = None
+        try:
+            older = _older_file(path)
+        except PermissionError:  # what it holds cannot be told: it is neither kept nor replaced
+            older, target = None, new_name(path)
+        if older is not None:
+            raw, version, mtime_ns = older
+            try:
+                kept = keep_beside(path, f"v{version}", raw, mtime_ns)
+            except OSError as error:
+                raise OlderFileNotKept(path.name, version, error) from error
+        written = atomic_write(target, lambda tmp: tmp.write_bytes(data))
+        if kept is not None and written == path and on_kept is not None:
+            on_kept(KEPT_OLDER.format(name=path.name, new=SESSION_SCHEMA_VERSION, old=version, kept=kept.name))
+        return written
 
     def world_frame(self) -> WorldFrame:
         """The image <-> world transform of this session (SPEC 3.2): the scale in mm per px from the
@@ -288,3 +331,23 @@ class Session(_Record):
         name = re.split(r"[\\/]", stored)[-1]
         tried = "; ".join(str(place) for place in places) or video.abspath
         raise VideoNotFoundError(f"The video {name} was not found. It is not at: {tried}. Choose where it is now.")
+
+
+def _older_file(path: Path) -> tuple[bytes, int, int] | None:
+    """The bytes, the schema version and the time in ns of the session file at `path`, when it is of an older
+    schema version than this build writes; None when there is no file there, or it is no session file of an
+    older version. Raises OSError when the file is there and cannot be read (PermissionError when it may not
+    be): what cannot be kept is not replaced."""
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return None
+    try:
+        data = json.loads(raw)  # bytes: UTF-8 with or without a byte order mark, as `load` reads them
+    except ValueError:  # no JSON, or no UTF-8 text: no session file of any version
+        return None
+    version = data.get("schema_version") if isinstance(data, dict) and data.get("format") == SESSION_FORMAT else None
+    if not isinstance(version, int) or isinstance(version, bool) or version >= SESSION_SCHEMA_VERSION:
+        return None
+    return raw, version, mtime_ns
