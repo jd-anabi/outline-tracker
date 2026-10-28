@@ -103,7 +103,7 @@ def test_opening_another_video_returns_to_pan_and_clears_the_graphics(window, qt
     QApplication.processEvents()
     session = window.controller.session
     assert window.view.tool is None
-    assert session.calibration.stick is None and session.circle is None
+    assert session.calibration.stick is None and session.boundary is None
     for tool in (calibration.stick_tool, calibration.tape_tool, dish.circle_tool):
         assert tool.points == [] and tool.graphic.items == [] and tool.graphic.labels == []
     assert session.axes.origin_px == [160.0, 120.0] and not dish.axes_tool.placed  # the new frame's center
@@ -133,7 +133,7 @@ def test_the_graphics_are_drawn_again_from_a_session_that_is_opened(window, qtbo
     assert dish.axes_tool.graphic.labels == ["x", "y"]
     # a point placed now goes into the session that was opened, not into the one before it
     dish.circle_tool.add_tool_point(*on_circle((cu, cv), radius, (90,))[0])
-    assert len(again.circle.points_px) == 7 and len(before.circle.points_px) == 6
+    assert len(again.boundary.points_px) == 7 and len(before.boundary.points_px) == 6
 
 
 def test_a_change_made_elsewhere_in_the_session_is_drawn(window, qtbot, dish_clip):

@@ -109,6 +109,27 @@ def test_the_records_have_the_keys_of_the_column_version_2():
     assert found == {row.v2 for row in ROWS if row.v2}
 
 
+def field_names(cls, path: str) -> list[str]:
+    """The field names along a key path of the table, from the record class `cls` down."""
+    names = []
+    for part in path.replace("[]", "").split("."):
+        name, hint = {key: (name, hint) for name, key, _, hint in _layout(cls)}[part]
+        names.append(name)
+        cls, _ = record_in(hint)
+    return names
+
+
+def test_the_rows_of_the_steps_done_have_their_keys_as_python_names():
+    # the column "Step" names the W3 step that switches the code over to a row; step 2 is done
+    rows = [row for row in ROWS if row.step == "2"]
+    assert [row.v2 for row in rows] == [
+        "boundary", "boundary.shape", "boundary.points_px", "boundary.center_px", "boundary.radius_px",
+        "boundary.rms_px", "boundary.diameter_mm", "processing.boundary_crop",
+    ]
+    for row in rows:
+        assert field_names(Session, row.v2) == row.v2.split("."), row.v2
+
+
 @pytest.mark.parametrize("row", default_rows("v2"))
 def test_a_key_missing_from_a_version_2_file_reads_as_the_column_default(row):
     assert_default(Session.from_json(file_without(row.v2, 2)).to_json(), row)

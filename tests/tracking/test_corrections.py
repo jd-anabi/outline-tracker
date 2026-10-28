@@ -58,7 +58,7 @@ def derived(session, store):
     """Every track of the store in world units, by id."""
     tracks = {a_track.id: a_track for a_track in session.tracks}
     return {name: derive_track(store.arrays(name), tracks[name], session.world_frame(), session.time.fps_true,
-                               session.circle, session.processing) for name in store.track_ids}
+                               session.processing) for name in store.track_ids}
 
 
 # ---------------------------------------------------------------------------------------------

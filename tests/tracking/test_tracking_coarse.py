@@ -29,8 +29,8 @@ from tracking_helpers import (
 
 from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.core.session import Circle, Session
-from outline_tracker.tracking.job import RunPlan, dish_box, plan_runs
+from outline_tracker.core.session import Boundary, Session
+from outline_tracker.tracking.job import RunPlan, boundary_box, plan_runs
 from outline_tracker.tracking.plan import plan_job
 
 
@@ -48,8 +48,8 @@ from outline_tracker.tracking.plan import plan_job
     # larger than the frame on every side
     ((160.0, 120.0), 500.0, (0, 0, 320, 240)),
 ], ids=["inside", "clipped at the top", "clipped right and bottom", "the whole frame"])
-def test_dish_box_has_whole_pixel_corners_and_is_clipped_to_the_frame(center_px, radius, expected):
-    box = dish_box(Circle(center_px=list(center_px), radius_px=radius), (320, 240))
+def test_boundary_box_has_whole_pixel_corners_and_is_clipped_to_the_frame(center_px, radius, expected):
+    box = boundary_box(Boundary(center_px=list(center_px), radius_px=radius), (320, 240))
     assert box == expected
     assert all(type(value) is int for value in box)
 
@@ -59,9 +59,11 @@ def test_dish_box_has_whole_pixel_corners_and_is_clipped_to_the_frame(center_px,
     ((float("inf"), 120.0), 50.0), ((-200.0, 100.0), 50.0), ((160.0, 400.0), 50.0),
 ], ids=["no radius", "negative radius", "radius not a number", "center not finite", "left of the frame",
         "below the frame"])
-def test_dish_box_refuses_a_circle_that_gives_no_crop(center_px, radius):
-    with pytest.raises(ValueError):
-        dish_box(Circle(center_px=list(center_px), radius_px=radius), (320, 240))
+def test_boundary_box_refuses_a_circle_that_gives_no_crop(center_px, radius):
+    # the words of decision 44: what is wrong, and the two ways out
+    with pytest.raises(ValueError, match=r'^The boundary \(center .* px\) (cannot give a crop|lies outside the 320 x '
+                                         r'240 px frame): fit the circle again, or switch off "Crop to boundary"\.$'):
+        boundary_box(Boundary(center_px=list(center_px), radius_px=radius), (320, 240))
 
 
 @pytest.mark.parametrize("has_circle, dish_crop, expected", [

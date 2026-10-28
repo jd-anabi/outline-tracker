@@ -64,9 +64,9 @@ def test_the_whole_flow_from_a_clip_to_the_exported_files_and_back(window, secon
     assert session.calibration.stick == {"p1_px": list(STICK_ENDS[0]), "p2_px": list(STICK_ENDS[1]),
                                          "length_mm": STICK_MM}
     assert session.world_frame().k_mm_per_px == pytest.approx(K)
-    assert session.circle.center_px == pytest.approx([cu, cv], abs=1e-6)
-    assert session.circle.radius_px == pytest.approx(radius, abs=1e-6)
-    assert session.axes.origin_px == session.circle.center_px and session.axes.angle_deg == 0.0
+    assert session.boundary.center_px == pytest.approx([cu, cv], abs=1e-6)
+    assert session.boundary.radius_px == pytest.approx(radius, abs=1e-6)
+    assert session.axes.origin_px == session.boundary.center_px and session.axes.angle_deg == 0.0
     (track,) = session.tracks
     (prompt,) = track.prompts
     (point,), u0, v0 = prompt.points_px, *center(clip, "A", 0)

@@ -43,7 +43,7 @@ from outline_tracker.video import reader as video
 from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import MaskResult
 from outline_tracker.segmenter.fake import ExactFake
-from outline_tracker.core.session import Circle, RunRecord, Session
+from outline_tracker.core.session import Boundary, RunRecord, Session
 from outline_tracker.tracking.job import SessionChanges
 from outline_tracker.tracking.fine import crop_box, cut_crop, fine_window, fine_window_px
 
@@ -51,7 +51,7 @@ GRID = list(range(0, 120, 2))  # the clips have 120 frames; the sessions here ta
 
 # A dish circle whose square holds both objects of the close-up scene: center (160, 120), R = 150,
 # m = 4.5: [5.5, 314.5] x [-34.5, 274.5], so columns 5 to 314 and, clipped, rows 0 to 239.
-BOTH, BOTH_BOX = Circle(center_px=[160.0, 120.0], radius_px=150.0), (5, 0, 310, 240)
+BOTH, BOTH_BOX = Boundary(center_px=[160.0, 120.0], radius_px=150.0), (5, 0, 310, 240)
 
 
 # ---------------------------------------------------------------------------------------------

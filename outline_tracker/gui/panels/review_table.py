@@ -10,8 +10,8 @@ task that needs no model: the flags are listed the same way while a model is sti
 and when none could be loaded. The rows are asked
 for again only when what they are made of has changed: results.npz (its size, time and file
 number), whether session.json is there, or the parts of the session that the flags are derived
-from (fps_true, the scale and the axes, the dish circle, the settings, and the id, head click and
-start frame of each track that has results). A click on an animal changes none of these, so it
+from (fps_true, the scale and the axes, the settings, and the id, head click and start frame of
+each track that has results; not the boundary, decision 46 of docs/ROADMAP.md). A click on an animal changes none of these, so it
 never makes the worker list the flags while it should outline the click.
 
 Who reads and writes what. The task reads the two files and nothing else: it
@@ -294,7 +294,7 @@ class Listing(QObject):
             return None
         saved = (Path(folder) / schema.SESSION_JSON).is_file()  # without it nothing can be listed: see `_Task`
         return (str(folder), found.st_size, found.st_mtime_ns, found.st_ino, saved, session.time.fps_true,
-                repr(session.calibration), repr(session.axes), repr(session.circle), repr(session.processing), tracks)
+                repr(session.calibration), repr(session.axes), repr(session.processing), tracks)
 
     def sync(self, *_) -> None:
         """List the flags again if what they are made of changed since `rows` was listed. Call it

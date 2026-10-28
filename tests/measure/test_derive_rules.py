@@ -15,13 +15,13 @@ import derive_helpers as h
 import numpy as np
 import pytest
 from derive_helpers import CENTER, FPS, TILTED, K
-from derive_rules_helpers import DISH, tilted
+from derive_rules_helpers import tilted
 
 from outline_tracker.measure import derive, outline as derive_outline
 
 FLOATS = ("x_mm", "y_mm", "u_px", "v_px", "perimeter_mm", "major_mm", "minor_mm", "eccentricity", "theta_rad",
           "core_x_mm", "core_y_mm", "core_frac", "solidity", "circularity", "feret_max_mm", "largest_fraction",
-          "px_along_major", "cells_along_major", "wall_dist_centroid_mm", "wall_dist_min_mm")
+          "px_along_major", "cells_along_major")
 
 
 # --------------------------------------------------------------------------- lost rows
@@ -29,7 +29,7 @@ FLOATS = ("x_mm", "y_mm", "u_px", "v_px", "perimeter_mm", "major_mm", "minor_mm"
 
 def test_a_lost_row_keeps_its_place_and_holds_no_numbers():
     records = [tilted(10, 20.0), h.lost_record(12), h.lost_record(14), tilted(16, 30.0)]
-    track = h.derive(records, TILTED, head_px=h.along(CENTER, np.radians(20.0), 30.0), circle=DISH)
+    track = h.derive(records, TILTED, head_px=h.along(CENTER, np.radians(20.0), 30.0))
     assert track.frame.tolist() == [10, 12, 14, 16]
     assert track.t_s == pytest.approx(np.array([10, 12, 14, 16]) / FPS, rel=1e-15)
     assert track.visible.tolist() == [1, 0, 0, 1] and track.mode.tolist() == ["coarse"] * 4
@@ -47,7 +47,7 @@ def test_a_lost_row_keeps_its_place_and_holds_no_numbers():
 
 
 def test_a_track_that_was_never_found_is_all_nan():
-    track = h.derive([h.lost_record(0), h.lost_record(2)], TILTED, circle=DISH)
+    track = h.derive([h.lost_record(0), h.lost_record(2)], TILTED)
     assert track.visible.tolist() == [0, 0] and track.headguess.all() and not track.orient.any()
     assert np.isnan(track.theta_rad).all() and np.isnan(track.radial_mm).all() and np.isnan(track.x_mm).all()
 
@@ -171,10 +171,10 @@ def test_a_shorter_stick_scales_lengths_and_leaves_angles_and_ratios():
     click = h.along(CENTER, np.radians(20.0), 30.0)
     ratio = 29.0 / 30.0
     smaller = dataclasses.replace(TILTED, k_mm_per_px=K * ratio)
-    old = h.derive(records, TILTED, head_px=click, circle=DISH)
-    new = h.derive(records, smaller, head_px=click, circle=DISH)
+    old = h.derive(records, TILTED, head_px=click)
+    new = h.derive(records, smaller, head_px=click)
     for name in ("x_mm", "y_mm", "core_x_mm", "core_y_mm", "perimeter_mm", "major_mm", "minor_mm", "feret_max_mm",
-                 "wall_dist_centroid_mm", "wall_dist_min_mm", "radial_mm", "outline_xy_mm", "outline_xieta_mm"):
+                 "radial_mm", "outline_xy_mm", "outline_xieta_mm"):
         assert getattr(new, name) == pytest.approx(getattr(old, name) * ratio, rel=1e-11, abs=1e-13), name
     assert new.area_mm2 == pytest.approx(old.area_mm2 * ratio ** 2, rel=1e-12)
     for name in ("theta_rad", "eccentricity", "solidity", "circularity", "px_along_major", "cells_along_major",
@@ -206,7 +206,7 @@ def test_1200_frames_cost_one_hull_and_one_set_of_rays_each(monkeypatch):
 
     monkeypatch.setattr(derive_outline, "hull_area_and_feret", counted_hull)
     monkeypatch.setattr(derive_outline, "farthest_crossings", counted_crossings)
-    derived = derive.derive_track(arrays, track, TILTED, FPS, DISH, h.Processing())
+    derived = derive.derive_track(arrays, track, TILTED, FPS, h.Processing())
     assert len(derived.frame) == 1200 and np.isfinite(derived.radial_mm).all()
     assert hulls == [256] * 1200
     assert sum(rays) == 1200 * (360 // 5 + 1) == 87600

@@ -145,7 +145,7 @@ def shapes_lost_row() -> dict:
 
 
 def test_lost_shapes_row_has_empty_floats_and_zero_integers():
-    cells = ["B", "40", "0.1666667"] + [""] * 12 + ["0", "", "", "", "0", "", "", "LOST;HEADGUESS"]
+    cells = ["B", "40", "0.1666667"] + [""] * 12 + ["0", "", "", "", "0", "LOST;HEADGUESS"]
     assert len(cells) == len(SHAPES_NAMES)
     assert csv_format.format_row(schema.SHAPES, shapes_lost_row()) == ",".join(cells)
 

@@ -15,7 +15,7 @@ import derive_helpers as h
 import numpy as np
 import pytest
 from derive_helpers import CENTER, TILTED, UPRIGHT, K
-from derive_rules_helpers import DISH, tilted
+from derive_rules_helpers import tilted
 
 from outline_tracker.measure import derive
 from outline_tracker.measure.outline import hull_area_and_feret
@@ -132,12 +132,11 @@ def test_points_on_one_line_have_no_hull_wherever_the_line_lies_and_a_sliver_has
 
 
 def test_an_outline_that_is_one_point_gives_nan_shape_numbers():
-    track = h.derive([with_outline(np.tile(CENTER, (256, 1)))], UPRIGHT, circle=DISH)
+    track = h.derive([with_outline(np.tile(CENTER, (256, 1)))], UPRIGHT)
     assert track.perimeter_mm[0] == 0.0
     assert np.isnan([track.solidity[0], track.circularity[0], track.feret_max_mm[0]]).all()
     assert np.isnan(track.radial_mm[0]).all()
     assert track.outline_xy_mm[0] == pytest.approx(np.tile(UPRIGHT.to_world(*CENTER), (128, 1)), abs=1e-4)
-    assert np.isfinite(track.wall_dist_min_mm[0])
 
 
 def test_a_body_center_outside_the_outline_starts_the_outline_at_the_point_farthest_ahead():

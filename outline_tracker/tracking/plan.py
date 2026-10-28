@@ -27,9 +27,9 @@ from outline_tracker.core.geometry import grid_frames
 from outline_tracker.measure.mask import MODES
 from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.base import ObjectPrompt, points_in_image
-from outline_tracker.core.session import Circle, Session, Track
+from outline_tracker.core.session import Boundary, Session, Track
 
-DISH_MARGIN = 0.03  # the dish crop reaches m = 0.03 R beyond the fitted wall on every side (SPEC 6.2)
+BOUNDARY_MARGIN = 0.03  # the boundary crop reaches m = 0.03 R beyond the fitted circle on every side (SPEC 6.2)
 
 
 @dataclass(frozen=True)
@@ -41,8 +41,8 @@ class RunPlan:
     mode: "coarse" or "fine". frames: the video frame numbers of the run, on the clip's grid from
     `start_frame` to the clip's end, or to the last grid frame up to `ended_at` of its tracks, which
     is then the same for all of them. input_box: (c0, r0, width, height) in whole px of the full
-    frame, the part of the frame the model is shown in a coarse run: the dish square or the whole
-    frame. For a fine run it is the part on which the object is first looked for.
+    frame, the part of the frame the model is shown in a coarse run: the boundary's square or the
+    whole frame. For a fine run it is the part on which the object is first looked for.
     """
 
     track_ids: tuple[str, ...]
@@ -56,41 +56,41 @@ def _finite(*values) -> bool:
     return all(isinstance(value, numbers.Real) and math.isfinite(value) for value in values)
 
 
-def dish_box(circle: Circle, frame_size: tuple[int, int]) -> tuple[int, int, int, int]:
-    """The dish crop of SPEC 6.2: the square [uc - R - m, uc + R + m] x [vc - R - m, vc + R + m] with
+def boundary_box(boundary: Boundary, frame_size: tuple[int, int]) -> tuple[int, int, int, int]:
+    """The boundary crop of SPEC 6.2: the square [uc - R - m, uc + R + m] x [vc - R - m, vc + R + m] with
     m = 0.03 R, widened to whole pixels (floor and ceil) and clipped to the frame.
 
-    `circle` is the fitted dish wall (center (uc, vc) and radius R in px of the full frame, Tracker's
+    `boundary` is the fitted circle (center (uc, vc) and radius R in px of the full frame, Tracker's
     convention); `frame_size` = (width, height) of the frame in px. Returns (c0, r0, width, height)
     in whole px of the full frame: the pixels [r0:r0 + height, c0:c0 + width]. Raises ValueError
     for a circle without a positive, finite radius or a finite center, and for one whose square
     lies outside the frame.
     """
-    (cu, cv), radius = circle.center_px, circle.radius_px
+    (cu, cv), radius = boundary.center_px, boundary.radius_px
     width, height = frame_size
     if not _finite(cu, cv, radius) or radius <= 0:
-        raise ValueError(f"The dish circle (center {circle.center_px}, radius {radius!r} px) cannot give a crop: "
-                         "fit the circle again, or switch off \"Crop to dish\".")
-    half = radius * (1.0 + DISH_MARGIN)
+        raise ValueError(f"The boundary (center {boundary.center_px}, radius {radius!r} px) cannot give a crop: "
+                         "fit the circle again, or switch off \"Crop to boundary\".")
+    half = radius * (1.0 + BOUNDARY_MARGIN)
     c0, c1 = max(math.floor(cu - half), 0), min(math.ceil(cu + half), int(width))
     r0, r1 = max(math.floor(cv - half), 0), min(math.ceil(cv + half), int(height))
     if c1 <= c0 or r1 <= r0:
-        raise ValueError(f"The dish circle (center {circle.center_px}, radius {radius:g} px) lies outside the "
-                         f"{width} x {height} px frame: fit the circle again, or switch off \"Crop to dish\".")
+        raise ValueError(f"The boundary (center {boundary.center_px}, radius {radius:g} px) lies outside the "
+                         f"{width} x {height} px frame: fit the circle again, or switch off \"Crop to boundary\".")
     return c0, r0, c1 - c0, r1 - r0
 
 
 def view_box(session: Session) -> tuple[int, int, int, int]:
-    """What coarse tracking shows the model (SPEC 6.2): the dish square (`dish_box`) when the session
-    has a circle and `processing.dish_crop` is on, else the whole frame. Returns
+    """What coarse tracking shows the model (SPEC 6.2): the boundary's square (`boundary_box`) when the
+    session has a boundary and `processing.boundary_crop` is on, else the whole frame. Returns
     (c0, r0, width, height) in whole px of the full frame. Raises ValueError when the session does
-    not hold the frame size of its video, or the circle gives no crop."""
+    not hold the frame size of its video, or the boundary gives no crop."""
     width, height = session.video.width, session.video.height
     if not (isinstance(width, int) and isinstance(height, int) and width > 0 and height > 0):
         raise ValueError(f"The session does not know the frame size of its video ({width!r} x {height!r} px): "
                          "open the video again.")
-    if session.circle is not None and session.processing.dish_crop:
-        return dish_box(session.circle, (width, height))
+    if session.boundary is not None and session.processing.boundary_crop:
+        return boundary_box(session.boundary, (width, height))
     return 0, 0, width, height
 
 

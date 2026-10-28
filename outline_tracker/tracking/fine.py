@@ -7,7 +7,7 @@ of the frame. The parts:
 - the window rule: W = clip(ceil(3 F), 96, 512), F the largest diameter of the object's outline on
   its start frame (`fine_window_px`, `fine_window`); a window set by hand is used as it is;
 - how a fine run starts (`fine_starts`): the model is asked for the object's mask on the start
-  frame as coarse tracking would show it (the frame, or the dish square); the mask gives F and the
+  frame as coarse tracking would show it (the frame, or the boundary's square); the mask gives F and the
   first center, and the clicks are shifted into the first window;
 - the crop (`FollowCrop`): centered on the object's centroid on the tracked frame before, kept
   where it is while the object is lost, its corner rounded to whole pixels, and of the same size

@@ -2,7 +2,7 @@
 This module also says how a record is read from and written to JSON.
 
 One dataclass per block of session.json, with the field names of SPEC 8.10: `Clip`, `TimeSettings`,
-`CalibrationSettings`, `Axes`, `Circle`, `Processing`, `ProbeBox`, `Prompt`, `Track`, `RunRecord` and
+`CalibrationSettings`, `Axes`, `Boundary`, `Processing`, `ProbeBox`, `Prompt`, `Track`, `RunRecord` and
 `Correction`, and `_Record`, the base class that all of them share with `Session` and that does the reading
 and writing. The video block (`VideoRef`, with the errors of finding the video again), the whole `Session`
 (load, save, `world_frame`, `locate_video`) and `SessionVersionError` are in outline_tracker/core/session.py,
@@ -169,17 +169,17 @@ class Axes(_Record):
 
 
 @dataclass
-class Circle(_Record):
-    """The dish wall (SPEC 4.4), key "boundary" in the file. shape: "circle", the only shape (decision 8). In
-    image px: the clicked points [[u, v], ...], the fitted center [u, v], the radius and the RMS residual.
-    dish_mm: the dish's known inner diameter in mm, or None (key "diameter_mm")."""
+class Boundary(_Record):
+    """The boundary (SPEC 4.4; decision 8). shape: "circle", the only shape. In image px: the clicked points
+    [[u, v], ...], the fitted center [u, v], the radius and the RMS residual. diameter_mm: the boundary's known
+    diameter in mm, or None."""
 
     shape: str = "circle"
     points_px: list[list[float]] = field(default_factory=list)
     center_px: list[float] = field(default_factory=lambda: [0.0, 0.0])
     radius_px: float = 0.0
     rms_px: float = 0.0
-    dish_mm: float | None = field(default=None, metadata={"key": "diameter_mm"})
+    diameter_mm: float | None = None
 
 
 @dataclass
@@ -187,12 +187,13 @@ class Processing(_Record):
     """Settings of tracking and export, with the defaults of SPEC 8.10. radial_step_deg in degrees;
     shape_ok_min in px or grid cells along the major axis (SPEC 7.8); core_open_frac a fraction of the body
     length (SPEC 7.3); jump_mm_s in mm per s (SPEC 9); fine_window_factor times the object's length (6.3).
-    dish_crop has the key "boundary_crop". tracker_format: whether an export writes the Tracker-format files
-    (decisions 7 and 34; false for a new session, true for a file of version 1)."""
+    boundary_crop: whether coarse tracking shows the model the square around the boundary (SPEC 6.2).
+    tracker_format: whether an export writes the Tracker-format files (decisions 7 and 34; false for a new
+    session, true for a file of version 1)."""
 
     model: str = "edgetam"
     device: str = "auto"
-    dish_crop: bool = field(default=True, metadata={"key": "boundary_crop"})
+    boundary_crop: bool = True
     outline_points: int = 128
     radial_step_deg: int = 5
     shape_ok_min: int = 20

@@ -49,8 +49,8 @@ def test_the_hint_is_the_first_row_of_the_body_and_wraps(window):
     panel = window.panels[3]
     assert panel.body.itemAt(0).widget() is panel.hint
     assert panel.hint.wordWrap()
-    panel.set_hint("The circle needs 3 or more points. Click more points on the dish wall.")
-    assert panel.hint.text() == "The circle needs 3 or more points. Click more points on the dish wall."
+    panel.set_hint("The circle needs 3 or more points. Click more points on the boundary's edge.")
+    assert panel.hint.text() == "The circle needs 3 or more points. Click more points on the boundary's edge."
 
 
 def test_a_click_on_a_header_opens_and_closes_that_panel_only(window, qtbot):

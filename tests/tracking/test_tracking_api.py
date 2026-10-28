@@ -50,7 +50,7 @@ def test_the_plans_arguments_come_first_in_the_plans_order(name):
 def test_tracking_still_gives_the_job_api_next_to_the_edit_api():
     # what tasks A15 and A16 produce: jobs, planning, the frame-hash guard, the fine window
     job_api = ["AUTOSAVE_EVERY", "Callbacks", "FrameHashMismatch", "FrameHashUpdate", "Job", "RunPlan",
-               "SessionChanges", "dish_box", "fine_window", "fine_window_px", "partial_tracks", "plan_runs", "run_job"]
+               "SessionChanges", "boundary_box", "fine_window", "fine_window_px", "partial_tracks", "plan_runs", "run_job"]
     for name in job_api:
         assert name in tracking.__all__ and hasattr(tracking, name), name
     assert len(tracking.__all__) == len(set(tracking.__all__))

@@ -112,7 +112,7 @@ def test_null_is_fine_where_a_block_may_be_absent():
     data["calibration"]["stick"] = None
     data["time"]["stopwatch"] = None
     s = Session.from_json(data)
-    assert (s.circle, s.calibration.stick, s.time.stopwatch) == (None, None, None)
+    assert (s.boundary, s.calibration.stick, s.time.stopwatch) == (None, None, None)
     assert s.to_json() == data
 
 

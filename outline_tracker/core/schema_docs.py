@@ -24,8 +24,8 @@ from outline_tracker.core.schema import (
 )
 from outline_tracker.core.schema_prose import (
     _EXPORT_COMMAND, _EXPORT_TEXT, _FLAGS_ADVICE, _FLAGS_INTRO, _GIT_EXTRA, _GIT_NOTE, _IN_GIT, _LOCKED_TEXT,
-    _META_INTRO, _NOT_IN_GIT, _OUTLINES_INTRO, _ROW_TEXT, _SHAPE_FILES, _conventions, _para, _plain, _radii,
-    _radii_run, _reading_code, _reading_note, _scopes,
+    _META_INTRO, _NOT_IN_GIT, _OUTLINES_INTRO, _REMOVED_NOTE, _ROW_TEXT, _SHAPE_FILES, _conventions, _para, _plain,
+    _radii, _radii_run, _reading_code, _reading_note, _removed, _removed_intro, _scopes,
 )
 
 # --------------------------------------------------------------------------- README.txt (SPEC 8.11)
@@ -49,6 +49,10 @@ def _columns_section() -> list[str]:
         if radii:
             lines.append(_entry(radii[0], _radii_run(radii)))
             lines.append(_para("The columns, in order: " + " ".join(c.name for c in radii), indent=2, hang=4))
+        for version, removed in _removed(spec.name).items():
+            lines += ["", _para(_removed_intro(version), indent=2), ""]
+            lines += [_para(f"{c.name} ({c.unit}): {c.formula}", indent=4, hang=4) for c in removed]
+            lines += ["", _para(_REMOVED_NOTE[spec.name], indent=2)]
     return lines
 
 
@@ -166,6 +170,12 @@ def _file_section(spec: FileSpec) -> list[str]:
     lines += [f"- **In git:** {'yes' if spec.in_git else 'no (large; share it through Drive)'}.", ""]
     if spec.columns is not None:
         lines += _table(["column", "type", "unit", "meaning"], _column_rows(spec.columns))
+    for version, removed in _removed(spec.name).items():
+        intro = _removed_intro(version).split(". ", 1)
+        lines += [f"**{intro[0]}.** {intro[1]}", "",
+                  *_table(["removed column", "unit", f"formula in {version}"],
+                          [[f"`{c.name}`", c.unit, c.formula] for c in removed]),
+                  _REMOVED_NOTE[spec.name], ""]
     return lines + _file_body(spec)
 
 
@@ -180,8 +190,8 @@ def _glossary() -> list[str]:
         ("centroid", "the average position of all pixels of the mask, like its balance point. It is the official "
                      "position of the animal."),
         ("outline", f"the line around the mask, kept as {OUTLINE_POINTS} points per frame for fine tracks."),
-        ("coarse and fine", "in coarse mode the model looks at the whole frame (or the dish); in fine mode it "
-                            "looks at a small crop that follows the animal, which gives a sharper outline."),
+        ("coarse and fine", "in coarse mode the model looks at the whole frame (or the boundary's square); in fine "
+                            "mode it looks at a small crop that follows the animal, which gives a sharper outline."),
         ("core", "the mask with thin parts such as antennae cut away; its centroid is the body center."),
         ("heading", "the direction from the body center to the head, as an angle in your axes."),
         ("empty cell", "how a CSV file says that a number does not exist (for example, the animal is lost on that "

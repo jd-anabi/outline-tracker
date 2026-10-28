@@ -33,7 +33,7 @@ from tracking_helpers import (
 from outline_tracker.video import reader as video
 from outline_tracker.measure.results import ResultsStore
 from outline_tracker.segmenter.fake import ExactFake, ThresholdFake
-from outline_tracker.core.session import Circle, Session
+from outline_tracker.core.session import Boundary, Session
 from outline_tracker.tracking.job import plan_runs
 
 
@@ -79,7 +79,7 @@ def test_an_object_cut_by_the_crop_is_at_the_edge_and_then_lost(dish_clip, tmp_p
     box = (58, 58, 124, 124)
     # B is an ellipse with semi-axes 7.25 x 3.09 px moving right along v = 120.17: its center is at
     # u = 160.55 + 0.643 (frame - 60). The last column of the box has its pixel centers at u = 181.5.
-    circle = Circle(center_px=[120.0, 120.0], radius_px=60.0)
+    circle = Boundary(center_px=[120.0, 120.0], radius_px=60.0)
     session = make_session(dish_clip, tmp_path, [track(dish_clip, "B")], circle=circle)
     assert plan_runs(session, ResultsStore())[0].input_box == box
     status, _ = run(dish_clip, session, tmp_path, ExactFake(dish_clip))
@@ -148,7 +148,7 @@ def test_the_model_is_given_exactly_the_pixels_of_the_box(dish_clip, tmp_path, d
 # The disks of `disk_scene` (radius 12 px): A at (60.3, 200.5) + frame (0.5, 0), B at (40.7, 110.1) +
 # frame (0.37, 0.29). Over 120 frames A and B stay inside columns 28 to 132 and rows 98 to 213.
 # Circle (80, 155), R = 70: m = 2.1, the square is [7.9, 152.1] x [82.9, 227.1], so it holds both.
-DISK_CIRCLE, DISK_BOX = Circle(center_px=[80.0, 155.0], radius_px=70.0), (7, 82, 146, 146)
+DISK_CIRCLE, DISK_BOX = Boundary(center_px=[80.0, 155.0], radius_px=70.0), (7, 82, 146, 146)
 
 
 @pytest.mark.parametrize("names, circle, box", [("ABC", None, FULL_SMALL), ("AB", DISK_CIRCLE, DISK_BOX)],

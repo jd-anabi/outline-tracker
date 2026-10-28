@@ -15,6 +15,7 @@ The README's own shape (ten steps, its commands) is checked in tests/repo/test_r
 import os
 from pathlib import Path
 
+import pytest
 from PySide6.QtCore import QUrl
 
 from last_controls_helpers import control_texts, marked_names, quickstart
@@ -93,6 +94,10 @@ def test_an_opened_sessions_name_shows_in_the_field(window, qtbot, clip_in_odd_f
 # README.md: the Quickstart names the window's own controls
 
 
+@pytest.mark.xfail(strict=True, raises=AssertionError,
+                   reason="decision 48 of docs/ROADMAP.md: README.md stays the page of version 0.1.0 until W3 "
+                          "step 8 (rule 1); its Quickstart marks the panel \"Dish and axes\", which is now "
+                          "\"Boundary and axes\" (decision 8)")
 def test_every_control_the_quickstart_marks_is_a_button_or_a_menu_item_of_the_window(window):
     marked = marked_names(quickstart(README.read_text(encoding="utf-8")))
     texts = control_texts(window)

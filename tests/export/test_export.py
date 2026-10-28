@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 from export_helpers import K, MODEL, RUN_FILES, cells, coarse_run, load, silent, store_run, table, true_pieces, world
 from overlay_helpers import lost_record, record
+from schema_helpers import removed_columns
 from tracking_helpers import DISH_BOX, box_truth
 
 from outline_tracker.export import pipeline as export
@@ -28,7 +29,7 @@ MEASURED = {  # the columns that hold a measured number: an empty cell on a lost
     schema.POSITIONS_CSV: ["x_mm", "y_mm", "u_px", "v_px", "area_mm2"],
     schema.SHAPES_CSV: ["area_mm2", "perimeter_mm", "major_mm", "minor_mm", "eccentricity", "theta_rad", "core_x_mm",
                         "core_y_mm", "core_frac", "solidity", "circularity", "feret_max_mm", "largest_fraction",
-                        "px_along_major", "cells_along_major", "wall_dist_centroid_mm", "wall_dist_min_mm"],
+                        "px_along_major", "cells_along_major"],
 }
 
 
@@ -129,7 +130,7 @@ def test_a_lost_frame_keeps_its_row_with_empty_cells_and_zero_counts(dish_clip, 
         assert lost["flags"] == "LOST;HEADGUESS"  # no head click: HEADGUESS is on every row of the track
         if name == schema.POSITIONS_CSV:
             assert lost["mode"] == "coarse"
-        assert all(rows[0][column] != "" for column in MEASURED[name] if not column.startswith("wall_"))
+        assert all(rows[0][column] != "" for column in MEASURED[name])
     assert (tmp_path / "run" / MODEL / "A.csv").read_text().splitlines()[3] == "0.0083472,2,,,,"
 
 
@@ -190,8 +191,7 @@ def test_a_stick_of_29_mm_scales_every_x_and_y_by_29_over_30_without_tracking(ru
     for column in ("track_id", "frame", "t_s", "u_px", "v_px", "visible", "flags"):
         assert list(new[column]) == list(old[column]), column
     old, new = before["shapes.csv"], after["shapes.csv"]
-    for column in ("perimeter_mm", "major_mm", "minor_mm", "core_x_mm", "core_y_mm", "feret_max_mm",
-                   "wall_dist_centroid_mm", "wall_dist_min_mm"):
+    for column in ("perimeter_mm", "major_mm", "minor_mm", "core_x_mm", "core_y_mm", "feret_max_mm"):
         np.testing.assert_allclose(new[column], ratio * old[column], rtol=0, atol=1e-6, err_msg=column)
     for column in ("theta_rad", "eccentricity", "solidity", "circularity", "core_frac", "px_along_major"):
         np.testing.assert_allclose(new[column], old[column], rtol=0, atol=1e-6, err_msg=column)
@@ -204,6 +204,23 @@ def test_a_stick_of_29_mm_scales_every_x_and_y_by_29_over_30_without_tracking(ru
         np.testing.assert_allclose(new.x_mm, ratio * old.x_mm, rtol=1e-12, atol=0)
         np.testing.assert_allclose(new.y_mm, ratio * old.y_mm, rtol=1e-12, atol=0)
         np.testing.assert_allclose(new.area_mm2, ratio ** 2 * old.area_mm2, rtol=1e-12, atol=0)
+
+
+def test_an_export_with_and_without_a_boundary_writes_the_same_shapes_csv(run_folder):
+    # Decisions 8 and 46: the two distances to the boundary went out of shapes.csv, and nothing else
+    # exported depends on the boundary. Taking it away changes no byte of shapes.csv, nor of positions.csv.
+    export.export_all(run_folder, log=silent)
+    names = (schema.POSITIONS_CSV, schema.SHAPES_CSV)
+    written = {name: (run_folder / name).read_bytes() for name in names}
+    session, _ = load(run_folder)
+    assert session.boundary is not None and session.processing.boundary_crop  # tracked in the boundary's square
+    session.boundary = None
+    session.save(run_folder / "session.json")
+    export.export_all(run_folder, log=silent)
+    assert {name: (run_folder / name).read_bytes() for name in names} == written
+    header = written[schema.SHAPES_CSV].decode("utf-8").split("\n")[0].split(",")
+    assert header == [c.name for c in schema.SHAPES]
+    assert set(header) & {name for name, _, _ in removed_columns()} == set()
 
 
 def test_export_loads_neither_torch_nor_qt(run_folder):

@@ -10,7 +10,7 @@ whole file), the video block `VideoRef` with the errors of finding the video aga
 docs/ROADMAP.md section 2, decision 36).
 It also holds two names about fps_true that the `probe` and `from-tracker` commands share: `UNKNOWN_FPS`, what
 they say when fps_true is neither typed nor in a manifest, and `SLOW_MOTION_FPS`, below which they warn.
-The other blocks (`Clip`, `TimeSettings`, `CalibrationSettings`, `Axes`, `Circle`, `Processing`, `ProbeBox`,
+The other blocks (`Clip`, `TimeSettings`, `CalibrationSettings`, `Axes`, `Boundary`, `Processing`, `ProbeBox`,
 `Prompt`, `Track`, `RunRecord`, `Correction`) and the base class that reads and writes them are in
 outline_tracker/core/session_parts.py; they are imported here, so `from outline_tracker.core.session import Track`
 works.
@@ -51,7 +51,7 @@ from outline_tracker.core.schema import SESSION_SCHEMA_VERSION
 
 # The blocks written in core/session_parts.py, imported here so that they can be imported from this module too
 # (`Prompt` is the one that this file does not use itself).
-from outline_tracker.core.session_parts import (Axes, CalibrationSettings, Circle, Clip, Correction, ProbeBox, Processing,
+from outline_tracker.core.session_parts import (Axes, Boundary, CalibrationSettings, Clip, Correction, ProbeBox, Processing,
                                            Prompt, RunRecord, TimeSettings, Track, _Record)
 # MixedVersionError is imported for those that import the errors of a session file from this module
 from outline_tracker.core.session_v1 import MixedVersionError, SessionKeyError, upgrade  # noqa: F401
@@ -168,8 +168,8 @@ class VideoRef(_Record):
 @dataclass
 class Session(_Record):
     """A whole session.json (docs/design/formats.md). tool_version: the outline-tracker version that made the
-    session. student: key "label". complete: False while a run is partial (SPEC 6.4). circle: key "boundary";
-    None when no dish wall was fitted. The file's "format" and "schema_version" are constants written by
+    session. student: key "label". complete: False while a run is partial (SPEC 6.4). boundary: None when no
+    boundary was fitted (decision 8). The file's "format" and "schema_version" are constants written by
     `to_json`. read_version: the schema version of the file the session was read from (this build's for a new
     session); it is no key of the file."""
 
@@ -183,7 +183,7 @@ class Session(_Record):
     time: TimeSettings = field(default_factory=TimeSettings)
     calibration: CalibrationSettings = field(default_factory=CalibrationSettings)
     axes: Axes = field(default_factory=Axes)
-    circle: Circle | None = field(default=None, metadata={"key": "boundary"})
+    boundary: Boundary | None = None
     processing: Processing = field(default_factory=Processing)
     probes: list[ProbeBox] = field(default_factory=list)
     tracks: list[Track] = field(default_factory=list)
@@ -212,8 +212,8 @@ class Session(_Record):
             data = upgrade(data, where)
         session = super().from_json({k: v for k, v in data.items() if k not in ("format", "schema_version")})
         session.read_version = found
-        if session.circle is not None and session.circle.shape != "circle":
-            raise SessionKeyError("boundary.shape", f'{where} has "boundary.shape" {session.circle.shape!r}, but '
+        if session.boundary is not None and session.boundary.shape != "circle":
+            raise SessionKeyError("boundary.shape", f'{where} has "boundary.shape" {session.boundary.shape!r}, but '
                                   'this outline-tracker knows only the shape "circle". It may have been written by '
                                   "a newer outline-tracker: update yours.")
         session.validate()

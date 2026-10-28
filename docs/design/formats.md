@@ -417,3 +417,26 @@ The tests of the version 1 reader read this section:
   with the same keys in the same order. Each version 2 example must be read and written back unchanged.
 
 A change of the format therefore starts with a change of this page.
+
+## shapes.csv, without the distances to the wall
+
+W3 step 2 (decisions 8 and 40). Status: approved by the owner on 2026-10-28, and in the code from W3 step 2 on.
+
+Two columns of SPEC-v0.1.md 8.4 are removed. The other columns keep their names, order, types, units and
+number formats.
+
+### The removed columns
+
+| Removed column | Unit | Formula in 0.1.0 |
+|---|---|---|
+| `wall_dist_centroid_mm` | mm | R - hypot(x_mm - cx, y_mm - cy) |
+| `wall_dist_min_mm` | mm | R - max of hypot(x - cx, y - cy) over the outline's points (x, y) |
+
+Here (cx, cy) is the boundary's center in your axes: `boundary.center_px` of session.json, mapped as positions
+are (OUTPUTS.md, Conventions). R = k times `boundary.radius_px`, with k the scale in mm per pixel (run.log). The
+outline's points are the 256 points of results.npz (`<id>__outline_px`), mapped the same way. A negative
+value means outside the circle. Without a boundary, both columns were empty.
+
+A removed column has no reader (ROADMAP rule 5). README.txt and OUTPUTS.md list the removed columns with
+these formulas, from one table in `core/schema.py`, and CHANGELOG.md says the same. The tests take the two
+names, their units and their formulas from the table above.

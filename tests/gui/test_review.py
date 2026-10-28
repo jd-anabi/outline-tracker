@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QCheckBox, QPushButton, QTableView
 
 from gui_helpers import picture
 from outline_tracker.core import schema
+from outline_tracker.core.session import Boundary
 from outline_tracker.tracking import job as tracking
 from prompt_helpers import Gate, gui_thread, this_thread
 from review_helpers import (FPS, GRID, contact_frames, frames_with, give_scale, hint, listed, listed_by, opened_run,
@@ -286,6 +287,25 @@ def test_results_without_session_json_are_a_problem_until_the_session_is_saved_a
     assert (folder / schema.SESSION_JSON).is_file()
     listed(qtbot, review)
     assert review.rows == rows and hint(window).startswith(f"{len(rows)} flags on ")
+
+
+def test_a_boundary_drawn_or_taken_away_lists_no_flags_again(window, qtbot, dish_run, tmp_path, monkeypatch):
+    # Decision 46: no flag depends on the boundary, so a new one asks for no new listing; new axes do.
+    calls = listed_by(monkeypatch)
+    review = opened_run(window, qtbot, dish_run, tmp_path / "run")
+    session, rows, made = window.controller.session, list(review.rows), len(calls.threads)
+    assert rows and made >= 1 and session.boundary is None
+    for boundary in (Boundary(center_px=[160.5, 120.5], radius_px=100.0), None):
+        session.boundary = boundary
+        window.controller.touch()
+        window.controller.save_now()
+        assert not review.listing.pending and review.rows == rows and len(calls.threads) == made
+    session.axes.angle_deg = 10.0
+    window.controller.touch()
+    window.controller.save_now()
+    assert review.listing.pending
+    listed(qtbot, review)
+    assert len(calls.threads) == made + 1
 
 
 # ---------------------------------------------------------------------------------------------

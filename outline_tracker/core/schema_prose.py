@@ -14,7 +14,8 @@ import textwrap
 
 from outline_tracker.core.schema import (
     FILES, OUTLINE_POINTS, OUTLINES_META_KEY, POSITION_FLAGS, POSITIONS, POSITIONS_CSV, PROBES_CSV,
-    RADIAL_CSV, SHAPE_FLAGS, SHAPES, SHAPES_CSV, TRACKER_FILE, Column, npz_key,
+    RADIAL_CSV, REMOVED_COLUMNS, RESULTS_NPZ, RUN_LOG, SESSION_JSON, SHAPE_FLAGS, SHAPES, SHAPES_CSV,
+    STORED_OUTLINE_POINTS, TRACKER_FILE, Column, RemovedColumn, npz_key,
 )
 
 _WIDTH = 96
@@ -183,6 +184,32 @@ def _reading_note() -> str:
         f"cells, which pandas reads as NaN; the integer columns ({', '.join(dict.fromkeys(ints))}) have no empty "
         "cells and stay integers."
     )
+
+
+def _removed(file: str) -> dict[str, list[RemovedColumn]]:
+    """The columns that `file` no longer has, by the last version that wrote them."""
+    found: dict[str, list[RemovedColumn]] = {}
+    for c in REMOVED_COLUMNS:
+        if c.file == file:
+            found.setdefault(c.version, []).append(c)
+    return found
+
+
+def _removed_intro(version: str) -> str:
+    return (f"Columns removed since {version}. These columns of version {version} are no longer written; each "
+            "can be computed from the other files with its formula of that version:")
+
+
+# What the formulas of the removed columns of shapes.csv are made of (docs/design/formats.md).
+_REMOVED_NOTE = {
+    SHAPES_CSV: (
+        f"Here (cx, cy) is the boundary's center in your axes: `boundary.center_px` of `{SESSION_JSON}`, mapped "
+        "as positions are (Your axes, under Conventions). R = k times `boundary.radius_px`, with k the scale in mm "
+        f"per pixel that `{RUN_LOG}` gives. The outline's points are the {STORED_OUTLINE_POINTS} points of "
+        f"`{RESULTS_NPZ}` (`{npz_key('<id>', 'outline_px')}`), mapped the same way. A negative value means "
+        "outside the circle. Without a boundary, both columns were empty."
+    ),
+}
 
 
 def _radii(columns: list[Column]) -> list[Column]:

@@ -57,7 +57,7 @@ def test_the_tool_lines_are_the_design_notes(window, qtbot, dish_clip):
     calibration.tape_tool.add_tool_point(60.5, 200.5)
     assert window.tool_text.text() == "Tape: click the second ruler mark."
     view.set_tool(dish.circle_tool)
-    assert window.tool_text.text() == ("Circle: click points on the inner wall of the dish. 0 placed; "
+    assert window.tool_text.text() == ("Circle: click points on the edge of the boundary. 0 placed; "
                                        "6 or more is best.")
     place(dish.circle_tool, wall(dish_clip)[:2])
     assert "2 placed" in window.tool_text.text()
@@ -110,7 +110,7 @@ def test_a_click_outside_the_image_places_nothing(window, qtbot, wide_clip):
             tool.add_tool_point(u, v)  # a point that is not on the frame, however it arrives
     session = window.controller.session
     assert calibration.stick_tool.points == [] and dish.circle_tool.points == []
-    assert session.calibration.stick is None and session.circle is None
+    assert session.calibration.stick is None and session.boundary is None
     assert session.axes.origin_px == [640.0, 360.0]  # still the frame's center
     assert not dish.axes_tool.placed
 
@@ -226,7 +226,7 @@ def test_six_points_on_the_wall_give_the_dishs_center_and_radius(window, qtbot, 
     assert (cu, cv, radius) == (160.3, 119.8, 108.0)
     points = wall(dish_clip)
     place(dish.circle_tool, points)
-    circle = window.controller.session.circle
+    circle = window.controller.session.boundary
     assert circle.points_px == points
     assert circle.center_px == pytest.approx([cu, cv], abs=1e-6)
     assert circle.radius_px == pytest.approx(radius, abs=1e-6)
@@ -239,10 +239,25 @@ def test_fewer_than_three_points_fit_nothing_and_say_how_many_are_needed(window,
     tool, session = dish.circle_tool, window.controller.session
     for count, point in enumerate(wall(dish_clip)[:2], start=1):
         tool.add_tool_point(*point)
-        assert session.circle is None and len(tool.points) == count
-        assert tool.refusal == "The circle needs 3 or more points. Click more points on the dish wall."
+        assert session.boundary is None and len(tool.points) == count
+        assert tool.refusal == "The circle needs 3 or more points. Click more points on the boundary's edge."
     tool.add_tool_point(*wall(dish_clip)[2])
-    assert session.circle is not None and tool.refusal is None
+    assert session.boundary is not None and tool.refusal is None
+
+
+def test_the_known_diameter_goes_with_the_boundary_and_must_be_more_than_0_mm(window, qtbot, dish_clip):
+    _, dish = opened(window, qtbot, dish_clip)
+    tool, session = dish.circle_tool, window.controller.session
+    tool.set_diameter_mm(32.0)  # typed before there is a boundary: kept for the fit
+    assert tool.diameter_mm == 32.0 and session.boundary is None
+    place(tool, wall(dish_clip))
+    assert session.boundary.diameter_mm == 32.0
+    for bad in (0.0, -1.0, math.nan, math.inf):
+        with pytest.raises(ValueError, match=r"^The diameter must be more than 0 mm\.$"):
+            tool.set_diameter_mm(bad)
+        assert tool.diameter_mm == 32.0 and session.boundary.diameter_mm == 32.0
+    tool.set_diameter_mm(None)  # "not known"
+    assert tool.diameter_mm is None and session.boundary.diameter_mm is None
 
 
 def test_three_points_on_a_line_give_the_message_of_fit_circle(window, qtbot, dish_clip):
@@ -251,10 +266,10 @@ def test_three_points_on_a_line_give_the_message_of_fit_circle(window, qtbot, di
     with pytest.raises(ValueError) as on_a_line:
         geometry.fit_circle(line)
     place(dish.circle_tool, line)
-    assert window.controller.session.circle is None
+    assert window.controller.session.boundary is None
     assert dish.circle_tool.refusal == str(on_a_line.value)
     dish.circle_tool.add_tool_point(60.5, 200.5)  # a point off the line: now a circle fits
-    assert window.controller.session.circle is not None and dish.circle_tool.refusal is None
+    assert window.controller.session.boundary is not None and dish.circle_tool.refusal is None
 
 
 def test_the_origin_starts_at_the_frames_center_and_follows_the_circle_until_it_is_placed(window, qtbot, dish_clip):
@@ -288,11 +303,11 @@ def test_origin_to_center_copies_the_center_and_then_the_origin_stays(window, qt
     place(circle, wall(dish_clip))
     axes.origin_to_center()
     assert session.axes.origin_px == pytest.approx([cu, cv], abs=1e-6)
-    assert session.axes.origin_px is not session.circle.center_px  # a copy, not the same list
+    assert session.axes.origin_px is not session.boundary.center_px  # a copy, not the same list
     # the circle is clicked again somewhere else: the origin was put where it is, and stays
     circle.redo()
     place(circle, on_circle((150.0, 110.0), 90.0, SIX))
-    assert session.circle.center_px == pytest.approx([150.0, 110.0], abs=1e-6)
+    assert session.boundary.center_px == pytest.approx([150.0, 110.0], abs=1e-6)
     assert session.axes.origin_px == pytest.approx([cu, cv], abs=1e-6)
 
 
@@ -327,7 +342,7 @@ def test_redo_clears_the_points_of_a_tool(window, qtbot, dish_clip):
     assert session.calibration.stick is None and calibration.stick_tool.points == []
     assert not lit(window.view, SMALL, 100.5, 20.5)
     dish.circle_tool.redo()
-    assert session.circle is None and dish.circle_tool.points == []
+    assert session.boundary is None and dish.circle_tool.points == []
     assert dish.circle_tool.refusal is None  # nothing is asked of a circle that was cleared
     for tool in (calibration.stick_tool, calibration.tape_tool, dish.circle_tool):
         assert tool.graphic.items == [] and tool.graphic.labels == []

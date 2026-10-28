@@ -46,8 +46,7 @@ def flags_table(run_folder) -> list[tuple[str, int, float, str]]:
                          "in, before the flags can be listed.")
     world = session.world_frame()
     arrays = {track.id: store.arrays(track.id) for track in tracks}
-    derived = {track.id: derive_track(arrays[track.id], track, world, fps, session.circle, session.processing)
-               for track in tracks}
+    derived = {track.id: derive_track(arrays[track.id], track, world, fps, session.processing) for track in tracks}
     cells = compute_flags(derived, arrays, world, session.processing)
     rows = []
     for track in tracks:

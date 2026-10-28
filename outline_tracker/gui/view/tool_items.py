@@ -136,8 +136,8 @@ class Graphic:
                 self.label(text, ((u1 + u2) / 2, (v1 + v2) / 2))
         self.ends(points)
 
-    def dish(self, points, center=None, radius: float = 0.0, text: str | None = None) -> None:
-        """Draw the dish wall anew: a square at each clicked point and, with a `center` (u, v) and
+    def boundary(self, points, center=None, radius: float = 0.0, text: str | None = None) -> None:
+        """Draw the boundary anew: a square at each clicked point and, with a `center` (u, v) and
         a `radius`, the fitted circle with `text` above its top; all in px of the video frame."""
         self.clear()
         if center is not None:

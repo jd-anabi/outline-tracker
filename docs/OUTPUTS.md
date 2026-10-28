@@ -14,7 +14,7 @@ It is generated from the schema of the tool, and a test fails when it is out of 
 - **mask**: the pixels of one frame that the model says belong to the animal.
 - **centroid**: the average position of all pixels of the mask, like its balance point. It is the official position of the animal.
 - **outline**: the line around the mask, kept as 128 points per frame for fine tracks.
-- **coarse and fine**: in coarse mode the model looks at the whole frame (or the dish); in fine mode it looks at a small crop that follows the animal, which gives a sharper outline.
+- **coarse and fine**: in coarse mode the model looks at the whole frame (or the boundary's square); in fine mode it looks at a small crop that follows the animal, which gives a sharper outline.
 - **core**: the mask with thin parts such as antennae cut away; its centroid is the body center.
 - **heading**: the direction from the body center to the head, as an angle in your axes.
 - **empty cell**: how a CSV file says that a number does not exist (for example, the animal is lost on that frame). pandas reads it as `NaN`, short for not a number.
@@ -56,7 +56,7 @@ The run folder holds these files, in this order. `<model>` is the name of the mo
 | `v_px` | float, 3 decimals | px | the same point in image coordinates (Tracker's pixely) |
 | `area_mm2` | float, 6 decimals | mm^2 | mask area |
 | `visible` | int | none | 1 if the mask is non-empty, else 0 |
-| `mode` | str | none | coarse (the model saw the whole frame or dish) or fine (a crop that follows the object) |
+| `mode` | str | none | coarse (the model saw the whole frame or the boundary's square) or fine (a crop that follows the object) |
 | `flags` | str | none | quality codes, separated by ';' (see the quality flags); empty if none |
 
 ### `<model>/<id>.csv`
@@ -76,7 +76,7 @@ The run folder holds these files, in this order. `<model>` is the name of the mo
 
 ### `shapes.csv`
 
-- **What it holds:** one row per track and tracked frame: size, axes, heading, solidity, resolution, wall distance.
+- **What it holds:** one row per track and tracked frame: size, axes, heading, solidity, resolution.
 - **Rows:** the same rows as `positions.csv`.
 - **In git:** yes.
 
@@ -102,9 +102,16 @@ The run folder holds these files, in this order. `<model>` is the name of the mo
 | `px_along_major` | float, 3 decimals | px | camera pixels along the major axis of the largest piece of the mask: 4 sqrt(lambda1) of that piece, in px |
 | `cells_along_major` | float, 3 decimals | cells | model grid cells along that axis: px_along_major / cell, with cell = max(width, height) / 256 px of the image the model saw |
 | `shape_ok` | int | none | 1 if min(px_along_major, cells_along_major) >= 20 (setting shape_ok_min), else 0 |
-| `wall_dist_centroid_mm` | float, 6 decimals | mm | dish radius minus the centroid's distance from the dish center; empty without a dish circle; negative = outside the circle |
-| `wall_dist_min_mm` | float, 6 decimals | mm | dish radius minus the outline's largest distance from the dish center (how close the outline comes to the wall); empty without a dish circle |
 | `flags` | str | none | quality codes, separated by ';' (see the quality flags); the same text as in positions.csv |
+
+**Columns removed since 0.1.0.** These columns of version 0.1.0 are no longer written; each can be computed from the other files with its formula of that version:
+
+| removed column | unit | formula in 0.1.0 |
+| --- | --- | --- |
+| `wall_dist_centroid_mm` | mm | R - hypot(x_mm - cx, y_mm - cy) |
+| `wall_dist_min_mm` | mm | R - max of hypot(x - cx, y - cy) over the outline's points (x, y) |
+
+Here (cx, cy) is the boundary's center in your axes: `boundary.center_px` of `session.json`, mapped as positions are (Your axes, under Conventions). R = k times `boundary.radius_px`, with k the scale in mm per pixel that `run.log` gives. The outline's points are the 256 points of `results.npz` (`<id>__outline_px`), mapped the same way. A negative value means outside the circle. Without a boundary, both columns were empty.
 
 ### `radial.csv`
 
@@ -224,7 +231,7 @@ The column `flags` of `positions.csv` and `shapes.csv` holds the quality codes o
 | `JUMP` | position | centroid speed between consecutive visible frames above jump_mm_s (default 100 mm/s) | probably jumped to another object |
 | `SIZE` | position | area outside 0.5 to 2 times the track's median area | merged with a neighbor, or partly lost |
 | `CONTACT` | position | this track's outline comes within max(3 px, 2 grid cells) of another track's outline on the same frame | identities may swap here: check |
-| `EDGE` | position | the mask touches the border of the model's input (frame, dish crop or fine crop) | outline may be cut off |
+| `EDGE` | position | the mask touches the border of the model's input (frame, boundary crop or fine crop) | outline may be cut off |
 | `MULTI` | shape | more than one component, the second at least 10% of the largest | ragged or split mask |
 | `LOWRES` | shape | shape_ok = 0 (fewer than 20 camera pixels or fewer than 20 grid cells along the major axis) | shape columns unreliable; use fine mode or closer footage |
 | `ORIENT` | shape | core nearly round (lambda2 / lambda1 > 0.8), heading axis jumped by more than 60 degrees, or the core fallback was used | heading unreliable |

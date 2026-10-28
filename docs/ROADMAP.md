@@ -348,6 +348,42 @@ Found at the start of W3 (2026-10-27):
     [W3]
     Decided 2026-10-27: the default stands.
 
+Found at the start of W3 step 2 (2026-10-28):
+
+40. `shapes.csv` loses two columns (decision 8), so its format changes (decision 15). Default: a
+    section of `docs/design/formats.md` names them and gives their formulas; the tests take
+    them from it. [W3]
+    Decided 2026-10-28: the default stands.
+41. The tool and its button. Default: `CircleTool` and the button "Circle" keep their names,
+    because the circle is the boundary's shape; only their "dish" names change. [W3]
+    Decided 2026-10-28: the default stands.
+42. The crop box without a boundary. Default: unchecked and disabled on the screen only; the
+    stored `processing.boundary_crop` keeps its value, and the crop still needs both. [W3]
+    Decided 2026-10-28: the default stands.
+43. Panel 4 without a video. Default: it waits ("todo") like the other panels; "done from the
+    start" (decision 8) holds once a video is open. [W3]
+    Decided 2026-10-28: the default stands.
+44. The new texts of panel 4, the tool, the crop's errors, `run.log` and the generated
+    descriptions. Default: the wording proposed in PR #2. [W3]
+    Decided 2026-10-28: the default stands.
+45. The test file of panel 4. Default: it is renamed in the commit that moves the module. [W3]
+    Decided 2026-10-28: the default stands.
+46. `derive_track` and the review table's key of staleness. Default: both lose the circle,
+    which only the two removed columns used. [W3]
+    Decided 2026-10-28: the default stands.
+47. `docs/design/gui_design.md`. Default: its texts of panel 4 follow the code in the same
+    commits. [W3]
+    Decided 2026-10-28: the default stands.
+
+Found during W3 step 2 (2026-10-28):
+
+48. The Quickstart of `README.md` and the window. A test in `tests/gui/test_finish.py` holds
+    every control that the Quickstart marks against the running window. The README stays the
+    page of version 0.1.0 until step 8 (rule 1), and its step 5 marks the panel "Dish and
+    axes", which is now "Boundary and axes" (decisions 8, 44). Default: that test is marked
+    xfail (strict) with this reason, and step 8 removes the mark when it rewrites the
+    Quickstart; a strict xfail fails as soon as the README and the window agree again. [W3]
+
 ## 4. Workstreams
 
 ### W0. Close version 0.1.0 (the first build's own session)
@@ -615,7 +651,7 @@ the commands and counts of each section's day, with a note at its top.
       file of each kind (made in the window, made by `from-tracker`) opens and exports; after
       opening and closing, the version 1 file is byte for byte what it was; after a change,
       `session.v1.json` holds it (rule 5).
-- [ ] 2. Dish to Boundary (decision 8): session keys, panel 4, the crop's names, run.log, the
+- [x] 2. Dish to Boundary (decision 8): session keys, panel 4, the crop's names, run.log, the
       tool; remove the two distance columns and regenerate `docs/OUTPUTS.md`.
 - [ ] 3. The name field becomes an optional label, with the folder rules of decision 6.
 - [ ] 4. Frame rate sources (decision 10), the phone-video checks (decision 11), the switch for
@@ -881,3 +917,11 @@ One line per session: date, workstream, what was done, the last commit.
   of each kind that 0.1.0 made opens and exports, end to end. Open: the owner's run of the
   `weights` tests, and two details added to `formats.md` after its approval (PR #1). Last commit
   before this line: `0a050b8`. Next: W3 step 2.
+- 2026-10-28: W3 step 2 (Dish to Boundary, decision 8; PR #2): decisions 40 to 47 answered (the
+  defaults). Panel 4's module moved to `gui/panels/boundary_panel.py`; the Python names are the
+  keys of version 2; the crop, the Circle tool, panel 4 ("Boundary and axes", done without a
+  boundary once a video is open) and `run.log` say boundary; `shapes.csv` lost the two wall
+  distances, which `README.txt`, `docs/OUTPUTS.md` and `CHANGELOG.md` name with their formulas
+  (rule 5); `derive_track` and the review table no longer use the boundary. Open: decision 48
+  (the Quickstart test, a strict xfail until step 8); the owner's run of the `weights` tests.
+  Last commit before this line: `b235467`. Next: W3 step 3.

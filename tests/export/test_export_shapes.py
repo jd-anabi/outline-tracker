@@ -96,9 +96,8 @@ def test_ellipse_axes_and_heading_and_disk_perimeter_and_solidity(shapes_run, sh
     assert set(shapes.shape_ok) == {1} and not shapes["flags"].str.contains("LOWRES").any()
 
 
-def test_core_centers_and_wall_distances_are_in_the_users_axes(shapes_run, shapes_clip):
+def test_core_centers_are_in_the_users_axes(shapes_run, shapes_clip):
     shapes = table(shapes_run / "shapes.csv")
-    cu, cv, radius = shapes_clip.scene.dish
     for track_id in "AB":
         mine = shapes[shapes.track_id == track_id]
         # In each of the three runs the model was shown the whole object, and `ExactFake` answers with
@@ -111,9 +110,6 @@ def test_core_centers_and_wall_distances_are_in_the_users_axes(shapes_run, shape
         x, y = world(core_u, core_v)
         np.testing.assert_allclose(mine.core_x_mm, x, rtol=0, atol=1e-6)
         np.testing.assert_allclose(mine.core_y_mm, y, rtol=0, atol=1e-6)
-        u, v, _ = np.array([true_pose(shapes_clip, track_id, frame) for frame in GRID]).T
-        np.testing.assert_allclose(mine.wall_dist_centroid_mm, K * (radius - np.hypot(u - cu, v - cv)), rtol=0,
-                                   atol=K * 0.1)
 
 
 # ---------------------------------------------------------------------------------------------
