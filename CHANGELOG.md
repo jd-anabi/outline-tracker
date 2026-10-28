@@ -15,6 +15,10 @@ Development version `0.2.0a2.dev0`. The files it writes say so.
   keeps that file beside the new one as `session.v1.json`, and the window or the console says
   so. Version 0.1.0 refuses a file of version 2; it opens the kept file once it is renamed back
   to `session.json`.
+- The dish is now an optional boundary. Panel 4 is called "Boundary and axes"; once a video is
+  open it is done without a boundary, with the origin at the frame's center. Its crop box is
+  called "Crop to boundary for tracking" and is off and disabled until a boundary is fitted;
+  the setting saved in `session.json` keeps its value.
 
 ## 0.2.0a1 (2026-10-08)
 

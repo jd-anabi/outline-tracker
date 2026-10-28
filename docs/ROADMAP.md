@@ -375,6 +375,15 @@ Found at the start of W3 step 2 (2026-10-28):
     commits. [W3]
     Decided 2026-10-28: the default stands.
 
+Found during W3 step 2 (2026-10-28):
+
+48. The Quickstart of `README.md` and the window. A test in `tests/gui/test_finish.py` holds
+    every control that the Quickstart marks against the running window. The README stays the
+    page of version 0.1.0 until step 8 (rule 1), and its step 5 marks the panel "Dish and
+    axes", which is now "Boundary and axes" (decisions 8, 44). Default: that test is marked
+    xfail (strict) with this reason, and step 8 removes the mark when it rewrites the
+    Quickstart; a strict xfail fails as soon as the README and the window agree again. [W3]
+
 ## 4. Workstreams
 
 ### W0. Close version 0.1.0 (the first build's own session)

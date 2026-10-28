@@ -177,7 +177,7 @@ The nine panels (SPEC 10.1): `PANEL_MODULES` and `build_bodies`, one module per 
 | module | what it holds |
 |---|---|
 | `gui/panels/__init__.py` | The nine panels (SPEC 10.1): `PANEL_MODULES` and `build_bodies`, one module per panel, found by its name. |
-| `gui/panels/boundary_panel.py` | Panel 4, Dish and axes (SPEC 4.4, 4.5, 10.1): Circle, Origin to Center, Axes, "Crop to dish for tracking". |
+| `gui/panels/boundary_panel.py` | Panel 4, Boundary and axes (SPEC 4.4, 4.5, 10.1): Circle, Origin to Center, Axes, "Crop to boundary". |
 | `gui/panels/calibration_panel.py` | Panel 3, Calibration (SPEC 4.2, 4.3, 10.1): the Stick tool and its length, the scale, and the Tape check. |
 | `gui/panels/export_panel.py` | Panel 9, Export (SPEC 8.1, 10.1, 10.2): the run folder, Export all, what it wrote, Open folder. |
 | `gui/panels/objects_panel.py` | Panel 6, Objects (SPEC 5, 10.1): the table of objects, Add, Remove, mode, fine window, the point tools. |

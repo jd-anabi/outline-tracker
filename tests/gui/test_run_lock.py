@@ -2,7 +2,7 @@
 
 While a tracking run is going nothing can change what the run works on: the objects and their
 points (panel 6, and a click on the picture), the name, the clip and the open video (panel 1 and
-the File menu). Each part that is off says why. fps_true, the calibration and the dish stay usable:
+the File menu). Each part that is off says why. fps_true, the calibration and the boundary stay usable:
 they change only the session, which the GUI thread saves. The run is parked on a gate inside the
 stand-in, so "during a run" is a state the test holds, not a moment it has to catch.
 
@@ -58,10 +58,12 @@ def test_during_a_run_every_part_that_changes_its_input_is_off_and_says_why(wind
         assert [name for name, part in parts.items() if RUNNING not in part.toolTip()] == []
         for item in (menus.open_action, menus.open_session_action):
             assert not item.isEnabled() and RUNNING in item.toolTip()
-        # what tracking does not read stays usable: fps_true, the calibration, the dish, saving
+        # what tracking does not read stays usable: fps_true, the calibration, the boundary, saving
         assert body(window, 2).fps_edit.isEnabled()
         assert body(window, 3).stick_button.isEnabled() and body(window, 3).length_box.isEnabled()
-        assert body(window, 4).circle_button.isEnabled() and body(window, 4).crop_box.isEnabled()
+        crop = body(window, 4).crop_box  # on with a boundary only (decision 42), whether a run goes or not
+        assert body(window, 4).circle_button.isEnabled() and RUNNING not in crop.toolTip()
+        assert crop.isEnabled() is (window.controller.session.boundary is not None)
         assert menus.save_action.isEnabled() and menus.quit_action.isEnabled()
         let_run_end(qtbot, track, gate)
     assert [name for name, part in parts.items() if not part.isEnabled()] == []
